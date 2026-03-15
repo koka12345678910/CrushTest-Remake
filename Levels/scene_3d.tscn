@@ -1,0 +1,15 @@
+[gd_scene format=3 uid="uid://cfx0kmxd45lqf"]
+
+[node name="Scene3D" type="Node3D"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 7.373169, 0)
+
+[node name="DirectionalLight3D" type="DirectionalLight3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 0.97539616, 0.22045907, 0, -0.22045907, 0.97539616, 0, 13.987144, 63.274113)
+shadow_enabled = true
+
+[node name="Camera3D" type="Camera3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 0.010279789, 0.9999472, 0, -0.9999472, 0.010279789, 0, 30.14521, 0.3099028)
+projection = 1
+
+[node name="Sprite3D" type="Sprite3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, -0.020087365, 0.99979824, 0, -0.99979824, -0.020087365, 0, 0, 0)
