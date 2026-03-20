@@ -4,24 +4,38 @@ extends CharacterBody2D
 @export var run_speed := 200.0
 
 @onready var anim: AnimationPlayer = $PlayerAnimation
-@onready var gfx := $PlayerAnim   # или свой узел, который отображает игрока
+@onready var gfx := $PlayerAnim
+
 var input_vector := Vector2.ZERO
 var is_running := false
 var last_direction := "Down"
 
-var is_attacking := false   # блокирует движение и повторные атаки
+var is_attacking := false
+
+# --- COMBO SYSTEM ---
+var combo_step := 0
+var combo_timer := 0.0
+var combo_window := 0.4
+var combo_queued := false
+# --------------------
+
 var normal_scale := Vector2(0.5, 0.5)
-var ladder_scale := Vector2(0.65, 0.65)  # насколько увеличить
+var ladder_scale := Vector2(0.65, 0.65)
 
 func _ready() -> void:
 	if not anim.animation_finished.is_connected(_on_anim_finished):
 		anim.animation_finished.connect(_on_anim_finished)
 
 
-func _physics_process(_delta):
+func _physics_process(delta):
+	# --- если атакуем ---
 	if is_attacking:
-		return  # пока идёт любая атака — управление выключено
+		combo_timer -= delta
 
+		handle_attack_input()
+		return
+
+	# --- движение ---
 	input_vector = Input.get_vector("move_left", "move_right", "move_up", "move_down")
 	is_running = Input.is_action_pressed("run")
 
@@ -42,7 +56,7 @@ func _physics_process(_delta):
 
 
 # ----------------------------------------------------------
-# НАПРАВЛЕНИЯ И ДВИЖЕНИЕ
+# НАПРАВЛЕНИЯ
 # ----------------------------------------------------------
 
 func get_direction(vec: Vector2) -> String:
@@ -82,47 +96,67 @@ func play_idle_animation():
 
 
 # ----------------------------------------------------------
-#           АТАКИ (ЛКМ – обычная, ПКМ – сильная)
+# АТАКИ / COMBO
 # ----------------------------------------------------------
 
 func handle_attack_input():
-	# ЛКМ → обычная атака
-	if Input.is_action_just_pressed("attack") and not is_attacking:
-		start_attack(1)
-
-	# ПКМ → сильная атака
-	if Input.is_action_just_pressed("strong_attack") and not is_attacking:
-		start_attack(2)
+	if Input.is_action_just_pressed("attack"):
+		if is_attacking:
+			combo_queued = true
+		else:
+			start_combo()
 
 
-func start_attack(stage: int) -> void:
+func start_combo():
+	combo_step = 1
+	play_attack(combo_step)
+
+
+func play_attack(step: int):
 	is_attacking = true
+	combo_timer = combo_window
+	combo_queued = false
 
 	var anim_name := ""
 
-	if stage == 1:
+	if step == 1:
 		anim_name = "Attack_" + last_direction
-	else:
+	elif step == 2:
 		anim_name = "Attack_2_" + last_direction
 
 	if not anim.has_animation(anim_name):
 		print("⚠ Нет анимации: ", anim_name)
-		is_attacking = false
+		reset_combo()
 		return
 
 	anim.play(anim_name)
 
 
 # ----------------------------------------------------------
-#        ЗАВЕРШЕНИЕ АНИМАЦИИ АТАКИ
+# ЗАВЕРШЕНИЕ АТАКИ
 # ----------------------------------------------------------
 
 func _on_anim_finished(finished_anim: StringName) -> void:
 	if not finished_anim.begins_with("Attack"):
 		return
+
+	if combo_queued and combo_step < 2:
+		combo_step += 1
+		play_attack(combo_step)
+	else:
+		reset_combo()
+
+
+func reset_combo():
 	is_attacking = false
+	combo_step = 0
+	combo_queued = false
 	play_idle_animation()
 
+
+# ----------------------------------------------------------
+# SCALE (лестницы и т.д.)
+# ----------------------------------------------------------
 
 func _on_area_2d_body_entered(body) -> void:
 	if body == self:
