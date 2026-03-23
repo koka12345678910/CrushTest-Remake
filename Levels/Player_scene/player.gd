@@ -11,6 +11,9 @@ var is_running := false
 var last_direction := "Down"
 
 var is_attacking := false
+var is_run_attacking := false
+var attack_velocity := Vector2.ZERO
+var friction := 3.0
 
 # --- COMBO SYSTEM ---
 var combo_step := 0
@@ -28,17 +31,31 @@ func _ready() -> void:
 
 
 func _physics_process(delta):
-	# --- если атакуем ---
-	if is_attacking:
-		combo_timer -= delta
-
-		handle_attack_input()
-		return
-
-	# --- движение ---
+	# --- ввод ---
 	input_vector = Input.get_vector("move_left", "move_right", "move_up", "move_down")
 	is_running = Input.is_action_pressed("run")
 
+	handle_attack_input()
+
+	# --- RUN ATTACK ---
+	if is_run_attacking:
+		combo_timer -= delta
+		
+		attack_velocity = attack_velocity.lerp(Vector2.ZERO, friction * delta)
+		velocity = attack_velocity
+		move_and_slide()
+		return
+
+	# --- обычная атака с микро-рывком ---
+	if is_attacking:
+		combo_timer -= delta
+		
+		attack_velocity = attack_velocity.lerp(Vector2.ZERO, friction * delta)
+		velocity = attack_velocity
+		move_and_slide()
+		return
+
+	# --- обычное движение ---
 	var speed = walk_speed
 	if is_running:
 		speed = run_speed
@@ -51,8 +68,6 @@ func _physics_process(delta):
 		play_movement_animation()
 	else:
 		play_idle_animation()
-
-	handle_attack_input()
 
 
 # ----------------------------------------------------------
@@ -80,6 +95,18 @@ func get_direction(vec: Vector2) -> String:
 
 	return dir
 
+func direction_to_vector(dir: String) -> Vector2:
+	match dir:
+		"Up": return Vector2.UP
+		"Down": return Vector2.DOWN
+		"Left": return Vector2.LEFT
+		"Right": return Vector2.RIGHT
+		"Up_Left": return Vector2(-1, -1).normalized()
+		"Up_Right": return Vector2(1, -1).normalized()
+		"Down_Left": return Vector2(-1, 1).normalized()
+		"Down_Right": return Vector2(1, 1).normalized()
+	return Vector2.ZERO
+
 
 func play_movement_animation():
 	var anim_name = ""
@@ -87,23 +114,28 @@ func play_movement_animation():
 		anim_name = "Run_" + last_direction
 	else:
 		anim_name = "Walk_" + last_direction
-
 	anim.play(anim_name)
-
 
 func play_idle_animation():
 	anim.play("Idle_" + last_direction)
 
 
 # ----------------------------------------------------------
-# АТАКИ / COMBO
+# АТАКИ / COMBO / RUN ATTACK / DASH
 # ----------------------------------------------------------
 
 func handle_attack_input():
 	if Input.is_action_just_pressed("attack"):
+
+		# --- RUN ATTACK ---
+		if is_running and input_vector != Vector2.ZERO and not is_attacking and not is_run_attacking:
+			start_run_attack()
+			return
+
+		# --- COMBO ---
 		if is_attacking:
 			combo_queued = true
-		else:
+		elif not is_run_attacking:
 			start_combo()
 
 
@@ -126,17 +158,41 @@ func play_attack(step: int):
 
 	if not anim.has_animation(anim_name):
 		print("⚠ Нет анимации: ", anim_name)
-		reset_combo()
+		reset_all_states()
 		return
 
 	anim.play(anim_name)
 
+	# --- микро-рывок вперёд после удара ---
+	attack_velocity = direction_to_vector(last_direction) * 150  # подбираешь силу
+
+
+func start_run_attack():
+	is_run_attacking = true
+	is_attacking = true
+
+	var anim_name = "Run_Attack_" + last_direction
+
+	if not anim.has_animation(anim_name):
+		print("⚠ Нет анимации: ", anim_name)
+		reset_all_states()
+		return
+
+	anim.play(anim_name)
+
+	# задаём скорость для скольжения
+	attack_velocity = input_vector.normalized() * 250
+
 
 # ----------------------------------------------------------
-# ЗАВЕРШЕНИЕ АТАКИ
+# ЗАВЕРШЕНИЕ
 # ----------------------------------------------------------
 
 func _on_anim_finished(finished_anim: StringName) -> void:
+	if finished_anim.begins_with("Run_Attack"):
+		reset_all_states()
+		return
+
 	if not finished_anim.begins_with("Attack"):
 		return
 
@@ -154,8 +210,16 @@ func reset_combo():
 	play_idle_animation()
 
 
+func reset_all_states():
+	is_attacking = false
+	is_run_attacking = false
+	combo_step = 0
+	combo_queued = false
+	play_idle_animation()
+
+
 # ----------------------------------------------------------
-# SCALE (лестницы и т.д.)
+# SCALE
 # ----------------------------------------------------------
 
 func _on_area_2d_body_entered(body) -> void:
