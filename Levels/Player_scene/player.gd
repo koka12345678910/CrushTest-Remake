@@ -25,6 +25,7 @@ var combo_queued := false
 var normal_scale := Vector2(0.5, 0.5)
 var ladder_scale := Vector2(0.65, 0.65)
 
+
 func _ready() -> void:
 	if not anim.animation_finished.is_connected(_on_anim_finished):
 		anim.animation_finished.connect(_on_anim_finished)
@@ -155,6 +156,10 @@ func play_attack(step: int):
 		anim_name = "Attack_" + last_direction
 	elif step == 2:
 		anim_name = "Attack_2_" + last_direction
+	elif step == 3:
+		anim_name = "Attack_3_" + last_direction
+	elif step == 4:
+		anim_name = "Attack_4_" + last_direction
 
 	if not anim.has_animation(anim_name):
 		print("⚠ Нет анимации: ", anim_name)
@@ -164,7 +169,7 @@ func play_attack(step: int):
 	anim.play(anim_name)
 
 	# --- микро-рывок вперёд после удара ---
-	attack_velocity = direction_to_vector(last_direction) * 150  # подбираешь силу
+	attack_velocity = direction_to_vector(last_direction) * 150  # сила рывка подбирается
 
 
 func start_run_attack():
@@ -189,14 +194,16 @@ func start_run_attack():
 # ----------------------------------------------------------
 
 func _on_anim_finished(finished_anim: StringName) -> void:
+	# --- RUN ATTACK ---
 	if finished_anim.begins_with("Run_Attack"):
 		reset_all_states()
 		return
 
+	# --- COMBO ---
 	if not finished_anim.begins_with("Attack"):
 		return
 
-	if combo_queued and combo_step < 2:
+	if combo_queued and combo_step < 4:  # теперь до 4 шагов
 		combo_step += 1
 		play_attack(combo_step)
 	else:
