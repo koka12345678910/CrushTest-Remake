@@ -2,7 +2,9 @@ extends CharacterBody2D
 
 @export var walk_speed := 100.0
 @export var run_speed := 200.0
+@export var hit_vfx_scene: PackedScene
 
+@onready var weapon_tip := $WeaponTip
 @onready var anim: AnimationPlayer = $PlayerAnimation
 @onready var gfx := $PlayerAnim
 
@@ -57,18 +59,27 @@ func _physics_process(delta):
 		return
 
 	# --- обычное движение ---
-	var speed = walk_speed
+	var target_speed = walk_speed
 	if is_running:
-		speed = run_speed
+		target_speed = run_speed
 
-	velocity = input_vector.normalized() * speed
+	var target_velocity = input_vector.normalized() * target_speed
+
+# --- разные коэффициенты для разгона и торможения ---
+	var accel := 6.0      # разгон
+	var friction_run := 4.0   # торможение
+
+	if input_vector != Vector2.ZERO:
+		velocity = velocity.lerp(target_velocity, accel * delta)
+	else:
+		velocity = velocity.lerp(Vector2.ZERO, friction_run * delta)
+
 	move_and_slide()
 
 	if input_vector != Vector2.ZERO:
 		last_direction = get_direction(input_vector)
-		play_movement_animation()
-	else:
-		play_idle_animation()
+
+	play_movement_animation()
 
 
 # ----------------------------------------------------------
@@ -110,11 +121,18 @@ func direction_to_vector(dir: String) -> Vector2:
 
 
 func play_movement_animation():
+	var speed = velocity.length()
 	var anim_name = ""
-	if is_running:
-		anim_name = "Run_" + last_direction
-	else:
+
+	# --- пороги скорости ---
+	if speed < 10:
+		anim.play("Idle_" + last_direction)
+		return
+	elif speed < 120:
 		anim_name = "Walk_" + last_direction
+	else:
+		anim_name = "Run_" + last_direction
+
 	anim.play(anim_name)
 
 func play_idle_animation():
@@ -160,7 +178,9 @@ func play_attack(step: int):
 		anim_name = "Attack_3_" + last_direction
 	elif step == 4:
 		anim_name = "Attack_4_" + last_direction
-
+	
+	update_weapon_tip()
+	
 	if not anim.has_animation(anim_name):
 		print("⚠ Нет анимации: ", anim_name)
 		reset_all_states()
@@ -183,11 +203,28 @@ func start_run_attack():
 		reset_all_states()
 		return
 
+	update_weapon_tip()
 	anim.play(anim_name)
 
 	# задаём скорость для скольжения
 	attack_velocity = input_vector.normalized() * 250
 
+
+func update_weapon_tip():
+	var dir = direction_to_vector(last_direction)
+	var offset = 35  # подгони под свою анимацию
+	
+	weapon_tip.position = dir * offset
+	
+func play_hit_vfx():
+	if hit_vfx_scene == null:
+		print("⚠ VFX не назначен")
+		return
+
+	var vfx = hit_vfx_scene.instantiate()
+	get_tree().current_scene.add_child(vfx)
+
+	vfx.global_position = weapon_tip.global_position
 
 # ----------------------------------------------------------
 # ЗАВЕРШЕНИЕ
