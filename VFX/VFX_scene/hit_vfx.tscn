@@ -1,31 +1,30 @@
 [gd_scene format=3 uid="uid://do3g22fs238l4"]
 
 [ext_resource type="Script" uid="uid://cwrocww3avj5x" path="res://hit_vfx.gd" id="1_v4fpi"]
-[ext_resource type="Texture2D" uid="uid://rp6ioq3blk8f" path="res://VFX/ATTACK FREE/PunchImp1.png" id="2_tb6tj"]
+[ext_resource type="Texture2D" uid="uid://b1j4yiy87laoa" path="res://VFX/ATTACK FREE/vSlash1.png" id="2_v4fpi"]
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_tb6tj"]
+atlas = ExtResource("2_v4fpi")
+region = Rect2(0, 0, 64, 48)
 
 [sub_resource type="AtlasTexture" id="AtlasTexture_3fqvg"]
-atlas = ExtResource("2_tb6tj")
-region = Rect2(0, 0, 48, 32)
+atlas = ExtResource("2_v4fpi")
+region = Rect2(64, 0, 64, 48)
 
 [sub_resource type="AtlasTexture" id="AtlasTexture_kglta"]
-atlas = ExtResource("2_tb6tj")
-region = Rect2(48, 0, 48, 32)
+atlas = ExtResource("2_v4fpi")
+region = Rect2(128, 0, 64, 48)
 
 [sub_resource type="AtlasTexture" id="AtlasTexture_jte3e"]
-atlas = ExtResource("2_tb6tj")
-region = Rect2(96, 0, 48, 32)
-
-[sub_resource type="AtlasTexture" id="AtlasTexture_cwvgr"]
-atlas = ExtResource("2_tb6tj")
-region = Rect2(144, 0, 48, 32)
-
-[sub_resource type="AtlasTexture" id="AtlasTexture_eq18p"]
-atlas = ExtResource("2_tb6tj")
-region = Rect2(192, 0, 48, 32)
+atlas = ExtResource("2_v4fpi")
+region = Rect2(192, 0, 64, 48)
 
 [sub_resource type="SpriteFrames" id="SpriteFrames_838gh"]
 animations = [{
 "frames": [{
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_tb6tj")
+}, {
 "duration": 1.0,
 "texture": SubResource("AtlasTexture_3fqvg")
 }, {
@@ -34,26 +33,19 @@ animations = [{
 }, {
 "duration": 1.0,
 "texture": SubResource("AtlasTexture_jte3e")
-}, {
-"duration": 1.0,
-"texture": SubResource("AtlasTexture_cwvgr")
-}, {
-"duration": 1.0,
-"texture": SubResource("AtlasTexture_eq18p")
 }],
 "loop": false,
 "name": &"hit",
-"speed": 6.0
+"speed": 5.0
 }]
 
 [node name="HitVFX" type="Node2D" unique_id=28602829]
 script = ExtResource("1_v4fpi")
 
 [node name="AnimatedSprite2D" type="AnimatedSprite2D" parent="." unique_id=64209665]
-position = Vector2(16.5, 11.5)
-scale = Vector2(1.6875, 1.71875)
+position = Vector2(3.8146973e-06, 1)
+scale = Vector2(1.4090909, 1.3442621)
 sprite_frames = SubResource("SpriteFrames_838gh")
 animation = &"hit"
-frame = 4
+frame = 3
 frame_progress = 1.0
-flip_h = true

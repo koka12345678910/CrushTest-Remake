@@ -203,9 +203,8 @@ func start_run_attack():
 		reset_all_states()
 		return
 
-	update_weapon_tip()
 	anim.play(anim_name)
-
+	update_weapon_tip()
 	# задаём скорость для скольжения
 	attack_velocity = input_vector.normalized() * 250
 
@@ -220,11 +219,17 @@ func play_hit_vfx():
 	if hit_vfx_scene == null:
 		print("⚠ VFX не назначен")
 		return
-
+		
 	var vfx = hit_vfx_scene.instantiate()
-	get_tree().current_scene.add_child(vfx)
-
 	vfx.global_position = weapon_tip.global_position
+	
+	var dir = direction_to_vector(last_direction)
+
+	# 👉 ВОТ ЭТО КЛЮЧ
+	if dir.x < 0:
+		vfx.scale.x *= -1
+	
+	get_tree().current_scene.add_child(vfx)
 
 # ----------------------------------------------------------
 # ЗАВЕРШЕНИЕ
