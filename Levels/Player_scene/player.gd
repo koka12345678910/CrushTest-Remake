@@ -3,11 +3,16 @@ extends CharacterBody2D
 @export var walk_speed := 100.0
 @export var run_speed := 200.0
 @export var hit_vfx_scene: PackedScene
+@export var running_hit_vfx_scene: PackedScene
+@export var move_start_vfx_scene: PackedScene
 
 @onready var weapon_tip := $WeaponTip
 @onready var anim: AnimationPlayer = $PlayerAnimation
 @onready var gfx := $PlayerAnim
+@onready var foot_point = $FootPoint
 
+var prev_velocity := Vector2.ZERO
+var move_vfx_cooldown := 0.0
 var input_vector := Vector2.ZERO
 var is_running := false
 var last_direction := "Down"
@@ -16,6 +21,8 @@ var is_attacking := false
 var is_run_attacking := false
 var attack_velocity := Vector2.ZERO
 var friction := 3.0
+var start_triggered := false
+var was_running := false
 
 # --- COMBO SYSTEM ---
 var combo_step := 0
@@ -34,6 +41,7 @@ func _ready() -> void:
 
 
 func _physics_process(delta):
+	prev_velocity = velocity
 	# --- ввод ---
 	input_vector = Input.get_vector("move_left", "move_right", "move_up", "move_down")
 	is_running = Input.is_action_pressed("run")
@@ -80,6 +88,7 @@ func _physics_process(delta):
 		last_direction = get_direction(input_vector)
 
 	play_movement_animation()
+	handle_movement_vfx(delta)
 
 
 # ----------------------------------------------------------
@@ -138,6 +147,43 @@ func play_movement_animation():
 func play_idle_animation():
 	anim.play("Idle_" + last_direction)
 
+func handle_movement_vfx(delta):
+	move_vfx_cooldown -= delta
+
+	var is_moving_now = input_vector != Vector2.ZERO
+	var was_moving = prev_velocity.length() > 5
+
+	# --- 1. СТАРТ ДВИЖЕНИЯ ---
+	if not was_moving and is_moving_now and is_running and move_vfx_cooldown <= 0:
+		play_move_start_vfx()
+		move_vfx_cooldown = 0.2
+
+	# --- 2. НАЧАЛ БЕЖАТЬ (walk → run) ---
+	if is_moving_now and is_running and not was_running and move_vfx_cooldown <= 0:
+		play_move_start_vfx()
+		move_vfx_cooldown = 0.2
+
+	# обновляем состояние
+	was_running = is_running
+
+func play_move_start_vfx():
+	if move_start_vfx_scene == null:
+		return
+	
+	var vfx = move_start_vfx_scene.instantiate()
+	var dir = velocity.normalized()
+	if dir == Vector2.ZERO:
+		dir = direction_to_vector(last_direction) 
+	# чуть позади игрока
+	vfx.global_position = foot_point.global_position - dir * 5
+
+	# передаём направление (если используешь движение внутри VFX)
+	vfx.set("move_direction", dir)
+
+	# поворот под направление
+	vfx.rotation = dir.angle()
+
+	get_tree().current_scene.add_child(vfx)
 
 # ----------------------------------------------------------
 # АТАКИ / COMBO / RUN ATTACK / DASH
@@ -202,9 +248,8 @@ func start_run_attack():
 		print("⚠ Нет анимации: ", anim_name)
 		reset_all_states()
 		return
-
-	anim.play(anim_name)
 	update_weapon_tip()
+	anim.play(anim_name)
 	# задаём скорость для скольжения
 	attack_velocity = input_vector.normalized() * 250
 
@@ -225,11 +270,28 @@ func play_hit_vfx():
 	
 	var dir = direction_to_vector(last_direction)
 
-	# 👉 ВОТ ЭТО КЛЮЧ
-	if dir.x < 0:
-		vfx.scale.x *= -1
+	# передаём направление
+	vfx.set("move_direction", dir)
+	vfx.rotation = dir.angle()  # 👈 ВОТ ЭТО НОВОЕ
 	
 	get_tree().current_scene.add_child(vfx)
+
+
+func play_running_hit_vfx():
+	if running_hit_vfx_scene == null:
+		print("⚠ Running VFX не назначен")
+		return
+		
+	var vfx_running = running_hit_vfx_scene.instantiate()
+	vfx_running.global_position = weapon_tip.global_position
+	
+	var dir_running = direction_to_vector(last_direction)
+
+	# передаём направление
+	vfx_running.set("move_direction", dir_running)
+	vfx_running.rotation = dir_running.angle()  # 👈 ВОТ ЭТО НОВОЕ
+	
+	get_tree().current_scene.add_child(vfx_running)
 
 # ----------------------------------------------------------
 # ЗАВЕРШЕНИЕ

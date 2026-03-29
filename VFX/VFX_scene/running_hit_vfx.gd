@@ -1,11 +1,11 @@
 extends Node2D
 
 var move_direction := Vector2.ZERO
-var speed := 140.0
+var speed := 160.0
 
 func _ready():
 	scale *= randf_range(0.9, 1.2)
-	$AnimatedSprite2D.play("hit")
+	$AnimatedSprite2D.play("running_hit")
 
 func _process(delta):
 	# движение вперёд
