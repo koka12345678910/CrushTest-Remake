@@ -45,7 +45,7 @@ script = ExtResource("1_v4fpi")
 [node name="AnimatedSprite2D" type="AnimatedSprite2D" parent="." unique_id=64209665]
 texture_filter = 1
 position = Vector2(3.8146973e-06, 1)
-scale = Vector2(1.4090909, 1.3442621)
+scale = Vector2(1.5937499, 1.7083335)
 sprite_frames = SubResource("SpriteFrames_838gh")
 animation = &"hit"
 frame = 3

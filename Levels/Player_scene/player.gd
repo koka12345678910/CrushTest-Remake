@@ -5,7 +5,10 @@ extends CharacterBody2D
 @export var hit_vfx_scene: PackedScene
 @export var running_hit_vfx_scene: PackedScene
 @export var move_start_vfx_scene: PackedScene
+@export var melee_hit_vfx_scene: PackedScene
+@export var melee_hit_2_vfx_scene: PackedScene
 
+@onready var melee_hit = $MeleeHit
 @onready var weapon_tip := $WeaponTip
 @onready var anim: AnimationPlayer = $PlayerAnimation
 @onready var gfx := $PlayerAnim
@@ -226,6 +229,7 @@ func play_attack(step: int):
 		anim_name = "Attack_4_" + last_direction
 	
 	update_weapon_tip()
+	melee_weapon_tip()
 	
 	if not anim.has_animation(anim_name):
 		print("⚠ Нет анимации: ", anim_name)
@@ -253,13 +257,18 @@ func start_run_attack():
 	# задаём скорость для скольжения
 	attack_velocity = input_vector.normalized() * 250
 
-
 func update_weapon_tip():
 	var dir = direction_to_vector(last_direction)
 	var offset = 35  # подгони под свою анимацию
 	
 	weapon_tip.position = dir * offset
+
+func melee_weapon_tip():
+	var dir = direction_to_vector(last_direction)
+	var offset = 35  # подгони под свою анимацию
 	
+	melee_hit.position = dir * offset
+
 func play_hit_vfx():
 	if hit_vfx_scene == null:
 		print("⚠ VFX не назначен")
@@ -276,6 +285,38 @@ func play_hit_vfx():
 	
 	get_tree().current_scene.add_child(vfx)
 
+
+func play_melee_hit_vfx():
+	if melee_hit_vfx_scene == null:
+		print("⚠ VFX не назначен")
+		return
+		
+	var vfx_melee = melee_hit_vfx_scene.instantiate()
+	vfx_melee.global_position = melee_hit.global_position
+	
+	var dir = direction_to_vector(last_direction)
+
+	# передаём направление
+	vfx_melee.set("move_direction", dir)
+	vfx_melee.rotation = dir.angle()  # 👈 ВОТ ЭТО НОВОЕ
+	
+	get_tree().current_scene.add_child(vfx_melee)
+
+func play_melee_2_hit_vfx():
+	if melee_hit_2_vfx_scene == null:
+		print("⚠ VFX не назначен")
+		return
+		
+	var vfx_melee2 = melee_hit_2_vfx_scene.instantiate()
+	vfx_melee2.global_position = melee_hit.global_position
+	
+	var dir = direction_to_vector(last_direction)
+
+	# передаём направление
+	vfx_melee2.set("move_direction", dir)
+	vfx_melee2.rotation = dir.angle()  # 👈 ВОТ ЭТО НОВОЕ
+	
+	get_tree().current_scene.add_child(vfx_melee2)
 
 func play_running_hit_vfx():
 	if running_hit_vfx_scene == null:
@@ -313,13 +354,11 @@ func _on_anim_finished(finished_anim: StringName) -> void:
 	else:
 		reset_combo()
 
-
 func reset_combo():
 	is_attacking = false
 	combo_step = 0
 	combo_queued = false
 	play_idle_animation()
-
 
 func reset_all_states():
 	is_attacking = false
@@ -327,7 +366,6 @@ func reset_all_states():
 	combo_step = 0
 	combo_queued = false
 	play_idle_animation()
-
 
 # ----------------------------------------------------------
 # SCALE
