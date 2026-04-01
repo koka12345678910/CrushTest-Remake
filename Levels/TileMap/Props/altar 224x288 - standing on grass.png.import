@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://s336xrgss41r"
-path="res://.godot/imported/Dungeon_WaterAnimation.png-a5e820c783027db41390c6dc156cabab.ctex"
+uid="uid://bucelgjvhpbnm"
+path="res://.godot/imported/altar 224x288 - standing on grass.png-b96e91bad0b6c18db1a4eccf029bf64a.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://Levels/TileMap/DampDungeons/Dungeon_WaterAnimation.png"
-dest_files=["res://.godot/imported/Dungeon_WaterAnimation.png-a5e820c783027db41390c6dc156cabab.ctex"]
+source_file="res://Levels/TileMap/Props/altar 224x288 - standing on grass.png"
+dest_files=["res://.godot/imported/altar 224x288 - standing on grass.png-b96e91bad0b6c18db1a4eccf029bf64a.ctex"]
 
 [params]
 

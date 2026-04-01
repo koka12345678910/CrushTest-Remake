@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://ctjte0knv2577"
-path="res://.godot/imported/trap_animation.png-9e92da73993b0555227974550611802f.ctex"
+uid="uid://b4wp5hfathwfq"
+path="res://.godot/imported/generic_estructure1-1-on grass.png-091c1d7f98e4c1faf57419292ed13752.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://Levels/TileMap/trap_animation.png"
-dest_files=["res://.godot/imported/trap_animation.png-9e92da73993b0555227974550611802f.ctex"]
+source_file="res://Levels/TileMap/Props/generic_estructure1-1-on grass.png"
+dest_files=["res://.godot/imported/generic_estructure1-1-on grass.png-091c1d7f98e4c1faf57419292ed13752.ctex"]
 
 [params]
 

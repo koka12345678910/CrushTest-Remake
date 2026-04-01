@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://ce8ygt3edm1g2"
-path="res://.godot/imported/water_detilazation_v2.png-b39548701a307855230fe580a633c6e0.ctex"
+uid="uid://cv7w30oevgk8u"
+path="res://.godot/imported/shrine or fountain 160x128-on grass.png-a7c3da37514016b77a3e8c66c8c8f705.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://Levels/TileMap/water_detilazation_v2.png"
-dest_files=["res://.godot/imported/water_detilazation_v2.png-b39548701a307855230fe580a633c6e0.ctex"]
+source_file="res://Levels/TileMap/Props/shrine or fountain 160x128-on grass.png"
+dest_files=["res://.godot/imported/shrine or fountain 160x128-on grass.png-a7c3da37514016b77a3e8c66c8c8f705.ctex"]
 
 [params]
 
