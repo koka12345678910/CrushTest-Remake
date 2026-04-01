@@ -50,6 +50,7 @@ animations = [{
 script = ExtResource("1_y17s5")
 
 [node name="AnimatedSprite2D" type="AnimatedSprite2D" parent="." unique_id=1264831144]
+modulate = Color(1, 1, 1, 0.43529412)
 texture_filter = 1
 position = Vector2(1.1920929e-07, 12)
 scale = Vector2(1.568968, 1.7575383)

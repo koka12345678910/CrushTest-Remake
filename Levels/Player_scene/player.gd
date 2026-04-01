@@ -7,12 +7,14 @@ extends CharacterBody2D
 @export var move_start_vfx_scene: PackedScene
 @export var melee_hit_vfx_scene: PackedScene
 @export var melee_hit_2_vfx_scene: PackedScene
+@export var turn_around_vfx_scene: PackedScene
 
 @onready var melee_hit = $MeleeHit
 @onready var weapon_tip := $WeaponTip
 @onready var anim: AnimationPlayer = $PlayerAnimation
 @onready var gfx := $PlayerAnim
 @onready var foot_point = $FootPoint
+@onready var foot_point2 = $FootPoint2
 
 var prev_velocity := Vector2.ZERO
 var move_vfx_cooldown := 0.0
@@ -26,6 +28,11 @@ var attack_velocity := Vector2.ZERO
 var friction := 3.0
 var start_triggered := false
 var was_running := false
+var is_turning := false
+var turn_direction := ""
+var turn_threshold := -0.8
+var turn_velocity := Vector2.ZERO
+var turn_friction := 6.0
 
 # --- COMBO SYSTEM ---
 var combo_step := 0
@@ -42,7 +49,6 @@ func _ready() -> void:
 	if not anim.animation_finished.is_connected(_on_anim_finished):
 		anim.animation_finished.connect(_on_anim_finished)
 
-
 func _physics_process(delta):
 	prev_velocity = velocity
 	# --- ввод ---
@@ -50,7 +56,15 @@ func _physics_process(delta):
 	is_running = Input.is_action_pressed("run")
 
 	handle_attack_input()
-
+	check_for_turn()
+	if is_turning:
+	# 🔥 плавно гасим скорость
+		turn_velocity = turn_velocity.lerp(Vector2.ZERO, turn_friction * delta)
+	
+		velocity = turn_velocity
+		move_and_slide()
+		return
+	
 	# --- RUN ATTACK ---
 	if is_run_attacking:
 		combo_timer -= delta
@@ -87,7 +101,7 @@ func _physics_process(delta):
 
 	move_and_slide()
 
-	if input_vector != Vector2.ZERO:
+	if input_vector != Vector2.ZERO and not is_turning:
 		last_direction = get_direction(input_vector)
 
 	play_movement_animation()
@@ -131,6 +145,34 @@ func direction_to_vector(dir: String) -> Vector2:
 		"Down_Right": return Vector2(1, 1).normalized()
 	return Vector2.ZERO
 
+func check_for_turn():
+	if input_vector == Vector2.ZERO:
+		return
+	
+	var current_dir = input_vector.normalized()
+	var last_dir_vec = direction_to_vector(last_direction)
+	var dot = current_dir.dot(last_dir_vec)
+
+	# если почти противоположно → разворот
+	if dot < turn_threshold and is_running and not is_turning and not is_attacking and not is_run_attacking:
+		start_turn(current_dir)
+
+func start_turn(new_dir: Vector2):
+	is_turning = true
+	play_turn_vfx()
+	# 🔥 сохраняем инерцию (в сторону, куда бежали)
+	turn_velocity = velocity
+	
+	var new_direction = get_direction(new_dir)
+	turn_direction = new_direction
+	
+	var anim_name = "Turn_" + new_direction
+	
+	if anim.has_animation(anim_name):
+		anim.play(anim_name)
+	else:
+		print("⚠ Нет анимации поворота:", anim_name)
+		is_turning = false
 
 func play_movement_animation():
 	var speed = velocity.length()
@@ -152,7 +194,6 @@ func play_idle_animation():
 
 func handle_movement_vfx(delta):
 	move_vfx_cooldown -= delta
-
 	var is_moving_now = input_vector != Vector2.ZERO
 	var was_moving = prev_velocity.length() > 5
 
@@ -160,14 +201,26 @@ func handle_movement_vfx(delta):
 	if not was_moving and is_moving_now and is_running and move_vfx_cooldown <= 0:
 		play_move_start_vfx()
 		move_vfx_cooldown = 0.2
-
 	# --- 2. НАЧАЛ БЕЖАТЬ (walk → run) ---
 	if is_moving_now and is_running and not was_running and move_vfx_cooldown <= 0:
 		play_move_start_vfx()
 		move_vfx_cooldown = 0.2
-
 	# обновляем состояние
 	was_running = is_running
+
+func play_turn_vfx():
+	if turn_around_vfx_scene == null:
+		return
+	var vfx2 = turn_around_vfx_scene.instantiate()
+	# 🔥 строго в точке ноги
+	vfx2.global_position = foot_point2.global_position
+	# 🔥 направление — ПРОТИВОПОЛОЖНО движению (как пыль)
+	var dir = turn_velocity.normalized()
+	if dir == Vector2.ZERO:
+		dir = direction_to_vector(last_direction)
+	var dust_dir = -dir  # 👈 ВАЖНО
+	vfx2.set("move_direction", dust_dir)
+	get_tree().current_scene.add_child(vfx2)
 
 func play_move_start_vfx():
 	if move_start_vfx_scene == null:
@@ -206,11 +259,9 @@ func handle_attack_input():
 		elif not is_run_attacking:
 			start_combo()
 
-
 func start_combo():
 	combo_step = 1
 	play_attack(combo_step)
-
 
 func play_attack(step: int):
 	is_attacking = true
@@ -241,7 +292,6 @@ func play_attack(step: int):
 	# --- микро-рывок вперёд после удара ---
 	attack_velocity = direction_to_vector(last_direction) * 150  # сила рывка подбирается
 
-
 func start_run_attack():
 	is_run_attacking = true
 	is_attacking = true
@@ -260,7 +310,6 @@ func start_run_attack():
 func update_weapon_tip():
 	var dir = direction_to_vector(last_direction)
 	var offset = 35  # подгони под свою анимацию
-	
 	weapon_tip.position = dir * offset
 
 func melee_weapon_tip():
@@ -339,6 +388,11 @@ func play_running_hit_vfx():
 # ----------------------------------------------------------
 
 func _on_anim_finished(finished_anim: StringName) -> void:
+	# --- TURN SYSTEM ---
+	if finished_anim.begins_with("Turn_"):
+		is_turning = false
+		last_direction = turn_direction
+		return
 	# --- RUN ATTACK ---
 	if finished_anim.begins_with("Run_Attack"):
 		reset_all_states()

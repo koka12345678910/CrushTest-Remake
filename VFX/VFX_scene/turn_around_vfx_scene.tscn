@@ -1,0 +1,86 @@
+[gd_scene format=3 uid="uid://d1ercr4q0c1n2"]
+
+[ext_resource type="Script" uid="uid://j20gokov3i0q" path="res://VFX/VFX_scene/turn_around_vfx_scene.gd" id="1_jak35"]
+[ext_resource type="Texture2D" uid="uid://bg0jxftvlstqj" path="res://VFX/Smoke/SmokeNDust P03 VFX 1.png" id="2_jak35"]
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_ws6gx"]
+atlas = ExtResource("2_jak35")
+region = Rect2(0, 0, 80, 64)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_n0rjn"]
+atlas = ExtResource("2_jak35")
+region = Rect2(80, 0, 80, 64)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_uqw8m"]
+atlas = ExtResource("2_jak35")
+region = Rect2(160, 0, 80, 64)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_iewtd"]
+atlas = ExtResource("2_jak35")
+region = Rect2(240, 0, 80, 64)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_d1yc7"]
+atlas = ExtResource("2_jak35")
+region = Rect2(320, 0, 80, 64)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_cxcx0"]
+atlas = ExtResource("2_jak35")
+region = Rect2(400, 0, 80, 64)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_3dt2m"]
+atlas = ExtResource("2_jak35")
+region = Rect2(480, 0, 80, 64)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_7jyi2"]
+atlas = ExtResource("2_jak35")
+region = Rect2(560, 0, 80, 64)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_owya8"]
+atlas = ExtResource("2_jak35")
+region = Rect2(640, 0, 80, 64)
+
+[sub_resource type="SpriteFrames" id="SpriteFrames_4yy7m"]
+animations = [{
+"frames": [{
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_ws6gx")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_n0rjn")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_uqw8m")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_iewtd")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_d1yc7")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_cxcx0")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_3dt2m")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_7jyi2")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_owya8")
+}],
+"loop": false,
+"name": &"turn",
+"speed": 8.0
+}]
+
+[node name="turn_around_vfx_scene" type="Node2D" unique_id=1882572142]
+script = ExtResource("1_jak35")
+
+[node name="AnimatedSprite2D" type="AnimatedSprite2D" parent="." unique_id=532019782]
+scale = Vector2(0.72499996, 0.71875)
+sprite_frames = SubResource("SpriteFrames_4yy7m")
+animation = &"turn"
+frame = 8
+frame_progress = 1.0
+flip_h = true
