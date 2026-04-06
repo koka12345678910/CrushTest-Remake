@@ -211,15 +211,20 @@ func handle_movement_vfx(delta):
 func play_turn_vfx():
 	if turn_around_vfx_scene == null:
 		return
+	
 	var vfx2 = turn_around_vfx_scene.instantiate()
-	# 🔥 строго в точке ноги
-	vfx2.global_position = foot_point2.global_position
-	# 🔥 направление — ПРОТИВОПОЛОЖНО движению (как пыль)
-	var dir = turn_velocity.normalized()
+	var dir = velocity.normalized()
 	if dir == Vector2.ZERO:
-		dir = direction_to_vector(last_direction)
-	var dust_dir = -dir  # 👈 ВАЖНО
-	vfx2.set("move_direction", dust_dir)
+		dir = direction_to_vector(last_direction) 
+	# чуть позади игрока
+	vfx2.global_position = foot_point2.global_position - dir * 5
+
+	# передаём направление (если используешь движение внутри VFX)
+	vfx2.set("move_direction", dir)
+
+	# поворот под направление
+	vfx2.rotation = dir.angle()
+
 	get_tree().current_scene.add_child(vfx2)
 
 func play_move_start_vfx():

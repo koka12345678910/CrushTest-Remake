@@ -2722,7 +2722,6 @@ position = Vector2(103, 7)
 position = Vector2(0, 18)
 
 [node name="FootPoint2" type="Marker2D" parent="." unique_id=782328580]
-position = Vector2(36, 16)
 
 [node name="MeleeHit" type="Marker2D" parent="." unique_id=1016199469]
 position = Vector2(56, 14)
