@@ -1,7 +1,6 @@
-[gd_scene format=4 uid="uid://b8kdh7q1rg5wm"]
+[gd_scene format=4 uid="uid://bq1fu11o7xgf3"]
 
 [ext_resource type="Texture2D" uid="uid://cgtfa3bymeqib" path="res://TileMap/TX Tileset Grass.png" id="1_1cq4g"]
-[ext_resource type="Texture2D" uid="uid://bbhd111eh51kn" path="res://TileMap/Water_Tile.png" id="2_ocwms"]
 [ext_resource type="Texture2D" uid="uid://bq383xrjw11qj" path="res://TileMap/TX Tileset Wall.png" id="3_pbphk"]
 [ext_resource type="Texture2D" uid="uid://cwtrc4t0f8g2b" path="res://TileMap/TX Struct.png" id="4_5royd"]
 [ext_resource type="Texture2D" uid="uid://ltnkxqjbt2lb" path="res://TileMap/TX Tileset Stone Ground.png" id="5_ale55"]
@@ -14,6 +13,7 @@
 [ext_resource type="Texture2D" uid="uid://mqwo5fuyw3g7" path="res://Levels/TileMap/Props/altar 224x288 - standard.png" id="11_mpg6w"]
 [ext_resource type="Texture2D" uid="uid://cv7w30oevgk8u" path="res://Levels/TileMap/Props/shrine or fountain 160x128-on grass.png" id="12_fmgos"]
 [ext_resource type="Texture2D" uid="uid://dexab4myr5hvi" path="res://circle.png" id="12_odngn"]
+[ext_resource type="PackedScene" uid="uid://bv1v4h1gmt6dr" path="res://Levels/Player_scene/player.tscn" id="14_odngn"]
 
 [sub_resource type="TileSetAtlasSource" id="TileSetAtlasSource_ale55"]
 texture = ExtResource("1_1cq4g")
@@ -275,7 +275,6 @@ texture = ExtResource("1_1cq4g")
 15:15/0 = 0
 
 [sub_resource type="TileSetAtlasSource" id="TileSetAtlasSource_3ro2k"]
-texture = ExtResource("2_ocwms")
 0:0/0 = 0
 1:0/0 = 0
 2:0/0 = 0
@@ -3789,7 +3788,7 @@ animations = [{
 }],
 "loop": true,
 "name": &"default",
-"speed": 5.0
+"speed": 10.0
 }]
 
 [node name="Level01" type="Node2D" unique_id=462357955]
@@ -3836,8 +3835,7 @@ frame_progress = 0.8551438
 position = Vector2(2009.2501, -778.5)
 scale = Vector2(1.4656241, 1.4140626)
 sprite_frames = SubResource("SpriteFrames_dnagk")
-frame = 4
-frame_progress = 0.86847836
+frame_progress = 0.9595694
 
 [node name="fontan2" type="AnimatedSprite2D" parent="." unique_id=1467278031]
 position = Vector2(2258.9998, -199.62498)
@@ -3845,3 +3843,5 @@ scale = Vector2(1.0031245, 0.9785154)
 sprite_frames = SubResource("SpriteFrames_dnagk")
 frame = 5
 frame_progress = 0.51821023
+
+[node name="Player" parent="." unique_id=493723598 instance=ExtResource("14_odngn")]

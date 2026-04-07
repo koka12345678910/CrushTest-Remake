@@ -1,0 +1,54 @@
+[gd_scene format=3 uid="uid://bkhl65qmecrp3"]
+
+[ext_resource type="Script" path="res://hit_vfx.gd" id="1_f3m76"]
+[ext_resource type="Texture2D" path="res://VFX/ATTACK FREE/vSlash1.png" id="2_a5eyx"]
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_tb6tj"]
+atlas = ExtResource("2_a5eyx")
+region = Rect2(0, 0, 64, 48)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_3fqvg"]
+atlas = ExtResource("2_a5eyx")
+region = Rect2(64, 0, 64, 48)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_kglta"]
+atlas = ExtResource("2_a5eyx")
+region = Rect2(128, 0, 64, 48)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_jte3e"]
+atlas = ExtResource("2_a5eyx")
+region = Rect2(192, 0, 64, 48)
+
+[sub_resource type="SpriteFrames" id="SpriteFrames_838gh"]
+animations = [{
+"frames": [{
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_tb6tj")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_3fqvg")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_kglta")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_jte3e")
+}],
+"loop": false,
+"name": &"hit",
+"speed": 6.0
+}]
+
+[node name="HitVFX" type="Node2D" unique_id=28602829]
+script = ExtResource("1_f3m76")
+
+[node name="AnimatedSprite2D" type="AnimatedSprite2D" parent="." unique_id=64209665]
+texture_filter = 1
+position = Vector2(3.8146973e-06, 1)
+scale = Vector2(1.5937499, 1.7083335)
+sprite_frames = SubResource("SpriteFrames_838gh")
+animation = &"hit"
+frame = 3
+frame_progress = 1.0
+
+[connection signal="animation_finished" from="AnimatedSprite2D" to="." method="_on_animated_sprite_2d_animation_finished"]
