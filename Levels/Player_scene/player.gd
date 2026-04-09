@@ -41,6 +41,11 @@ var combo_window := 0.4
 var combo_queued := false
 # --------------------
 
+var is_dodging := false
+var dodge_velocity := Vector2.ZERO
+var dodge_speed := 350.0
+var dodge_friction := 8.0
+
 var normal_scale := Vector2(0.5, 0.5)
 var ladder_scale := Vector2(0.65, 0.65)
 
@@ -56,11 +61,18 @@ func _physics_process(delta):
 	is_running = Input.is_action_pressed("run")
 
 	handle_attack_input()
+	handle_dodge_input()
 	check_for_turn()
+	if is_dodging:
+		dodge_velocity = dodge_velocity.lerp(Vector2.ZERO, dodge_friction * delta)
+		velocity = dodge_velocity
+		move_and_slide()
+		return
+	
 	if is_turning:
 	# 🔥 плавно гасим скорость
 		turn_velocity = turn_velocity.lerp(Vector2.ZERO, turn_friction * delta)
-	
+		
 		velocity = turn_velocity
 		move_and_slide()
 		return
@@ -191,6 +203,41 @@ func play_movement_animation():
 
 func play_idle_animation():
 	anim.play("Idle_" + last_direction)
+
+func handle_dodge_input():
+	if Input.is_action_just_pressed("ui_accept"): # пробел по дефолту
+		
+		if is_dodging or is_attacking or is_run_attacking or is_turning:
+			return
+		
+		start_dodge()
+
+func start_dodge():
+	is_dodging = true
+	
+	var dir = input_vector
+	
+	# 🔥 ФИКС: если нет ввода — берём последнее направление
+	if dir == Vector2.ZERO:
+		dir = direction_to_vector(last_direction)
+	else:
+		dir = dir.normalized()
+	
+	# 🔥 ОБНОВЛЯЕМ направление ДО анимации
+	last_direction = get_direction(dir)
+	
+	var anim_name = "Dodge_" + last_direction
+	
+	if anim.has_animation(anim_name):
+		anim.play(anim_name)
+	else:
+		print("⚠ Нет анимации dodge:", anim_name)
+		is_dodging = false
+		return
+	
+	# 🔥 ГАРАНТИРОВАННЫЙ импульс
+	dodge_velocity = dir * dodge_speed
+
 
 func handle_movement_vfx(delta):
 	move_vfx_cooldown -= delta
@@ -393,6 +440,10 @@ func play_running_hit_vfx():
 # ----------------------------------------------------------
 
 func _on_anim_finished(finished_anim: StringName) -> void:
+	# --- DODGE SYSTEM ---
+	if finished_anim.begins_with("Dodge_"):
+		is_dodging = false
+		return
 	# --- TURN SYSTEM ---
 	if finished_anim.begins_with("Turn_"):
 		is_turning = false
