@@ -44,7 +44,19 @@ var combo_queued := false
 var is_dodging := false
 var dodge_velocity := Vector2.ZERO
 var dodge_speed := 350.0
-var dodge_friction := 8.0
+var dodge_friction := 4.0
+var is_invulnerable := false
+var i_frame_time := 0.2
+var dodge_tap_timer := 0.0
+var dodge_tap_window := 0.25
+var dodge_tap_count := 0
+
+var is_rolling := false
+var roll_speed := 300.0
+var roll_duration := 0.9
+var roll_timer := 1.5
+var roll_dir := Vector2.ZERO
+var roll_control := 0.0
 
 var normal_scale := Vector2(0.5, 0.5)
 var ladder_scale := Vector2(0.65, 0.65)
@@ -55,20 +67,50 @@ func _ready() -> void:
 		anim.animation_finished.connect(_on_anim_finished)
 
 func _physics_process(delta):
+	if is_rolling:
+		handle_roll(delta)
+		return
 	prev_velocity = velocity
 	# --- ввод ---
-	input_vector = Input.get_vector("move_left", "move_right", "move_up", "move_down")
+	if not is_rolling:
+		input_vector = Input.get_vector("move_left", "move_right", "move_up", "move_down")
 	is_running = Input.is_action_pressed("run")
-
+	
+	if dodge_tap_timer > 0:
+		dodge_tap_timer -= delta
+	
+		if dodge_tap_timer <= 0:
+			
+			# 🔥 РЕШАЕМ: dodge или roll
+			if dodge_tap_count >= 2:
+				interrupt_all_actions()
+				start_roll()
+			else:
+				interrupt_all_actions()
+				start_dodge()
+			
+			dodge_tap_count = 0
+		
 	handle_attack_input()
+	handle_kick_input()
 	handle_dodge_input()
 	check_for_turn()
+	if is_rolling:
+		roll_control += delta
+		# 🔥 фаза ускорения и торможения
+		var t: float = clamp(roll_control / roll_duration, 0.0, 1.0) as float
+		var speed_multiplier := sin(t * PI)  # плавная кривая
+		dodge_velocity = roll_dir * roll_speed * speed_multiplier
+		velocity = dodge_velocity
+		move_and_slide()
+		return
+
 	if is_dodging:
 		dodge_velocity = dodge_velocity.lerp(Vector2.ZERO, dodge_friction * delta)
 		velocity = dodge_velocity
 		move_and_slide()
 		return
-	
+
 	if is_turning:
 	# 🔥 плавно гасим скорость
 		turn_velocity = turn_velocity.lerp(Vector2.ZERO, turn_friction * delta)
@@ -186,6 +228,23 @@ func start_turn(new_dir: Vector2):
 		print("⚠ Нет анимации поворота:", anim_name)
 		is_turning = false
 
+func start_roll():
+	if is_rolling:
+		return
+	roll_control = 0.0
+	is_rolling = true
+	is_dodging = false
+	var dir := Vector2.ZERO
+	if input_vector == Vector2.ZERO:
+		dir = direction_to_vector(last_direction)
+	else:
+		dir = input_vector.normalized()
+	roll_dir = dir
+	last_direction = get_direction(dir)
+	anim.play("Rolling_" + last_direction)
+	dodge_velocity = roll_dir * roll_speed
+	roll_timer = roll_duration
+
 func play_movement_animation():
 	var speed = velocity.length()
 	var anim_name = ""
@@ -205,25 +264,28 @@ func play_idle_animation():
 	anim.play("Idle_" + last_direction)
 
 func handle_dodge_input():
-	if Input.is_action_just_pressed("ui_accept"): # пробел по дефолту
-		
-		if is_dodging or is_attacking or is_run_attacking or is_turning:
-			return
-		
-		start_dodge()
+	if is_dodging or is_rolling:
+		return
+	if Input.is_action_just_pressed("ui_accept"):
+		dodge_tap_count += 1
+		dodge_tap_timer = dodge_tap_window
 
 func start_dodge():
+	if is_dodging or is_rolling:
+		return
 	is_dodging = true
 	
+	# 🔥 ВКЛЮЧАЕМ НЕУЯЗВИМОСТЬ
+	is_invulnerable = true
+	start_i_frames()
+
 	var dir = input_vector
 	
-	# 🔥 ФИКС: если нет ввода — берём последнее направление
 	if dir == Vector2.ZERO:
 		dir = direction_to_vector(last_direction)
 	else:
 		dir = dir.normalized()
 	
-	# 🔥 ОБНОВЛЯЕМ направление ДО анимации
 	last_direction = get_direction(dir)
 	
 	var anim_name = "Dodge_" + last_direction
@@ -235,9 +297,34 @@ func start_dodge():
 		is_dodging = false
 		return
 	
-	# 🔥 ГАРАНТИРОВАННЫЙ импульс
 	dodge_velocity = dir * dodge_speed
 
+func start_i_frames():
+	await get_tree().create_timer(i_frame_time).timeout
+	is_invulnerable = false
+
+func interrupt_all_actions():
+	is_attacking = false
+	is_run_attacking = false
+	is_turning = false
+	dodge_velocity = Vector2.ZERO
+	
+	combo_step = 0
+	combo_queued = false
+
+	attack_velocity = Vector2.ZERO
+	turn_velocity = Vector2.ZERO
+
+func handle_roll(delta):
+	roll_control += delta
+	
+	var t: float = clamp(roll_control / roll_duration, 0.0, 1.0) as float
+	var speed_multiplier := sin(t * PI)
+	
+	dodge_velocity = roll_dir * roll_speed * speed_multiplier
+	velocity = dodge_velocity
+	
+	move_and_slide()
 
 func handle_movement_vfx(delta):
 	move_vfx_cooldown -= delta
@@ -298,6 +385,9 @@ func play_move_start_vfx():
 # ----------------------------------------------------------
 
 func handle_attack_input():
+	if is_dodging or is_rolling:
+		return
+	
 	if Input.is_action_just_pressed("attack"):
 
 		# --- RUN ATTACK ---
@@ -319,7 +409,7 @@ func play_attack(step: int):
 	is_attacking = true
 	combo_timer = combo_window
 	combo_queued = false
-
+	dodge_velocity = Vector2.ZERO
 	var anim_name := ""
 
 	if step == 1:
@@ -343,6 +433,28 @@ func play_attack(step: int):
 
 	# --- микро-рывок вперёд после удара ---
 	attack_velocity = direction_to_vector(last_direction) * 150  # сила рывка подбирается
+
+func handle_kick_input():
+	if is_dodging or is_rolling or is_attacking:
+		return
+	
+	if Input.is_action_just_pressed("kick"):
+		start_kick()
+
+func start_kick():
+	is_attacking = true
+	dodge_velocity = Vector2.ZERO
+	attack_velocity = Vector2.ZERO
+	
+	var anim_name = "Kick_" + last_direction
+	
+	if not anim.has_animation(anim_name):
+		print("⚠ Нет анимации: ", anim_name)
+		reset_all_states()
+		return
+	
+	anim.play(anim_name)
+	attack_velocity = direction_to_vector(last_direction) * 100
 
 func start_run_attack():
 	is_run_attacking = true
@@ -443,6 +555,14 @@ func _on_anim_finished(finished_anim: StringName) -> void:
 	# --- DODGE SYSTEM ---
 	if finished_anim.begins_with("Dodge_"):
 		is_dodging = false
+		dodge_velocity = Vector2.ZERO
+		velocity = velocity.lerp(input_vector * walk_speed, 0.2)
+		return
+	if finished_anim.begins_with("Rolling_"):
+		is_rolling = false
+		dodge_velocity = Vector2.ZERO
+		roll_control = 0.0
+		velocity = Vector2.ZERO
 		return
 	# --- TURN SYSTEM ---
 	if finished_anim.begins_with("Turn_"):
@@ -453,7 +573,9 @@ func _on_anim_finished(finished_anim: StringName) -> void:
 	if finished_anim.begins_with("Run_Attack"):
 		reset_all_states()
 		return
-
+	if finished_anim.begins_with("Kick_"):
+		reset_all_states()
+		return
 	# --- COMBO ---
 	if not finished_anim.begins_with("Attack"):
 		return
