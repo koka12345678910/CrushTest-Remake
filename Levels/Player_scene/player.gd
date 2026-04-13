@@ -43,16 +43,16 @@ var combo_queued := false
 
 var is_dodging := false
 var dodge_velocity := Vector2.ZERO
-var dodge_speed := 350.0
+var dodge_speed := 300.0
 var dodge_friction := 4.0
 var is_invulnerable := false
 var i_frame_time := 0.2
 var dodge_tap_timer := 0.0
-var dodge_tap_window := 0.25
+var dodge_tap_window := 0.18
 var dodge_tap_count := 0
 
 var is_rolling := false
-var roll_speed := 300.0
+var roll_speed := 225.0
 var roll_duration := 0.9
 var roll_timer := 1.5
 var roll_dir := Vector2.ZERO
@@ -61,12 +61,18 @@ var roll_control := 0.0
 var normal_scale := Vector2(0.5, 0.5)
 var ladder_scale := Vector2(0.65, 0.65)
 
+var is_starting := true
 
 func _ready() -> void:
 	if not anim.animation_finished.is_connected(_on_anim_finished):
 		anim.animation_finished.connect(_on_anim_finished)
-
+		
+	anim.play("Started_" + last_direction)
+	print(anim.get_animation_list())
+	
 func _physics_process(delta):
+	if is_starting:
+		return
 	if is_rolling:
 		handle_roll(delta)
 		return
@@ -154,10 +160,8 @@ func _physics_process(delta):
 		velocity = velocity.lerp(Vector2.ZERO, friction_run * delta)
 
 	move_and_slide()
-
 	if input_vector != Vector2.ZERO and not is_turning:
 		last_direction = get_direction(input_vector)
-
 	play_movement_animation()
 	handle_movement_vfx(delta)
 
@@ -552,6 +556,10 @@ func play_running_hit_vfx():
 # ----------------------------------------------------------
 
 func _on_anim_finished(finished_anim: StringName) -> void:
+	if finished_anim.begins_with("Started_"):
+		is_starting = false
+		play_idle_animation()
+		return
 	# --- DODGE SYSTEM ---
 	if finished_anim.begins_with("Dodge_"):
 		is_dodging = false
@@ -579,7 +587,7 @@ func _on_anim_finished(finished_anim: StringName) -> void:
 	# --- COMBO ---
 	if not finished_anim.begins_with("Attack"):
 		return
-
+	
 	if combo_queued and combo_step < 4:  # теперь до 4 шагов
 		combo_step += 1
 		play_attack(combo_step)
