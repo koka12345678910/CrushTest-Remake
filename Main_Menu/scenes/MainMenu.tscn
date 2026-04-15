@@ -1,0 +1,141 @@
+[gd_scene format=3 uid="uid://gbimy5tfcnp6"]
+
+[ext_resource type="Script" uid="uid://dcfm2q4ouuedv" path="res://Main_Menu/scripts/MainMenu.gd" id="1_mainmenu"]
+[ext_resource type="Texture2D" uid="uid://cqj5utqydyvdf" path="res://Main_Menu/Gemini_Generated_Image_7yz2rj7yz2rj7yz2.png" id="2_foslk"]
+[ext_resource type="Script" uid="uid://uj11ia2lmi3q" path="res://Main_Menu/scripts/RainEffect.gd" id="2_rain"]
+[ext_resource type="Script" uid="uid://buymjmqmw81is" path="res://Main_Menu/scripts/EmberEffect.gd" id="3_embers"]
+[ext_resource type="Script" uid="uid://kw6nivjxtdbw" path="res://Main_Menu/scripts/BirdsEffect.gd" id="4_birds"]
+[ext_resource type="Script" uid="uid://b4klukdv3id2k" path="res://Main_Menu/scripts/MenuButton.gd" id="5_btn"]
+[ext_resource type="Theme" uid="uid://b7jwdfw7kv5fn" path="res://Main_Menu/theme/MenuTheme.tres" id="6_theme"]
+
+[node name="MainMenu" type="Control" unique_id=1294809207]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1_mainmenu")
+
+[node name="EffectsLayer" type="CanvasLayer" parent="." unique_id=396919462]
+
+[node name="FogOverlay" type="ColorRect" parent="EffectsLayer" unique_id=503662994]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+color = Color(0.04, 0.05, 0.07, 0)
+
+[node name="Rain" type="GPUParticles2D" parent="EffectsLayer" unique_id=1485973941]
+position = Vector2(576, 0)
+amount = 600
+lifetime = 1.8
+script = ExtResource("2_rain")
+
+[node name="Embers1" type="GPUParticles2D" parent="EffectsLayer" unique_id=1583756109]
+position = Vector2(280, 550)
+amount = 40
+lifetime = 3.0
+script = ExtResource("3_embers")
+
+[node name="Embers2" type="GPUParticles2D" parent="EffectsLayer" unique_id=1260183663]
+position = Vector2(420, 560)
+amount = 30
+lifetime = 2.5
+script = ExtResource("3_embers")
+
+[node name="Embers3" type="GPUParticles2D" parent="EffectsLayer" unique_id=2070892998]
+position = Vector2(700, 545)
+amount = 25
+lifetime = 2.8
+script = ExtResource("3_embers")
+
+[node name="Birds" type="Node2D" parent="EffectsLayer" unique_id=1933953640]
+script = ExtResource("4_birds")
+
+[node name="Background" type="TextureRect" parent="." unique_id=971412128]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = -3.3306274
+offset_right = 37.488525
+offset_bottom = 2.0
+grow_horizontal = 2
+grow_vertical = 2
+texture = ExtResource("2_foslk")
+expand_mode = 3
+stretch_mode = 6
+
+[node name="CameraAnim" type="AnimationPlayer" parent="Background" unique_id=716639152]
+
+[node name="UILayer" type="CanvasLayer" parent="." unique_id=1985279804]
+layer = 2
+
+[node name="LeftPanel" type="VBoxContainer" parent="UILayer" unique_id=1197256295]
+anchors_preset = 9
+anchor_bottom = 1.0
+offset_left = 127.0
+offset_right = 427.0
+grow_vertical = 2
+alignment = 1
+
+[node name="GameTitle" type="VBoxContainer" parent="UILayer/LeftPanel" unique_id=244491220]
+layout_mode = 2
+
+[node name="Subtitle" type="Label" parent="UILayer/LeftPanel/GameTitle" unique_id=321473873]
+layout_mode = 2
+text = "A  D A R K  F A N T A S Y"
+
+[node name="TitleLabel" type="Label" parent="UILayer/LeftPanel/GameTitle" unique_id=1708821285]
+layout_mode = 2
+text = "ASHENFALL"
+
+[node name="Spacer" type="Control" parent="UILayer/LeftPanel" unique_id=1953702604]
+custom_minimum_size = Vector2(0, 48)
+layout_mode = 2
+
+[node name="MenuButtons" type="VBoxContainer" parent="UILayer/LeftPanel" unique_id=1570133491]
+layout_mode = 2
+theme = ExtResource("6_theme")
+
+[node name="BtnNewGame" type="Button" parent="UILayer/LeftPanel/MenuButtons" unique_id=2062564159]
+layout_mode = 2
+text = "NEW JOURNEY"
+script = ExtResource("5_btn")
+
+[node name="BtnContinue" type="Button" parent="UILayer/LeftPanel/MenuButtons" unique_id=796371256]
+layout_mode = 2
+text = "CONTINUE"
+script = ExtResource("5_btn")
+
+[node name="BtnLoad" type="Button" parent="UILayer/LeftPanel/MenuButtons" unique_id=1681102973]
+layout_mode = 2
+text = "LOAD GAME"
+script = ExtResource("5_btn")
+
+[node name="BtnSettings" type="Button" parent="UILayer/LeftPanel/MenuButtons" unique_id=632916370]
+layout_mode = 2
+text = "SETTINGS"
+script = ExtResource("5_btn")
+
+[node name="BtnQuit" type="Button" parent="UILayer/LeftPanel/MenuButtons" unique_id=2145485157]
+layout_mode = 2
+text = "QUIT"
+script = ExtResource("5_btn")
+
+[node name="BottomBar" type="HBoxContainer" parent="UILayer" unique_id=317497745]
+anchors_preset = 12
+anchor_top = 1.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 24.0
+offset_top = -36.0
+offset_right = -24.0
+
+[node name="VersionLabel" type="Label" parent="UILayer/BottomBar" unique_id=1730489451]
+layout_mode = 2
+text = "v0.1.0  —  Early Access"
+
+[node name="AmbientMusic" type="AudioStreamPlayer" parent="." unique_id=1943123550]
+volume_db = -8.0
+autoplay = true
