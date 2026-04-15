@@ -72,16 +72,13 @@ func get_direction(vec: Vector2) -> String:
 	return dir
 
 func play_movement_animation():
-	var anim_name = ""
-	if is_running:
-		anim_name = "Run_" + last_direction
-	else:
-		anim_name = "Walk_" + last_direction
-
-	anim.play(anim_name)
+	# Plays run/walk with safe fallback if exact direction clip is missing.
+	var prefix = "Run_" if is_running else "Walk_"
+	_play_directional_animation(prefix, last_direction)
 
 func play_idle_animation():
-	anim.play("Idle_" + last_direction)
+	# Plays idle with directional fallback to stop animation-not-found spam.
+	_play_directional_animation("Idle_", last_direction)
 
 # ----------------------------------------------------------
 # АТАКИ
@@ -95,16 +92,12 @@ func handle_attack_input():
 		start_attack(2)
 
 func start_attack(stage: int) -> void:
+	# Selects attack animation with fallback for missing directional clips.
 	is_attacking = true
 
-	var anim_name := ""
-
-	if stage == 1:
-		anim_name = "Attack_" + last_direction
-	else:
-		anim_name = "Attack_2_" + last_direction
-
-	if not anim.has_animation(anim_name):
+	var prefix := "Attack_" if stage == 1 else "Attack_2_"
+	var anim_name := _resolve_directional_animation(prefix, last_direction)
+	if anim_name == "":
 		print("Нет анимации: ", anim_name)
 		is_attacking = false
 		return
@@ -123,6 +116,7 @@ func _on_anim_finished(finished_anim: StringName) -> void:
 # ----------------------------------------------------------
 
 func take_damage(amount):
+	# Applies damage and plays hit animation with safe directional fallback.
 	if invulnerable:
 		return
 
@@ -135,9 +129,9 @@ func take_damage(amount):
 	t.tween_interval(0.3)
 	t.finished.connect(func(): invulnerable = false)
 
-	# (опционально) анимация получения урона
-	if anim.has_animation("Hit_" + last_direction):
-		anim.play("Hit_" + last_direction)
+	var hit_anim = _resolve_directional_animation("Hit_", last_direction)
+	if hit_anim != "":
+		anim.play(hit_anim)
 
 	if health <= 0:
 		die()
@@ -164,3 +158,37 @@ func _on_area_2d_body_exited(body: Node2D):
 	if body == self:
 		var t = create_tween()
 		t.tween_property(gfx, "scale", normal_scale, 0.2)
+
+func _play_directional_animation(prefix: String, direction: String) -> void:
+	# Tries to play directional animation only when a valid clip exists.
+	var anim_name = _resolve_directional_animation(prefix, direction)
+	if anim_name != "":
+		anim.play(anim_name)
+
+func _resolve_directional_animation(prefix: String, direction: String) -> String:
+	# Resolves missing diagonals to nearest existing animation variant.
+	var candidate = prefix + direction
+	if anim.has_animation(candidate):
+		return candidate
+	match direction:
+		"Up_Right":
+			if anim.has_animation(prefix + "Up"):
+				return prefix + "Up"
+			if anim.has_animation(prefix + "Right"):
+				return prefix + "Right"
+		"Up_Left":
+			if anim.has_animation(prefix + "Up"):
+				return prefix + "Up"
+			if anim.has_animation(prefix + "Left"):
+				return prefix + "Left"
+		"Down_Right":
+			if anim.has_animation(prefix + "Down"):
+				return prefix + "Down"
+			if anim.has_animation(prefix + "Right"):
+				return prefix + "Right"
+		"Down_Left":
+			if anim.has_animation(prefix + "Down"):
+				return prefix + "Down"
+			if anim.has_animation(prefix + "Left"):
+				return prefix + "Left"
+	return ""

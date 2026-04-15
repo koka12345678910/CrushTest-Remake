@@ -1209,6 +1209,8 @@ _data = {
 [node name="Player" type="CharacterBody2D" unique_id=493723598]
 modulate = Color(0.9166399, 0.91663986, 0.9166398, 1)
 script = ExtResource("1_sf3ye")
+collision_layer = 1
+collision_mask = 1
 
 [node name="PlayerAnim" type="AnimatedSprite2D" parent="." unique_id=53146337]
 texture_filter = 1

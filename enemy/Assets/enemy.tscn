@@ -11,6 +11,8 @@
 [ext_resource type="Texture2D" uid="uid://bak4v246xabnj" path="res://enemy/Assets/DeathKnight/Walk.png" id="9_0cdbp"]
 
 [sub_resource type="CapsuleShape2D" id="CapsuleShape2D_0awpc"]
+radius = 14.0
+height = 53.003536
 
 [sub_resource type="AtlasTexture" id="AtlasTexture_5l0ry"]
 atlas = ExtResource("2_qfo6m")
@@ -7077,21 +7079,22 @@ func _on_body_exited(body):
 "
 
 [sub_resource type="CircleShape2D" id="CircleShape2D_lahry"]
-radius = 200.0
+radius = 82.05486
 
 [sub_resource type="CapsuleShape2D" id="CapsuleShape2D_48tvi"]
-radius = 19.0
-height = 60.0
+radius = 22.0
+height = 65.73852
 
-[node name="Enemy" type="CharacterBody2D" unique_id=71146591 groups=["player"]]
+[node name="Enemy" type="CharacterBody2D" unique_id=71146591 groups=["enemy"]]
 script = ExtResource("1_5i3uv")
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="." unique_id=1206019321]
 shape = SubResource("CapsuleShape2D_0awpc")
 
 [node name="AnimatedSprite2D" type="AnimatedSprite2D" parent="." unique_id=628001626]
+scale = Vector2(0.5, 0.566)
 sprite_frames = SubResource("SpriteFrames_50kp7")
-animation = &"die_down"
+animation = &"die_down_left"
 
 [node name="NavigationAgent2D" type="NavigationAgent2D" parent="." unique_id=1635442838]
 
@@ -7104,7 +7107,6 @@ shape = SubResource("CircleShape2D_lahry")
 [node name="Hitbox" type="Area2D" parent="." unique_id=1073832010]
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="Hitbox" unique_id=1686529253 groups=["enemy_hitbox"]]
-position = Vector2(0, 6)
 shape = SubResource("CapsuleShape2D_48tvi")
 
 [connection signal="body_entered" from="VisionArea" to="." method="_on_vision_area_body_entered"]

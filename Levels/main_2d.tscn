@@ -8,7 +8,7 @@
 [ext_resource type="PackedScene" uid="uid://bv1v4h1gmt6dr" path="res://Levels/Player_scene/player.tscn" id="9_guyyl"]
 [ext_resource type="Texture2D" uid="uid://ltnkxqjbt2lb" path="res://TileMap/TX Tileset Stone Ground.png" id="9_og1n0"]
 [ext_resource type="Texture2D" uid="uid://bq383xrjw11qj" path="res://TileMap/TX Tileset Wall.png" id="10_2au13"]
-[ext_resource type="PackedScene" uid="uid://dfw3rfjs5momf" path="res://enemy/Assets/player.tscn" id="10_cnusy"]
+[ext_resource type="PackedScene" uid="uid://dfw3rfjs5momf" path="res://enemy/Assets/enemy.tscn" id="10_cnusy"]
 [ext_resource type="Texture2D" uid="uid://cplm6ou8ccick" path="res://TileMap/Extra/TX Plant with Shadow.png" id="11_p13iw"]
 
 [sub_resource type="TileSetAtlasSource" id="TileSetAtlasSource_61w6t"]
@@ -2421,7 +2421,7 @@ position = Vector2(0, -28)
 navigation_polygon = SubResource("NavigationPolygon_guyyl")
 
 [node name="Enemy" parent="." unique_id=71146591 instance=ExtResource("10_cnusy")]
-position = Vector2(106, 163)
+position = Vector2(801, 35)
 
 [connection signal="body_entered" from="Area2D" to="Player" method="_on_area_2d_body_entered"]
 [connection signal="body_exited" from="Area2D" to="Player" method="_on_area_2d_body_exited"]
