@@ -15,7 +15,7 @@ compatibility/default_parent_skeleton_in_mesh_instance_3d=true
 [application]
 
 config/name="CrushTest (Update)"
-run/main_scene="uid://dm3oxjgua1y6"
+run/main_scene="uid://bq1fu11o7xgf3"
 config/features=PackedStringArray("4.6", "Forward Plus")
 boot_splash/show_image=false
 config/icon="res://icon.svg"
