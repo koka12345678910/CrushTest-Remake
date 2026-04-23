@@ -50,6 +50,8 @@ var i_frame_time := 0.2
 var dodge_tap_timer := 0.0
 var dodge_tap_window := 0.18
 var dodge_tap_count := 0
+var facing_dir: Vector2 = Vector2.DOWN
+var turn_lock := false
 
 var is_rolling := false
 var roll_speed := 225.0
@@ -160,8 +162,9 @@ func _physics_process(delta):
 		velocity = velocity.lerp(Vector2.ZERO, friction_run * delta)
 
 	move_and_slide()
-	if input_vector != Vector2.ZERO and not is_turning:
-		last_direction = get_direction(input_vector)
+	if input_vector != Vector2.ZERO and not turn_lock:
+		facing_dir = input_vector.normalized()
+		last_direction = get_direction(facing_dir)
 	play_movement_animation()
 	handle_movement_vfx(delta)
 
@@ -206,31 +209,35 @@ func direction_to_vector(dir: String) -> Vector2:
 func check_for_turn():
 	if input_vector == Vector2.ZERO:
 		return
-	
-	var current_dir = input_vector.normalized()
-	var last_dir_vec = direction_to_vector(last_direction)
-	var dot = current_dir.dot(last_dir_vec)
+	if turn_lock:
+		return
 
-	# если почти противоположно → разворот
-	if dot < turn_threshold and is_running and not is_turning and not is_attacking and not is_run_attacking:
-		start_turn(current_dir)
+	var input_dir = input_vector.normalized()
+
+	# если почти противоположное направление
+	if input_dir.dot(facing_dir) < -0.7:
+		start_turn(input_dir)
 
 func start_turn(new_dir: Vector2):
+	turn_lock = true
 	is_turning = true
-	play_turn_vfx()
-	# 🔥 сохраняем инерцию (в сторону, куда бежали)
-	turn_velocity = velocity
-	
-	var new_direction = get_direction(new_dir)
-	turn_direction = new_direction
-	
-	var anim_name = "Turn_" + new_direction
-	
+
+	var old_dir = facing_dir
+	var new_facing = new_dir.normalized()
+
+	# фиксируем новое направление заранее (как в Hades)
+	facing_dir = new_facing
+	last_direction = get_direction(new_facing)
+
+	# стоп движения (важно для feel)
+	turn_velocity = velocity * 0.4
+
+	# анимация
+	var anim_name = "Turn_" + last_direction
 	if anim.has_animation(anim_name):
 		anim.play(anim_name)
-	else:
-		print("⚠ Нет анимации поворота:", anim_name)
-		is_turning = false
+
+	play_turn_vfx(old_dir, new_facing)
 
 func start_roll():
 	if is_rolling:
@@ -346,24 +353,24 @@ func handle_movement_vfx(delta):
 	# обновляем состояние
 	was_running = is_running
 
-func play_turn_vfx():
+func play_turn_vfx(_old_dir: Vector2, _new_dir: Vector2):
 	if turn_around_vfx_scene == null:
 		return
 	
-	var vfx2 = turn_around_vfx_scene.instantiate()
+	var vfx = turn_around_vfx_scene.instantiate()
 	var dir = velocity.normalized()
 	if dir == Vector2.ZERO:
 		dir = direction_to_vector(last_direction) 
 	# чуть позади игрока
-	vfx2.global_position = foot_point2.global_position - dir * 5
+	vfx.global_position = foot_point.global_position - dir * 5
 
 	# передаём направление (если используешь движение внутри VFX)
-	vfx2.set("move_direction", dir)
+	vfx.set("move_direction", dir)
 
 	# поворот под направление
-	vfx2.rotation = dir.angle()
+	vfx.rotation = dir.angle()
 
-	get_tree().current_scene.add_child(vfx2)
+	get_tree().current_scene.add_child(vfx)
 
 func play_move_start_vfx():
 	if move_start_vfx_scene == null:
@@ -575,7 +582,7 @@ func _on_anim_finished(finished_anim: StringName) -> void:
 	# --- TURN SYSTEM ---
 	if finished_anim.begins_with("Turn_"):
 		is_turning = false
-		last_direction = turn_direction
+		turn_lock = false
 		return
 	# --- RUN ATTACK ---
 	if finished_anim.begins_with("Run_Attack"):

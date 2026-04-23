@@ -3,7 +3,6 @@
 [ext_resource type="Script" uid="uid://dcfm2q4ouuedv" path="res://Main_Menu/scripts/MainMenu.gd" id="1_mainmenu"]
 [ext_resource type="Texture2D" uid="uid://cqj5utqydyvdf" path="res://Main_Menu/Gemini_Generated_Image_7yz2rj7yz2rj7yz2.png" id="2_foslk"]
 [ext_resource type="Script" uid="uid://uj11ia2lmi3q" path="res://Main_Menu/scripts/RainEffect.gd" id="2_rain"]
-[ext_resource type="Script" uid="uid://buymjmqmw81is" path="res://Main_Menu/scripts/EmberEffect.gd" id="3_embers"]
 [ext_resource type="Script" uid="uid://kw6nivjxtdbw" path="res://Main_Menu/scripts/BirdsEffect.gd" id="4_birds"]
 [ext_resource type="Script" uid="uid://b4klukdv3id2k" path="res://Main_Menu/scripts/MenuButton.gd" id="5_btn"]
 [ext_resource type="Theme" uid="uid://b7jwdfw7kv5fn" path="res://Main_Menu/theme/MenuTheme.tres" id="6_theme"]
@@ -30,24 +29,6 @@ position = Vector2(576, 0)
 amount = 600
 lifetime = 1.8
 script = ExtResource("2_rain")
-
-[node name="Embers1" type="GPUParticles2D" parent="EffectsLayer" unique_id=1583756109]
-position = Vector2(280, 550)
-amount = 40
-lifetime = 3.0
-script = ExtResource("3_embers")
-
-[node name="Embers2" type="GPUParticles2D" parent="EffectsLayer" unique_id=1260183663]
-position = Vector2(420, 560)
-amount = 30
-lifetime = 2.5
-script = ExtResource("3_embers")
-
-[node name="Embers3" type="GPUParticles2D" parent="EffectsLayer" unique_id=2070892998]
-position = Vector2(700, 545)
-amount = 25
-lifetime = 2.8
-script = ExtResource("3_embers")
 
 [node name="Birds" type="Node2D" parent="EffectsLayer" unique_id=1933953640]
 script = ExtResource("4_birds")
