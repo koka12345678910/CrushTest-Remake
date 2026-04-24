@@ -5,7 +5,7 @@ extends Node2D
 
 const ENEMY_SCENE := preload("res://enemy/Assets/enemy.tscn")
 
-@export var max_enemies := 20
+@export var max_enemies := 3
 @export var respawn_delay := 1.0
 # Area where enemies can spawn; tune this to your map size.
 @export var spawn_area := Rect2(Vector2(80, 80), Vector2(1800, 1000))

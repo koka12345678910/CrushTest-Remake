@@ -7087,6 +7087,10 @@ height = 65.73852
 
 [node name="Enemy" type="CharacterBody2D" unique_id=71146591 groups=["enemy"]]
 script = ExtResource("1_5i3uv")
+post_attack_retreat_speed_multiplier = 0.16
+post_attack_prep_time = 0.3
+combo_every_attacks = 2
+combo_burst_hits = 2
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="." unique_id=1206019321]
 shape = SubResource("CapsuleShape2D_0awpc")
