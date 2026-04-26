@@ -20,6 +20,7 @@
 [ext_resource type="PackedScene" uid="uid://bv1v4h1gmt6dr" path="res://Levels/Player_scene/player.tscn" id="15_5ty2h"]
 [ext_resource type="Script" uid="uid://b1djojfj3kxsi" path="res://point_light_pulse.gd" id="17_gpk31"]
 [ext_resource type="Texture2D" uid="uid://qd0cuh1v670d" path="res://TileMap/toppng.com-light-beam-png-530x185.png" id="17_jkbap"]
+[ext_resource type="Texture2D" uid="uid://dpcgdy1mmuf8b" path="res://TileMap/shop.png" id="21_jkbap"]
 
 [sub_resource type="TileSetAtlasSource" id="TileSetAtlasSource_i35eu"]
 texture = ExtResource("1_5ty2h")
@@ -10958,3 +10959,9 @@ frame_progress = 0.51821023
 [node name="Player" parent="." unique_id=493723598 instance=ExtResource("15_5ty2h")]
 z_index = 4
 position = Vector2(2210, 252)
+
+[node name="Shop" type="Sprite2D" parent="." unique_id=1758394252]
+z_index = 3
+position = Vector2(1173, -58)
+scale = Vector2(0.29415843, 0.2815315)
+texture = ExtResource("21_jkbap")
