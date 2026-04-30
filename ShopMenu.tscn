@@ -1,0 +1,549 @@
+[gd_scene format=3 uid="uid://25fvlphm8bv0"]
+
+[sub_resource type="GDScript" id="GDScript_n5kkl"]
+script/source = "extends Control
+
+# ─── DATA ──────────────────────────────────────────────────────────────────────
+# Используем словари вместо inner class — надёжнее в Godot 4.6
+
+var items: Array[Dictionary] = []
+
+func _build_items() -> void:
+	items = [
+		{
+			\"name\": \"Лечебная Тыква\",
+			\"price\": 500,
+			\"description\": \"Восстанавливает здоровье.\\nМожно использовать до 5 раз\\nперед отдыхом у Скульптуры.\",
+			\"lore\": \"Тыквенная бутыль, наполненная\\nцелительным эликсиром. Говорят,\\nчто настоящий синоби никогда\\nне расстаётся с такой флягой.\",
+			\"col\": Color(0.4, 0.8, 0.3),
+			\"shape\": \"gourd\"
+		},
+		{
+			\"name\": \"Связка Сена\",
+			\"price\": 300,
+			\"description\": \"Монеты для торговли.\\nОсновная валюта торговцев\\nв Асина.\",
+			\"lore\": \"Пучок рисовой соломы,\\nперевязанный верёвкой. Принято\\nв качестве оплаты по всей\\nстране.\",
+			\"col\": Color(0.9, 0.75, 0.2),
+			\"shape\": \"pouch\"
+		},
+		{
+			\"name\": \"Свиток Синоби\",
+			\"price\": 1200,
+			\"description\": \"Открывает новый боевой\\nприём. Требует изучения\\nу Скульптора.\",
+			\"lore\": \"Пожелтевший свиток с\\nтехниками ниндзя. Написан\\nкровью мастеров прошлого,\\nпередавших знания потомкам.\",
+			\"col\": Color(0.6, 0.4, 0.9),
+			\"shape\": \"scroll\"
+		},
+		{
+			\"name\": \"Масляный Эликсир\",
+			\"price\": 450,
+			\"description\": \"Увеличивает урон огнём.\\nДействует в течение одного\\nбоя.\",
+			\"lore\": \"Густое масло, вспыхивающее\\nпри контакте с огнём.\\nИзлюбленное средство\\nпиротехников Асина.\",
+			\"col\": Color(0.95, 0.55, 0.1),
+			\"shape\": \"flask\"
+		},
+		{
+			\"name\": \"Колокол Будды\",
+			\"price\": 2500,
+			\"description\": \"Призывает торговца\\nиз памяти. Редкий\\nпредмет.\",
+			\"lore\": \"Бронзовый колокол,\\nотлитый в старой кузнице.\\nЗвук его проникает сквозь\\nзавесу между мирами.\",
+			\"col\": Color(0.7, 0.85, 0.95),
+			\"shape\": \"bell\"
+		},
+		{
+			\"name\": \"Уголь Духа\",
+			\"price\": 800,
+			\"description\": \"Усиливает протезу\\nСиноби. Один из видов\\nредкого топлива.\",
+			\"lore\": \"Чёрный уголь, тлеющий\\nбез огня. Скульптор\\nиспользует его для\\nзаточки своих инструментов.\",
+			\"col\": Color(0.9, 0.3, 0.25),
+			\"shape\": \"ember\"
+		},
+		{
+			\"name\": \"Маска Памяти\",
+			\"price\": 3500,
+			\"description\": \"Позволяет заглянуть\\nв прошлое. Используется\\nодин раз.\",
+			\"lore\": \"Белая маска из дерева\\nхиноки. Надевший её\\nвидит то, что хотел\\nзабыть больше всего.\",
+			\"col\": Color(0.85, 0.85, 0.9),
+			\"shape\": \"mask\"
+		},
+		{
+			\"name\": \"Клинок Синоби\",
+			\"price\": 1800,
+			\"description\": \"Основное оружие синоби.\\nОстрый и лёгкий. Баланс\\nсмерти и ремесла.\",
+			\"lore\": \"Меч, выкованный\\nмастером Дзинзаэмоном\\nиз стали горных рудников\\nАсина. Никогда не ржавеет.\",
+			\"col\": Color(0.75, 0.8, 0.85),
+			\"shape\": \"sword\"
+		},
+	]
+
+# ─── STATE ─────────────────────────────────────────────────────────────────────
+var hovered_index: int = -1
+var selected_index: int = -1
+var player_gold: int = 3000
+var scroll_offset: float = 0.0
+var target_scroll: float = 0.0
+var anim_time: float = 0.0
+
+# Layout
+const LEFT_PANEL_W: int = 460
+const RIGHT_PANEL_X: int = 500
+const ITEM_H: int = 62
+const LIST_START_Y: int = 180
+const LIST_MARGIN_X: int = 40
+
+var font_default: Font
+var font_bold: Font
+
+# ─── LIFECYCLE ─────────────────────────────────────────────────────────────────
+func _ready() -> void:
+	_build_items()
+	set_process(true)
+	set_process_input(true)
+	font_default = ThemeDB.fallback_font
+	font_bold    = ThemeDB.fallback_font
+
+func _process(delta: float) -> void:
+	anim_time     += delta
+	scroll_offset  = lerp(scroll_offset, target_scroll, delta * 10.0)
+	queue_redraw()
+
+func _input(event: InputEvent) -> void:
+	if event is InputEventMouseMotion:
+		_update_hover((event as InputEventMouseMotion).position)
+
+	if event is InputEventMouseButton:
+		var mb := event as InputEventMouseButton
+		if mb.pressed:
+			if mb.button_index == MOUSE_BUTTON_LEFT:
+				_handle_click(mb.position)
+			elif mb.button_index == MOUSE_BUTTON_WHEEL_DOWN:
+				var max_scroll: float = maxf(0.0, float(items.size() * ITEM_H) - 400.0)
+				target_scroll = clampf(target_scroll + 60.0, 0.0, max_scroll)
+			elif mb.button_index == MOUSE_BUTTON_WHEEL_UP:
+				var max_scroll: float = maxf(0.0, float(items.size() * ITEM_H) - 400.0)
+				target_scroll = clampf(target_scroll - 60.0, 0.0, max_scroll)
+
+func _update_hover(mouse_pos: Vector2) -> void:
+	var prev: int = hovered_index
+	hovered_index = -1
+	for i: int in items.size():
+		var iy: float = float(LIST_START_Y) + float(i * ITEM_H) - scroll_offset
+		var r := Rect2(float(LIST_MARGIN_X), iy, float(LEFT_PANEL_W - LIST_MARGIN_X * 2), float(ITEM_H - 4))
+		if r.has_point(mouse_pos):
+			hovered_index = i
+			break
+	if hovered_index != prev:
+		queue_redraw()
+
+func _handle_click(mouse_pos: Vector2) -> void:
+	for i: int in items.size():
+		var iy: float = float(LIST_START_Y) + float(i * ITEM_H) - scroll_offset
+		var r := Rect2(float(LIST_MARGIN_X), iy, float(LEFT_PANEL_W - LIST_MARGIN_X * 2), float(ITEM_H - 4))
+		if r.has_point(mouse_pos):
+			if player_gold >= (items[i][\"price\"] as int):
+				selected_index = i
+	queue_redraw()
+
+# ─── MAIN DRAW ─────────────────────────────────────────────────────────────────
+func _draw() -> void:
+	var W: float = size.x
+	var H: float = size.y
+
+	# Background
+	draw_rect(Rect2(0.0, 0.0, W, H), Color(0.04, 0.03, 0.02))
+
+	# Grain
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 42
+	for _i: int in 600:
+		var gx: float = rng.randf_range(0.0, W)
+		var gy: float = rng.randf_range(0.0, H)
+		var ga: float = rng.randf_range(0.01, 0.04)
+		draw_rect(Rect2(gx, gy, 1.0, 1.0), Color(1.0, 0.95, 0.8, ga))
+
+	# Left panel
+	draw_rect(Rect2(0.0, 0.0, float(LEFT_PANEL_W), H), Color(0.06, 0.05, 0.04, 0.95))
+
+	_draw_vertical_divider()
+	_draw_right_panel(W, H)
+	_draw_header()
+	_draw_gold_display()
+	_draw_item_list()
+	_draw_scrollbar()
+	_draw_footer_hint(H)
+
+# ─── DIVIDER ───────────────────────────────────────────────────────────────────
+func _draw_vertical_divider() -> void:
+	var x: float = float(LEFT_PANEL_W)
+	var alphas: Array[float] = [0.06, 0.5, 0.06]
+	var offsets: Array[float] = [-1.0, 0.0, 1.0]
+	for i: int in 3:
+		draw_line(Vector2(x + offsets[i], 0.0), Vector2(x + offsets[i], size.y),
+				Color(0.7, 0.6, 0.4, alphas[i]), 1.0)
+	for pct: float in [0.25, 0.5, 0.75]:
+		var gy: float = size.y * pct
+		draw_rect(Rect2(x - 3.0, gy - 3.0, 6.0, 6.0), Color(0.7, 0.6, 0.4, 0.6))
+		draw_rect(Rect2(x - 2.0, gy - 2.0, 4.0, 4.0), Color(0.95, 0.88, 0.65, 0.8))
+
+# ─── HEADER ────────────────────────────────────────────────────────────────────
+func _draw_header() -> void:
+	var pw: float = float(LEFT_PANEL_W)
+	draw_rect(Rect2(0.0, 0.0, pw, 2.0), Color(0.7, 0.6, 0.4, 0.8))
+	draw_rect(Rect2(0.0, 0.0, pw, 70.0), Color(0.08, 0.06, 0.04))
+
+	var cc := Color(0.7, 0.6, 0.4, 0.5)
+	draw_line(Vector2(10.0, 5.0),       Vector2(10.0, 20.0),      cc, 1.5)
+	draw_line(Vector2(10.0, 5.0),       Vector2(25.0, 5.0),       cc, 1.5)
+	draw_line(Vector2(pw - 10.0, 5.0),  Vector2(pw - 10.0, 20.0), cc, 1.5)
+	draw_line(Vector2(pw - 10.0, 5.0),  Vector2(pw - 25.0, 5.0),  cc, 1.5)
+
+	draw_string(font_bold,    Vector2(pw * 0.5 - 90.0, 32.0),
+			\"ТОРГОВЕЦ ЯСУХАРУ\", HORIZONTAL_ALIGNMENT_LEFT, -1, 18, Color(0.95, 0.88, 0.65))
+	draw_string(font_default, Vector2(pw * 0.5 - 55.0, 52.0),
+			\"— Товары синоби —\", HORIZONTAL_ALIGNMENT_LEFT, -1, 12, Color(0.6, 0.55, 0.4, 0.8))
+
+	draw_line(Vector2(20.0, 66.0), Vector2(pw - 20.0, 66.0), Color(0.7, 0.6, 0.4, 0.3), 1.0)
+
+	draw_string(font_default, Vector2(float(LIST_MARGIN_X), float(LIST_START_Y) - 14.0),
+			\"ПРЕДМЕТ\", HORIZONTAL_ALIGNMENT_LEFT, -1, 11, Color(0.5, 0.45, 0.35))
+	draw_string(font_default, Vector2(pw - float(LIST_MARGIN_X) - 60.0, float(LIST_START_Y) - 14.0),
+			\"ЦЕНА\", HORIZONTAL_ALIGNMENT_LEFT, -1, 11, Color(0.5, 0.45, 0.35))
+	draw_line(Vector2(float(LIST_MARGIN_X), float(LIST_START_Y) - 6.0),
+			  Vector2(pw - float(LIST_MARGIN_X), float(LIST_START_Y) - 6.0),
+			  Color(0.7, 0.6, 0.4, 0.2), 1.0)
+
+# ─── GOLD DISPLAY ──────────────────────────────────────────────────────────────
+func _draw_gold_display() -> void:
+	var gx: float = 20.0
+	var gy: float = size.y - 60.0
+	draw_rect(Rect2(gx, gy, 220.0, 40.0),       Color(0.08, 0.07, 0.04))
+	draw_rect(Rect2(gx, gy, 220.0, 1.0),         Color(0.7, 0.6, 0.4, 0.4))
+	draw_rect(Rect2(gx, gy + 39.0, 220.0, 1.0), Color(0.7, 0.6, 0.4, 0.4))
+	draw_circle(Vector2(gx + 18.0, gy + 20.0), 10.0, Color(0.8, 0.65, 0.1))
+	draw_circle(Vector2(gx + 18.0, gy + 20.0),  7.0, Color(0.95, 0.82, 0.25))
+	draw_string(font_default, Vector2(gx + 10.0, gy + 24.0),
+			\"Y\", HORIZONTAL_ALIGNMENT_LEFT, -1, 14, Color(0.5, 0.35, 0.05))
+	draw_string(font_bold, Vector2(gx + 36.0, gy + 25.0),
+			str(player_gold) + \" Sen\", HORIZONTAL_ALIGNMENT_LEFT, -1, 15, Color(0.95, 0.85, 0.5))
+
+# ─── ITEM LIST ─────────────────────────────────────────────────────────────────
+func _draw_item_list() -> void:
+	var clip_top: float = float(LIST_START_Y)
+	var clip_bot: float = size.y - 80.0
+	var pw: float  = float(LEFT_PANEL_W)
+	var lm: float  = float(LIST_MARGIN_X)
+
+	for i: int in items.size():
+		var item: Dictionary = items[i]
+		var iy: float = float(LIST_START_Y) + float(i * ITEM_H) - scroll_offset
+		if iy + float(ITEM_H) < clip_top or iy > clip_bot:
+			continue
+
+		var is_hovered:  bool = (i == hovered_index)
+		var is_selected: bool = (i == selected_index)
+		var can_afford:  bool = (player_gold >= (item[\"price\"] as int))
+		var col: Color = item[\"col\"] as Color
+
+		# Row background
+		var row_rect := Rect2(lm, iy + 1.0, pw - lm * 2.0, float(ITEM_H) - 5.0)
+		if is_selected:
+			draw_rect(row_rect, Color(col.r * 0.18, col.g * 0.18, col.b * 0.18, 0.9))
+			draw_rect(Rect2(lm, iy + 1.0, 3.0, float(ITEM_H) - 5.0), col)
+		elif is_hovered:
+			draw_rect(row_rect, Color(0.14, 0.11, 0.07, 0.9))
+			draw_rect(Rect2(lm, iy + 1.0, 2.0, float(ITEM_H) - 5.0), Color(col.r, col.g, col.b, 0.7))
+		else:
+			draw_rect(row_rect, Color(0.08, 0.07, 0.05, 0.7))
+
+		draw_line(Vector2(lm, iy + float(ITEM_H) - 4.0),
+				  Vector2(pw - lm, iy + float(ITEM_H) - 4.0),
+				  Color(0.25, 0.22, 0.16, 0.5), 1.0)
+
+		# Mini icon
+		var icon_x: float = lm + 12.0
+		var icon_y: float = iy + float(ITEM_H) * 0.5
+		_draw_mini_icon(icon_x, icon_y, 14.0, item[\"shape\"] as String, col, is_hovered or is_selected)
+
+		# Name
+		var name_color: Color
+		if not can_afford:
+			name_color = Color(0.4, 0.35, 0.28)
+		elif is_selected:
+			name_color = Color(1.0, 0.95, 0.75)
+		elif is_hovered:
+			name_color = Color(0.95, 0.88, 0.65)
+		else:
+			name_color = Color(0.75, 0.68, 0.52)
+
+		draw_string(font_bold, Vector2(icon_x + 22.0, icon_y + 5.0),
+				item[\"name\"] as String, HORIZONTAL_ALIGNMENT_LEFT, -1, 15, name_color)
+
+		# Price
+		var price_color: Color
+		if not can_afford:
+			price_color = Color(0.55, 0.2, 0.15)
+		elif is_hovered:
+			price_color = Color(0.95, 0.82, 0.25)
+		else:
+			price_color = Color(0.7, 0.6, 0.3)
+
+		var price_str: String = str(item[\"price\"])
+		draw_string(font_default,
+				Vector2(pw - lm - 10.0 - float(price_str.length()) * 9.0, icon_y + 5.0),
+				price_str, HORIZONTAL_ALIGNMENT_LEFT, -1, 14, price_color)
+
+		if not can_afford and (is_hovered or is_selected):
+			draw_string(font_default,
+					Vector2(pw - lm - 85.0, icon_y - 8.0),
+					\"Мало Сен\", HORIZONTAL_ALIGNMENT_LEFT, -1, 10, Color(0.7, 0.25, 0.2, 0.9))
+
+# ─── SCROLLBAR ─────────────────────────────────────────────────────────────────
+func _draw_scrollbar() -> void:
+	var total_h:   float = float(items.size() * ITEM_H)
+	var visible_h: float = size.y - float(LIST_START_Y) - 80.0
+	if total_h <= visible_h:
+		return
+	var bar_x: float = float(LEFT_PANEL_W) - 8.0
+	draw_rect(Rect2(bar_x, float(LIST_START_Y), 4.0, visible_h), Color(0.15, 0.13, 0.1))
+	var thumb_h: float = maxf(30.0, visible_h * (visible_h / total_h))
+	var thumb_y: float = float(LIST_START_Y) + (scroll_offset / (total_h - visible_h)) * (visible_h - thumb_h)
+	draw_rect(Rect2(bar_x, thumb_y, 4.0, thumb_h), Color(0.6, 0.52, 0.35, 0.8))
+
+# ─── FOOTER ────────────────────────────────────────────────────────────────────
+func _draw_footer_hint(H: float) -> void:
+	draw_line(Vector2(float(LIST_MARGIN_X), H - 78.0),
+			  Vector2(float(LEFT_PANEL_W - LIST_MARGIN_X), H - 78.0),
+			  Color(0.7, 0.6, 0.4, 0.2), 1.0)
+	draw_string(font_default, Vector2(float(LIST_MARGIN_X), H - 62.0),
+			\"[Колесо] Прокрутка    [ЛКМ] Купить\",
+			HORIZONTAL_ALIGNMENT_LEFT, -1, 11, Color(0.45, 0.4, 0.3))
+
+# ─── RIGHT PANEL ───────────────────────────────────────────────────────────────
+func _draw_right_panel(W: float, H: float) -> void:
+	var rx: float = float(RIGHT_PANEL_X)
+	var pw: float = W - rx
+
+	if hovered_index < 0:
+		draw_string(font_default, Vector2(rx + pw * 0.5 - 80.0, H * 0.5),
+				\"Наведите на предмет\", HORIZONTAL_ALIGNMENT_LEFT, -1, 14, Color(0.35, 0.3, 0.22))
+		return
+
+	var item: Dictionary = items[hovered_index]
+	var col: Color = item[\"col\"] as Color
+	var pulse: float = (sin(anim_time * 2.5) + 1.0) * 0.5
+
+	# Panel glow tint
+	for gi: int in 5:
+		var ga: float = 0.015 - float(gi) * 0.003
+		draw_rect(Rect2(rx, float(gi) * 40.0, pw, H - float(gi) * 80.0),
+				Color(col.r * 0.3, col.g * 0.3, col.b * 0.3, ga))
+
+	# Top accent bar
+	draw_rect(Rect2(rx + 30.0, 10.0, pw - 60.0, 2.0), Color(col.r, col.g, col.b, 0.6))
+
+	# Icon position
+	var icon_cx: float = rx + pw * 0.5
+	var icon_cy: float = H * 0.32
+	var icon_r: float  = 90.0
+
+	# Outer rings
+	for ri: int in 3:
+		var ring_r: float = icon_r + 20.0 + float(ri) * 14.0
+		var ring_a: float = 0.06 - float(ri) * 0.015
+		draw_arc(Vector2(icon_cx, icon_cy), ring_r, 0.0, TAU, 64,
+				Color(col.r, col.g, col.b, ring_a + pulse * 0.03), 1.5)
+
+	# Glow
+	for gi: int in 8:
+		var gr: float = icon_r + float(8 - gi) * 6.0
+		var ga: float = 0.025 * (1.0 + pulse * 0.3)
+		draw_circle(Vector2(icon_cx, icon_cy), gr, Color(col.r * 0.5, col.g * 0.5, col.b * 0.5, ga))
+
+	# Icon bg circle
+	draw_circle(Vector2(icon_cx, icon_cy), icon_r, Color(0.07, 0.06, 0.04))
+	draw_arc(Vector2(icon_cx, icon_cy), icon_r, 0.0, TAU, 64,
+			Color(col.r, col.g, col.b, 0.5 + pulse * 0.2), 2.0)
+	draw_arc(Vector2(icon_cx, icon_cy), icon_r - 8.0, 0.0, TAU, 64,
+			Color(col.r, col.g, col.b, 0.15), 1.0)
+
+	_draw_big_icon(icon_cx, icon_cy, icon_r * 0.65, item[\"shape\"] as String, col)
+
+	# Name
+	var name_y: float = icon_cy + icon_r + 38.0
+	draw_line(Vector2(rx + 40.0, name_y - 18.0), Vector2(W - 40.0, name_y - 18.0),
+			Color(col.r, col.g, col.b, 0.25), 1.0)
+	var name_str: String = item[\"name\"] as String
+	var name_w: float = float(name_str.length()) * 13.0
+	draw_string(font_bold, Vector2(icon_cx - name_w * 0.5, name_y),
+			name_str, HORIZONTAL_ALIGNMENT_LEFT, -1, 22, Color(0.98, 0.93, 0.75))
+
+	# Price badge
+	var badge_x: float = icon_cx - 60.0
+	var badge_y: float = name_y + 14.0
+	draw_rect(Rect2(badge_x, badge_y, 120.0, 28.0), Color(0.1, 0.08, 0.04))
+	draw_rect(Rect2(badge_x, badge_y, 120.0, 1.0), Color(col.r, col.g, col.b, 0.5))
+	draw_rect(Rect2(badge_x, badge_y + 27.0, 120.0, 1.0), Color(col.r, col.g, col.b, 0.5))
+	draw_circle(Vector2(badge_x + 18.0, badge_y + 14.0), 9.0, Color(0.75, 0.6, 0.1))
+	draw_circle(Vector2(badge_x + 18.0, badge_y + 14.0), 6.0, Color(0.95, 0.82, 0.25))
+	var can_afford: bool = (player_gold >= (item[\"price\"] as int))
+	draw_string(font_bold, Vector2(badge_x + 32.0, badge_y + 18.0),
+			str(item[\"price\"]) + \" Sen\", HORIZONTAL_ALIGNMENT_LEFT, -1, 13,
+			Color(0.95, 0.82, 0.25) if can_afford else Color(0.6, 0.25, 0.2))
+
+	# Description
+	var desc_y: float = name_y + 58.0
+	draw_line(Vector2(rx + 40.0, desc_y - 6.0), Vector2(W - 40.0, desc_y - 6.0),
+			Color(0.4, 0.35, 0.25, 0.4), 1.0)
+	var desc_lines: PackedStringArray = (item[\"description\"] as String).split(\"\\n\")
+	for li: int in desc_lines.size():
+		draw_string(font_default, Vector2(rx + 44.0, desc_y + float(li) * 22.0),
+				desc_lines[li], HORIZONTAL_ALIGNMENT_LEFT, -1, 14, Color(0.82, 0.76, 0.62))
+
+	# Lore
+	var lore_y: float = desc_y + float(desc_lines.size()) * 22.0 + 24.0
+	draw_line(Vector2(rx + 40.0, lore_y - 10.0), Vector2(W - 40.0, lore_y - 10.0),
+			Color(0.4, 0.35, 0.25, 0.25), 1.0)
+	draw_string(font_default, Vector2(rx + 44.0, lore_y),
+			\"-- Predaniye --\", HORIZONTAL_ALIGNMENT_LEFT, -1, 11, Color(0.5, 0.45, 0.32))
+	var lore_lines: PackedStringArray = (item[\"lore\"] as String).split(\"\\n\")
+	for li: int in lore_lines.size():
+		draw_string(font_default, Vector2(rx + 44.0, lore_y + 18.0 + float(li) * 20.0),
+				lore_lines[li], HORIZONTAL_ALIGNMENT_LEFT, -1, 12, Color(0.6, 0.55, 0.42))
+
+	# Bottom accent
+	draw_rect(Rect2(rx + 30.0, H - 12.0, pw - 60.0, 2.0),
+			Color(col.r, col.g, col.b, 0.4 + pulse * 0.15))
+
+# ─── MINI ICON ─────────────────────────────────────────────────────────────────
+func _draw_mini_icon(cx: float, cy: float, r: float, shape: String, col: Color, bright: bool) -> void:
+	var c: Color = col if bright else Color(col.r * 0.6, col.g * 0.6, col.b * 0.6)
+	match shape:
+		\"sword\":
+			draw_line(Vector2(cx, cy - r), Vector2(cx, cy + r), c, 2.5)
+			draw_line(Vector2(cx - r * 0.5, cy + r * 0.2), Vector2(cx + r * 0.5, cy + r * 0.2), c, 2.0)
+		\"pouch\":
+			draw_circle(Vector2(cx, cy + r * 0.2), r * 0.7, c)
+			draw_line(Vector2(cx - r * 0.3, cy - r * 0.3), Vector2(cx + r * 0.3, cy - r * 0.3), c, 2.0)
+		\"scroll\":
+			draw_arc(Vector2(cx, cy - r * 0.6), r * 0.3, PI, TAU, 16, c, 2.0)
+			draw_arc(Vector2(cx, cy + r * 0.6), r * 0.3, 0.0, PI, 16, c, 2.0)
+			draw_line(Vector2(cx - r * 0.7, cy - r * 0.6), Vector2(cx - r * 0.7, cy + r * 0.6), c, 2.0)
+			draw_line(Vector2(cx + r * 0.7, cy - r * 0.6), Vector2(cx + r * 0.7, cy + r * 0.6), c, 2.0)
+		\"flask\":
+			draw_circle(Vector2(cx, cy + r * 0.3), r * 0.65, c)
+			draw_rect(Rect2(cx - r * 0.2, cy - r * 0.8, r * 0.4, r * 0.6), c)
+		\"bell\":
+			draw_arc(Vector2(cx, cy - r * 0.1), r * 0.8, PI, TAU, 24, c, 2.5)
+			draw_line(Vector2(cx - r * 0.8, cy - r * 0.1), Vector2(cx + r * 0.8, cy - r * 0.1), c, 2.0)
+			draw_line(Vector2(cx, cy - r * 0.1), Vector2(cx, cy - r * 0.9), c, 2.0)
+			draw_circle(Vector2(cx, cy + r * 0.65), r * 0.2, c)
+		\"ember\":
+			draw_circle(Vector2(cx, cy), r * 0.7, c)
+			for si: int in 4:
+				var sa: float = float(si) * PI * 0.5 - PI * 0.25
+				draw_line(Vector2(cx, cy), Vector2(cx + cos(sa) * r, cy + sin(sa) * r), c, 1.5)
+		\"gourd\":
+			draw_circle(Vector2(cx, cy + r * 0.35), r * 0.6, c)
+			draw_circle(Vector2(cx, cy - r * 0.3),  r * 0.4, c)
+			draw_rect(Rect2(cx - r * 0.12, cy - r * 0.95, r * 0.24, r * 0.3), c)
+		\"mask\":
+			draw_arc(Vector2(cx, cy), r * 0.85, 0.0, TAU, 32, c, 2.5)
+			draw_circle(Vector2(cx - r * 0.3, cy - r * 0.15), r * 0.15, c)
+			draw_circle(Vector2(cx + r * 0.3, cy - r * 0.15), r * 0.15, c)
+			draw_arc(Vector2(cx, cy + r * 0.1), r * 0.35, 0.0, PI, 16, c, 2.0)
+
+# ─── BIG ICON ──────────────────────────────────────────────────────────────────
+func _draw_big_icon(cx: float, cy: float, r: float, shape: String, col: Color) -> void:
+	var bright := Color(minf(col.r * 1.2, 1.0), minf(col.g * 1.2, 1.0), minf(col.b * 1.2, 1.0))
+	var dim    := Color(col.r * 0.7, col.g * 0.7, col.b * 0.7)
+	var pulse  := (sin(anim_time * 3.0) + 1.0) * 0.5
+	var pr     := r * (1.0 + pulse * 0.04)
+
+	match shape:
+		\"sword\":
+			draw_rect(Rect2(cx - 4.0, cy - pr, 8.0, pr * 1.6), dim)
+			draw_rect(Rect2(cx - 3.0, cy - pr, 6.0, pr * 1.6), bright)
+			# crossguard — FIXED (was broken Rect2 call in original)
+			draw_rect(Rect2(cx - pr * 0.55, cy + pr * 0.2, pr * 1.1, 8.0), dim)
+			draw_rect(Rect2(cx - 5.0, cy - pr * 1.05, 10.0, 14.0), Color(0.6, 0.5, 0.3))
+			draw_arc(Vector2(cx, cy - pr), 6.0, 0.0, TAU, 16, Color(0.9, 0.8, 0.5), 2.0)
+		\"pouch\":
+			draw_circle(Vector2(cx, cy + pr * 0.18), pr * 0.75, dim)
+			draw_circle(Vector2(cx, cy + pr * 0.18), pr * 0.68, bright)
+			for ti: int in 4:
+				var ta: float = float(ti) * PI * 0.5
+				draw_line(Vector2(cx, cy + pr * 0.18),
+						  Vector2(cx + cos(ta) * pr * 0.5, cy + pr * 0.18 + sin(ta) * pr * 0.5),
+						  Color(bright.r, bright.g, bright.b, 0.3), 2.0)
+			draw_rect(Rect2(cx - pr * 0.25, cy - pr * 0.5, pr * 0.5, pr * 0.25), dim)
+			draw_line(Vector2(cx - pr * 0.35, cy - pr * 0.3),
+					  Vector2(cx + pr * 0.35, cy - pr * 0.3), bright, 3.0)
+		\"scroll\":
+			draw_arc(Vector2(cx, cy - pr * 0.65), pr * 0.28, PI, TAU, 24, dim, 4.0)
+			draw_arc(Vector2(cx, cy + pr * 0.65), pr * 0.28, 0.0, PI, 24, dim, 4.0)
+			draw_rect(Rect2(cx - pr * 0.72, cy - pr * 0.65, pr * 1.44, pr * 1.3), Color(0.12, 0.1, 0.07))
+			draw_rect(Rect2(cx - pr * 0.72, cy - pr * 0.65, 4.0, pr * 1.3), dim)
+			draw_rect(Rect2(cx + pr * 0.72 - 4.0, cy - pr * 0.65, 4.0, pr * 1.3), dim)
+			for li: int in 4:
+				draw_line(Vector2(cx - pr * 0.55, cy - pr * 0.35 + float(li) * pr * 0.26),
+						  Vector2(cx + pr * 0.55, cy - pr * 0.35 + float(li) * pr * 0.26),
+						  Color(bright.r, bright.g, bright.b, 0.4), 1.5)
+		\"flask\":
+			draw_circle(Vector2(cx, cy + pr * 0.28), pr * 0.68, dim)
+			draw_circle(Vector2(cx, cy + pr * 0.28), pr * 0.58,
+					Color(col.r * 0.3, col.g * 0.5, col.b * 0.3, 0.5))
+			draw_rect(Rect2(cx - pr * 0.18, cy - pr * 0.85, pr * 0.36, pr * 0.65), dim)
+			draw_rect(Rect2(cx - pr * 0.26, cy - pr * 0.28, pr * 0.52, pr * 0.2), dim)
+			draw_arc(Vector2(cx - pr * 0.15, cy + pr * 0.1), pr * 0.18,
+					-PI * 0.8, -PI * 0.1, 12, Color(1.0, 1.0, 1.0, 0.3), 2.0)
+		\"bell\":
+			draw_arc(Vector2(cx, cy - pr * 0.08), pr * 0.82, PI, TAU, 32, dim, 6.0)
+			draw_arc(Vector2(cx, cy - pr * 0.08), pr * 0.72, PI, TAU, 32, bright, 3.0)
+			draw_line(Vector2(cx - pr * 0.85, cy - pr * 0.08),
+					  Vector2(cx + pr * 0.85, cy - pr * 0.08), dim, 5.0)
+			draw_line(Vector2(cx, cy - pr * 0.08), Vector2(cx, cy - pr), dim, 4.0)
+			draw_circle(Vector2(cx, cy + pr * 0.65), pr * 0.18, dim)
+		\"ember\":
+			for ei: int in 12:
+				var ea: float = float(ei) * TAU / 12.0 + anim_time * 0.5
+				var er: float = pr * (0.5 + 0.5 * (float(ei % 3) / 3.0))
+				draw_line(Vector2(cx, cy), Vector2(cx + cos(ea) * er, cy + sin(ea) * er),
+						Color(col.r, col.g, col.b, 0.4), 2.5)
+			draw_circle(Vector2(cx, cy), pr * 0.45, dim)
+			draw_circle(Vector2(cx, cy), pr * 0.3,  bright)
+			draw_circle(Vector2(cx, cy), pr * 0.15, Color(1.0, 0.95, 0.8))
+		\"gourd\":
+			draw_circle(Vector2(cx, cy + pr * 0.3),  pr * 0.62, dim)
+			draw_circle(Vector2(cx, cy - pr * 0.28), pr * 0.42, dim)
+			draw_circle(Vector2(cx, cy + pr * 0.3),  pr * 0.5,
+					Color(col.r * 0.5, col.g * 0.9, col.b * 0.4, 0.4))
+			draw_rect(Rect2(cx - pr * 0.1, cy - pr * 0.95, pr * 0.2, pr * 0.32), dim)
+			draw_arc(Vector2(cx - pr * 0.18, cy + pr * 0.05), pr * 0.2,
+					-PI * 0.4, PI * 0.4, 12, Color(1.0, 1.0, 1.0, 0.35), 2.5)
+		\"mask\":
+			draw_arc(Vector2(cx, cy), pr * 0.88, 0.0, TAU, 48, dim, 5.0)
+			draw_arc(Vector2(cx, cy), pr * 0.78, 0.0, TAU, 48, bright, 2.0)
+			for ei: int in 2:
+				var ex: float = cx - pr * 0.3 + float(ei) * pr * 0.6
+				draw_circle(Vector2(ex, cy - pr * 0.12), pr * 0.16, Color(0.05, 0.05, 0.05))
+				draw_arc(Vector2(ex, cy - pr * 0.12), pr * 0.18, 0.0, TAU, 20,
+						Color(bright.r, bright.g, bright.b, 0.6), 2.0)
+			var pts := PackedVector2Array([
+				Vector2(cx - pr * 0.3, cy + pr * 0.15),
+				Vector2(cx,            cy + pr * 0.4),
+				Vector2(cx + pr * 0.3, cy + pr * 0.15),
+			])
+			draw_polyline(pts, bright, 2.5)
+			draw_line(Vector2(cx, cy - pr * 0.5),  Vector2(cx, cy - pr * 0.72), bright, 2.5)
+			draw_line(Vector2(cx - pr * 0.12, cy - pr * 0.6),
+					  Vector2(cx + pr * 0.12, cy - pr * 0.6), bright, 2.0)
+"
+
+[node name="ShopMenu" type="Control" unique_id=1013303015]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = SubResource("GDScript_n5kkl")

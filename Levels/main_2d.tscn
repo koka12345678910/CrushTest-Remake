@@ -1,6 +1,6 @@
 [gd_scene format=4 uid="uid://dm3oxjgua1y6"]
 
-[ext_resource type="Script" uid="uid://xto4rap4a24e" path="res://Levels/main_2d.gd" id="1_61w6t"]
+[ext_resource type="Script" path="res://Levels/main_2d.gd" id="1_61w6t"]
 [ext_resource type="Texture2D" uid="uid://bssjum74l1y7v" path="res://TileMap/Extra/TX Props with Shadow.png" id="3_lahry"]
 [ext_resource type="Texture2D" uid="uid://b62qr4plivrja" path="res://TileMap/TX Props.png" id="4_0awpc"]
 [ext_resource type="Texture2D" uid="uid://cwtrc4t0f8g2b" path="res://TileMap/TX Struct.png" id="7_5ry23"]

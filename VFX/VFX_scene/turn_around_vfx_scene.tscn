@@ -71,7 +71,7 @@ animations = [{
 script = ExtResource("1_jak35")
 
 [node name="AnimatedSprite2D" type="AnimatedSprite2D" parent="." unique_id=532019782]
-position = Vector2(71, -19)
+position = Vector2(71.00001, -20)
 scale = Vector2(0.72499996, 0.71875)
 sprite_frames = SubResource("SpriteFrames_4yy7m")
 animation = &"turn"

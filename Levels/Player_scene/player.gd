@@ -60,6 +60,21 @@ var roll_timer := 1.5
 var roll_dir := Vector2.ZERO
 var roll_control := 0.0
 
+# --- PARRY SYSTEM ---
+var is_parrying := false
+var parry_window := 0.25        # секунды активного окна
+var parry_timer := 0.0
+var parry_cooldown := 0.6       # кулдаун между парированиями
+var parry_cd_timer := 0.0
+var can_counter := false         # флаг — был perfect parry?
+var counter_window := 0.5       # сколько времени есть на контратаку
+var counter_timer := 0.0
+var is_staggered := false       # враг застаггерен — доп. визуал/логика
+var is_blocking := false
+# --------------------
+
+var coins: int = 0
+
 var normal_scale := Vector2(0.5, 0.5)
 var ladder_scale := Vector2(0.65, 0.65)
 
@@ -101,6 +116,7 @@ func _physics_process(delta):
 		
 	handle_attack_input()
 	handle_kick_input()
+	handle_parry_input(delta)
 	handle_dodge_input()
 	check_for_turn()
 	if is_rolling:
@@ -257,6 +273,9 @@ func start_roll():
 	roll_timer = roll_duration
 
 func play_movement_animation():
+	if is_parrying or is_blocking:  # 👈 добавь эту проверку
+		return
+	
 	var speed = velocity.length()
 	var anim_name = ""
 
@@ -309,6 +328,9 @@ func start_dodge():
 		return
 	
 	dodge_velocity = dir * dodge_speed
+
+func add_coins(amount: int):
+	coins += amount
 
 func start_i_frames():
 	await get_tree().create_timer(i_frame_time).timeout
@@ -395,11 +417,90 @@ func play_move_start_vfx():
 # АТАКИ / COMBO / RUN ATTACK / DASH
 # ----------------------------------------------------------
 
+func handle_parry_input(delta):
+	if is_dodging or is_rolling or is_attacking:
+		is_blocking = false
+		return
+	if parry_cd_timer > 0:
+		parry_cd_timer -= delta
+		return
+	# just_pressed ПЕРВЫМ — иначе pressed перехватывает
+	if Input.is_action_just_pressed("parry"):
+		is_blocking = false
+		start_parry()
+	elif Input.is_action_pressed("parry"):
+		if not is_blocking and not is_parrying:
+			is_blocking = true
+			anim.play("Parry_" + last_direction)  # та же анимация
+			anim.pause()  # останавливаем на первом кадре — стойка)
+	else:
+		is_blocking = false
+	if is_parrying:
+		parry_timer -= delta
+		if parry_timer <= 0:
+			end_parry(false)
+	if can_counter:
+		counter_timer -= delta
+		if counter_timer <= 0:
+			can_counter = false
+
+func start_parry():
+	print("start_parry вызван, last_direction=", last_direction)
+	is_parrying = true
+	parry_timer = parry_window
+	parry_cd_timer = parry_cooldown
+	velocity = Vector2.ZERO
+
+	var anim_name = "Parry_" + last_direction
+	print("ищем анимацию: ", anim_name)
+	if anim.has_animation(anim_name):
+		print("анимация найдена, играем")
+		anim.play(anim_name)
+	else:
+		print("⚠ Нет анимации: ", anim_name)
+
+func end_parry(was_hit: bool):
+	is_parrying = false
+	parry_timer = 0.0
+	if not was_hit:
+		play_idle_animation()
+
+# Вызывается врагом (или hitbox-ом) когда его атака задела игрока
+func receive_attack(attack_data: Dictionary) -> bool:
+	if is_invulnerable:
+		return false
+
+	# --- PERFECT PARRY ---
+	if is_parrying:
+		end_parry(true)
+		on_perfect_parry(attack_data)
+		return true
+
+	# --- ОБЫЧНЫЙ УРОН ---
+	take_damage(attack_data.get("damage", 10))
+	return true
+
+func on_perfect_parry(_attack_data: Dictionary):
+	can_counter = true
+	counter_timer = counter_window
+	play_parry_vfx()
+	# TODO: вызвать stagger на враге когда враги будут готовы
+	# enemy.stagger()
+
+func take_damage(amount: int):
+	# placeholder — подключишь к HP потом
+	print("Получил урон: ", amount)
+
 func handle_attack_input():
 	if is_dodging or is_rolling:
-		return
-	
+			return
+
 	if Input.is_action_just_pressed("attack"):
+		# --- COUNTERATTACK после perfect parry ---
+		if can_counter:
+			can_counter = false
+			start_counter_attack()
+			return
 
 		# --- RUN ATTACK ---
 		if is_running and input_vector != Vector2.ZERO and not is_attacking and not is_run_attacking:
@@ -444,6 +545,17 @@ func play_attack(step: int):
 
 	# --- микро-рывок вперёд после удара ---
 	attack_velocity = direction_to_vector(last_direction) * 150  # сила рывка подбирается
+
+func start_counter_attack():
+	is_attacking = true
+	combo_step = 0
+	var anim_name = "Attack_" + last_direction
+	anim.play(anim_name)
+	attack_velocity = direction_to_vector(last_direction) * 200
+
+func play_parry_vfx():
+	# Как play_hit_vfx() — подключишь свой VFX
+	pass
 
 func handle_kick_input():
 	if is_dodging or is_rolling or is_attacking:
@@ -590,6 +702,10 @@ func _on_anim_finished(finished_anim: StringName) -> void:
 		return
 	if finished_anim.begins_with("Kick_"):
 		reset_all_states()
+		return
+	if finished_anim.begins_with("Parry_"):
+		is_parrying = false
+		play_idle_animation()
 		return
 	# --- COMBO ---
 	if not finished_anim.begins_with("Attack"):
