@@ -3838,7 +3838,7 @@ position = Vector2(11, 13)
 position = Vector2(34, 14)
 
 [node name="MeleeHit" type="Marker2D" parent="." unique_id=1016199469]
-position = Vector2(56, 14)
+position = Vector2(68, 14)
 
 [node name="PlayerAnimation" type="AnimationPlayer" parent="." unique_id=416192371]
 libraries/ = SubResource("AnimationLibrary_tna0o")

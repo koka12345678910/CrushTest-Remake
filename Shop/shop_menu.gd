@@ -25,74 +25,90 @@ var items: Array[Dictionary] = []
 func _build_items() -> void:
 	items = [
 		{
-			"name": "Лечебная Тыква",
+			"name": "Мёд Поэзии",
 			"price": 500,
-			"icon": "res://icons/gourd.png",       # ← ПУТЬ К ТВОЕМУ PNG
-			"description": "Восстанавливает здоровье.\nМожно использовать до 5 раз\nперед отдыхом у Скульптуры.",
-			"lore": "Тыквенная бутыль, наполненная\nцелительным эликсиром. Говорят,\nчто настоящий синоби никогда\nне расстаётся с такой флягой.",
+			"icon": "res://Shop/icons/jar_honey.png",       # ← ПУТЬ К ТВОЕМУ PNG
+			"description": "Постепенно восстанавливает здоровье.",
+			"lore": "Старинный напиток, рожденный из шёпота богов\nГоворят, его вкус дарует не только ясность ума, но и силу, что течёт глубже крови.\n
+			Немногие знают, из чего он создан.
+И ещё меньше — чем приходится за него платить.",
 			"col": Color(0.4, 0.8, 0.3),
 			"texture": null
 		},
 		{
-			"name": "Связка Сена",
+			"name": "Песнь валькирии",
 			"price": 300,
-			"icon": "res://icons/pouch.png",
-			"description": "Монеты для торговли.\nОсновная валюта торговцев\nв Асина.",
-			"lore": "Пучок рисовой соломы,\nперевязанный верёвкой. Принято\nв качестве оплаты по всей\nстране.",
+			"icon": "res://Shop/icons/flask_gold.png",
+			"description": "Те, кто слышит её песнь, возвращаются к бою.
+Но не все возвращаются прежними.",
+			"lore": "Тихий отголосок битв, что давно затихли.
+Считается, что в этом сосуде запечатан последний вздох павшей валькирии.",
 			"col": Color(0.9, 0.75, 0.2),
 			"texture": null
 		},
 		{
-			"name": "Свиток Синоби",
+			"name": "Эликсир Вальгаллы",
 			"price": 1200,
-			"icon": "res://icons/scroll.png",
-			"description": "Открывает новый боевой\nприём. Требует изучения\nу Скульптора.",
-			"lore": "Пожелтевший свиток с\nтехниками ниндзя. Написан\nкровью мастеров прошлого,\nпередавших знания потомкам.",
+			"icon": "res://Shop/icons/flask_red.png",
+			"description": "Тот, кто испьёт его, на мгновение ощущает силу тех, кто уже пал.
+Но даже мимолётный взгляд за порог не проходит бесследно.",
+			"lore": "Густой напиток, которым провожают павших воинов.
+Говорят, он пропитан эхом пиршеств из Вальгалла.",
 			"col": Color(0.6, 0.4, 0.9),
 			"texture": null
 		},
 		{
-			"name": "Масляный Эликсир",
+			"name": "Руна жертвы",
 			"price": 450,
-			"icon": "res://icons/flask.png",
-			"description": "Увеличивает урон огнём.\nДействует в течение одного\nбоя.",
-			"lore": "Густое масло, вспыхивающее\nпри контакте с огнём.\nИзлюбленное средство\nпиротехников Асина.",
+			"icon": "res://Shop/icons/potion_blood.png",
+			"description": "Она откликается на боль владельца, возвращая утраченное.
+Но всегда забирает больше, чем было отдано.",
+			"lore": "Старинный знак, вырезанный не ради защиты, а ради расплаты.
+Каждая линия на ней — напоминание о цене силы.",
 			"col": Color(0.95, 0.55, 0.1),
 			"texture": null
 		},
 		{
-			"name": "Колокол Будды",
+			"name": "Безумие Берсерка",
 			"price": 2500,
-			"icon": "res://icons/bell.png",
-			"description": "Призывает торговца\nиз памяти. Редкий\nпредмет.",
-			"lore": "Бронзовый колокол,\nотлитый в старой кузнице.\nЗвук его проникает сквозь\nзавесу между мирами.",
+			"icon": "res://Shop/icons/blood_pouch.png",
+			"description": "С каждым ударом сила растёт.
+Но вместе с ней исчезает и контроль.",
+			"lore": "Ярость, в которой теряется грань между человеком и зверем.
+Говорят, те, кто поддаются ей, больше не чувствуют боли.",
 			"col": Color(0.7, 0.85, 0.95),
 			"texture": null
 		},
 		{
-			"name": "Уголь Духа",
+			"name": "Благословение Бальдра",
 			"price": 800,
-			"icon": "res://icons/ember.png",
-			"description": "Усиливает протезу\nСиноби. Один из видов\nредкого топлива.",
-			"lore": "Чёрный уголь, тлеющий\nбез огня. Скульптор\nиспользует его для\nзаточки своих инструментов.",
+			"icon": "res://Shop/icons/light_orb.png",
+			"description": "Свет, к которому не может прикоснуться ни сталь, ни тьма.
+Он дарует защиту, что кажется абсолютной.",
+			"lore": "Но даже самый чистый свет имеет то, что было упущено.
+И именно через это приходит конец.",
 			"col": Color(0.9, 0.3, 0.25),
 			"texture": null
 		},
 		{
-			"name": "Маска Памяти",
+			"name": "Глаз Одина",
 			"price": 3500,
-			"icon": "res://icons/mask.png",
-			"description": "Позволяет заглянуть\nв прошлое. Используется\nодин раз.",
-			"lore": "Белая маска из дерева\nхиноки. Надевший её\nвидит то, что хотел\nзабыть больше всего.",
+			"icon": "res://Shop/icons/eye_amulet.png",
+			"description": "Истина открывается тем, кто осмелится взглянуть.
+Но не каждый разум способен её выдержать.",
+			"lore": "Око, отданное в обмен на знание, что недоступно смертным.
+Оно видит больше, чем должен видеть человек.",
 			"col": Color(0.85, 0.85, 0.9),
 			"texture": null
 		},
 		{
-			"name": "Клинок Синоби",
+			"name": "Кровь Фенрира",
 			"price": 1800,
-			"icon": "res://icons/sword.png",
-			"description": "Основное оружие синоби.\nОстрый и лёгкий. Баланс\nсмерти и ремесла.",
-			"lore": "Меч, выкованный\nмастером Дзинзаэмоном\nиз стали горных рудников\nАсина. Никогда не ржавеет.",
+			"icon": "res://Shop/icons/demon_flask.png",
+			"description": "Дарует мощь, способную сокрушить всё на пути.
+Но зверь внутри никогда не служит долго.",
+			"lore": "Сила зверя, что однажды разорвёт сами оковы мира.
+Она кипит, даже будучи заключённой.",
 			"col": Color(0.75, 0.8, 0.85),
 			"texture": null
 		},
@@ -222,10 +238,8 @@ func _draw_header() -> void:
 	draw_line(Vector2(10.0, 5.0),      Vector2(25.0, 5.0),      cc, 1.5)
 	draw_line(Vector2(pw - 10.0, 5.0), Vector2(pw - 10.0, 20.0), cc, 1.5)
 	draw_line(Vector2(pw - 10.0, 5.0), Vector2(pw - 25.0, 5.0),  cc, 1.5)
-	draw_string(font_bold,    Vector2(pw * 0.5 - 90.0, 32.0), "ТОРГОВЕЦ ЯСУХАРУ",
-			HORIZONTAL_ALIGNMENT_LEFT, -1, 18, Color(0.95, 0.88, 0.65))
-	draw_string(font_default, Vector2(pw * 0.5 - 55.0, 52.0), "— Товары синоби —",
-			HORIZONTAL_ALIGNMENT_LEFT, -1, 12, Color(0.6, 0.55, 0.4, 0.8))
+	draw_string(font_bold,    Vector2(pw * 0.5 - 90.0, 32.0), "СБОРЩИК ДУШ",
+			HORIZONTAL_ALIGNMENT_LEFT, -1, 22, Color(0.95, 0.88, 0.65))
 	draw_line(Vector2(20.0, 66.0), Vector2(pw - 20.0, 66.0), Color(0.7, 0.6, 0.4, 0.3), 1.0)
 	draw_string(font_default, Vector2(float(LIST_MARGIN_X), float(LIST_START_Y) - 14.0),
 			"ПРЕДМЕТ", HORIZONTAL_ALIGNMENT_LEFT, -1, 11, Color(0.5, 0.45, 0.35))
@@ -302,7 +316,7 @@ func _draw_item_list() -> void:
 		elif is_hovered:         name_color = Color(0.95, 0.88, 0.65)
 		else:                    name_color = Color(0.75, 0.68, 0.52)
 
-		draw_string(font_bold, Vector2(icon_x + icon_size + 8.0, iy + float(ITEM_H) * 0.5 + 5.0),
+		draw_string(font_bold, Vector2(icon_x + icon_size + 14.0, iy + float(ITEM_H) * 0.5 + 5.0),
 				item["name"] as String, HORIZONTAL_ALIGNMENT_LEFT, -1, 15, name_color)
 
 		# Price
@@ -384,12 +398,28 @@ func _draw_right_panel(W: float, H: float) -> void:
 	draw_arc(Vector2(icon_cx, icon_cy), icon_r - 8.0, 0.0, TAU, 64,
 			Color(col.r, col.g, col.b, 0.15), 1.0)
 
-	# PNG иконка (большая) — вписываем в квадрат внутри круга
-	var big_size: float = icon_r * 1.3   # размер квадрата иконки
-	var big_rect := Rect2(icon_cx - big_size * 0.5, icon_cy - big_size * 0.5, big_size, big_size)
+	# PNG иконка — обрезанная по кругу через треугольники
 	var tex: Texture2D = item["texture"] as Texture2D
 	if tex != null:
-		draw_texture_rect(tex, big_rect, false)
+		var segments: int = 64
+		var verts := PackedVector2Array()
+		var uvs   := PackedVector2Array()
+		# Точки по окружности
+		for si: int in segments + 1:
+			var angle: float = float(si) / float(segments) * TAU
+			verts.append(Vector2(icon_cx + cos(angle) * icon_r, icon_cy + sin(angle) * icon_r))
+			uvs.append(Vector2(cos(angle) * 0.5 + 0.5, sin(angle) * 0.5 + 0.5))
+		# Центр
+		verts.append(Vector2(icon_cx, icon_cy))
+		uvs.append(Vector2(0.5, 0.5))
+		# Рисуем треугольники от центра к краям
+		for si: int in segments:
+			draw_primitive(
+				PackedVector2Array([verts[segments], verts[si], verts[si + 1]]),
+				PackedColorArray([Color.WHITE, Color.WHITE, Color.WHITE]),
+				PackedVector2Array([uvs[segments],  uvs[si],  uvs[si + 1]]),
+				tex
+			)
 	else:
 		_draw_icon_placeholder(icon_cx, icon_cy, icon_r * 0.6,
 				item["name"] as String, col, true)
@@ -421,19 +451,19 @@ func _draw_right_panel(W: float, H: float) -> void:
 			Color(0.4, 0.35, 0.25, 0.4), 1.0)
 	var desc_lines: PackedStringArray = (item["description"] as String).split("\n")
 	for li: int in desc_lines.size():
-		draw_string(font_default, Vector2(rx + 44.0, desc_y + float(li) * 22.0),
-				desc_lines[li], HORIZONTAL_ALIGNMENT_LEFT, -1, 14, Color(0.82, 0.76, 0.62))
+		draw_string(font_default, Vector2(rx + 44.0, desc_y + float(li) * 18.0),
+				desc_lines[li], HORIZONTAL_ALIGNMENT_LEFT, -1, 16, Color(0.82, 0.76, 0.62))
 
 	# Лор
 	var lore_y: float = desc_y + float(desc_lines.size()) * 22.0 + 24.0
 	draw_line(Vector2(rx + 40.0, lore_y - 10.0), Vector2(W - 40.0, lore_y - 10.0),
 			Color(0.4, 0.35, 0.25, 0.25), 1.0)
 	draw_string(font_default, Vector2(rx + 44.0, lore_y),
-			"— Предание —", HORIZONTAL_ALIGNMENT_LEFT, -1, 11, Color(0.5, 0.45, 0.32))
+			"— Предание —", HORIZONTAL_ALIGNMENT_LEFT, -1, 16, Color(0.5, 0.45, 0.32))
 	var lore_lines: PackedStringArray = (item["lore"] as String).split("\n")
 	for li: int in lore_lines.size():
 		draw_string(font_default, Vector2(rx + 44.0, lore_y + 18.0 + float(li) * 20.0),
-				lore_lines[li], HORIZONTAL_ALIGNMENT_LEFT, -1, 12, Color(0.6, 0.55, 0.42))
+				lore_lines[li], HORIZONTAL_ALIGNMENT_LEFT, -1, 16, Color(0.6, 0.55, 0.42))
 
 	draw_rect(Rect2(rx + 30.0, H - 12.0, pw - 60.0, 2.0),
 			Color(col.r, col.g, col.b, 0.4 + pulse * 0.15))

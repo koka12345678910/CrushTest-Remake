@@ -223,9 +223,13 @@ func direction_to_vector(dir: String) -> Vector2:
 	return Vector2.ZERO
 
 func check_for_turn():
+	if is_attacking or is_run_attacking:  # 👈 добавь эту строку
+		return
 	if input_vector == Vector2.ZERO:
 		return
 	if turn_lock:
+		return
+	if velocity.length() < run_speed * 0.6:
 		return
 
 	var input_dir = input_vector.normalized()
@@ -340,6 +344,7 @@ func interrupt_all_actions():
 	is_attacking = false
 	is_run_attacking = false
 	is_turning = false
+	turn_lock = false
 	dodge_velocity = Vector2.ZERO
 	
 	combo_step = 0
@@ -726,6 +731,8 @@ func reset_combo():
 func reset_all_states():
 	is_attacking = false
 	is_run_attacking = false
+	is_turning = false
+	turn_lock = false
 	combo_step = 0
 	combo_queued = false
 	play_idle_animation()
