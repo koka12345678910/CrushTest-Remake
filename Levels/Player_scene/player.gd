@@ -15,6 +15,10 @@ extends CharacterBody2D
 @onready var gfx := $PlayerAnim
 @onready var foot_point = $FootPoint
 @onready var foot_point2 = $FootPoint2
+@onready var ability_system: AbilitySystem = $AbilitySystem
+@onready var inventory_system: InventorySystem = $InventorySystem
+@onready var health_bar = $HealthStaminaBar
+@onready var inventory_ui = $InventoryUI
 
 var prev_velocity := Vector2.ZERO
 var move_vfx_cooldown := 0.0
@@ -73,6 +77,13 @@ var is_staggered := false       # враг застаггерен — доп. в
 var is_blocking := false
 # --------------------
 
+var health: float = 100.0
+var max_health: float = 100.0
+var stamina: float = 100.0
+var max_stamina: float = 100.0
+
+var active_buffs: Dictionary = {}
+
 var coins: int = 0
 
 var normal_scale := Vector2(0.5, 0.5)
@@ -83,10 +94,45 @@ var is_starting := true
 func _ready() -> void:
 	if not anim.animation_finished.is_connected(_on_anim_finished):
 		anim.animation_finished.connect(_on_anim_finished)
-		
+	
 	anim.play("Started_" + last_direction)
 	print(anim.get_animation_list())
 	
+	# Сначала инициализируем все системы
+	health_bar.set_max_hp(max_health)
+	health_bar.set_max_stamina(max_stamina)
+	inventory_ui.init(ability_system, inventory_system)
+	
+	var hud = $HUD
+	hud.init(ability_system)
+	
+	# Только потом загружаем предметы
+	_load_starting_abilities()
+
+func _unhandled_input(event: InputEvent) -> void:
+	# Блокируем всё кроме инвентаря если он открыт
+	if inventory_ui.visible:
+		if event.is_action_pressed("ui_cancel"):
+			inventory_ui.close()
+		return
+	
+	# Переключение слотов только когда не атакуем и не уклоняемся
+	if is_attacking or is_dodging or is_rolling:
+		return
+	if event.is_action_pressed("slot_next"):
+		ability_system.next_slot()
+	elif event.is_action_pressed("slot_prev"):
+		ability_system.prev_slot()
+	elif event.is_action_pressed("ability_use"):
+		# Не даём использовать абилку во время атаки/додже
+		if not is_attacking and not is_dodging and not is_rolling and not is_parrying:
+			ability_system.use_current(self)
+	if event.is_action_pressed("ui_cancel"):
+		if inventory_ui.visible:
+			inventory_ui.close()
+		else:
+			inventory_ui.open()
+
 func _physics_process(delta):
 	if is_starting:
 		return
@@ -98,7 +144,6 @@ func _physics_process(delta):
 	if not is_rolling:
 		input_vector = Input.get_vector("move_left", "move_right", "move_up", "move_down")
 	is_running = Input.is_action_pressed("run")
-	
 	if dodge_tap_timer > 0:
 		dodge_tap_timer -= delta
 	
@@ -146,7 +191,7 @@ func _physics_process(delta):
 	# --- RUN ATTACK ---
 	if is_run_attacking:
 		combo_timer -= delta
-		
+		use_stamina(20.5)
 		attack_velocity = attack_velocity.lerp(Vector2.ZERO, friction * delta)
 		velocity = attack_velocity
 		move_and_slide()
@@ -164,6 +209,7 @@ func _physics_process(delta):
 	# --- обычное движение ---
 	var target_speed = walk_speed
 	if is_running:
+		use_stamina(15.0 * delta)
 		target_speed = run_speed
 
 	var target_velocity = input_vector.normalized() * target_speed
@@ -262,6 +308,8 @@ func start_turn(new_dir: Vector2):
 func start_roll():
 	if is_rolling:
 		return
+	if not use_stamina(30.0):
+		return
 	roll_control = 0.0
 	is_rolling = true
 	is_dodging = false
@@ -305,6 +353,8 @@ func handle_dodge_input():
 		dodge_tap_timer = dodge_tap_window
 
 func start_dodge():
+	if not use_stamina(20.0):
+		return
 	if is_dodging or is_rolling:
 		return
 	is_dodging = true
@@ -492,9 +542,16 @@ func on_perfect_parry(_attack_data: Dictionary):
 	# TODO: вызвать stagger на враге когда враги будут готовы
 	# enemy.stagger()
 
-func take_damage(amount: int):
-	# placeholder — подключишь к HP потом
-	print("Получил урон: ", amount)
+func take_damage(amount: int) -> void:
+	health_bar.take_damage(float(amount))
+	health = health_bar.current_hp
+
+func heal(amount: float) -> void:
+	health_bar.heal(amount)
+	health = health_bar.current_hp
+
+func use_stamina(amount: float) -> bool:
+	return health_bar.use_stamina(amount)
 
 func handle_attack_input():
 	if is_dodging or is_rolling:
@@ -524,6 +581,7 @@ func start_combo():
 
 func play_attack(step: int):
 	is_attacking = true
+	use_stamina(10.0)
 	combo_timer = combo_window
 	combo_queued = false
 	dodge_velocity = Vector2.ZERO
@@ -736,6 +794,84 @@ func reset_all_states():
 	combo_step = 0
 	combo_queued = false
 	play_idle_animation()
+
+func dash(force: float, _duration: float) -> void:
+	# Использует твою существующую систему dodge_velocity
+	# Не конфликтует — это отдельный импульс поверх движения
+	if is_dodging or is_rolling or is_attacking:
+		return
+	var dir := facing_dir if facing_dir != Vector2.ZERO else direction_to_vector(last_direction)
+	dodge_velocity = dir * force
+	# Гаситься будет через твой существующий dodge_friction в _physics_process
+
+func _load_starting_abilities() -> void:
+	ability_system.add_ability(HoneyMeadAbility.new())
+	ability_system.add_ability(ValhallaElixirAbility.new())
+	var honey := HoneyMeadAbility.new()
+	inventory_ui.add_item(honey)
+
+	var elixir := ValhallaElixirAbility.new()
+	inventory_ui.add_item(elixir)
+
+	var fenrir := FenrirBloodAbility.new()
+	inventory_ui.add_item(fenrir)
+
+# --- ПОСТЕПЕННОЕ ЛЕЧЕНИЕ (для Мёда Поэзии и Песни Валькирии) ---
+
+func start_heal_over_time(amount_per_tick: float, interval: float, ticks: int) -> void:
+	for i in ticks:
+		await get_tree().create_timer(interval * i).timeout
+		if is_instance_valid(self):
+			heal(amount_per_tick)
+
+# --- СИСТЕМА БАФФОВ (заглушка — подключишь когда нужно) ---
+
+func apply_buff(buff: Dictionary) -> void:
+	var name = buff.get("name", "unknown")
+	active_buffs[name] = buff
+
+	# Скорость
+	if buff.has("speed_bonus"):
+		walk_speed += buff["speed_bonus"]
+		run_speed += buff["speed_bonus"]
+
+	# Убираем бафф через duration
+	var duration = buff.get("duration", 5.0)
+	await get_tree().create_timer(duration).timeout
+	remove_buff(name, buff)
+
+func remove_buff(_name: String, buff: Dictionary) -> void:
+	if not active_buffs.has(name):
+		return
+	active_buffs.erase(name)
+
+	# Откатываем скорость
+	if buff.has("speed_bonus"):
+		walk_speed -= buff["speed_bonus"]
+		run_speed -= buff["speed_bonus"]
+
+	print("[Бафф] ", name, " закончился")
+
+# --- СНЯТИЕ НЕГАТИВНЫХ ЭФФЕКТОВ (заглушка) ---
+
+func clear_negative_effects() -> void:
+	# TODO: когда появятся статусы — чистить их здесь
+	# remove_status("poison")
+	# remove_status("bleed")
+	print("[Player] Негативные эффекты сняты")
+
+# --- ГЛАЗ ОДИНА (заглушка) ---
+
+func activate_odin_eye(duration: float, slow: float, max_targets: int) -> void:
+	Engine.time_scale = slow
+	print("[ГлазОдина] Время замедлено, выбери до ", max_targets, " целей")
+	get_tree().create_timer(duration, true, false, true).timeout.connect(
+		func():
+			Engine.time_scale = 1.0
+			print("[ГлазОдина] Время восстановлено")
+	)
+	# TODO: логика выбора и убийства врагов
+
 
 # ----------------------------------------------------------
 # SCALE

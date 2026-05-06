@@ -8,6 +8,12 @@
 [ext_resource type="PackedScene" uid="uid://ca4ngwbmoy8gy" path="res://VFX/VFX_scene/melee_hit.tscn" id="5_ihg11"]
 [ext_resource type="PackedScene" uid="uid://y4x16714fwdf" path="res://VFX/VFX_scene/melee_2_hit.tscn" id="6_hvtdm"]
 [ext_resource type="PackedScene" uid="uid://d1ercr4q0c1n2" path="res://VFX/VFX_scene/turn_around_vfx_scene.tscn" id="7_m414l"]
+[ext_resource type="Script" uid="uid://bus7cngrbieyv" path="res://Inventory/systems/ability/ability_system.gd" id="9_hwflx"]
+[ext_resource type="Script" uid="uid://dd2eut03v48c0" path="res://Inventory/systems/inventory/inventory_system.gd" id="10_ung07"]
+[ext_resource type="Script" uid="uid://drhbg748ibedv" path="res://Inventory/ui/hud.gd" id="11_2ys5t"]
+[ext_resource type="Script" uid="uid://8nvpv44w8art" path="res://Inventory/ui/quick_slot_ui.gd" id="12_wfmf0"]
+[ext_resource type="Script" uid="uid://j0djrjdp0hsh" path="res://UI/health_stamina_bar.gd" id="13_ung07"]
+[ext_resource type="Script" uid="uid://boe05f5ffn3mn" path="res://Inventory/systems/inventory/inventory_ui.gd" id="14_2ys5t"]
 
 [sub_resource type="CapsuleShape2D" id="CapsuleShape2D_m414l"]
 radius = 8.0
@@ -3811,7 +3817,7 @@ texture_filter = 1
 position = Vector2(0, -3)
 scale = Vector2(0.640625, 0.78125006)
 sprite_frames = ExtResource("2_tgf2g")
-animation = &"Attack_2_Down"
+animation = &"Run_Right"
 
 [node name="Collision" type="CollisionShape2D" parent="." unique_id=706763296]
 visible = false
@@ -3842,5 +3848,31 @@ position = Vector2(68, 14)
 
 [node name="PlayerAnimation" type="AnimationPlayer" parent="." unique_id=416192371]
 libraries/ = SubResource("AnimationLibrary_tna0o")
+
+[node name="AbilitySystem" type="Node" parent="." unique_id=528657090]
+script = ExtResource("9_hwflx")
+
+[node name="InventorySystem" type="Node" parent="." unique_id=1592776582]
+script = ExtResource("10_ung07")
+
+[node name="HUD" type="CanvasLayer" parent="." unique_id=293647557]
+script = ExtResource("11_2ys5t")
+
+[node name="QuickSlotUI" type="Control" parent="HUD" unique_id=1468830696]
+layout_mode = 3
+anchors_preset = 0
+offset_left = 1436.0
+offset_top = 644.0
+offset_right = 1771.0
+offset_bottom = 1037.0
+script = ExtResource("12_wfmf0")
+
+[node name="HealthStaminaBar" type="CanvasLayer" parent="." unique_id=630230056]
+script = ExtResource("13_ung07")
+
+[node name="FootstepAudio" type="AudioStreamPlayer2D" parent="." unique_id=1772501575]
+
+[node name="InventoryUI" type="CanvasLayer" parent="." unique_id=37486928]
+script = ExtResource("14_2ys5t")
 
 [connection signal="animation_finished" from="PlayerAnimation" to="." method="_on_player_animation_animation_finished"]
