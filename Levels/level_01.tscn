@@ -18,7 +18,7 @@
 [ext_resource type="Texture2D" uid="uid://dexab4myr5hvi" path="res://circle.png" id="12_odngn"]
 [ext_resource type="Texture2D" uid="uid://jmj0527ncs2p" path="res://TileMap/Pixel 16 v2 village free.png" id="13_qq6xg"]
 [ext_resource type="PackedScene" uid="uid://bv1v4h1gmt6dr" path="res://Levels/Player_scene/player.tscn" id="15_5ty2h"]
-[ext_resource type="Script" uid="uid://b1djojfj3kxsi" path="res://point_light_pulse.gd" id="17_gpk31"]
+[ext_resource type="Script" uid="uid://b1djojfj3kxsi" path="res://Levels/point_light_pulse.gd" id="17_gpk31"]
 [ext_resource type="Texture2D" uid="uid://qd0cuh1v670d" path="res://TileMap/toppng.com-light-beam-png-530x185.png" id="17_jkbap"]
 [ext_resource type="Texture2D" uid="uid://dpcgdy1mmuf8b" path="res://TileMap/shop.png" id="21_jkbap"]
 
