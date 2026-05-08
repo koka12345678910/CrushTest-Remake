@@ -4354,7 +4354,7 @@ animations = [{
 }],
 "loop": true,
 "name": &"attack_down_left",
-"speed": 15.0
+"speed": 14.0
 }, {
 "frames": [{
 "duration": 1.0,
@@ -4404,7 +4404,7 @@ animations = [{
 }],
 "loop": true,
 "name": &"attack_down_right",
-"speed": 15.0
+"speed": 14.0
 }, {
 "frames": [{
 "duration": 1.0,
@@ -4452,7 +4452,7 @@ animations = [{
 "duration": 1.0,
 "texture": SubResource("AtlasTexture_r6cae")
 }],
-"loop": true,
+"loop": false,
 "name": &"attack_left",
 "speed": 15.0
 }, {
@@ -4504,7 +4504,7 @@ animations = [{
 }],
 "loop": true,
 "name": &"attack_right",
-"speed": 15.0
+"speed": 14.0
 }, {
 "frames": [{
 "duration": 1.0,
@@ -4554,7 +4554,7 @@ animations = [{
 }],
 "loop": true,
 "name": &"attack_up",
-"speed": 15.0
+"speed": 14.0
 }, {
 "frames": [{
 "duration": 1.0,
@@ -4654,7 +4654,7 @@ animations = [{
 }],
 "loop": true,
 "name": &"attack_up_right",
-"speed": 15.0
+"speed": 14.0
 }, {
 "frames": [{
 "duration": 1.0,
@@ -7081,37 +7081,100 @@ func _on_body_exited(body):
 [sub_resource type="CircleShape2D" id="CircleShape2D_lahry"]
 radius = 82.05486
 
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_mtx1y"]
+size = Vector2(20.5, 8)
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_5itf0"]
+size = Vector2(24, 8)
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_nda1t"]
+size = Vector2(18, 8)
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_e57od"]
+size = Vector2(19, 8)
+
 [sub_resource type="CapsuleShape2D" id="CapsuleShape2D_48tvi"]
 radius = 22.0
 height = 65.73852
 
+[sub_resource type="CapsuleShape2D" id="CapsuleShape2D_d6xl1"]
+radius = 7.0
+
 [node name="Enemy" type="CharacterBody2D" unique_id=71146591 groups=["enemy"]]
 script = ExtResource("1_5i3uv")
-post_attack_retreat_speed_multiplier = 0.16
-post_attack_prep_time = 0.3
-combo_every_attacks = 2
-combo_burst_hits = 2
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="." unique_id=1206019321]
+visible = false
 shape = SubResource("CapsuleShape2D_0awpc")
 
 [node name="AnimatedSprite2D" type="AnimatedSprite2D" parent="." unique_id=628001626]
 scale = Vector2(0.5, 0.566)
 sprite_frames = SubResource("SpriteFrames_50kp7")
-animation = &"die_down_left"
+animation = &"attack_up"
+frame = 5
+frame_progress = 0.2091973
 
 [node name="NavigationAgent2D" type="NavigationAgent2D" parent="." unique_id=1635442838]
 
 [node name="VisionArea" type="Area2D" parent="." unique_id=1828795371]
+visible = false
 script = SubResource("GDScript_7jfln")
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="VisionArea" unique_id=10723961]
+visible = false
 shape = SubResource("CircleShape2D_lahry")
 
 [node name="Hitbox" type="Area2D" parent="." unique_id=1073832010]
 
+[node name="Atack_hitbox" type="Area2D" parent="Hitbox" unique_id=1825194539]
+
+[node name="left" type="CollisionShape2D" parent="Hitbox/Atack_hitbox" unique_id=1598013740]
+position = Vector2(-20, 0)
+shape = SubResource("RectangleShape2D_mtx1y")
+debug_color = Color(0, 0.597397, 0.716655, 0.41960785)
+
+[node name="left_up" type="CollisionShape2D" parent="Hitbox/Atack_hitbox" unique_id=160341506]
+position = Vector2(-18, -12)
+shape = SubResource("RectangleShape2D_mtx1y")
+debug_color = Color(0, 0.597397, 0.716655, 0.41960785)
+
+[node name="left_down" type="CollisionShape2D" parent="Hitbox/Atack_hitbox" unique_id=1529809935]
+position = Vector2(-15.75, 16)
+shape = SubResource("RectangleShape2D_mtx1y")
+debug_color = Color(0, 0.597397, 0.716655, 0.41960785)
+
+[node name="down" type="CollisionShape2D" parent="Hitbox/Atack_hitbox" unique_id=1840490048]
+position = Vector2(0, 24)
+shape = SubResource("RectangleShape2D_mtx1y")
+debug_color = Color(0, 0.597397, 0.716655, 0.41960785)
+
+[node name="up" type="CollisionShape2D" parent="Hitbox/Atack_hitbox" unique_id=387573089]
+position = Vector2(-0.5, -19)
+shape = SubResource("RectangleShape2D_mtx1y")
+debug_color = Color(0, 0.597397, 0.716655, 0.41960785)
+
+[node name="right" type="CollisionShape2D" parent="Hitbox/Atack_hitbox" unique_id=382296404]
+position = Vector2(19, 0)
+shape = SubResource("RectangleShape2D_5itf0")
+
+[node name="right_down" type="CollisionShape2D" parent="Hitbox/Atack_hitbox" unique_id=2066945608]
+position = Vector2(15, 16)
+shape = SubResource("RectangleShape2D_nda1t")
+
+[node name="right_up" type="CollisionShape2D" parent="Hitbox/Atack_hitbox" unique_id=17686847]
+position = Vector2(14.5, -12)
+shape = SubResource("RectangleShape2D_e57od")
+
 [node name="CollisionShape2D" type="CollisionShape2D" parent="Hitbox" unique_id=1686529253 groups=["enemy_hitbox"]]
+visible = false
 shape = SubResource("CapsuleShape2D_48tvi")
+
+[node name="Hartbox" type="Area2D" parent="Hitbox" unique_id=367377850]
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Hitbox/Hartbox" unique_id=2120263479]
+visible = false
+position = Vector2(-2, 2)
+shape = SubResource("CapsuleShape2D_d6xl1")
 
 [connection signal="body_entered" from="VisionArea" to="." method="_on_vision_area_body_entered"]
 [connection signal="body_exited" from="VisionArea" to="." method="_on_vision_area_body_exited"]
