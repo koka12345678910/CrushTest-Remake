@@ -1,22 +1,21 @@
 extends CharacterBody2D
 
 # ============== ПАРАМЕТРЫ ==============
-
 # Движение
 @export var walk_speed := 60.0
 @export var run_speed := 100.0
 @export var friction := 500.0
 @export var direction_smoothness := 8.0
+
 @onready var shapes := {
 	"left": $Hitbox/Atack_hitbox/left,
 	"left_up": $Hitbox/Atack_hitbox/left_up,
 	"left_down": $Hitbox/Atack_hitbox/left_down,
 	"right": $Hitbox/Atack_hitbox/right,
-	"right_up":$Hitbox/Atack_hitbox/right_up,
-	"right_down":$Hitbox/Atack_hitbox/right_down,
+	"right_up": $Hitbox/Atack_hitbox/right_up,
+	"right_down": $Hitbox/Atack_hitbox/right_down,
 	"up": $Hitbox/Atack_hitbox/up,
 	"down": $Hitbox/Atack_hitbox/down,
-	
 }
 
 # Здоровье
@@ -24,20 +23,24 @@ extends CharacterBody2D
 @export var damage_flash_time := 0.15
 
 # Боевые параметры
-@export var attack_range := 40.0
+@export var attack_range := 30.0
 @export var attack_cooldown := 1.5
 @export var attack_damage := 1
 @export var attack_duration := 0.5
 @onready var attack_hitbox: Area2D = $Hitbox/Atack_hitbox
 
+
 # Визуальные эффекты
-@export var damage_flash_color := Color(1.5, 1.5, 1.5, 1.0)
+@export var damage_flash_color := Color(1.5,1.5,1.5,1.0)
 
 # AI поведение
+@export var preferred_distance := 30.0
 @export var vision_range := 150.0
 @export var chase_range := 120.0
 @export var think_rate := 0.25
 @export var wander_speed_multiplier := 0.6
+@export var target_refresh_interval := 0.15
+@export var prediction_strength := 0.2
 
 # Смерть
 @export var death_fade_time := 0.8
@@ -65,13 +68,20 @@ var see_player := false
 var direction := Vector2.DOWN
 var move_velocity := Vector2.ZERO
 
+var target_position: Vector2
+var target_refresh_timer := 0.0
+var attack_started := false
+
 
 var hit_targets := []
 
 var attack_cooldown_timer := 0.0
+
 var hit_stun_timer := 0.0
 var think_timer := 0.0
 var can_attack := true
+var attack_active := false
+var attack_hit_window := false
 
 var wander_direction := Vector2.DOWN
 var wander_timer := 0.0
@@ -97,13 +107,20 @@ func _ready() -> void:
 		vision_area.body_exited.connect(_on_vision_body_exited)
 
 	if hitbox:
-		hitbox.area_entered.connect(_on_hitbox_hit)
+		hitbox.area_entered.connect(_on_hitbox_area_entered)
 		hitbox.body_entered.connect(_on_hitbox_hit)
 
 	wander_timer = randf_range(2.0, 4.0)
 
 	_change_state(State.IDLE)
 
+
+func _on_hitbox_area_entered(area: Area2D) -> void:
+	if is_dead:
+		return
+	if _is_player_attack(area):
+		var dmg = _get_damage_from(area)
+		take_damage(dmg)
 # ============== PHYSICS ==============
 
 func _physics_process(delta: float) -> void:
@@ -216,6 +233,7 @@ func _change_state(new_state: State) -> void:
 
 		State.ATTACK:
 			move_velocity = Vector2.ZERO
+			attack_started = false   
 
 			if player:
 				direction = (player.global_position - global_position).normalized()
@@ -233,15 +251,24 @@ func _change_state(new_state: State) -> void:
 			_on_dead()
 
 # ============== СОСТОЯНИЯ ==============
+# IDLE
 
 func _state_idle(_delta: float) -> void:
+
+	# Полная остановка
 	move_velocity = Vector2.ZERO
 
+	# Idle анимация
 	_play_animation("idle")
 
+# WANDER
 func _state_wander(delta: float) -> void:
+
+	# Уменьшаем таймер блуждания
 	wander_timer -= delta
 
+	# Когда таймер закончился —
+	# выбираем новое случайное направление
 	if wander_timer <= 0.0:
 
 		wander_direction = Vector2(
@@ -249,23 +276,32 @@ func _state_wander(delta: float) -> void:
 			randf_range(-1.0, 1.0)
 		).normalized()
 
+		# Защита от Vector2.ZERO
 		if wander_direction == Vector2.ZERO:
 			wander_direction = Vector2.DOWN
 
+		# Новый таймер смены направления
 		wander_timer = randf_range(2.0, 4.0)
 
+	# Скорость блуждания
 	var speed = walk_speed * wander_speed_multiplier
 
+	# Плавный поворот
 	direction = direction.lerp(
 		wander_direction,
 		direction_smoothness * delta
 	).normalized()
 
+	# Движение
 	move_velocity = direction * speed
 
+	# Анимация ходьбы
 	_play_animation("walk")
 
+# CHASE
+# =========================================================
 func _state_chase(delta: float) -> void:
+
 	if not player or not is_instance_valid(player):
 		_change_state(State.WANDER)
 		return
@@ -274,77 +310,113 @@ func _state_chase(delta: float) -> void:
 		_change_state(State.WANDER)
 		return
 
-	var chase_dir = (
-		player.global_position - global_position
-	).normalized()
 
-	var dist = global_position.distance_to(
-		player.global_position
-	)
+	target_refresh_timer -= delta
 
-	var speed = (
-		run_speed
-		if dist > chase_range * 0.6
-		else walk_speed
-	)
+	if target_refresh_timer <= 0.0:
+		target_position = player.global_position + player.velocity * prediction_strength
+		target_refresh_timer = target_refresh_interval
 
-	var anim = (
-		"run"
-		if dist > chase_range * 0.6
-		else "walk"
-	)
 
-	# СГЛАЖИВАНИЕ НАПРАВЛЕНИЯ
-	direction = direction.lerp(
-		chase_dir,
-		direction_smoothness * delta
-	).normalized()
+	var to_player = target_position - global_position
+	var dist = to_player.length()
 
-	move_velocity = direction * speed
+	if dist == 0:
+		move_velocity = Vector2.ZERO
+		return
 
-	_play_animation(anim)
+	var dir = to_player / dist
+	var error = dist - preferred_distance
 
-func _state_attack(_delta: float) -> void:
+
+	var move_dir = Vector2.ZERO
+
+	if abs(error) > 5.0:
+
+		if error > 0.0:
+			move_dir = dir
+		else:
+			move_dir = -dir
+
+		direction = direction.lerp(move_dir, direction_smoothness * delta)
+
+		move_velocity = direction * walk_speed
+
+		_play_animation("walk")
+
+	else:
+
+		move_velocity = Vector2.ZERO
+		_play_animation("idle")
+
+		return
+# =========================================================
+# ATTACK
+# =========================================================
+func _state_attack(delta: float) -> void:
 	move_velocity = Vector2.ZERO
 
-	_play_animation("attack")
-
-	_update_attack_shape()
-
-	if state_time >= attack_duration:
-
-		for s in shapes.values():
-			s.disabled = true
-
+	# ── ВХОД В АТАКУ (один раз) ──────────────────────────
+	if not attack_started:
+		attack_started    = true
+		attack_active     = true
+		attack_hit_window = true
 		hit_targets.clear()
-		attack_cooldown_timer = attack_cooldown
+		_update_attack_shape()
 
+	_play_animation("attack")
+	
+func _exit_attack() -> void:
+	attack_active     = false
+	attack_hit_window = false
+	attack_started    = false
+	for s in shapes.values():
+		s.disabled = true
+	attack_cooldown_timer = attack_cooldown
+
+	# ── ИГРОК исчез — прерываем ──────────────────────────
+	if not player or not is_instance_valid(player):
+		_exit_attack()
+		_change_state(State.WANDER)
+		return
+
+	# ── КОНЕЦ АТАКИ ──────────────────────────────────────
+	if state_time >= attack_duration:
+		_exit_attack()
 		if player and _is_player_in_range(attack_range):
 			_change_state(State.IDLE)
 		else:
 			_change_state(State.CHASE)
-
+# =========================================================
+# HIT STUN
+# =========================================================
 func _state_hit_stun(_delta: float) -> void:
+
+	# Остановка при получении урона
 	move_velocity = Vector2.ZERO
 
+	# Анимация удара
 	_play_animation("hit")
 
+	# Когда stun закончился —
+	# снова преследуем игрока
 	if hit_stun_timer <= 0.0:
 		_change_state(State.CHASE)
 
-# ============== АНИМАЦИИ ==============
 
+
+# ===================== ANIMATION =====================
 func _play_animation(state: String) -> void:
+
 	var dir_name = _get_direction_name(direction)
+	var anim_name = state + "_" + dir_name
 
-	# Защита от дёргания
-	if dir_name != last_anim_direction:
-		last_anim_direction = dir_name
+	# НЕ перезапускаем одну и ту же анимацию
+	if sprite.animation == anim_name:
+		return
 
-	var anim_name = state + "_" + last_anim_direction
+	sprite.play(anim_name)
 
-	if sprite.animation != anim_name:
-		sprite.play(anim_name)
 
 func _get_direction_name(dir: Vector2) -> String:
 	if dir.length() < 0.1:
@@ -355,68 +427,34 @@ func _get_direction_name(dir: Vector2) -> String:
 
 	if angle >= -pi_8 and angle < pi_8:
 		return "right"
-
 	elif angle >= pi_8 and angle < 3 * pi_8:
 		return "down_right"
-
 	elif angle >= 3 * pi_8 and angle < 5 * pi_8:
 		return "down"
-
 	elif angle >= 5 * pi_8 and angle < 7 * pi_8:
 		return "down_left"
-
 	elif angle >= 7 * pi_8 or angle < -7 * pi_8:
 		return "left"
-
 	elif angle >= -7 * pi_8 and angle < -5 * pi_8:
 		return "up_left"
-
 	elif angle >= -5 * pi_8 and angle < -3 * pi_8:
 		return "up"
-
 	else:
 		return "up_right"
 
-# ============== УРОН ==============
 
-func take_damage(amount: int) -> void:
-	if is_dead:
-		return
+# ===================== ATTACK DAMAGE FIX =====================
 
-	health -= amount
-
-	_trigger_damage_flash()
-
-	if health <= 0:
-
-		health = 0
-		is_dead = true
-
-		_change_state(State.DEAD)
-
-	else:
-		_change_state(State.HIT_STUN)
-
-
-func _trigger_damage_flash() -> void:
-	if not sprite:
-		return
-
-	sprite.modulate = damage_flash_color
-
-	var tween = create_tween()
-
-	tween.tween_property(
-		sprite,
-		"modulate",
-		Color.WHITE,
-		damage_flash_time
-	)
-	
 func _on_attack_body_entered(body: Node2D) -> void:
+
 	if is_dead:
 		return
 
+	# атака не активна → урона нет
+	if not attack_active:
+		return
+
+	# уже бил этого юнита в этой атаке
 	if body in hit_targets:
 		return
 
@@ -426,28 +464,43 @@ func _on_attack_body_entered(body: Node2D) -> void:
 			hit_targets.append(body)
 
 
-func apply_damage_from_hitbox(body: Node) -> void:
+# ===================== HIT DAMAGE =====================
+
+func take_damage(amount: int) -> void:
+
 	if is_dead:
 		return
 
-	var dmg := 0
+	health -= amount
 
-	if body.has_method("get_damage"):
-		dmg = body.get_damage()
-	elif body.has_meta("damage"):
-		dmg = int(body.get_meta("damage"))
+	_trigger_damage_flash()
+
+	if health <= 0:
+		health = 0
+		is_dead = true
+		_change_state(State.DEAD)
 	else:
+		_change_state(State.HIT_STUN)
+
+
+func _trigger_damage_flash() -> void:
+
+	if not sprite:
 		return
 
-	take_damage(dmg)
-# ============== СМЕРТЬ ==============
+	sprite.modulate = damage_flash_color
+
+	var tween = create_tween()
+	tween.tween_property(sprite, "modulate", Color.WHITE, damage_flash_time)
+
+
+# ===================== DEATH =====================
 
 func _on_dead() -> void:
+
 	move_velocity = Vector2.ZERO
 
-	sprite.play(
-		"death_" + _get_direction_name(direction)
-	)
+	sprite.play("death_" + _get_direction_name(direction))
 
 	if hitbox:
 		hitbox.set_deferred("monitoring", false)
@@ -455,18 +508,10 @@ func _on_dead() -> void:
 	if vision_area:
 		vision_area.set_deferred("monitoring", false)
 
-	await get_tree().create_timer(
-		death_fade_time
-	).timeout
+	await get_tree().create_timer(death_fade_time).timeout
 
 	var tween = create_tween()
-
-	tween.tween_property(
-		self,
-		"modulate:a",
-		0.0,
-		0.5
-	)
+	tween.tween_property(self, "modulate:a", 0.0, 0.5)
 
 	await tween.finished
 

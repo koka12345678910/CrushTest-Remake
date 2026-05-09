@@ -2422,6 +2422,25 @@ navigation_polygon = SubResource("NavigationPolygon_guyyl")
 
 [node name="Enemy" parent="." unique_id=71146591 instance=ExtResource("10_cnusy")]
 position = Vector2(802, -82)
+walk_speed = null
+run_speed = null
+friction = null
+direction_smoothness = null
+max_health = null
+damage_flash_time = null
+attack_range = null
+attack_cooldown = null
+attack_damage = null
+attack_duration = null
+damage_flash_color = null
+preferred_distance = null
+vision_range = null
+chase_range = null
+think_rate = null
+wander_speed_multiplier = null
+target_refresh_interval = null
+prediction_strength = null
+death_fade_time = null
 
 [connection signal="body_entered" from="Area2D" to="Player" method="_on_area_2d_body_entered"]
 [connection signal="body_exited" from="Area2D" to="Player" method="_on_area_2d_body_exited"]
