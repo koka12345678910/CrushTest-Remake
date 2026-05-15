@@ -122,11 +122,11 @@ var scroll_offset: float = 0.0
 var target_scroll: float = 0.0
 var anim_time: float = 0.0
 
-const LEFT_PANEL_W: int = 460
-const RIGHT_PANEL_X: int = 500
-const ITEM_H: int = 62
-const LIST_START_Y: int = 180
-const LIST_MARGIN_X: int = 40
+const LEFT_PANEL_W: int = 550
+const RIGHT_PANEL_X: int = 590
+const ITEM_H: int = 78
+const LIST_START_Y: int = 160
+const LIST_MARGIN_X: int = 30
 
 var font_default: Font
 var font_bold: Font
@@ -232,36 +232,36 @@ func _draw_vertical_divider() -> void:
 func _draw_header() -> void:
 	var pw: float = float(LEFT_PANEL_W)
 	draw_rect(Rect2(0.0, 0.0, pw, 2.0), Color(0.7, 0.6, 0.4, 0.8))
-	draw_rect(Rect2(0.0, 0.0, pw, 70.0), Color(0.08, 0.06, 0.04))
+	draw_rect(Rect2(0.0, 0.0, pw, 88.0), Color(0.08, 0.06, 0.04))
 	var cc := Color(0.7, 0.6, 0.4, 0.5)
 	draw_line(Vector2(10.0, 5.0),      Vector2(10.0, 20.0),     cc, 1.5)
 	draw_line(Vector2(10.0, 5.0),      Vector2(25.0, 5.0),      cc, 1.5)
 	draw_line(Vector2(pw - 10.0, 5.0), Vector2(pw - 10.0, 20.0), cc, 1.5)
 	draw_line(Vector2(pw - 10.0, 5.0), Vector2(pw - 25.0, 5.0),  cc, 1.5)
-	draw_string(font_bold,    Vector2(pw * 0.5 - 90.0, 32.0), "СБОРЩИК ДУШ",
-			HORIZONTAL_ALIGNMENT_LEFT, -1, 22, Color(0.95, 0.88, 0.65))
-	draw_line(Vector2(20.0, 66.0), Vector2(pw - 20.0, 66.0), Color(0.7, 0.6, 0.4, 0.3), 1.0)
-	draw_string(font_default, Vector2(float(LIST_MARGIN_X), float(LIST_START_Y) - 14.0),
-			"ПРЕДМЕТ", HORIZONTAL_ALIGNMENT_LEFT, -1, 11, Color(0.5, 0.45, 0.35))
-	draw_string(font_default, Vector2(pw - float(LIST_MARGIN_X) - 60.0, float(LIST_START_Y) - 14.0),
-			"ЦЕНА", HORIZONTAL_ALIGNMENT_LEFT, -1, 11, Color(0.5, 0.45, 0.35))
-	draw_line(Vector2(float(LIST_MARGIN_X), float(LIST_START_Y) - 6.0),
-			  Vector2(pw - float(LIST_MARGIN_X), float(LIST_START_Y) - 6.0),
+	draw_string(font_bold, Vector2(pw * 0.5 - 110.0, 38.0), "СБОРЩИК ДУШ",
+			HORIZONTAL_ALIGNMENT_LEFT, -1, 28, Color(0.95, 0.88, 0.65))
+	draw_line(Vector2(20.0, 80.0), Vector2(pw - 20.0, 80.0), Color(0.7, 0.6, 0.4, 0.3), 1.0)
+	draw_string(font_default, Vector2(float(LIST_MARGIN_X), float(LIST_START_Y) - 12.0),
+			"ПРЕДМЕТ", HORIZONTAL_ALIGNMENT_LEFT, -1, 13, Color(0.5, 0.45, 0.35))
+	draw_string(font_default, Vector2(pw - float(LIST_MARGIN_X) - 70.0, float(LIST_START_Y) - 12.0),
+			"ЦЕНА", HORIZONTAL_ALIGNMENT_LEFT, -1, 13, Color(0.5, 0.45, 0.35))
+	draw_line(Vector2(float(LIST_MARGIN_X), float(LIST_START_Y) - 4.0),
+			  Vector2(pw - float(LIST_MARGIN_X), float(LIST_START_Y) - 4.0),
 			  Color(0.7, 0.6, 0.4, 0.2), 1.0)
 
 # ─── GOLD DISPLAY ──────────────────────────────────────────────────────────────
 func _draw_gold_display() -> void:
 	var gx: float = 20.0
 	var gy: float = size.y - 60.0
-	draw_rect(Rect2(gx, gy, 220.0, 40.0),       Color(0.08, 0.07, 0.04))
-	draw_rect(Rect2(gx, gy, 220.0, 1.0),         Color(0.7, 0.6, 0.4, 0.4))
-	draw_rect(Rect2(gx, gy + 39.0, 220.0, 1.0), Color(0.7, 0.6, 0.4, 0.4))
-	draw_circle(Vector2(gx + 18.0, gy + 20.0), 10.0, Color(0.8, 0.65, 0.1))
-	draw_circle(Vector2(gx + 18.0, gy + 20.0),  7.0, Color(0.95, 0.82, 0.25))
-	draw_string(font_default, Vector2(gx + 10.0, gy + 24.0),
-			"Y", HORIZONTAL_ALIGNMENT_LEFT, -1, 14, Color(0.5, 0.35, 0.05))
-	draw_string(font_bold, Vector2(gx + 36.0, gy + 25.0),
-			str(player_gold) + " Sen", HORIZONTAL_ALIGNMENT_LEFT, -1, 15, Color(0.95, 0.85, 0.5))
+	draw_rect(Rect2(gx, gy, 260.0, 48.0),       Color(0.08, 0.07, 0.04))
+	draw_rect(Rect2(gx, gy, 260.0, 1.0),         Color(0.7, 0.6, 0.4, 0.4))
+	draw_rect(Rect2(gx, gy + 47.0, 260.0, 1.0), Color(0.7, 0.6, 0.4, 0.4))
+	draw_circle(Vector2(gx + 22.0, gy + 24.0), 12.0, Color(0.8, 0.65, 0.1))
+	draw_circle(Vector2(gx + 22.0, gy + 24.0),  8.0, Color(0.95, 0.82, 0.25))
+	draw_string(font_default, Vector2(gx + 13.0, gy + 29.0),
+			"Y", HORIZONTAL_ALIGNMENT_LEFT, -1, 16, Color(0.5, 0.35, 0.05))
+	draw_string(font_bold, Vector2(gx + 44.0, gy + 30.0),
+			str(player_gold) + " Sen", HORIZONTAL_ALIGNMENT_LEFT, -1, 18, Color(0.95, 0.85, 0.5))
 
 # ─── ITEM LIST ─────────────────────────────────────────────────────────────────
 func _draw_item_list() -> void:
@@ -296,9 +296,9 @@ func _draw_item_list() -> void:
 				  Vector2(pw - lm, iy + float(ITEM_H) - 4.0),
 				  Color(0.25, 0.22, 0.16, 0.5), 1.0)
 
-		# ── МИНИ-ИКОНКА (28x28 px, PNG или заглушка) ──
-		var icon_size: float = 28.0
-		var icon_x: float = lm + 6.0
+		# ── МИНИ-ИКОНКА (40x40 px, PNG или заглушка) ──
+		var icon_size: float = 40.0
+		var icon_x: float = lm + 8.0
 		var icon_y: float = iy + (float(ITEM_H) - icon_size) * 0.5
 		var tex: Texture2D = item["texture"] as Texture2D
 		if tex != null:
@@ -316,8 +316,8 @@ func _draw_item_list() -> void:
 		elif is_hovered:         name_color = Color(0.95, 0.88, 0.65)
 		else:                    name_color = Color(0.75, 0.68, 0.52)
 
-		draw_string(font_bold, Vector2(icon_x + icon_size + 14.0, iy + float(ITEM_H) * 0.5 + 5.0),
-				item["name"] as String, HORIZONTAL_ALIGNMENT_LEFT, -1, 15, name_color)
+		draw_string(font_bold, Vector2(icon_x + icon_size + 14.0, iy + float(ITEM_H) * 0.5 + 7.0),
+				item["name"] as String, HORIZONTAL_ALIGNMENT_LEFT, -1, 19, name_color)
 
 		# Price
 		var price_color: Color
@@ -327,12 +327,12 @@ func _draw_item_list() -> void:
 
 		var price_str: String = str(item["price"])
 		draw_string(font_default,
-				Vector2(pw - lm - 10.0 - float(price_str.length()) * 9.0, iy + float(ITEM_H) * 0.5 + 5.0),
-				price_str, HORIZONTAL_ALIGNMENT_LEFT, -1, 14, price_color)
+				Vector2(pw - lm - 10.0 - float(price_str.length()) * 11.0, iy + float(ITEM_H) * 0.5 + 7.0),
+				price_str, HORIZONTAL_ALIGNMENT_LEFT, -1, 18, price_color)
 
 		if not can_afford and (is_hovered or is_selected):
-			draw_string(font_default, Vector2(pw - lm - 85.0, iy + float(ITEM_H) * 0.5 - 8.0),
-					"Мало Сен", HORIZONTAL_ALIGNMENT_LEFT, -1, 10, Color(0.7, 0.25, 0.2, 0.9))
+			draw_string(font_default, Vector2(pw - lm - 95.0, iy + float(ITEM_H) * 0.5 - 10.0),
+					"Мало Сен", HORIZONTAL_ALIGNMENT_LEFT, -1, 12, Color(0.7, 0.25, 0.2, 0.9))
 
 # ─── SCROLLBAR ─────────────────────────────────────────────────────────────────
 func _draw_scrollbar() -> void:
@@ -348,12 +348,12 @@ func _draw_scrollbar() -> void:
 
 # ─── FOOTER ────────────────────────────────────────────────────────────────────
 func _draw_footer_hint(H: float) -> void:
-	draw_line(Vector2(float(LIST_MARGIN_X), H - 78.0),
-			  Vector2(float(LEFT_PANEL_W - LIST_MARGIN_X), H - 78.0),
+	draw_line(Vector2(float(LIST_MARGIN_X), H - 82.0),
+			  Vector2(float(LEFT_PANEL_W - LIST_MARGIN_X), H - 82.0),
 			  Color(0.7, 0.6, 0.4, 0.2), 1.0)
 	draw_string(font_default, Vector2(float(LIST_MARGIN_X), H - 62.0),
 			"[Колесо] Прокрутка    [ЛКМ] Купить",
-			HORIZONTAL_ALIGNMENT_LEFT, -1, 11, Color(0.45, 0.4, 0.3))
+			HORIZONTAL_ALIGNMENT_LEFT, -1, 13, Color(0.45, 0.4, 0.3))
 
 # ─── RIGHT PANEL ───────────────────────────────────────────────────────────────
 func _draw_right_panel(W: float, H: float) -> void:
@@ -378,8 +378,8 @@ func _draw_right_panel(W: float, H: float) -> void:
 
 	# ── БОЛЬШАЯ ИКОНКА ──────────────────────────────────────────────────────────
 	var icon_cx: float = rx + pw * 0.5
-	var icon_cy: float = H * 0.32
-	var icon_r: float  = 90.0
+	var icon_cy: float = H * 0.28
+	var icon_r: float  = 130.0
 
 	# Внешние кольца пульсации
 	for ri: int in 3:
@@ -425,44 +425,44 @@ func _draw_right_panel(W: float, H: float) -> void:
 				item["name"] as String, col, true)
 
 	# Название
-	var name_y: float = icon_cy + icon_r + 38.0
-	draw_line(Vector2(rx + 40.0, name_y - 18.0), Vector2(W - 40.0, name_y - 18.0),
+	var name_y: float = icon_cy + icon_r + 48.0
+	draw_line(Vector2(rx + 40.0, name_y - 22.0), Vector2(W - 40.0, name_y - 22.0),
 			Color(col.r, col.g, col.b, 0.25), 1.0)
 	var name_str: String = item["name"] as String
-	draw_string(font_bold, Vector2(icon_cx - float(name_str.length()) * 6.5, name_y),
-			name_str, HORIZONTAL_ALIGNMENT_LEFT, -1, 22, Color(0.98, 0.93, 0.75))
+	draw_string(font_bold, Vector2(icon_cx - float(name_str.length()) * 8.0, name_y),
+			name_str, HORIZONTAL_ALIGNMENT_LEFT, -1, 28, Color(0.98, 0.93, 0.75))
 
 	# Цена
-	var badge_x: float = icon_cx - 60.0
-	var badge_y: float = name_y + 14.0
-	draw_rect(Rect2(badge_x, badge_y, 120.0, 28.0), Color(0.1, 0.08, 0.04))
-	draw_rect(Rect2(badge_x, badge_y, 120.0, 1.0), Color(col.r, col.g, col.b, 0.5))
-	draw_rect(Rect2(badge_x, badge_y + 27.0, 120.0, 1.0), Color(col.r, col.g, col.b, 0.5))
-	draw_circle(Vector2(badge_x + 18.0, badge_y + 14.0), 9.0, Color(0.75, 0.6, 0.1))
-	draw_circle(Vector2(badge_x + 18.0, badge_y + 14.0), 6.0, Color(0.95, 0.82, 0.25))
+	var badge_x: float = icon_cx - 80.0
+	var badge_y: float = name_y + 18.0
+	draw_rect(Rect2(badge_x, badge_y, 160.0, 36.0), Color(0.1, 0.08, 0.04))
+	draw_rect(Rect2(badge_x, badge_y, 160.0, 1.0), Color(col.r, col.g, col.b, 0.5))
+	draw_rect(Rect2(badge_x, badge_y + 35.0, 160.0, 1.0), Color(col.r, col.g, col.b, 0.5))
+	draw_circle(Vector2(badge_x + 22.0, badge_y + 18.0), 12.0, Color(0.75, 0.6, 0.1))
+	draw_circle(Vector2(badge_x + 22.0, badge_y + 18.0),  8.0, Color(0.95, 0.82, 0.25))
 	var can_afford: bool = (player_gold >= (item["price"] as int))
-	draw_string(font_bold, Vector2(badge_x + 32.0, badge_y + 18.0),
-			str(item["price"]) + " Sen", HORIZONTAL_ALIGNMENT_LEFT, -1, 13,
+	draw_string(font_bold, Vector2(badge_x + 42.0, badge_y + 23.0),
+			str(item["price"]) + " Sen", HORIZONTAL_ALIGNMENT_LEFT, -1, 17,
 			Color(0.95, 0.82, 0.25) if can_afford else Color(0.6, 0.25, 0.2))
 
 	# Описание
-	var desc_y: float = name_y + 58.0
-	draw_line(Vector2(rx + 40.0, desc_y - 6.0), Vector2(W - 40.0, desc_y - 6.0),
+	var desc_y: float = name_y + 72.0
+	draw_line(Vector2(rx + 40.0, desc_y - 8.0), Vector2(W - 40.0, desc_y - 8.0),
 			Color(0.4, 0.35, 0.25, 0.4), 1.0)
 	var desc_lines: PackedStringArray = (item["description"] as String).split("\n")
 	for li: int in desc_lines.size():
-		draw_string(font_default, Vector2(rx + 44.0, desc_y + float(li) * 18.0),
-				desc_lines[li], HORIZONTAL_ALIGNMENT_LEFT, -1, 16, Color(0.82, 0.76, 0.62))
+		draw_string(font_default, Vector2(rx + 50.0, desc_y + float(li) * 26.0),
+				desc_lines[li], HORIZONTAL_ALIGNMENT_LEFT, -1, 18, Color(0.82, 0.76, 0.62))
 
 	# Лор
-	var lore_y: float = desc_y + float(desc_lines.size()) * 22.0 + 24.0
-	draw_line(Vector2(rx + 40.0, lore_y - 10.0), Vector2(W - 40.0, lore_y - 10.0),
+	var lore_y: float = desc_y + float(desc_lines.size()) * 26.0 + 30.0
+	draw_line(Vector2(rx + 40.0, lore_y - 12.0), Vector2(W - 40.0, lore_y - 12.0),
 			Color(0.4, 0.35, 0.25, 0.25), 1.0)
-	draw_string(font_default, Vector2(rx + 44.0, lore_y),
-			"— Предание —", HORIZONTAL_ALIGNMENT_LEFT, -1, 16, Color(0.5, 0.45, 0.32))
+	draw_string(font_default, Vector2(rx + 50.0, lore_y),
+			"— Предание —", HORIZONTAL_ALIGNMENT_LEFT, -1, 17, Color(0.5, 0.45, 0.32))
 	var lore_lines: PackedStringArray = (item["lore"] as String).split("\n")
 	for li: int in lore_lines.size():
-		draw_string(font_default, Vector2(rx + 44.0, lore_y + 18.0 + float(li) * 20.0),
+		draw_string(font_default, Vector2(rx + 50.0, lore_y + 26.0 + float(li) * 24.0),
 				lore_lines[li], HORIZONTAL_ALIGNMENT_LEFT, -1, 16, Color(0.6, 0.55, 0.42))
 
 	draw_rect(Rect2(rx + 30.0, H - 12.0, pw - 60.0, 2.0),

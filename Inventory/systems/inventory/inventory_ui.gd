@@ -267,6 +267,9 @@ func _build_detail_panel(parent: Control) -> void:
 	_detail_icon.size = Vector2(icon_size - 20, icon_size - 20)
 	_detail_icon.expand_mode = TextureRect.EXPAND_FIT_WIDTH_PROPORTIONAL
 	_detail_icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	_detail_icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	_detail_icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	_detail_icon.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST 
 	parent.add_child(_detail_icon)
 
 	var tw := w - icon_size - 28.0

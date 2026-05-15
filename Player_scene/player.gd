@@ -134,6 +134,11 @@ func _unhandled_input(event: InputEvent) -> void:
 			inventory_ui.open()
 
 func _physics_process(delta):
+	# Блокируем всё если инвентарь открыт
+	if inventory_ui.visible:
+		velocity = Vector2.ZERO
+		move_and_slide()
+		return
 	if is_starting:
 		return
 	if is_rolling:
@@ -871,19 +876,3 @@ func activate_odin_eye(duration: float, slow: float, max_targets: int) -> void:
 			print("[ГлазОдина] Время восстановлено")
 	)
 	# TODO: логика выбора и убийства врагов
-
-
-# ----------------------------------------------------------
-# SCALE
-# ----------------------------------------------------------
-
-func _on_area_2d_body_entered(body) -> void:
-	if body == self:
-		var t = create_tween()
-		t.tween_property(gfx, "scale", ladder_scale, 0.4)
-
-
-func _on_area_2d_body_exited(body: Node2D) -> void:
-	if body == self:
-		var t = create_tween()
-		t.tween_property(gfx, "scale", normal_scale, 0.2)

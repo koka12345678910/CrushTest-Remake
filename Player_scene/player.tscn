@@ -1,7 +1,7 @@
 [gd_scene format=3 uid="uid://bv1v4h1gmt6dr"]
 
-[ext_resource type="Script" uid="uid://dph25kqh5e2wa" path="res://Levels/Player_scene/player.gd" id="1_sf3ye"]
-[ext_resource type="SpriteFrames" uid="uid://djodea10mjltw" path="res://Levels/Player_scene/player.tres" id="2_tgf2g"]
+[ext_resource type="Script" uid="uid://dph25kqh5e2wa" path="res://Player_scene/player.gd" id="1_sf3ye"]
+[ext_resource type="SpriteFrames" uid="uid://djodea10mjltw" path="res://Player_scene/player.tres" id="2_tgf2g"]
 [ext_resource type="PackedScene" uid="uid://do3g22fs238l4" path="res://VFX/VFX_scene/hit_vfx.tscn" id="2_tna0o"]
 [ext_resource type="PackedScene" uid="uid://b3j8k0aj2e5fc" path="res://VFX/VFX_scene/running_hit_vfx.tscn" id="3_n1bac"]
 [ext_resource type="PackedScene" uid="uid://ckjq1ftt8nvsw" path="res://VFX/VFX_scene/move_start_vfx_scene.tscn" id="4_sf3ye"]
@@ -3835,16 +3835,16 @@ one_shot = true
 target_position = Vector2(0, 16)
 
 [node name="WeaponTip" type="Marker2D" parent="." unique_id=1365147647]
-position = Vector2(103, 7)
+position = Vector2(50, 5)
 
 [node name="FootPoint" type="Marker2D" parent="." unique_id=494975568]
-position = Vector2(11, 13)
+position = Vector2(13, 18)
 
 [node name="FootPoint2" type="Marker2D" parent="." unique_id=782328580]
 position = Vector2(34, 14)
 
 [node name="MeleeHit" type="Marker2D" parent="." unique_id=1016199469]
-position = Vector2(68, 14)
+position = Vector2(51, 6)
 
 [node name="PlayerAnimation" type="AnimationPlayer" parent="." unique_id=416192371]
 libraries/ = SubResource("AnimationLibrary_tna0o")
@@ -3861,10 +3861,10 @@ script = ExtResource("11_2ys5t")
 [node name="QuickSlotUI" type="Control" parent="HUD" unique_id=1468830696]
 layout_mode = 3
 anchors_preset = 0
-offset_left = 1436.0
-offset_top = 644.0
-offset_right = 1771.0
-offset_bottom = 1037.0
+offset_left = 1636.0
+offset_top = 810.0
+offset_right = 1845.0
+offset_bottom = 1017.0
 script = ExtResource("12_wfmf0")
 
 [node name="HealthStaminaBar" type="CanvasLayer" parent="." unique_id=630230056]
