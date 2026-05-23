@@ -1,0 +1,78 @@
+[gd_scene format=3 uid="uid://d1ercr4q0c1n2"]
+
+[ext_resource type="Script" uid="uid://j20gokov3i0q" path="res://VFX/VFX_scene/turn_around_vfx_scene.gd" id="1_jak35"]
+[ext_resource type="Texture2D" uid="uid://cmlaryjtk4xuo" path="res://VFX/Smoke/Smoke_01-Sheet.png" id="2_jak35"]
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_ws6gx"]
+atlas = ExtResource("2_jak35")
+region = Rect2(0, 0, 120, 120)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_n0rjn"]
+atlas = ExtResource("2_jak35")
+region = Rect2(120, 0, 120, 120)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_uqw8m"]
+atlas = ExtResource("2_jak35")
+region = Rect2(240, 0, 120, 120)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_iewtd"]
+atlas = ExtResource("2_jak35")
+region = Rect2(360, 0, 120, 120)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_d1yc7"]
+atlas = ExtResource("2_jak35")
+region = Rect2(480, 0, 120, 120)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_cxcx0"]
+atlas = ExtResource("2_jak35")
+region = Rect2(600, 0, 120, 120)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_3dt2m"]
+atlas = ExtResource("2_jak35")
+region = Rect2(720, 0, 120, 120)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_7jyi2"]
+atlas = ExtResource("2_jak35")
+region = Rect2(840, 0, 120, 120)
+
+[sub_resource type="SpriteFrames" id="SpriteFrames_4yy7m"]
+animations = [{
+"frames": [{
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_ws6gx")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_n0rjn")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_uqw8m")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_iewtd")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_d1yc7")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_cxcx0")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_3dt2m")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_7jyi2")
+}],
+"loop": false,
+"name": &"turn",
+"speed": 8.0
+}]
+
+[node name="turn_around_vfx_scene" type="Node2D" unique_id=1882572142]
+script = ExtResource("1_jak35")
+
+[node name="AnimatedSprite2D" type="AnimatedSprite2D" parent="." unique_id=532019782]
+position = Vector2(71.00001, -20)
+scale = Vector2(0.72499996, 0.71875)
+sprite_frames = SubResource("SpriteFrames_4yy7m")
+animation = &"turn"
+frame_progress = 1.0
