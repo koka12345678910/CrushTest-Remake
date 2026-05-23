@@ -8,6 +8,7 @@ extends CharacterBody2D
 @export var melee_hit_vfx_scene: PackedScene
 @export var melee_hit_2_vfx_scene: PackedScene
 @export var turn_around_vfx_scene: PackedScene
+@export var snap_radius := 80.0  # радиус поиска врагов
 
 @onready var melee_hit = $MeleeHit
 @onready var weapon_tip := $WeaponTip
@@ -19,7 +20,10 @@ extends CharacterBody2D
 @onready var inventory_system: InventorySystem = $InventorySystem
 @onready var health_bar = $HealthStaminaBar
 @onready var inventory_ui = $InventoryUI
+@onready var hurtbox: Area2D = $HurtBox
+@onready var player_hitbox: Area2D = $PlayerHitbox
 
+var attack_damage := 1
 var prev_velocity := Vector2.ZERO
 var move_vfx_cooldown := 0.0
 var input_vector := Vector2.ZERO
@@ -92,12 +96,17 @@ var ladder_scale := Vector2(0.65, 0.65)
 var is_starting := true
 
 func _ready() -> void:
+	player_hitbox.area_entered.connect(_on_player_hitbox_area_entered)
+	player_hitbox.monitoring = false  # выключен по умолчанию, включается при атаке
 	if not anim.animation_finished.is_connected(_on_anim_finished):
 		anim.animation_finished.connect(_on_anim_finished)
 	
 	anim.play("Started_" + last_direction)
 	print(anim.get_animation_list())
-	
+	add_to_group("player")
+	player_hitbox.add_to_group("player_attack")
+	player_hitbox.set_meta("damage", attack_damage)
+	hurtbox.area_entered.connect(_on_hurtbox_area_entered)
 	# Сначала инициализируем все системы
 	health_bar.set_max_hp(max_health)
 	health_bar.set_max_stamina(max_stamina)
@@ -272,6 +281,34 @@ func direction_to_vector(dir: String) -> Vector2:
 		"Down_Left": return Vector2(-1, 1).normalized()
 		"Down_Right": return Vector2(1, 1).normalized()
 	return Vector2.ZERO
+
+func get_nearest_enemy() -> Node2D:
+	var nearest: Node2D = null
+	var nearest_dist := snap_radius
+	
+	for enemy in get_tree().get_nodes_in_group("enemy"):
+		if not is_instance_valid(enemy):
+			continue
+		var dist = global_position.distance_to(enemy.global_position)
+		if dist < nearest_dist:
+			nearest_dist = dist
+			nearest = enemy
+	
+	return nearest
+
+func try_snap_to_enemy() -> void:
+	var enemy = get_nearest_enemy()
+	if enemy == null:
+		return
+	
+	var dir = (enemy.global_position - global_position).normalized()
+	var new_dir = get_direction(dir)
+	
+	if new_dir == "":  # get_direction вернул пустую строку — не применяем
+		return
+	
+	facing_dir = dir
+	last_direction = new_dir
 
 func check_for_turn():
 	if is_attacking or is_run_attacking:  # 👈 добавь эту строку
@@ -560,24 +597,23 @@ func use_stamina(amount: float) -> bool:
 
 func handle_attack_input():
 	if is_dodging or is_rolling:
-			return
-
+		return
 	if Input.is_action_just_pressed("attack"):
-		# --- COUNTERATTACK после perfect parry ---
 		if can_counter:
 			can_counter = false
 			start_counter_attack()
 			return
-
-		# --- RUN ATTACK ---
 		if is_running and input_vector != Vector2.ZERO and not is_attacking and not is_run_attacking:
 			start_run_attack()
 			return
-
-		# --- COMBO ---
+		# ← добавь это
+		if input_vector != Vector2.ZERO:
+			facing_dir = input_vector.normalized()
+			last_direction = get_direction(facing_dir)
 		if is_attacking:
 			combo_queued = true
 		elif not is_run_attacking:
+			try_snap_to_enemy()
 			start_combo()
 
 func start_combo():
@@ -603,7 +639,7 @@ func play_attack(step: int):
 	
 	update_weapon_tip()
 	melee_weapon_tip()
-	
+	player_hitbox.monitoring = true
 	if not anim.has_animation(anim_name):
 		print("⚠ Нет анимации: ", anim_name)
 		reset_all_states()
@@ -669,9 +705,8 @@ func update_weapon_tip():
 
 func melee_weapon_tip():
 	var dir = direction_to_vector(last_direction)
-	var offset = 35  # подгони под свою анимацию
-	
-	melee_hit.position = dir * offset
+	melee_hit.position = dir * 35     # VFX спавнится здесь — дальше
+	player_hitbox.position = dir * 25
 
 func play_hit_vfx():
 	if hit_vfx_scene == null:
@@ -688,7 +723,6 @@ func play_hit_vfx():
 	vfx.rotation = dir.angle()  # 👈 ВОТ ЭТО НОВОЕ
 	
 	get_tree().current_scene.add_child(vfx)
-
 
 func play_melee_hit_vfx():
 	if melee_hit_vfx_scene == null:
@@ -779,6 +813,8 @@ func _on_anim_finished(finished_anim: StringName) -> void:
 	if not finished_anim.begins_with("Attack"):
 		return
 	
+	player_hitbox.monitoring = true
+	
 	if combo_queued and combo_step < 4:  # теперь до 4 шагов
 		combo_step += 1
 		play_attack(combo_step)
@@ -789,6 +825,7 @@ func reset_combo():
 	is_attacking = false
 	combo_step = 0
 	combo_queued = false
+	player_hitbox.monitoring = false  # ← добавь
 	play_idle_animation()
 
 func reset_all_states():
@@ -876,3 +913,48 @@ func activate_odin_eye(duration: float, slow: float, max_targets: int) -> void:
 			print("[ГлазОдина] Время восстановлено")
 	)
 	# TODO: логика выбора и убийства врагов
+
+# ============== HITBOX ==============
+
+func _on_hurtbox_area_entered(area: Area2D) -> void:
+	if is_invulnerable or is_dodging or is_rolling:
+		return
+	if area.is_in_group("enemy_attack"):
+		var dmg = 50
+		if area.has_meta("damage"):
+			dmg = int(area.get_meta("damage"))
+		take_damage(dmg)
+
+func _trigger_damage_flash() -> void:
+	var tween = create_tween()
+	tween.tween_property(gfx, "modulate", Color(1.5, 0.3, 0.3, 1.0), 0.05)
+	tween.tween_property(gfx, "modulate", Color.WHITE, 0.15)
+
+func is_dead() -> bool:
+	return health <= 0.0
+
+func _on_player_dead() -> void:
+	# TODO: анимация смерти, game over
+	print("[Player] Умер")
+
+# ============== ENABLE/DISABLE HITBOX ==============
+
+func enable_attack_hitbox() -> void:
+	player_hitbox.monitoring = true
+	player_hitbox.get_child(0).disabled = false
+	# позиция уже обновляется через melee_weapon_tip()
+
+func disable_attack_hitbox() -> void:
+	player_hitbox.monitoring = false
+	if player_hitbox.get_child(0):
+		player_hitbox.get_child(0).disabled = true
+
+func _on_player_hitbox_area_entered(area: Area2D) -> void:
+	if area.is_in_group("enemy_hurtbox"):
+		var enemy = area.get_parent()
+		if enemy.has_method("receive_attack"):
+			var attack_data = {
+				"damage": attack_damage,
+				"source": self
+			}
+			enemy.receive_attack(attack_data)

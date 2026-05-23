@@ -104,7 +104,7 @@ func _ready() -> void:
 	health = max_health
 	attack_hitbox.body_entered.connect(_on_attack_body_entered)
 
-	add_to_group("enemy")
+	$Hurtbox.add_to_group("enemy_hurtbox")
 	
 	if vision_area:
 		vision_area.body_entered.connect(_on_vision_body_entered)
@@ -124,7 +124,7 @@ func _on_hitbox_area_entered(area: Area2D) -> void:
 		return
 	if _is_player_attack(area):
 		var dmg = _get_damage_from(area)
-		take_damage(dmg)
+		take_damage(dmg, area.get_parent())
 # ============== PHYSICS ==============
 func _physics_process(delta: float) -> void:
 	if is_dead:
@@ -133,7 +133,6 @@ func _physics_process(delta: float) -> void:
 	think_timer += delta
 	_direction_change_cooldown = max(0.0, _direction_change_cooldown - delta)
 	attack_cooldown_timer = max(0.0, attack_cooldown_timer - delta)
-	hit_stun_timer = max(0.0, hit_stun_timer - delta)
 	if attack_cooldown_timer <= 0.0:
 		can_attack = true
 	if current_state not in [
@@ -149,7 +148,12 @@ func _physics_process(delta: float) -> void:
 		Vector2.ZERO,
 		friction * delta
 	)
-	velocity = move_velocity
+	if knockback_velocity != Vector2.ZERO:
+		knockback_velocity = knockback_velocity.move_toward(Vector2.ZERO, friction * 2 * delta)
+		velocity = knockback_velocity
+	else:
+		move_velocity = move_velocity.move_toward(Vector2.ZERO, friction * delta)
+		velocity = move_velocity
 	move_and_slide()
 	if current_state == State.WANDER and get_slide_collision_count() > 0:
 		if _direction_change_cooldown <= 0.0:
@@ -157,8 +161,7 @@ func _physics_process(delta: float) -> void:
 			wander_direction = wander_direction.bounce(collision.get_normal())
 			wander_timer = randf_range(2.0, 4.0)
 			_direction_change_cooldown = 0.8
-
-# ============== AI ==============ц
+# ============== AI ==============
 
 func _decide_state() -> void:
 	if current_state in [
@@ -215,6 +218,7 @@ func _update_state(delta: float) -> void:
 # ============== STATE MACHINE ==============
 
 func _change_state(new_state: State) -> void:
+	print("state: ", current_state, " → ", new_state)
 	if current_state == new_state:
 		return
 
@@ -246,7 +250,9 @@ func _change_state(new_state: State) -> void:
 
 		State.HIT_STUN:
 			move_velocity = Vector2.ZERO
-			hit_stun_timer = 0.4
+			knockback_velocity = Vector2.ZERO
+			hit_stun_timer = 1.0
+			print("hit_stun_timer установлен: ", hit_stun_timer)
 
 		State.DEAD:
 			_on_dead()
@@ -388,20 +394,17 @@ func _exit_attack() -> void:
 # =========================================================
 # HIT STUN
 # =========================================================
-func _state_hit_stun(_delta: float) -> void:
-
-	# Остановка при получении урона
-	move_velocity = Vector2.ZERO
-
-	# Анимация удара
-	_play_animation("hit")
-
-	# Когда stun закончился —
-	# снова преследуем игрока
+func _state_hit_stun(delta: float) -> void:
+	# НЕ обнуляем move_velocity сразу — даём нокбэку сработать
+	hit_stun_timer -= delta
+	
+	var anim_name = "take_damage_" + _get_direction_name(direction)
+	if sprite.animation != anim_name or not sprite.is_playing():
+		sprite.play(anim_name)
+	
 	if hit_stun_timer <= 0.0:
+		move_velocity = Vector2.ZERO
 		_change_state(State.CHASE)
-
-
 
 # ===================== ANIMATION =====================
 func _play_animation(state: String) -> void:
@@ -464,22 +467,26 @@ func _on_attack_body_entered(body: Node2D) -> void:
 
 # ===================== HIT DAMAGE =====================
 
-func take_damage(amount: int) -> void:
+var knockback_velocity := Vector2.ZERO
 
+func take_damage(amount: int, source: Node2D = null) -> void:
 	if is_dead:
 		return
-
 	health -= amount
-
+	# Нокбэк — отталкиваемся от источника удара
+	if source:
+		var knockback_dir = (global_position - source.global_position).normalized()
+		move_velocity = knockback_dir * 200.0  # сила нокбэка
 	_trigger_damage_flash()
-
 	if health <= 0:
 		health = 0
 		is_dead = true
 		_change_state(State.DEAD)
 	else:
 		_change_state(State.HIT_STUN)
-
+	if source and not is_dead:
+		var knockback_dir = (global_position - source.global_position).normalized()
+		knockback_velocity = knockback_dir * 300.0
 
 func _trigger_damage_flash() -> void:
 
@@ -532,12 +539,9 @@ func _on_vision_body_exited(body: Node2D) -> void:
 func _on_hitbox_hit(body: Node2D) -> void:
 	if is_dead:
 		return
-
 	if _is_player_attack(body):
-
 		var dmg = _get_damage_from(body)
-
-		take_damage(dmg)
+		take_damage(dmg, body) 
 
 # ============== УТИЛИТЫ ==============
 

@@ -59,6 +59,23 @@ tracks/2/keys = {
 "method": &"play_melee_2_hit_vfx"
 }]
 }
+tracks/3/type = "method"
+tracks/3/imported = false
+tracks/3/enabled = true
+tracks/3/path = NodePath(".")
+tracks/3/interp = 1
+tracks/3/loop_wrap = true
+tracks/3/keys = {
+"times": PackedFloat32Array(0.23333333, 0.43333334),
+"transitions": PackedFloat32Array(1, 1),
+"values": [{
+"args": [],
+"method": &"enable_attack_hitbox"
+}, {
+"args": [],
+"method": &"disable_attack_hitbox"
+}]
+}
 
 [sub_resource type="Animation" id="Animation_372bl"]
 length = 0.5555556
@@ -98,6 +115,23 @@ tracks/2/keys = {
 "values": [{
 "args": [],
 "method": &"play_melee_2_hit_vfx"
+}]
+}
+tracks/3/type = "method"
+tracks/3/imported = false
+tracks/3/enabled = true
+tracks/3/path = NodePath(".")
+tracks/3/interp = 1
+tracks/3/loop_wrap = true
+tracks/3/keys = {
+"times": PackedFloat32Array(0.23333333, 0.43333334),
+"transitions": PackedFloat32Array(1, 1),
+"values": [{
+"args": [],
+"method": &"enable_attack_hitbox"
+}, {
+"args": [],
+"method": &"disable_attack_hitbox"
 }]
 }
 
@@ -141,6 +175,23 @@ tracks/2/keys = {
 "method": &"play_melee_2_hit_vfx"
 }]
 }
+tracks/3/type = "method"
+tracks/3/imported = false
+tracks/3/enabled = true
+tracks/3/path = NodePath(".")
+tracks/3/interp = 1
+tracks/3/loop_wrap = true
+tracks/3/keys = {
+"times": PackedFloat32Array(0.2, 0.43333334),
+"transitions": PackedFloat32Array(1, 1),
+"values": [{
+"args": [],
+"method": &"enable_attack_hitbox"
+}, {
+"args": [],
+"method": &"disable_attack_hitbox"
+}]
+}
 
 [sub_resource type="Animation" id="Animation_n1bac"]
 length = 0.5555556
@@ -180,6 +231,23 @@ tracks/2/keys = {
 "values": [{
 "args": [],
 "method": &"play_melee_2_hit_vfx"
+}]
+}
+tracks/3/type = "method"
+tracks/3/imported = false
+tracks/3/enabled = true
+tracks/3/path = NodePath(".")
+tracks/3/interp = 1
+tracks/3/loop_wrap = true
+tracks/3/keys = {
+"times": PackedFloat32Array(0.2, 0.4),
+"transitions": PackedFloat32Array(1, 1),
+"values": [{
+"args": [],
+"method": &"enable_attack_hitbox"
+}, {
+"args": [],
+"method": &"disable_attack_hitbox"
 }]
 }
 
@@ -222,6 +290,23 @@ tracks/2/keys = {
 "method": &"play_melee_2_hit_vfx"
 }]
 }
+tracks/3/type = "method"
+tracks/3/imported = false
+tracks/3/enabled = true
+tracks/3/path = NodePath(".")
+tracks/3/interp = 1
+tracks/3/loop_wrap = true
+tracks/3/keys = {
+"times": PackedFloat32Array(0.2, 0.4),
+"transitions": PackedFloat32Array(1, 1),
+"values": [{
+"args": [],
+"method": &"enable_attack_hitbox"
+}, {
+"args": [],
+"method": &"disable_attack_hitbox"
+}]
+}
 
 [sub_resource type="Animation" id="Animation_ihg11"]
 tracks/0/type = "value"
@@ -260,6 +345,23 @@ tracks/2/keys = {
 "values": [{
 "args": [],
 "method": &"play_melee_2_hit_vfx"
+}]
+}
+tracks/3/type = "method"
+tracks/3/imported = false
+tracks/3/enabled = true
+tracks/3/path = NodePath(".")
+tracks/3/interp = 1
+tracks/3/loop_wrap = true
+tracks/3/keys = {
+"times": PackedFloat32Array(0.23333333, 0.43333334),
+"transitions": PackedFloat32Array(1, 1),
+"values": [{
+"args": [],
+"method": &"enable_attack_hitbox"
+}, {
+"args": [],
+"method": &"disable_attack_hitbox"
 }]
 }
 
@@ -303,6 +405,23 @@ tracks/2/keys = {
 "method": &"play_melee_2_hit_vfx"
 }]
 }
+tracks/3/type = "method"
+tracks/3/imported = false
+tracks/3/enabled = true
+tracks/3/path = NodePath(".")
+tracks/3/interp = 1
+tracks/3/loop_wrap = true
+tracks/3/keys = {
+"times": PackedFloat32Array(0.23333333, 0.43333334),
+"transitions": PackedFloat32Array(1, 1),
+"values": [{
+"args": [],
+"method": &"enable_attack_hitbox"
+}, {
+"args": [],
+"method": &"disable_attack_hitbox"
+}]
+}
 
 [sub_resource type="Animation" id="Animation_m414l"]
 tracks/0/type = "value"
@@ -343,6 +462,23 @@ tracks/2/keys = {
 "method": &"play_melee_2_hit_vfx"
 }]
 }
+tracks/3/type = "method"
+tracks/3/imported = false
+tracks/3/enabled = true
+tracks/3/path = NodePath(".")
+tracks/3/interp = 1
+tracks/3/loop_wrap = true
+tracks/3/keys = {
+"times": PackedFloat32Array(0.23333333, 0.5),
+"transitions": PackedFloat32Array(1, 1),
+"values": [{
+"args": [],
+"method": &"enable_attack_hitbox"
+}, {
+"args": [],
+"method": &"disable_attack_hitbox"
+}]
+}
 
 [sub_resource type="Animation" id="Animation_28f5a"]
 tracks/0/type = "value"
@@ -381,6 +517,23 @@ tracks/2/keys = {
 "values": [{
 "args": [],
 "method": &"play_melee_2_hit_vfx"
+}]
+}
+tracks/3/type = "method"
+tracks/3/imported = false
+tracks/3/enabled = true
+tracks/3/path = NodePath(".")
+tracks/3/interp = 1
+tracks/3/loop_wrap = true
+tracks/3/keys = {
+"times": PackedFloat32Array(0.23333333, 0.5),
+"transitions": PackedFloat32Array(1, 1),
+"values": [{
+"args": [],
+"method": &"enable_attack_hitbox"
+}, {
+"args": [],
+"method": &"disable_attack_hitbox"
 }]
 }
 
@@ -424,6 +577,23 @@ tracks/2/keys = {
 "method": &"play_melee_2_hit_vfx"
 }]
 }
+tracks/3/type = "method"
+tracks/3/imported = false
+tracks/3/enabled = true
+tracks/3/path = NodePath(".")
+tracks/3/interp = 1
+tracks/3/loop_wrap = true
+tracks/3/keys = {
+"times": PackedFloat32Array(0.23333333, 0.4),
+"transitions": PackedFloat32Array(1, 1),
+"values": [{
+"args": [],
+"method": &"enable_attack_hitbox"
+}, {
+"args": [],
+"method": &"disable_attack_hitbox"
+}]
+}
 
 [sub_resource type="Animation" id="Animation_6gm03"]
 length = 0.5555556
@@ -463,6 +633,23 @@ tracks/2/keys = {
 "values": [{
 "args": [],
 "method": &"play_melee_2_hit_vfx"
+}]
+}
+tracks/3/type = "method"
+tracks/3/imported = false
+tracks/3/enabled = true
+tracks/3/path = NodePath(".")
+tracks/3/interp = 1
+tracks/3/loop_wrap = true
+tracks/3/keys = {
+"times": PackedFloat32Array(0.23333333, 0.36666667),
+"transitions": PackedFloat32Array(1, 1),
+"values": [{
+"args": [],
+"method": &"enable_attack_hitbox"
+}, {
+"args": [],
+"method": &"disable_attack_hitbox"
 }]
 }
 
@@ -506,6 +693,23 @@ tracks/2/keys = {
 "method": &"play_melee_2_hit_vfx"
 }]
 }
+tracks/3/type = "method"
+tracks/3/imported = false
+tracks/3/enabled = true
+tracks/3/path = NodePath(".")
+tracks/3/interp = 1
+tracks/3/loop_wrap = true
+tracks/3/keys = {
+"times": PackedFloat32Array(0.16666667, 0.4),
+"transitions": PackedFloat32Array(1, 1),
+"values": [{
+"args": [],
+"method": &"enable_attack_hitbox"
+}, {
+"args": [],
+"method": &"disable_attack_hitbox"
+}]
+}
 
 [sub_resource type="Animation" id="Animation_haglj"]
 length = 0.6
@@ -545,6 +749,23 @@ tracks/2/keys = {
 "values": [{
 "args": [],
 "method": &"play_hit_vfx"
+}]
+}
+tracks/3/type = "method"
+tracks/3/imported = false
+tracks/3/enabled = true
+tracks/3/path = NodePath(".")
+tracks/3/interp = 1
+tracks/3/loop_wrap = true
+tracks/3/keys = {
+"times": PackedFloat32Array(0.36666667, 0.6),
+"transitions": PackedFloat32Array(1, 1),
+"values": [{
+"args": [],
+"method": &"enable_attack_hitbox"
+}, {
+"args": [],
+"method": &"disable_attack_hitbox"
 }]
 }
 
@@ -588,6 +809,23 @@ tracks/2/keys = {
 "method": &"play_hit_vfx"
 }]
 }
+tracks/3/type = "method"
+tracks/3/imported = false
+tracks/3/enabled = true
+tracks/3/path = NodePath(".")
+tracks/3/interp = 1
+tracks/3/loop_wrap = true
+tracks/3/keys = {
+"times": PackedFloat32Array(0.3, 0.56666666),
+"transitions": PackedFloat32Array(1, 1),
+"values": [{
+"args": [],
+"method": &"enable_attack_hitbox"
+}, {
+"args": [],
+"method": &"disable_attack_hitbox"
+}]
+}
 
 [sub_resource type="Animation" id="Animation_nhotj"]
 length = 0.6
@@ -627,6 +865,23 @@ tracks/2/keys = {
 "values": [{
 "args": [],
 "method": &"play_hit_vfx"
+}]
+}
+tracks/3/type = "method"
+tracks/3/imported = false
+tracks/3/enabled = true
+tracks/3/path = NodePath(".")
+tracks/3/interp = 1
+tracks/3/loop_wrap = true
+tracks/3/keys = {
+"times": PackedFloat32Array(0.3, 0.53333336),
+"transitions": PackedFloat32Array(1, 1),
+"values": [{
+"args": [],
+"method": &"enable_attack_hitbox"
+}, {
+"args": [],
+"method": &"disable_attack_hitbox"
 }]
 }
 
@@ -670,6 +925,23 @@ tracks/2/keys = {
 "method": &"play_hit_vfx"
 }]
 }
+tracks/3/type = "method"
+tracks/3/imported = false
+tracks/3/enabled = true
+tracks/3/path = NodePath(".")
+tracks/3/interp = 1
+tracks/3/loop_wrap = true
+tracks/3/keys = {
+"times": PackedFloat32Array(0.33333334, 0.6),
+"transitions": PackedFloat32Array(1, 1),
+"values": [{
+"args": [],
+"method": &"enable_attack_hitbox"
+}, {
+"args": [],
+"method": &"disable_attack_hitbox"
+}]
+}
 
 [sub_resource type="Animation" id="Animation_6anc4"]
 length = 0.6
@@ -709,6 +981,23 @@ tracks/2/keys = {
 "values": [{
 "args": [],
 "method": &"play_hit_vfx"
+}]
+}
+tracks/3/type = "method"
+tracks/3/imported = false
+tracks/3/enabled = true
+tracks/3/path = NodePath(".")
+tracks/3/interp = 1
+tracks/3/loop_wrap = true
+tracks/3/keys = {
+"times": PackedFloat32Array(0.3, 0.53333336),
+"transitions": PackedFloat32Array(1, 1),
+"values": [{
+"args": [],
+"method": &"enable_attack_hitbox"
+}, {
+"args": [],
+"method": &"disable_attack_hitbox"
 }]
 }
 
@@ -752,6 +1041,23 @@ tracks/2/keys = {
 "method": &"play_hit_vfx"
 }]
 }
+tracks/3/type = "method"
+tracks/3/imported = false
+tracks/3/enabled = true
+tracks/3/path = NodePath(".")
+tracks/3/interp = 1
+tracks/3/loop_wrap = true
+tracks/3/keys = {
+"times": PackedFloat32Array(0.3, 0.5),
+"transitions": PackedFloat32Array(1, 1),
+"values": [{
+"args": [],
+"method": &"enable_attack_hitbox"
+}, {
+"args": [],
+"method": &"disable_attack_hitbox"
+}]
+}
 
 [sub_resource type="Animation" id="Animation_6mdv8"]
 length = 0.6
@@ -791,6 +1097,23 @@ tracks/2/keys = {
 "values": [{
 "args": [],
 "method": &"play_hit_vfx"
+}]
+}
+tracks/3/type = "method"
+tracks/3/imported = false
+tracks/3/enabled = true
+tracks/3/path = NodePath(".")
+tracks/3/interp = 1
+tracks/3/loop_wrap = true
+tracks/3/keys = {
+"times": PackedFloat32Array(0.33333334, 0.53333336),
+"transitions": PackedFloat32Array(1, 1),
+"values": [{
+"args": [],
+"method": &"enable_attack_hitbox"
+}, {
+"args": [],
+"method": &"disable_attack_hitbox"
 }]
 }
 
@@ -834,6 +1157,23 @@ tracks/2/keys = {
 "method": &"play_hit_vfx"
 }]
 }
+tracks/3/type = "method"
+tracks/3/imported = false
+tracks/3/enabled = true
+tracks/3/path = NodePath(".")
+tracks/3/interp = 1
+tracks/3/loop_wrap = true
+tracks/3/keys = {
+"times": PackedFloat32Array(0.36666667, 0.56666666),
+"transitions": PackedFloat32Array(1, 1),
+"values": [{
+"args": [],
+"method": &"enable_attack_hitbox"
+}, {
+"args": [],
+"method": &"disable_attack_hitbox"
+}]
+}
 
 [sub_resource type="Animation" id="Animation_f2jlr"]
 length = 1.25
@@ -860,6 +1200,23 @@ tracks/1/keys = {
 "transitions": PackedFloat32Array(1),
 "update": 1,
 "values": ["Attack_4_Down"]
+}
+tracks/2/type = "method"
+tracks/2/imported = false
+tracks/2/enabled = true
+tracks/2/path = NodePath(".")
+tracks/2/interp = 1
+tracks/2/loop_wrap = true
+tracks/2/keys = {
+"times": PackedFloat32Array(0.4, 0.73333335),
+"transitions": PackedFloat32Array(1, 1),
+"values": [{
+"args": [],
+"method": &"enable_attack_hitbox"
+}, {
+"args": [],
+"method": &"disable_attack_hitbox"
+}]
 }
 
 [sub_resource type="Animation" id="Animation_koypg"]
@@ -888,6 +1245,23 @@ tracks/1/keys = {
 "update": 1,
 "values": ["Attack_4_Down_Left"]
 }
+tracks/2/type = "method"
+tracks/2/imported = false
+tracks/2/enabled = true
+tracks/2/path = NodePath(".")
+tracks/2/interp = 1
+tracks/2/loop_wrap = true
+tracks/2/keys = {
+"times": PackedFloat32Array(0.46666667, 0.8333333),
+"transitions": PackedFloat32Array(1, 1),
+"values": [{
+"args": [],
+"method": &"enable_attack_hitbox"
+}, {
+"args": [],
+"method": &"disable_attack_hitbox"
+}]
+}
 
 [sub_resource type="Animation" id="Animation_yju8g"]
 length = 1.25
@@ -914,6 +1288,23 @@ tracks/1/keys = {
 "transitions": PackedFloat32Array(1),
 "update": 1,
 "values": ["Attack_4_Down_Right"]
+}
+tracks/2/type = "method"
+tracks/2/imported = false
+tracks/2/enabled = true
+tracks/2/path = NodePath(".")
+tracks/2/interp = 1
+tracks/2/loop_wrap = true
+tracks/2/keys = {
+"times": PackedFloat32Array(0.43333334, 0.8),
+"transitions": PackedFloat32Array(1, 1),
+"values": [{
+"args": [],
+"method": &"enable_attack_hitbox"
+}, {
+"args": [],
+"method": &"disable_attack_hitbox"
+}]
 }
 
 [sub_resource type="Animation" id="Animation_ptng2"]
@@ -942,6 +1333,23 @@ tracks/1/keys = {
 "update": 1,
 "values": ["Attack_4_Left"]
 }
+tracks/2/type = "method"
+tracks/2/imported = false
+tracks/2/enabled = true
+tracks/2/path = NodePath(".")
+tracks/2/interp = 1
+tracks/2/loop_wrap = true
+tracks/2/keys = {
+"times": PackedFloat32Array(0.46666667, 0.8333333),
+"transitions": PackedFloat32Array(1, 1),
+"values": [{
+"args": [],
+"method": &"enable_attack_hitbox"
+}, {
+"args": [],
+"method": &"disable_attack_hitbox"
+}]
+}
 
 [sub_resource type="Animation" id="Animation_506ho"]
 length = 1.25
@@ -968,6 +1376,23 @@ tracks/1/keys = {
 "transitions": PackedFloat32Array(1),
 "update": 1,
 "values": ["Attack_4_Right"]
+}
+tracks/2/type = "method"
+tracks/2/imported = false
+tracks/2/enabled = true
+tracks/2/path = NodePath(".")
+tracks/2/interp = 1
+tracks/2/loop_wrap = true
+tracks/2/keys = {
+"times": PackedFloat32Array(0.46666667, 0.8),
+"transitions": PackedFloat32Array(1, 1),
+"values": [{
+"args": [],
+"method": &"enable_attack_hitbox"
+}, {
+"args": [],
+"method": &"disable_attack_hitbox"
+}]
 }
 
 [sub_resource type="Animation" id="Animation_vvorg"]
@@ -996,6 +1421,23 @@ tracks/1/keys = {
 "update": 1,
 "values": ["Attack_4_Up"]
 }
+tracks/2/type = "method"
+tracks/2/imported = false
+tracks/2/enabled = true
+tracks/2/path = NodePath(".")
+tracks/2/interp = 1
+tracks/2/loop_wrap = true
+tracks/2/keys = {
+"times": PackedFloat32Array(0.46666667, 0.8),
+"transitions": PackedFloat32Array(1, 1),
+"values": [{
+"args": [],
+"method": &"enable_attack_hitbox"
+}, {
+"args": [],
+"method": &"disable_attack_hitbox"
+}]
+}
 
 [sub_resource type="Animation" id="Animation_kw02k"]
 length = 1.25
@@ -1023,6 +1465,23 @@ tracks/1/keys = {
 "update": 1,
 "values": ["Attack_4_Up_Left"]
 }
+tracks/2/type = "method"
+tracks/2/imported = false
+tracks/2/enabled = true
+tracks/2/path = NodePath(".")
+tracks/2/interp = 1
+tracks/2/loop_wrap = true
+tracks/2/keys = {
+"times": PackedFloat32Array(0.5, 0.8),
+"transitions": PackedFloat32Array(1, 1),
+"values": [{
+"args": [],
+"method": &"enable_attack_hitbox"
+}, {
+"args": [],
+"method": &"disable_attack_hitbox"
+}]
+}
 
 [sub_resource type="Animation" id="Animation_srmj3"]
 length = 1.25
@@ -1049,6 +1508,23 @@ tracks/1/keys = {
 "transitions": PackedFloat32Array(1),
 "update": 1,
 "values": ["Attack_4_Up_Right"]
+}
+tracks/2/type = "method"
+tracks/2/imported = false
+tracks/2/enabled = true
+tracks/2/path = NodePath(".")
+tracks/2/interp = 1
+tracks/2/loop_wrap = true
+tracks/2/keys = {
+"times": PackedFloat32Array(0.43333334, 0.9),
+"transitions": PackedFloat32Array(1, 1),
+"values": [{
+"args": [],
+"method": &"enable_attack_hitbox"
+}, {
+"args": [],
+"method": &"disable_attack_hitbox"
+}]
 }
 
 [sub_resource type="Animation" id="Animation_e6mrl"]
@@ -1089,6 +1565,23 @@ tracks/2/keys = {
 "values": [{
 "args": [],
 "method": &"play_melee_hit_vfx"
+}]
+}
+tracks/3/type = "method"
+tracks/3/imported = false
+tracks/3/enabled = true
+tracks/3/path = NodePath(".")
+tracks/3/interp = 1
+tracks/3/loop_wrap = true
+tracks/3/keys = {
+"times": PackedFloat32Array(0.23333333, 0.4),
+"transitions": PackedFloat32Array(1, 1),
+"values": [{
+"args": [],
+"method": &"enable_attack_hitbox"
+}, {
+"args": [],
+"method": &"disable_attack_hitbox"
 }]
 }
 
@@ -1132,6 +1625,23 @@ tracks/2/keys = {
 "method": &"play_melee_hit_vfx"
 }]
 }
+tracks/3/type = "method"
+tracks/3/imported = false
+tracks/3/enabled = true
+tracks/3/path = NodePath(".")
+tracks/3/interp = 1
+tracks/3/loop_wrap = true
+tracks/3/keys = {
+"times": PackedFloat32Array(0.2, 0.36666667),
+"transitions": PackedFloat32Array(1, 1),
+"values": [{
+"args": [],
+"method": &"enable_attack_hitbox"
+}, {
+"args": [],
+"method": &"disable_attack_hitbox"
+}]
+}
 
 [sub_resource type="Animation" id="Animation_ung07"]
 length = 0.5555556
@@ -1171,6 +1681,23 @@ tracks/2/keys = {
 "values": [{
 "args": [],
 "method": &"play_melee_hit_vfx"
+}]
+}
+tracks/3/type = "method"
+tracks/3/imported = false
+tracks/3/enabled = true
+tracks/3/path = NodePath(".")
+tracks/3/interp = 1
+tracks/3/loop_wrap = true
+tracks/3/keys = {
+"times": PackedFloat32Array(0.2, 0.43333334),
+"transitions": PackedFloat32Array(1, 1),
+"values": [{
+"args": [],
+"method": &"enable_attack_hitbox"
+}, {
+"args": [],
+"method": &"disable_attack_hitbox"
 }]
 }
 
@@ -1214,6 +1741,23 @@ tracks/2/keys = {
 "method": &"play_melee_hit_vfx"
 }]
 }
+tracks/3/type = "method"
+tracks/3/imported = false
+tracks/3/enabled = true
+tracks/3/path = NodePath(".")
+tracks/3/interp = 1
+tracks/3/loop_wrap = true
+tracks/3/keys = {
+"times": PackedFloat32Array(0.2, 0.4),
+"transitions": PackedFloat32Array(1, 1),
+"values": [{
+"args": [],
+"method": &"enable_attack_hitbox"
+}, {
+"args": [],
+"method": &"disable_attack_hitbox"
+}]
+}
 
 [sub_resource type="Animation" id="Animation_wfmf0"]
 length = 0.5555556
@@ -1253,6 +1797,23 @@ tracks/2/keys = {
 "values": [{
 "args": [],
 "method": &"play_melee_hit_vfx"
+}]
+}
+tracks/3/type = "method"
+tracks/3/imported = false
+tracks/3/enabled = true
+tracks/3/path = NodePath(".")
+tracks/3/interp = 1
+tracks/3/loop_wrap = true
+tracks/3/keys = {
+"times": PackedFloat32Array(0.13333334, 0.43333334),
+"transitions": PackedFloat32Array(1, 1),
+"values": [{
+"args": [],
+"method": &"enable_attack_hitbox"
+}, {
+"args": [],
+"method": &"disable_attack_hitbox"
 }]
 }
 
@@ -1296,6 +1857,23 @@ tracks/2/keys = {
 "method": &"play_melee_hit_vfx"
 }]
 }
+tracks/3/type = "method"
+tracks/3/imported = false
+tracks/3/enabled = true
+tracks/3/path = NodePath(".")
+tracks/3/interp = 1
+tracks/3/loop_wrap = true
+tracks/3/keys = {
+"times": PackedFloat32Array(0.2, 0.43333334),
+"transitions": PackedFloat32Array(1, 1),
+"values": [{
+"args": [],
+"method": &"enable_attack_hitbox"
+}, {
+"args": [],
+"method": &"disable_attack_hitbox"
+}]
+}
 
 [sub_resource type="Animation" id="Animation_wa2l0"]
 length = 0.5555556
@@ -1337,6 +1915,23 @@ tracks/2/keys = {
 "method": &"play_melee_hit_vfx"
 }]
 }
+tracks/3/type = "method"
+tracks/3/imported = false
+tracks/3/enabled = true
+tracks/3/path = NodePath(".")
+tracks/3/interp = 1
+tracks/3/loop_wrap = true
+tracks/3/keys = {
+"times": PackedFloat32Array(0.16666667, 0.4),
+"transitions": PackedFloat32Array(1, 1),
+"values": [{
+"args": [],
+"method": &"enable_attack_hitbox"
+}, {
+"args": [],
+"method": &"disable_attack_hitbox"
+}]
+}
 
 [sub_resource type="Animation" id="Animation_g8nbm"]
 length = 0.5555556
@@ -1376,6 +1971,23 @@ tracks/2/keys = {
 "values": [{
 "args": [],
 "method": &"play_melee_hit_vfx"
+}]
+}
+tracks/3/type = "method"
+tracks/3/imported = false
+tracks/3/enabled = true
+tracks/3/path = NodePath(".")
+tracks/3/interp = 1
+tracks/3/loop_wrap = true
+tracks/3/keys = {
+"times": PackedFloat32Array(0.2, 0.33333334),
+"transitions": PackedFloat32Array(1, 1),
+"values": [{
+"args": [],
+"method": &"enable_attack_hitbox"
+}, {
+"args": [],
+"method": &"disable_attack_hitbox"
 }]
 }
 
@@ -3801,6 +4413,12 @@ _data = {
 &"new_animation": SubResource("Animation_tgf2g")
 }
 
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_v6ddd"]
+size = Vector2(18, 24)
+
+[sub_resource type="CircleShape2D" id="CircleShape2D_v6ddd"]
+radius = 20.099754
+
 [node name="Player" type="CharacterBody2D" unique_id=493723598]
 modulate = Color(0.9166399, 0.91663986, 0.9166398, 1)
 script = ExtResource("1_sf3ye")
@@ -3810,14 +4428,14 @@ move_start_vfx_scene = ExtResource("4_sf3ye")
 melee_hit_vfx_scene = ExtResource("5_ihg11")
 melee_hit_2_vfx_scene = ExtResource("6_hvtdm")
 turn_around_vfx_scene = ExtResource("7_m414l")
+snap_radius = 150.0
 
 [node name="PlayerAnim" type="AnimatedSprite2D" parent="." unique_id=53146337]
 modulate = Color(0.7722583, 0.7722583, 0.7722583, 1)
 texture_filter = 1
-position = Vector2(0, -3)
 scale = Vector2(0.640625, 0.78125006)
 sprite_frames = ExtResource("2_tgf2g")
-animation = &"Run_Right"
+animation = &"Attack_2_Down"
 
 [node name="Collision" type="CollisionShape2D" parent="." unique_id=706763296]
 visible = false
@@ -3835,16 +4453,13 @@ one_shot = true
 target_position = Vector2(0, 16)
 
 [node name="WeaponTip" type="Marker2D" parent="." unique_id=1365147647]
-position = Vector2(50, 5)
+position = Vector2(33, 5)
 
 [node name="FootPoint" type="Marker2D" parent="." unique_id=494975568]
 position = Vector2(13, 18)
 
 [node name="FootPoint2" type="Marker2D" parent="." unique_id=782328580]
 position = Vector2(34, 14)
-
-[node name="MeleeHit" type="Marker2D" parent="." unique_id=1016199469]
-position = Vector2(51, 6)
 
 [node name="PlayerAnimation" type="AnimationPlayer" parent="." unique_id=416192371]
 libraries/ = SubResource("AnimationLibrary_tna0o")
@@ -3874,5 +4489,20 @@ script = ExtResource("13_ung07")
 
 [node name="InventoryUI" type="CanvasLayer" parent="." unique_id=37486928]
 script = ExtResource("14_2ys5t")
+
+[node name="HurtBox" type="Area2D" parent="." unique_id=26973516]
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="HurtBox" unique_id=2075482649]
+position = Vector2(2, -2)
+shape = SubResource("RectangleShape2D_v6ddd")
+
+[node name="PlayerHitbox" type="Area2D" parent="." unique_id=2104929948]
+scale = Vector2(0.9999999, 0.9999999)
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="PlayerHitbox" unique_id=187280534]
+shape = SubResource("CircleShape2D_v6ddd")
+
+[node name="MeleeHit" type="Marker2D" parent="." unique_id=1016199469]
+scale = Vector2(0.9999999, 0.9999999)
 
 [connection signal="animation_finished" from="PlayerAnimation" to="." method="_on_player_animation_animation_finished"]
