@@ -18,6 +18,7 @@
 [ext_resource type="Texture2D" uid="uid://nxl6tvs3uy7u" path="res://circle.png" id="12_odngn"]
 [ext_resource type="Texture2D" uid="uid://jmj0527ncs2p" path="res://TileMap/Pixel 16 v2 village free.png" id="13_qq6xg"]
 [ext_resource type="PackedScene" uid="uid://bv1v4h1gmt6dr" path="res://Player_scene/player.tscn" id="15_5ty2h"]
+[ext_resource type="Script" uid="uid://dxm3kamx2vel8" path="res://Levels/directional_light_2d.gd" id="15_yv3th"]
 [ext_resource type="Script" uid="uid://b1djojfj3kxsi" path="res://Levels/point_light_pulse.gd" id="17_gpk31"]
 [ext_resource type="Texture2D" uid="uid://qd0cuh1v670d" path="res://TileMap/toppng.com-light-beam-png-530x185.png" id="17_jkbap"]
 [ext_resource type="Texture2D" uid="uid://dpcgdy1mmuf8b" path="res://TileMap/shop.png" id="21_jkbap"]
@@ -10859,9 +10860,12 @@ tile_map_data = PackedByteArray("AAAqAOT/AAABAAQAAAAqAOX/AAABAAUAAAAqAOb/AAABAAY
 tile_set = SubResource("TileSet_gpk31")
 
 [node name="DirectionalLight2D" type="DirectionalLight2D" parent="." unique_id=820769438]
-color = Color(0, 0, 0.54901963, 1)
+color = Color(0, 0.32156864, 1, 1)
 energy = 0.7
 blend_mode = 2
+shadow_enabled = true
+shadow_filter = 1
+script = ExtResource("15_yv3th")
 
 [node name="PointLight2D2" type="PointLight2D" parent="DirectionalLight2D" unique_id=1814475435]
 position = Vector2(1913, 1623)

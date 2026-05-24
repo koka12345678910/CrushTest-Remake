@@ -20,8 +20,7 @@ extends CharacterBody2D
 
 # Здоровье
 @export var max_health := 3
-@export var damage_flash_time := 0.15
-
+@export var damage_flash_time := 0.3
 # Боевые параметры
 @export var attack_range := 30.0
 @export var attack_cooldown := 1.5
@@ -31,7 +30,7 @@ extends CharacterBody2D
 
 
 # Визуальные эффекты
-@export var damage_flash_color := Color(1.5,1.5,1.5,1.0)
+@export var damage_flash_color := Color(2.0, 0.2, 0.2, 1.0)
 
 # AI поведение
 @export var preferred_distance := 25.0
@@ -41,9 +40,14 @@ extends CharacterBody2D
 @export var wander_speed_multiplier := 0.6
 @export var target_refresh_interval := 0.15
 @export var prediction_strength := 0.2
-
 # Смерть
 @export var death_fade_time := 0.8
+# Концентрация (Posture)
+@export var max_posture := 100.0
+@export var posture_regen_rate := 15.0
+@export var posture_regen_delay := 2.0
+@export var block_posture_damage := 25.0
+@export var block_chance := 0.4
 
 enum State {
 	IDLE,
@@ -51,7 +55,8 @@ enum State {
 	CHASE,
 	ATTACK,
 	HIT_STUN,
-	DEAD
+	DEAD,
+	BLOCK
 }
 
 # ============== ПЕРЕМЕННЫЕ ==============
@@ -91,10 +96,17 @@ var wander_direction := Vector2.DOWN
 var wander_timer := 0.0
 
 var last_anim_direction := "down"
+var posture := 0.0
+var posture_regen_timer := 0.0
+var is_blocking := false
+var is_posture_broken := false
 
-@onready var sprite: AnimatedSprite2D = $AnimatedSprite2D
+@onready var anim: AnimationPlayer = $EnemyAnim
 @onready var vision_area: Area2D = $VisionArea
 @onready var hitbox: Area2D = $Hitbox
+@onready var hp_bar: ProgressBar = $EnemyUI/HPBar
+@onready var posture_bar: ProgressBar = $EnemyUI/PostureBar
+@onready var block_vfx: GPUParticles2D = $BlockVFX
 
 # ============== READY ==============
 
@@ -102,6 +114,12 @@ func _ready() -> void:
 	randomize()
 
 	health = max_health
+	hp_bar.max_value = max_health
+	hp_bar.value = health
+	posture_bar.max_value = max_posture
+	posture_bar.value = 0.0
+	hp_bar.visible = false
+	posture_bar.visible = false
 	attack_hitbox.body_entered.connect(_on_attack_body_entered)
 
 	$Hurtbox.add_to_group("enemy_hurtbox")
@@ -135,8 +153,16 @@ func _physics_process(delta: float) -> void:
 	attack_cooldown_timer = max(0.0, attack_cooldown_timer - delta)
 	if attack_cooldown_timer <= 0.0:
 		can_attack = true
+	# реген концентрации
+	if not is_blocking and posture > 0.0:
+		posture_regen_timer += delta
+		if posture_regen_timer >= posture_regen_delay:
+			posture = max(0.0, posture - posture_regen_rate * delta)
+	else:
+		posture_regen_timer = 0.0
 	if current_state not in [
 		State.ATTACK,
+		State.BLOCK,
 		State.HIT_STUN,
 		State.DEAD
 	]:
@@ -170,7 +196,14 @@ func _decide_state() -> void:
 		State.ATTACK
 	]:
 		return
-
+	
+	# пробуем заблокировать если игрок атакует рядом
+	if player and is_instance_valid(player):
+		if _is_player_in_range(attack_range * 1.5):
+			if player.is_attacking and not is_blocking and not is_posture_broken:
+				_try_block()
+				return
+	
 	if player and is_instance_valid(player):
 
 		if _is_player_in_range(vision_range):
@@ -211,6 +244,9 @@ func _update_state(delta: float) -> void:
 
 		State.HIT_STUN:
 			_state_hit_stun(delta)
+
+		State.BLOCK:
+			_state_block(delta)
 
 		State.DEAD:
 			pass
@@ -253,6 +289,10 @@ func _change_state(new_state: State) -> void:
 			knockback_velocity = Vector2.ZERO
 			hit_stun_timer = 1.0
 			print("hit_stun_timer установлен: ", hit_stun_timer)
+
+		State.BLOCK:
+			move_velocity = Vector2.ZERO
+			is_blocking = true
 
 		State.DEAD:
 			_on_dead()
@@ -399,8 +439,8 @@ func _state_hit_stun(delta: float) -> void:
 	hit_stun_timer -= delta
 	
 	var anim_name = "take_damage_" + _get_direction_name(direction)
-	if sprite.animation != anim_name or not sprite.is_playing():
-		sprite.play(anim_name)
+	if anim.current_animation != anim_name or not anim.is_playing():
+		anim.play(anim_name)
 	
 	if hit_stun_timer <= 0.0:
 		move_velocity = Vector2.ZERO
@@ -408,15 +448,11 @@ func _state_hit_stun(delta: float) -> void:
 
 # ===================== ANIMATION =====================
 func _play_animation(state: String) -> void:
-
 	var dir_name = _get_direction_name(direction)
 	var anim_name = state + "_" + dir_name
-
-	# НЕ перезапускаем одну и ту же анимацию
-	if sprite.animation == anim_name:
+	if anim.current_animation == anim_name and anim.is_playing():
 		return
-
-	sprite.play(anim_name)
+	anim.play(anim_name)
 
 
 func _get_direction_name(dir: Vector2) -> String:
@@ -472,32 +508,81 @@ var knockback_velocity := Vector2.ZERO
 func take_damage(amount: int, source: Node2D = null) -> void:
 	if is_dead:
 		return
+	
+	# Проверяем блок
+	if is_blocking and not is_posture_broken:
+		posture += block_posture_damage
+		posture_bar.visible = true
+		posture_bar.value = posture
+		posture_regen_timer = 0.0
+		_trigger_block_effect()
+		# нокбэк при блоке — слабее чем обычный
+		if source:
+			var knockback_dir = (global_position - source.global_position).normalized()
+			knockback_velocity = knockback_dir * 80.0  # слабый отброс
+		
+		if posture >= max_posture:
+			posture = max_posture
+			_posture_break()
+		return
+	
 	health -= amount
-	# Нокбэк — отталкиваемся от источника удара
-	if source:
-		var knockback_dir = (global_position - source.global_position).normalized()
-		move_velocity = knockback_dir * 200.0  # сила нокбэка
+	hp_bar.visible = true
+	hp_bar.value = health
 	_trigger_damage_flash()
+	
 	if health <= 0:
 		health = 0
 		is_dead = true
 		_change_state(State.DEAD)
 	else:
 		_change_state(State.HIT_STUN)
+	
 	if source and not is_dead:
 		var knockback_dir = (global_position - source.global_position).normalized()
-		knockback_velocity = knockback_dir * 300.0
+		knockback_velocity = knockback_dir * 150.0
+
+func _try_block() -> void:
+	if is_posture_broken:
+		return
+	if randf() < block_chance:
+		is_blocking = true
+		_change_state(State.BLOCK)
+
+func _state_block(delta: float) -> void:
+	move_velocity = Vector2.ZERO
+	var anim_name = "block_" + _get_direction_name(direction)
+	if anim.current_animation != anim_name:  # ← только если другая анимация
+		anim.play(anim_name)
+	if not player or not _is_player_in_range(attack_range * 2.0):
+		is_blocking = false
+		_change_state(State.CHASE)
+
+func _posture_break() -> void:
+	is_posture_broken = true
+	is_blocking = false
+	hit_stun_timer = 2.0
+	_change_state(State.HIT_STUN)
+	await get_tree().create_timer(3.0).timeout
+	posture = 0.0
+	posture_bar.value = 0.0
+	posture_bar.visible = false
+	is_posture_broken = false
+
+func _trigger_block_effect() -> void:
+	block_vfx.restart()
+	block_vfx.emitting = true
+	var sp = $AnimatedSprite2D
+	sp.modulate = Color(2.0, 2.0, 0.5, 1.0)
+	var tween = create_tween()
+	tween.tween_property(sp, "modulate", Color.WHITE, 0.15)
 
 func _trigger_damage_flash() -> void:
-
-	if not sprite:
-		return
-
-	sprite.modulate = damage_flash_color
-
+	var sp = $AnimatedSprite2D
+	sp.material = CanvasItemMaterial.new()
+	sp.modulate = Color(10.0, 10.0, 10.0, 1.0)  # экстремально яркий белый
 	var tween = create_tween()
-	tween.tween_property(sprite, "modulate", Color.WHITE, damage_flash_time)
-
+	tween.tween_property(sp, "modulate", Color.WHITE, 0.4)
 
 # ===================== DEATH =====================
 
@@ -505,7 +590,7 @@ func _on_dead() -> void:
 
 	move_velocity = Vector2.ZERO
 
-	sprite.play("death_" + _get_direction_name(direction))
+	anim.play("die_" + _get_direction_name(direction))
 
 	if hitbox:
 		hitbox.set_deferred("monitoring", false)
