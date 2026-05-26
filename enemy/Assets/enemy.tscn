@@ -10,6 +10,7 @@
 [ext_resource type="Texture2D" uid="uid://b432gnttix0yk" path="res://enemy/Assets/DeathKnight/UnSheathSword.png" id="7_uv8ge"]
 [ext_resource type="Texture2D" uid="uid://ced15b2r7nvam" path="res://enemy/Assets/DeathKnight/Run.png" id="8_s3r3n"]
 [ext_resource type="Texture2D" uid="uid://bak4v246xabnj" path="res://enemy/Assets/DeathKnight/Walk.png" id="9_0cdbp"]
+[ext_resource type="Texture2D" uid="uid://dg8uneensmkqk" path="res://enemy/Assets/DeathKnight/Pummel.png" id="9_5itf0"]
 
 [sub_resource type="CapsuleShape2D" id="CapsuleShape2D_0awpc"]
 radius = 14.0
@@ -3374,6 +3375,66 @@ region = Rect2(1664, 896, 128, 128)
 [sub_resource type="AtlasTexture" id="AtlasTexture_n8u5r"]
 atlas = ExtResource("7_uv8ge")
 region = Rect2(1792, 896, 128, 128)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_4mlua"]
+atlas = ExtResource("9_5itf0")
+region = Rect2(0, 0, 128, 128)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_2y8jt"]
+atlas = ExtResource("9_5itf0")
+region = Rect2(128, 0, 128, 128)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_ett7x"]
+atlas = ExtResource("9_5itf0")
+region = Rect2(256, 0, 128, 128)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_7qxbu"]
+atlas = ExtResource("9_5itf0")
+region = Rect2(384, 0, 128, 128)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_vhwjh"]
+atlas = ExtResource("9_5itf0")
+region = Rect2(512, 0, 128, 128)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_lv31a"]
+atlas = ExtResource("9_5itf0")
+region = Rect2(640, 0, 128, 128)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_2ep1v"]
+atlas = ExtResource("9_5itf0")
+region = Rect2(768, 0, 128, 128)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_wbir1"]
+atlas = ExtResource("9_5itf0")
+region = Rect2(896, 0, 128, 128)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_6kfht"]
+atlas = ExtResource("9_5itf0")
+region = Rect2(1024, 0, 128, 128)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_8n1oj"]
+atlas = ExtResource("9_5itf0")
+region = Rect2(1152, 0, 128, 128)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_wmcn7"]
+atlas = ExtResource("9_5itf0")
+region = Rect2(1280, 0, 128, 128)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_0qg7e"]
+atlas = ExtResource("9_5itf0")
+region = Rect2(1408, 0, 128, 128)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_8joi7"]
+atlas = ExtResource("9_5itf0")
+region = Rect2(1536, 0, 128, 128)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_vcbs4"]
+atlas = ExtResource("9_5itf0")
+region = Rect2(1664, 0, 128, 128)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_7waaj"]
+atlas = ExtResource("9_5itf0")
+region = Rect2(1792, 0, 128, 128)
 
 [sub_resource type="AtlasTexture" id="AtlasTexture_50kp7"]
 atlas = ExtResource("8_s3r3n")
@@ -7619,6 +7680,56 @@ animations = [{
 }, {
 "frames": [{
 "duration": 1.0,
+"texture": SubResource("AtlasTexture_4mlua")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_2y8jt")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_ett7x")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_7qxbu")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_vhwjh")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_lv31a")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_2ep1v")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_wbir1")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_6kfht")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_8n1oj")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_wmcn7")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_0qg7e")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_8joi7")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_vcbs4")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_7waaj")
+}],
+"loop": true,
+"name": &"new_animation",
+"speed": 5.0
+}, {
+"frames": [{
+"duration": 1.0,
 "texture": SubResource("AtlasTexture_50kp7")
 }, {
 "duration": 1.0,
@@ -11113,7 +11224,8 @@ shape = SubResource("CapsuleShape2D_0awpc")
 texture_filter = 1
 scale = Vector2(0.640625, 0.765625)
 sprite_frames = SubResource("SpriteFrames_50kp7")
-animation = &"take_damage_up"
+animation = &"new_animation"
+frame_progress = 0.0664264
 
 [node name="EnemyAnim" type="AnimationPlayer" parent="." unique_id=1063932479]
 libraries/ = SubResource("AnimationLibrary_8x22e")

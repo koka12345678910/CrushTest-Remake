@@ -18,12 +18,24 @@ var current_stamina: float = 100.0
 var stamina_regen: float = 20.0     # регенерация в секунду
 var stamina_regen_delay: float = 1.0
 var stamina_regen_timer: float = 0.0
+var _displayed_posture: float = 0.0  # то что видит игрок
 
 # --- Размеры (подгонишь в редакторе через export) ---
-@export var hp_bar_size: Vector2 = Vector2(220, 10)
-@export var stamina_bar_size: Vector2 = Vector2(180, 6)
+@export var posture_fill_speed: float = 8.0   # скорость заполнения
+@export var posture_drain_speed: float = 40.0  # скорость опустошения (быстрее)
+@export var hp_bar_size: Vector2 = Vector2(350, 20)
+@export var stamina_bar_size: Vector2 = Vector2(280, 14)
 @export var hp_position: Vector2 = Vector2(16, 16)
-@export var stamina_offset_x: float = -90  # смещение от центра
+@export var stamina_offset_x: float = 16.0  # смещение от левого края
+@export var posture_bar_size: Vector2 = Vector2(300, 10)
+@export var posture_offset_x: float = -150.0
+
+# --- Концентрация (Posture) ---
+var max_posture: float = 100.0
+var current_posture: float = 0.0
+var _posture_bg: ColorRect
+var _posture_fill: ColorRect
+var _posture_fill_right: ColorRect
 
 # --- Узлы ---
 var _hp_bg: ColorRect
@@ -84,7 +96,12 @@ func set_max_stamina(value: float) -> void:
 func is_alive() -> bool:
 	return current_hp > 0.0
 
+func set_max_posture(value: float) -> void:
+	max_posture = value
+	current_posture = 0.0
 
+func set_posture(value: float) -> void:
+	current_posture = clamp(value, 0.0, max_posture)
 # ----------------------------------------------------------
 # ВНУТРЕННЯЯ ЛОГИКА
 # ----------------------------------------------------------
@@ -116,6 +133,29 @@ func _update_visuals() -> void:
 	_hp_fill.size.x = hp_bar_size.x * hp_ratio
 	_hp_delayed.size.x = hp_bar_size.x * delayed_ratio
 	_stam_fill.size.x = stamina_bar_size.x * stam_ratio
+	
+	if _posture_fill and _posture_fill_right:
+		var ratio = current_posture / max_posture
+		var half = posture_bar_size.x / 2.0
+		var fill_width = half * ratio  # ширина каждой половины
+
+		# Левая — позиция сдвигается влево, растёт влево от центра
+		_posture_fill.size.x = fill_width
+		_posture_fill.position.x = half - fill_width
+
+		# Правая — просто растёт вправо от центра
+		_posture_fill_right.size.x = fill_width
+
+		# Цвет обеих половин
+		var color: Color
+		if ratio < 0.5:
+			color = Color(0.9, 0.8, 0.2)   # жёлтый
+		elif ratio < 0.8:
+			color = Color(0.95, 0.5, 0.1)  # оранжевый
+		else:
+			color = Color(1.0, 0.15, 0.1)  # красный
+		_posture_fill.color = color
+		_posture_fill_right.color = color
 
 	# Цвет HP меняется при низком здоровье
 	if hp_ratio > 0.5:
@@ -141,6 +181,7 @@ func _build_ui() -> void:
 
 	_build_hp_bar()
 	_build_stamina_bar()
+	_build_posture_bar()  # ← добавь
 
 
 func _build_hp_bar() -> void:
@@ -186,37 +227,33 @@ func _build_hp_bar() -> void:
 
 func _build_stamina_bar() -> void:
 	var container := Control.new()
-	container.set_anchors_preset(Control.PRESET_CENTER_BOTTOM)
-	container.position = Vector2(stamina_offset_x, -36)
+	# левый верхний угол, под hp баром
+	container.set_anchors_preset(Control.PRESET_TOP_LEFT)
+	container.position = Vector2(stamina_offset_x, 52)
 	container.size = stamina_bar_size + Vector2(0, 20)
 	_root.add_child(container)
 
 	var lbl := Label.new()
 	lbl.position = Vector2(0, 0)
-	lbl.add_theme_font_size_override("font_size", 10)
+	lbl.add_theme_font_size_override("font_size", 11)
 	lbl.add_theme_color_override("font_color", Color(0.7, 0.85, 0.7))
 	lbl.text = "STAMINA"
-	lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	lbl.size.x = stamina_bar_size.x
 	container.add_child(lbl)
 
-	var bar_y: float = 14.0
+	var bar_y: float = 16.0
 
-	# Фон
 	_stam_bg = ColorRect.new()
 	_stam_bg.position = Vector2(0, bar_y)
 	_stam_bg.size = stamina_bar_size
 	_stam_bg.color = Color(0.08, 0.08, 0.08, 0.85)
 	container.add_child(_stam_bg)
 
-	# Зелёная полоска стамины
 	_stam_fill = ColorRect.new()
 	_stam_fill.position = Vector2(0, bar_y)
 	_stam_fill.size = stamina_bar_size
 	_stam_fill.color = Color(0.25, 0.75, 0.3)
 	container.add_child(_stam_fill)
 
-	# Рамка
 	var border := _make_border(Vector2(0, bar_y), stamina_bar_size)
 	container.add_child(border)
 
@@ -254,3 +291,45 @@ func _make_border(pos: Vector2, bar_size: Vector2) -> Control:
 	c.add_child(right)
 
 	return c
+
+func _build_posture_bar() -> void:
+	var container := Control.new()
+	container.set_anchors_preset(Control.PRESET_CENTER_BOTTOM)
+	container.position = Vector2(posture_offset_x, -90)
+	container.size = posture_bar_size + Vector2(0, 20)
+	_root.add_child(container)
+
+	var lbl := Label.new()
+	lbl.position = Vector2(0, 0)
+	lbl.add_theme_font_size_override("font_size", 9)
+	lbl.add_theme_color_override("font_color", Color(0.9, 0.8, 0.3))
+	lbl.text = "POSTURE"
+	lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	lbl.size.x = posture_bar_size.x
+	container.add_child(lbl)
+
+	var bar_y: float = 13.0
+
+	# Фон
+	_posture_bg = ColorRect.new()
+	_posture_bg.position = Vector2(0, bar_y)
+	_posture_bg.size = posture_bar_size
+	_posture_bg.color = Color(0.08, 0.08, 0.08, 0.85)
+	container.add_child(_posture_bg)
+
+	# Левая половина — растёт влево от центра
+	_posture_fill = ColorRect.new()
+	_posture_fill.position = Vector2(posture_bar_size.x / 2.0, bar_y)
+	_posture_fill.size = Vector2(0, posture_bar_size.y)
+	_posture_fill.color = Color(0.9, 0.8, 0.2)
+	container.add_child(_posture_fill)
+
+	# Правая половина — растёт вправо от центра
+	_posture_fill_right = ColorRect.new()
+	_posture_fill_right.position = Vector2(posture_bar_size.x / 2.0, bar_y)
+	_posture_fill_right.size = Vector2(0, posture_bar_size.y)
+	_posture_fill_right.color = Color(0.9, 0.8, 0.2)
+	container.add_child(_posture_fill_right)
+
+	var border := _make_border(Vector2(0, bar_y), posture_bar_size)
+	container.add_child(border)

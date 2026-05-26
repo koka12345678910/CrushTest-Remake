@@ -9,6 +9,8 @@ extends CharacterBody2D
 @export var melee_hit_2_vfx_scene: PackedScene
 @export var turn_around_vfx_scene: PackedScene
 @export var snap_radius := 80.0  # радиус поиска врагов
+@export var posture_regen_rate := 10.0
+@export var posture_regen_delay := 2.5
 
 @onready var melee_hit = $MeleeHit
 @onready var weapon_tip := $WeaponTip
@@ -22,6 +24,10 @@ extends CharacterBody2D
 @onready var inventory_ui = $InventoryUI
 @onready var hurtbox: Area2D = $HurtBox
 @onready var player_hitbox: Area2D = $PlayerHitbox
+
+var max_posture := 100.0
+var current_posture := 0.0
+var posture_regen_timer := 0.0
 
 var attack_damage := 1
 var prev_velocity := Vector2.ZERO
@@ -110,6 +116,7 @@ func _ready() -> void:
 	# Сначала инициализируем все системы
 	health_bar.set_max_hp(max_health)
 	health_bar.set_max_stamina(max_stamina)
+	health_bar.set_max_posture(max_posture)
 	inventory_ui.init(ability_system, inventory_system)
 	
 	var hud = $HUD
@@ -219,6 +226,13 @@ func _physics_process(delta):
 		velocity = attack_velocity
 		move_and_slide()
 		return
+		
+	# реген концентрации игрока
+	if current_posture > 0.0:
+		posture_regen_timer -= delta
+		if posture_regen_timer <= 0.0:
+			current_posture = max(0.0, current_posture - posture_regen_rate * delta)
+			health_bar.set_posture(current_posture)
 
 	# --- обычное движение ---
 	var target_speed = walk_speed
@@ -587,6 +601,15 @@ func on_perfect_parry(_attack_data: Dictionary):
 func take_damage(amount: int) -> void:
 	health_bar.take_damage(float(amount))
 	health = health_bar.current_hp
+	
+	# концентрация растёт при получении урона
+	current_posture += 20.0
+	current_posture = min(current_posture, max_posture)
+	posture_regen_timer = posture_regen_delay
+	health_bar.set_posture(current_posture)
+	
+	if current_posture >= max_posture:
+		_posture_break()
 
 func heal(amount: float) -> void:
 	health_bar.heal(amount)
@@ -594,6 +617,15 @@ func heal(amount: float) -> void:
 
 func use_stamina(amount: float) -> bool:
 	return health_bar.use_stamina(amount)
+
+func _posture_break() -> void:
+	current_posture = max_posture
+	health_bar.set_posture(current_posture)
+	# игрок открыт — можно добавить анимацию оглушения
+	print("[Player] Концентрация сломана!")
+	await get_tree().create_timer(2.0).timeout
+	current_posture = 0.0
+	health_bar.set_posture(0.0)
 
 func handle_attack_input():
 	if is_dodging or is_rolling:
