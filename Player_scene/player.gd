@@ -101,6 +101,8 @@ var ladder_scale := Vector2(0.65, 0.65)
 
 var is_starting := true
 
+var is_stunned := false
+
 func _ready() -> void:
 	player_hitbox.area_entered.connect(_on_player_hitbox_area_entered)
 	player_hitbox.monitoring = false  # выключен по умолчанию, включается при атаке
@@ -150,6 +152,10 @@ func _unhandled_input(event: InputEvent) -> void:
 			inventory_ui.open()
 
 func _physics_process(delta):
+	if is_stunned:
+		velocity = Vector2.ZERO
+		move_and_slide()
+		return
 	# Блокируем всё если инвентарь открыт
 	if inventory_ui.visible:
 		velocity = Vector2.ZERO
@@ -990,3 +996,27 @@ func _on_player_hitbox_area_entered(area: Area2D) -> void:
 				"source": self
 			}
 			enemy.receive_attack(attack_data)
+
+func receive_parry(posture_damage: float) -> void:
+	current_posture += posture_damage
+	current_posture = min(current_posture, max_posture)
+	health_bar.set_posture(current_posture)
+	posture_regen_timer = posture_regen_delay
+	
+	reset_combo()
+	
+	is_invulnerable = true
+	is_stunned = true
+	
+	# играем take_damage в нужном направлении
+	anim.play("Stunned_" + last_direction)
+	
+	_trigger_damage_flash()
+	
+	await get_tree().create_timer(2.0).timeout
+	
+	is_stunned = false
+	is_invulnerable = false
+	
+	if current_posture >= max_posture:
+		_posture_break()

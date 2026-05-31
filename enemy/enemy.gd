@@ -56,7 +56,9 @@ enum State {
 	ATTACK,
 	HIT_STUN,
 	DEAD,
-	BLOCK
+	BLOCK,
+	PARRY,    # ← добавь
+	COUNTER   # ← добавь
 }
 
 # ============== ПЕРЕМЕННЫЕ ==============
@@ -101,12 +103,23 @@ var posture_regen_timer := 0.0
 var is_blocking := false
 var is_posture_broken := false
 
+var block_hit_count := 0          # сколько ударов заблокировал подряд
+var parry_threshold := 2          # после скольки ударов парирует
+var is_parrying := false          # окно парирования
+var parry_timer := 0.0
+var parry_window := 0.3           # длительность окна парирования
+var counter_timer := 0.0
+var is_countering := false
+@export var counter_duration := 0.75
+@export var pummel_posture_damage := 40.0  # урон по концентрации игрока
+
 @onready var anim: AnimationPlayer = $EnemyAnim
 @onready var vision_area: Area2D = $VisionArea
 @onready var hitbox: Area2D = $Hitbox
 @onready var hp_bar: ProgressBar = $EnemyUI/HPBar
 @onready var posture_bar: ProgressBar = $EnemyUI/PostureBar
 @onready var block_vfx: GPUParticles2D = $BlockVFX
+@onready var state_label: Label = $StateLabel
 
 # ============== READY ==============
 
@@ -135,6 +148,7 @@ func _ready() -> void:
 	wander_timer = randf_range(2.0, 4.0)
 
 	_change_state(State.IDLE)
+	anim.animation_finished.connect(_on_animation_finished)
 
 
 func _on_hitbox_area_entered(area: Area2D) -> void:
@@ -143,6 +157,7 @@ func _on_hitbox_area_entered(area: Area2D) -> void:
 	if _is_player_attack(area):
 		var dmg = _get_damage_from(area)
 		take_damage(dmg, area.get_parent())
+
 # ============== PHYSICS ==============
 func _physics_process(delta: float) -> void:
 	if is_dead:
@@ -164,7 +179,9 @@ func _physics_process(delta: float) -> void:
 		State.ATTACK,
 		State.BLOCK,
 		State.HIT_STUN,
-		State.DEAD
+		State.DEAD,
+		State.PARRY,    # ← добавь
+		State.COUNTER   # ← добавь
 	]:
 		if think_timer >= think_rate:
 			think_timer = 0.0
@@ -187,14 +204,28 @@ func _physics_process(delta: float) -> void:
 			wander_direction = wander_direction.bounce(collision.get_normal())
 			wander_timer = randf_range(2.0, 4.0)
 			_direction_change_cooldown = 0.8
+	# таймеры парирования и контратаки
+
+	if is_countering:
+		counter_timer -= delta
+		if counter_timer <= 0.0:
+			is_countering = false
+			_change_state(State.CHASE)
+	
+	state_label.text = State.keys()[current_state]
 # ============== AI ==============
 
 func _decide_state() -> void:
 	if current_state in [
 		State.DEAD,
 		State.HIT_STUN,
-		State.ATTACK
+		State.ATTACK,
+		State.PARRY,    # ← добавь
+		State.COUNTER   # ← добавь
 	]:
+		return
+	
+	if current_state == State.BLOCK:
 		return
 	
 	# пробуем заблокировать если игрок атакует рядом
@@ -226,6 +257,12 @@ func _decide_state() -> void:
 
 	else:
 		_change_state(State.WANDER)
+		
+	# контратака если игрок атакует во время нашего парирования
+	if is_parrying and player and player.is_attacking:
+		is_parrying = false
+		_change_state(State.COUNTER)
+		return
 
 func _update_state(delta: float) -> void:
 	match current_state:
@@ -251,6 +288,11 @@ func _update_state(delta: float) -> void:
 		State.DEAD:
 			pass
 
+		State.PARRY:
+			_state_parry(delta)
+		State.COUNTER:
+			_state_counter(delta)
+
 # ============== STATE MACHINE ==============
 
 func _change_state(new_state: State) -> void:
@@ -262,6 +304,17 @@ func _change_state(new_state: State) -> void:
 	state_time = 0.0
 
 	match new_state:
+
+		State.COUNTER:
+			move_velocity = Vector2.ZERO
+			is_countering = true
+			counter_timer = counter_duration
+			attack_active = true
+			hit_targets.clear()
+			_update_attack_shape()
+			# стан игрока
+			if player and player.has_method("receive_parry"):
+				player.receive_parry(pummel_posture_damage)
 
 		State.IDLE:
 			move_velocity = Vector2.ZERO
@@ -296,6 +349,14 @@ func _change_state(new_state: State) -> void:
 
 		State.DEAD:
 			_on_dead()
+			
+		State.PARRY:
+			move_velocity = Vector2.ZERO
+			is_parrying = true
+			parry_timer = parry_window
+			var anim_name = "parry_" + _get_direction_name(direction)
+			anim.play(anim_name)
+
 
 # ============== СОСТОЯНИЯ ==============
 # IDLE
@@ -509,21 +570,37 @@ func take_damage(amount: int, source: Node2D = null) -> void:
 	if is_dead:
 		return
 	
+	# Парирование — если игрок ударил во время окна парирования
+	if is_parrying:
+		is_parrying = false
+		if source and source.has_method("receive_parry"):
+			source.receive_parry(pummel_posture_damage)
+		_change_state(State.COUNTER)
+		return
+	
 	# Проверяем блок
 	if is_blocking and not is_posture_broken:
 		posture += block_posture_damage
 		posture_bar.visible = true
 		posture_bar.value = posture
 		posture_regen_timer = 0.0
+		block_hit_count += 1
 		_trigger_block_effect()
-		# нокбэк при блоке — слабее чем обычный
+
 		if source:
 			var knockback_dir = (global_position - source.global_position).normalized()
-			knockback_velocity = knockback_dir * 80.0  # слабый отброс
-		
+			knockback_velocity = knockback_dir * 80.0
+
 		if posture >= max_posture:
 			posture = max_posture
 			_posture_break()
+			return
+
+		# после N ударов — парируем
+		if block_hit_count >= parry_threshold:
+			_change_state(State.PARRY)
+			return
+
 		return
 	
 	health -= amount
@@ -549,13 +626,26 @@ func _try_block() -> void:
 		is_blocking = true
 		_change_state(State.BLOCK)
 
-func _state_block(delta: float) -> void:
+func _start_parry() -> void:
+	is_blocking = false
+	block_hit_count = 0
+	_change_state(State.PARRY)
+	# ждём удара игрока во время окна
+
+func _state_block(_delta: float) -> void:
 	move_velocity = Vector2.ZERO
 	var anim_name = "block_" + _get_direction_name(direction)
-	if anim.current_animation != anim_name:  # ← только если другая анимация
+	if anim.current_animation != anim_name:
 		anim.play(anim_name)
+	
+	# парируем после N ударов
+	if block_hit_count >= parry_threshold and not is_parrying:
+		_start_parry()
+		return
+	
 	if not player or not _is_player_in_range(attack_range * 2.0):
 		is_blocking = false
+		block_hit_count = 0
 		_change_state(State.CHASE)
 
 func _posture_break() -> void:
@@ -568,6 +658,25 @@ func _posture_break() -> void:
 	posture_bar.value = 0.0
 	posture_bar.visible = false
 	is_posture_broken = false
+
+func _state_parry(_delta: float) -> void:
+	move_velocity = Vector2.ZERO
+	var anim_name = "parry_" + _get_direction_name(direction)
+	if anim.current_animation != anim_name:
+		anim.play(anim_name)
+
+func _state_counter(_delta: float) -> void:
+	move_velocity = Vector2.ZERO
+	var anim_name = "pummel_" + _get_direction_name(direction)
+	if anim.current_animation != anim_name:
+		anim.play(anim_name)
+	# наносим урон по концентрации игрока
+	if attack_active and player and is_instance_valid(player):
+		if player not in hit_targets:
+			if player.has_method("receive_parry"):
+				player.receive_parry(pummel_posture_damage)
+				hit_targets.append(player)
+				attack_active = false
 
 func _trigger_block_effect() -> void:
 	block_vfx.restart()
@@ -608,6 +717,13 @@ func _on_dead() -> void:
 	queue_free()
 
 # ============== СИГНАЛЫ ==============
+func _on_animation_finished(anim_name: StringName) -> void:
+	if anim_name.begins_with("parry_"):
+		is_parrying = false
+		_change_state(State.COUNTER)
+	elif anim_name.begins_with("pummel_"):
+		is_countering = false
+		_change_state(State.CHASE)
 
 func _on_vision_body_entered(body: Node2D) -> void:
 	if body.is_in_group("player"):
