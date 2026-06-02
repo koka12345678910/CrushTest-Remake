@@ -102,6 +102,7 @@ var ladder_scale := Vector2(0.65, 0.65)
 var is_starting := true
 
 var is_stunned := false
+var is_taking_damage := false
 
 func _ready() -> void:
 	player_hitbox.area_entered.connect(_on_player_hitbox_area_entered)
@@ -387,6 +388,8 @@ func start_roll():
 	roll_timer = roll_duration
 
 func play_movement_animation():
+	if is_taking_damage or is_stunned:
+		return
 	if is_parrying or is_blocking:  # 👈 добавь эту проверку
 		return
 	
@@ -608,11 +611,17 @@ func take_damage(amount: int) -> void:
 	health_bar.take_damage(float(amount))
 	health = health_bar.current_hp
 	
-	# концентрация растёт при получении урона
+	is_taking_damage = true
+	gfx.play("Take_Damage_" + last_direction)
+	_trigger_damage_flash()
+	
 	current_posture += 20.0
 	current_posture = min(current_posture, max_posture)
 	posture_regen_timer = posture_regen_delay
 	health_bar.set_posture(current_posture)
+	
+	await anim.animation_finished
+	is_taking_damage = false
 	
 	if current_posture >= max_posture:
 		_posture_break()
@@ -965,7 +974,7 @@ func _on_hurtbox_area_entered(area: Area2D) -> void:
 
 func _trigger_damage_flash() -> void:
 	var tween = create_tween()
-	tween.tween_property(gfx, "modulate", Color(1.5, 0.3, 0.3, 1.0), 0.05)
+	tween.tween_property(gfx, "modulate", Color(1.5, 1.5, 1.5, 1.0), 0.05)
 	tween.tween_property(gfx, "modulate", Color.WHITE, 0.15)
 
 func is_dead() -> bool:
@@ -1004,19 +1013,20 @@ func receive_parry(posture_damage: float) -> void:
 	posture_regen_timer = posture_regen_delay
 	
 	reset_combo()
-	
 	is_invulnerable = true
 	is_stunned = true
-	
-	# играем take_damage в нужном направлении
-	anim.play("Stunned_" + last_direction)
-	
 	_trigger_damage_flash()
 	
-	await get_tree().create_timer(2.0).timeout
-	
-	is_stunned = false
-	is_invulnerable = false
+	anim.play("Stunned_" + last_direction)
 	
 	if current_posture >= max_posture:
+		# концентрация полная — долгий стан 5 секунд
+		await get_tree().create_timer(5.0).timeout
+		is_stunned = false
+		is_invulnerable = false
 		_posture_break()
+	else:
+		# pummel — ждём конца анимации stunned
+		await anim.animation_finished
+		is_stunned = false
+		is_invulnerable = false

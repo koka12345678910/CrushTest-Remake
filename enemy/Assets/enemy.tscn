@@ -13281,8 +13281,8 @@ size = Vector2(13, 8)
 size = Vector2(13, 8)
 
 [sub_resource type="CapsuleShape2D" id="CapsuleShape2D_48tvi"]
-radius = 22.0
-height = 65.73852
+radius = 74.0
+height = 148.0
 
 [sub_resource type="CapsuleShape2D" id="CapsuleShape2D_d6xl1"]
 radius = 7.0
@@ -13308,7 +13308,7 @@ shape = SubResource("CapsuleShape2D_0awpc")
 texture_filter = 1
 scale = Vector2(0.640625, 0.765625)
 sprite_frames = SubResource("SpriteFrames_50kp7")
-animation = &"pummel_left"
+animation = &"idle2_down"
 
 [node name="EnemyAnim" type="AnimationPlayer" parent="." unique_id=1063932479]
 libraries/ = SubResource("AnimationLibrary_8x22e")
@@ -13372,7 +13372,6 @@ shape = SubResource("RectangleShape2D_nda1t")
 disabled = true
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="Hitbox" unique_id=1686529253 groups=["enemy_hitbox"]]
-visible = false
 shape = SubResource("CapsuleShape2D_48tvi")
 
 [node name="Hurtbox" type="Area2D" parent="." unique_id=367377850]
