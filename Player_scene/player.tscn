@@ -4802,7 +4802,7 @@ initial_velocity_max = 150.0
 gravity = Vector3(0, 98, 0)
 scale_min = 2.0
 scale_max = 4.0
-color = Color(1, 0.85490197, 0.34901962, 1)
+color = Color(0.89165515, 0.9187369, 0, 1)
 
 [node name="Player" type="CharacterBody2D" unique_id=493723598]
 modulate = Color(0.9166399, 0.91663986, 0.9166398, 1)
@@ -4911,7 +4911,7 @@ scale = Vector2(0.9999999, 0.9999999)
 
 [node name="ParryVFX" type="GPUParticles2D" parent="." unique_id=1553601574]
 emitting = false
-amount = 20
+amount = 100
 lifetime = 0.3
 one_shot = true
 explosiveness = 0.9

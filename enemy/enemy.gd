@@ -58,7 +58,8 @@ enum State {
 	DEAD,
 	BLOCK,
 	PARRY,    # ← добавь
-	COUNTER   # ← добавь
+	COUNTER,
+	STAGGER   # ← добавь
 }
 
 # ============== ПЕРЕМЕННЫЕ ==============
@@ -107,12 +108,11 @@ var block_hit_count := 0          # сколько ударов заблокир
 var parry_threshold := 2          # после скольки ударов парирует
 var is_parrying := false          # окно парирования
 var parry_timer := 0.0
-var parry_window := 0.3           # длительность окна парирования
+var parry_window := 0.3         # длительность окна парирования
 var counter_timer := 0.0
 var is_countering := false
 @export var counter_duration := 0.75
 @export var pummel_posture_damage := 40.0  # урон по концентрации игрока
-
 @onready var anim: AnimationPlayer = $EnemyAnim
 @onready var vision_area: Area2D = $VisionArea
 @onready var hitbox: Area2D = $Hitbox
@@ -190,8 +190,9 @@ func _physics_process(delta: float) -> void:
 		State.BLOCK,
 		State.HIT_STUN,
 		State.DEAD,
-		State.PARRY,    # ← добавь
-		State.COUNTER   # ← добавь
+		State.PARRY,
+		State.COUNTER,
+		State.STAGGER  # ← добавь
 	]:
 		if think_timer >= think_rate:
 			think_timer = 0.0
@@ -300,8 +301,11 @@ func _update_state(delta: float) -> void:
 
 		State.PARRY:
 			_state_parry(delta)
+
 		State.COUNTER:
 			_state_counter(delta)
+		State.STAGGER:
+			_state_stagger(delta)
 
 # ============== STATE MACHINE ==============
 
@@ -366,6 +370,10 @@ func _change_state(new_state: State) -> void:
 			parry_timer = parry_window
 			var anim_name = "parry_" + _get_direction_name(direction)
 			anim.play(anim_name)
+		
+		State.STAGGER:
+			move_velocity = Vector2.ZERO
+			attack_active = false
 
 
 # ============== СОСТОЯНИЯ ==============
@@ -419,9 +427,7 @@ func _pick_new_wander_direction() -> void:
 
 	# БЫЛО: 2.0 - 4.0 сек — слишком часто
 	wander_timer = randf_range(2.0, 6.0)
-	
-	
-	
+
 # ===================== CHASE =====================
 func _state_chase(delta: float) -> void:
 	if not player or not is_instance_valid(player):
@@ -699,15 +705,13 @@ func take_posture_damage(amount: float) -> void:
 	posture_bar.value = posture
 	posture_regen_timer = 0.0
 	_trigger_block_effect()  # VFX искр
+	_trigger_stagger()       # ← добавь
 	
 	if posture >= max_posture:
 		posture = max_posture
 		_posture_break()
 
 func _trigger_stagger() -> void:
-	attack_active = false
-	_change_state(State.HIT_STUN)  # прерываем любой стейт
-	
 	var stagger_name: String
 	match current_attack_anim:
 		"attack":  stagger_name = "stagger"
@@ -715,17 +719,17 @@ func _trigger_stagger() -> void:
 		"attack3": stagger_name = "stagger3"
 		_:         stagger_name = "stagger"
 	
+	_change_state(State.STAGGER)
+	
 	var anim_name = stagger_name + "_" + _get_direction_name(direction)
-	print("stagger: ", anim_name, " has: ", anim.has_animation(anim_name))
 	anim.play(anim_name)
 	
-	# нокбэк от игрока
 	if player:
 		var knockback_dir = (global_position - player.global_position).normalized()
 		knockback_velocity = knockback_dir * 200.0
-	
-	await anim.animation_finished
-	_change_state(State.CHASE)
+
+func _state_stagger(_delta: float) -> void:
+	move_velocity = Vector2.ZERO
 
 func _state_parry(_delta: float) -> void:
 	move_velocity = Vector2.ZERO
@@ -791,6 +795,8 @@ func _on_animation_finished(anim_name: StringName) -> void:
 		_change_state(State.COUNTER)
 	elif anim_name.begins_with("pummel_"):
 		is_countering = false
+		_change_state(State.CHASE)
+	elif anim_name.begins_with("stagger"):
 		_change_state(State.CHASE)
 
 func _on_vision_body_entered(body: Node2D) -> void:

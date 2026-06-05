@@ -77,7 +77,7 @@ var roll_control := 0.0
 
 # --- PARRY SYSTEM ---
 var is_parrying := false
-var parry_window := 0.25        # секунды активного окна
+var parry_window := 0.2     # секунды активного окна
 var parry_timer := 0.0
 var parry_cooldown := 0.6       # кулдаун между парированиями
 var parry_cd_timer := 0.0
@@ -584,7 +584,21 @@ func end_parry(was_hit: bool):
 	is_parrying = false
 	parry_timer = 0.0
 	if not was_hit:
+		_parry_whiff()
+	else:
 		play_idle_animation()
+
+func _parry_whiff() -> void:
+	# штраф за промах — 0.5 сек нельзя атаковать и двигаться
+	is_stunned = true
+	velocity = Vector2.ZERO
+	# анимация промаха — используем существующую или idle
+	var anim_name = "Parry_" + last_direction
+	if anim.has_animation(anim_name):
+		anim.play(anim_name)
+	await get_tree().create_timer(0.5).timeout
+	is_stunned = false
+	play_idle_animation()
 
 # Вызывается врагом (или hitbox-ом) когда его атака задела игрока
 func receive_attack(attack_data: Dictionary) -> bool:
@@ -680,6 +694,7 @@ func play_attack(step: int):
 	combo_timer = combo_window
 	combo_queued = false
 	dodge_velocity = Vector2.ZERO
+	try_snap_to_enemy() 
 	var anim_name := ""
 
 	if step == 1:

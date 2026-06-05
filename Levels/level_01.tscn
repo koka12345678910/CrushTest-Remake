@@ -11128,6 +11128,21 @@ texture = ExtResource("21_jkbap")
 position = Vector2(1212, -259)
 
 [node name="Enemy" parent="." unique_id=71146591 instance=ExtResource("22_i35eu")]
-position = Vector2(1460, -369)
+position = Vector2(1501, -382)
+
+[node name="Enemy2" parent="." unique_id=701207480 instance=ExtResource("22_i35eu")]
+position = Vector2(1324, -324)
+
+[node name="Enemy3" parent="." unique_id=1473022758 instance=ExtResource("22_i35eu")]
+position = Vector2(1458, -289)
+
+[node name="Enemy4" parent="." unique_id=1373789468 instance=ExtResource("22_i35eu")]
+position = Vector2(1397, -381)
+
+[node name="Enemy5" parent="." unique_id=1652108483 instance=ExtResource("22_i35eu")]
+position = Vector2(1615, -385)
+
+[node name="Enemy6" parent="." unique_id=1691666724 instance=ExtResource("22_i35eu")]
+position = Vector2(1418, -470)
 
 [editable path="Player2"]
