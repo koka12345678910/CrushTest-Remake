@@ -27,7 +27,7 @@ extends CharacterBody2D
 @export var attack_damage := 1
 @export var attack_duration := 0.5
 @onready var attack_hitbox: Area2D = $Hitbox/Atack_hitbox
-
+var current_attack_anim := "attack" 
 
 # Визуальные эффекты
 @export var damage_flash_color := Color(2.0, 0.2, 0.2, 1.0)
@@ -156,7 +156,17 @@ func _on_hitbox_area_entered(area: Area2D) -> void:
 		return
 	if _is_player_attack(area):
 		var dmg = _get_damage_from(area)
-		take_damage(dmg, area.get_parent())
+		var source = area.get_parent()
+		take_damage(dmg, source)
+
+# И в атаке врага по игроку — используй receive_attack:
+func _deal_damage_to_player() -> void:
+	if player and player.has_method("receive_attack"):
+		var attack_data = {
+			"damage": attack_damage,
+			"source": self
+		}
+		player.receive_attack(attack_data)
 
 # ============== PHYSICS ==============
 func _physics_process(delta: float) -> void:
@@ -327,15 +337,15 @@ func _change_state(new_state: State) -> void:
 
 		State.ATTACK:
 			move_velocity = Vector2.ZERO
-			attack_started = false   
-
+			attack_started = false
 			if player:
 				direction = (player.global_position - global_position).normalized()
-
 			can_attack = false
 			hit_targets.clear()
-			
 			_update_attack_shape()
+			# рандомно выбираем атаку
+			var attacks = ["attack", "attack2"]
+			current_attack_anim = attacks[randi() % attacks.size()]
 
 		State.HIT_STUN:
 			move_velocity = Vector2.ZERO
@@ -468,7 +478,7 @@ func _state_attack(delta: float) -> void:
 		hit_targets.clear()
 		_update_attack_shape()
 
-	_play_animation("attack")
+	_play_animation(current_attack_anim)
 
 	# Игрок исчез — прерываем атаку
 	if not player or not is_instance_valid(player):
@@ -510,7 +520,27 @@ func _state_hit_stun(delta: float) -> void:
 # ===================== ANIMATION =====================
 func _play_animation(state: String) -> void:
 	var dir_name = _get_direction_name(direction)
-	var anim_name = state + "_" + dir_name
+	
+	# маппинг правильных имён анимаций
+	var anim_map = {
+		"idle": "idle2",
+		"walk": "walk",
+		"run": "run",
+		"attack": "attack",
+		"attack2": "attack2",
+		"attack3": "attack3",
+		"stagger": "stagger",   # ← сюда
+		"stagger2": "stagger2",
+		"stagger3": "stagger3",
+		"take_damage": "take_damage",
+		"block": "block",
+		"parry": "parry",
+		"pummel": "pummel",
+		"die": "die"
+	}
+	
+	var mapped = anim_map.get(state, state)
+	var anim_name = mapped + "_" + dir_name
 	if anim.current_animation == anim_name and anim.is_playing():
 		return
 	anim.play(anim_name)
@@ -557,9 +587,13 @@ func _on_attack_body_entered(body: Node2D) -> void:
 		return
 
 	if body.is_in_group("player"):
-		if body.has_method("take_damage"):
-			body.take_damage(attack_damage)
-			hit_targets.append(body)
+		if body.has_method("receive_attack"):
+			var attack_data = {
+				"damage": attack_damage,
+				"source": self
+			}
+			body.receive_attack(attack_data)
+			hit_targets.append(body)  # ← добавь
 
 
 # ===================== HIT DAMAGE =====================
@@ -658,6 +692,40 @@ func _posture_break() -> void:
 	posture_bar.value = 0.0
 	posture_bar.visible = false
 	is_posture_broken = false
+
+func take_posture_damage(amount: float) -> void:
+	posture += amount
+	posture_bar.visible = true
+	posture_bar.value = posture
+	posture_regen_timer = 0.0
+	_trigger_block_effect()  # VFX искр
+	
+	if posture >= max_posture:
+		posture = max_posture
+		_posture_break()
+
+func _trigger_stagger() -> void:
+	attack_active = false
+	_change_state(State.HIT_STUN)  # прерываем любой стейт
+	
+	var stagger_name: String
+	match current_attack_anim:
+		"attack":  stagger_name = "stagger"
+		"attack2": stagger_name = "stagger2"
+		"attack3": stagger_name = "stagger3"
+		_:         stagger_name = "stagger"
+	
+	var anim_name = stagger_name + "_" + _get_direction_name(direction)
+	print("stagger: ", anim_name, " has: ", anim.has_animation(anim_name))
+	anim.play(anim_name)
+	
+	# нокбэк от игрока
+	if player:
+		var knockback_dir = (global_position - player.global_position).normalized()
+		knockback_velocity = knockback_dir * 200.0
+	
+	await anim.animation_finished
+	_change_state(State.CHASE)
 
 func _state_parry(_delta: float) -> void:
 	move_velocity = Vector2.ZERO

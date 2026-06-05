@@ -24,6 +24,7 @@ extends CharacterBody2D
 @onready var inventory_ui = $InventoryUI
 @onready var hurtbox: Area2D = $HurtBox
 @onready var player_hitbox: Area2D = $PlayerHitbox
+@onready var parry_vfx: GPUParticles2D = $ParryVFX
 
 var max_posture := 100.0
 var current_posture := 0.0
@@ -600,12 +601,18 @@ func receive_attack(attack_data: Dictionary) -> bool:
 	take_damage(attack_data.get("damage", 10))
 	return true
 
-func on_perfect_parry(_attack_data: Dictionary):
+func play_parry_vfx():
+	parry_vfx.restart()
+	parry_vfx.emitting = true
+
+func on_perfect_parry(attack_data: Dictionary):
 	can_counter = true
 	counter_timer = counter_window
 	play_parry_vfx()
-	# TODO: вызвать stagger на враге когда враги будут готовы
-	# enemy.stagger()
+	# урон по концентрации врага
+	var source = attack_data.get("source", null)
+	if source and source.has_method("take_posture_damage"):
+		source.take_posture_damage(35.0)
 
 func take_damage(amount: int) -> void:
 	health_bar.take_damage(float(amount))
@@ -703,10 +710,6 @@ func start_counter_attack():
 	var anim_name = "Attack_" + last_direction
 	anim.play(anim_name)
 	attack_velocity = direction_to_vector(last_direction) * 200
-
-func play_parry_vfx():
-	# Как play_hit_vfx() — подключишь свой VFX
-	pass
 
 func handle_kick_input():
 	if is_dodging or is_rolling or is_attacking:
