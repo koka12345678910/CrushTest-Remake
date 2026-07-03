@@ -2,7 +2,7 @@
 class_name FenrirBloodAbility
 extends Ability
 
-@export var duration: float = 5.0
+@export var duration: float = 15.0
 @export var speed_bonus: float = 100.0
 @export var damage_multiplier: float = 1.75
 
@@ -15,6 +15,7 @@ func _init() -> void:
 func _execute(player: Node) -> void:
 	# Неуязвимость через существующую систему i-frames
 	player.is_invulnerable = true
+	player.active_ability_name = "fenrir"  # ← добавь здесь
 
 	# Применяем бафф
 	if player.has_method("apply_buff"):
@@ -26,12 +27,21 @@ func _execute(player: Node) -> void:
 			"invulnerable": true
 		})
 
-	# Снимаем неуязвимость через duration секунд
+	# Подмена VFX удара на время действия способности
+	if player.has_method("set") and "fenrir_hit_vfx_scene" in player:
+		player.active_hit_vfx_override = player.fenrir_hit_vfx_scene
+
+	# Вспышка с силуэтом волка при активации
+	var flash_fx := player.get_node_or_null("Camera2D/CanvasLayer/FenrirFlash")
+	if flash_fx:
+		flash_fx.play()
+
+	# Снимаем неуязвимость и VFX через duration секунд
 	player.get_tree().create_timer(duration).timeout.connect(
 		func():
 			player.is_invulnerable = false
+			player.active_hit_vfx_override = null
 			print("[КровьФенрира] Эффект закончился")
 	)
 
-	# TODO: активировать VFX когда будет готов
 	print("[КровьФенрира] Активирована! Неуязвимость на ", duration, " сек")

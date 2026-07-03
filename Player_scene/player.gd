@@ -11,6 +11,9 @@ extends CharacterBody2D
 @export var snap_radius := 80.0  # радиус поиска врагов
 @export var posture_regen_rate := 10.0
 @export var posture_regen_delay := 2.5
+@export var fenrir_hit_vfx_scene: PackedScene
+@export var fire_ring_vfx_scene: PackedScene
+@export var berserk_hit_vfx_scene: PackedScene
 
 @onready var melee_hit = $MeleeHit
 @onready var weapon_tip := $WeaponTip
@@ -24,7 +27,8 @@ extends CharacterBody2D
 @onready var inventory_ui = $InventoryUI
 @onready var hurtbox: Area2D = $HurtBox
 @onready var player_hitbox: Area2D = $PlayerHitbox
-@onready var parry_vfx: GPUParticles2D = $ParryVFX
+@onready var parry_vfx: AnimatedSprite2D = $ParryVFXanim
+@onready var hud = $HUD
 
 var max_posture := 100.0
 var current_posture := 0.0
@@ -88,22 +92,27 @@ var is_staggered := false       # враг застаггерен — доп. в
 var is_blocking := false
 # --------------------
 
+# VFX
+var active_hit_vfx_override: PackedScene = null
+
 var health: float = 100.0
 var max_health: float = 100.0
 var stamina: float = 100.0
 var max_stamina: float = 100.0
 
 var active_buffs: Dictionary = {}
-
+var active_ability_name := ""
 var coins: int = 0
 
 var normal_scale := Vector2(0.5, 0.5)
 var ladder_scale := Vector2(0.65, 0.65)
-
 var is_starting := true
-
 var is_stunned := false
 var is_taking_damage := false
+
+var hit_targets: Array = []
+var gold := 0
+var is_in_shop := false
 
 func _ready() -> void:
 	player_hitbox.area_entered.connect(_on_player_hitbox_area_entered)
@@ -122,14 +131,15 @@ func _ready() -> void:
 	health_bar.set_max_stamina(max_stamina)
 	health_bar.set_max_posture(max_posture)
 	inventory_ui.init(ability_system, inventory_system)
-	
-	var hud = $HUD
 	hud.init(ability_system)
 	
 	# Только потом загружаем предметы
 	_load_starting_abilities()
 
 func _unhandled_input(event: InputEvent) -> void:
+	if is_in_shop:
+		return  # ← добавь, магазин сам обрабатывает свой Esc
+	
 	# Блокируем всё кроме инвентаря если он открыт
 	if inventory_ui.visible:
 		if event.is_action_pressed("ui_cancel"):
@@ -154,6 +164,10 @@ func _unhandled_input(event: InputEvent) -> void:
 			inventory_ui.open()
 
 func _physics_process(delta):
+	if is_in_shop:
+		velocity = Vector2.ZERO
+		move_and_slide()
+		return
 	if is_stunned:
 		velocity = Vector2.ZERO
 		move_and_slide()
@@ -376,6 +390,7 @@ func start_roll():
 		return
 	roll_control = 0.0
 	is_rolling = true
+	set_collision_mask_value(3, false)
 	is_dodging = false
 	var dir := Vector2.ZERO
 	if input_vector == Vector2.ZERO:
@@ -424,7 +439,7 @@ func start_dodge():
 	if is_dodging or is_rolling:
 		return
 	is_dodging = true
-	
+	set_collision_mask_value(3, false) 
 	# 🔥 ВКЛЮЧАЕМ НЕУЯЗВИМОСТЬ
 	is_invulnerable = true
 	start_i_frames()
@@ -615,9 +630,11 @@ func receive_attack(attack_data: Dictionary) -> bool:
 	take_damage(attack_data.get("damage", 10))
 	return true
 
-func play_parry_vfx():
-	parry_vfx.restart()
-	parry_vfx.emitting = true
+func play_parry_vfx() -> void:
+	parry_vfx.global_position = melee_hit.global_position
+	parry_vfx.play("parry_vfx")
+	await parry_vfx.animation_finished
+	parry_vfx.stop()
 
 func on_perfect_parry(attack_data: Dictionary):
 	can_counter = true
@@ -631,6 +648,12 @@ func on_perfect_parry(attack_data: Dictionary):
 func take_damage(amount: int) -> void:
 	health_bar.take_damage(float(amount))
 	health = health_bar.current_hp
+	
+	# нокбэк от источника урона
+	var enemy = get_nearest_enemy()
+	if enemy:
+		var knockback_dir = (global_position - enemy.global_position).normalized()
+		velocity = knockback_dir * 50.0
 	
 	is_taking_damage = true
 	gfx.play("Take_Damage_" + last_direction)
@@ -717,7 +740,7 @@ func play_attack(step: int):
 	anim.play(anim_name)
 
 	# --- микро-рывок вперёд после удара ---
-	attack_velocity = direction_to_vector(last_direction) * 150  # сила рывка подбирается
+	attack_velocity = direction_to_vector(last_direction) * 125  # сила рывка подбирается
 
 func start_counter_attack():
 	is_attacking = true
@@ -774,52 +797,64 @@ func melee_weapon_tip():
 	player_hitbox.position = dir * 25
 
 func play_hit_vfx():
-	if hit_vfx_scene == null:
-		print("⚠ VFX не назначен")
+	var scene_to_use: PackedScene = active_hit_vfx_override if active_hit_vfx_override != null else hit_vfx_scene
+	if scene_to_use == null:
 		return
-		
-	var vfx = hit_vfx_scene.instantiate()
+	var vfx = scene_to_use.instantiate()
 	vfx.global_position = weapon_tip.global_position
-	
 	var dir = direction_to_vector(last_direction)
-
-	# передаём направление
 	vfx.set("move_direction", dir)
-	vfx.rotation = dir.angle()  # 👈 ВОТ ЭТО НОВОЕ
-	
+	vfx.rotation = dir.angle()
+	if active_hit_vfx_override != null:
+		match active_ability_name:
+			"fenrir":  vfx.set("anim_name", "fenrir_hit_3")
+			"berserk": vfx.set("anim_name", "berserk_hit_3")
 	get_tree().current_scene.add_child(vfx)
 
 func play_melee_hit_vfx():
-	if melee_hit_vfx_scene == null:
-		print("⚠ VFX не назначен")
+	var scene_to_use: PackedScene = active_hit_vfx_override if active_hit_vfx_override != null else melee_hit_vfx_scene
+	if scene_to_use == null:
 		return
-		
-	var vfx_melee = melee_hit_vfx_scene.instantiate()
-	vfx_melee.global_position = melee_hit.global_position
-	
+	var vfx = scene_to_use.instantiate()
+	vfx.global_position = melee_hit.global_position
 	var dir = direction_to_vector(last_direction)
-
-	# передаём направление
-	vfx_melee.set("move_direction", dir)
-	vfx_melee.rotation = dir.angle()  # 👈 ВОТ ЭТО НОВОЕ
-	
-	get_tree().current_scene.add_child(vfx_melee)
+	vfx.set("move_direction", dir)
+	vfx.rotation = dir.angle()
+	if active_hit_vfx_override != null:
+		match active_ability_name:
+			"fenrir":  vfx.set("anim_name", "fenrir_hit")
+			"berserk": vfx.set("anim_name", "berserk_hit_1")
+	get_tree().current_scene.add_child(vfx)
 
 func play_melee_2_hit_vfx():
-	if melee_hit_2_vfx_scene == null:
-		print("⚠ VFX не назначен")
+	var scene_to_use: PackedScene = active_hit_vfx_override if active_hit_vfx_override != null else melee_hit_2_vfx_scene
+	if scene_to_use == null:
 		return
-		
-	var vfx_melee2 = melee_hit_2_vfx_scene.instantiate()
-	vfx_melee2.global_position = melee_hit.global_position
-	
+	var vfx = scene_to_use.instantiate()
+	vfx.global_position = melee_hit.global_position
 	var dir = direction_to_vector(last_direction)
+	vfx.set("move_direction", dir)
+	vfx.rotation = dir.angle()
+	if active_hit_vfx_override != null:
+		match active_ability_name:
+			"fenrir":  vfx.set("anim_name", "fenrir_hit_2")
+			"berserk": vfx.set("anim_name", "berserk_hit_2")
+	get_tree().current_scene.add_child(vfx)
 
-	# передаём направление
-	vfx_melee2.set("move_direction", dir)
-	vfx_melee2.rotation = dir.angle()  # 👈 ВОТ ЭТО НОВОЕ
+func play_fire_ring_vfx():
+	if active_ability_name != "fenrir":  # ← только для Фенрира
+		return
 	
-	get_tree().current_scene.add_child(vfx_melee2)
+	if active_hit_vfx_override == null:
+		return  # кольцо только при активной способности
+	
+	if fire_ring_vfx_scene == null:
+		print("⚠ VFX огненного кольца не назначен")
+		return
+	
+	var vfx = fire_ring_vfx_scene.instantiate()
+	vfx.global_position = global_position  # на месте игрока
+	get_tree().current_scene.add_child(vfx)
 
 func play_running_hit_vfx():
 	if running_hit_vfx_scene == null:
@@ -842,6 +877,7 @@ func play_running_hit_vfx():
 # ----------------------------------------------------------
 
 func _on_anim_finished(finished_anim: StringName) -> void:
+	print(">>> ЗАКОНЧИЛАСЬ: ", finished_anim)
 	if finished_anim.begins_with("Started_"):
 		is_starting = false
 		play_idle_animation()
@@ -849,11 +885,13 @@ func _on_anim_finished(finished_anim: StringName) -> void:
 	# --- DODGE SYSTEM ---
 	if finished_anim.begins_with("Dodge_"):
 		is_dodging = false
+		set_collision_mask_value(3, true) 
 		dodge_velocity = Vector2.ZERO
 		velocity = velocity.lerp(input_vector * walk_speed, 0.2)
 		return
 	if finished_anim.begins_with("Rolling_"):
 		is_rolling = false
+		set_collision_mask_value(3, true) 
 		dodge_velocity = Vector2.ZERO
 		roll_control = 0.0
 		velocity = Vector2.ZERO
@@ -934,8 +972,8 @@ func start_heal_over_time(amount_per_tick: float, interval: float, ticks: int) -
 # --- СИСТЕМА БАФФОВ (заглушка — подключишь когда нужно) ---
 
 func apply_buff(buff: Dictionary) -> void:
-	var name = buff.get("name", "unknown")
-	active_buffs[name] = buff
+	var buff_name = buff.get("name", "unknown")
+	active_buffs[buff_name] = buff
 
 	# Скорость
 	if buff.has("speed_bonus"):
@@ -945,19 +983,19 @@ func apply_buff(buff: Dictionary) -> void:
 	# Убираем бафф через duration
 	var duration = buff.get("duration", 5.0)
 	await get_tree().create_timer(duration).timeout
-	remove_buff(name, buff)
+	remove_buff(buff_name, buff)
 
-func remove_buff(_name: String, buff: Dictionary) -> void:
-	if not active_buffs.has(name):
+func remove_buff(buff_name: String, buff: Dictionary) -> void:
+	if not active_buffs.has(buff_name):
 		return
-	active_buffs.erase(name)
+	active_buffs.erase(buff_name)
 
 	# Откатываем скорость
 	if buff.has("speed_bonus"):
 		walk_speed -= buff["speed_bonus"]
 		run_speed -= buff["speed_bonus"]
 
-	print("[Бафф] ", name, " закончился")
+	print("[Бафф] ", buff_name, " закончился")
 
 # --- СНЯТИЕ НЕГАТИВНЫХ ЭФФЕКТОВ (заглушка) ---
 
@@ -978,6 +1016,11 @@ func activate_odin_eye(duration: float, slow: float, max_targets: int) -> void:
 			print("[ГлазОдина] Время восстановлено")
 	)
 	# TODO: логика выбора и убийства врагов
+
+func add_gold(amount: int) -> void:
+	gold += amount
+	if hud:
+		hud.update_gold(gold)
 
 # ============== HITBOX ==============
 
@@ -1005,9 +1048,9 @@ func _on_player_dead() -> void:
 # ============== ENABLE/DISABLE HITBOX ==============
 
 func enable_attack_hitbox() -> void:
+	hit_targets.clear()  # ← сброс перед каждым ударом
 	player_hitbox.monitoring = true
 	player_hitbox.get_child(0).disabled = false
-	# позиция уже обновляется через melee_weapon_tip()
 
 func disable_attack_hitbox() -> void:
 	player_hitbox.monitoring = false
@@ -1017,6 +1060,9 @@ func disable_attack_hitbox() -> void:
 func _on_player_hitbox_area_entered(area: Area2D) -> void:
 	if area.is_in_group("enemy_hurtbox"):
 		var enemy = area.get_parent()
+		if enemy in hit_targets:
+			return
+		hit_targets.append(enemy)
 		if enemy.has_method("receive_attack"):
 			var attack_data = {
 				"damage": attack_damage,
@@ -1039,12 +1085,12 @@ func receive_parry(posture_damage: float) -> void:
 	
 	if current_posture >= max_posture:
 		# концентрация полная — долгий стан 5 секунд
-		await get_tree().create_timer(5.0).timeout
+		is_invulnerable = false  # ← игрок открыт для урона
+		await get_tree().create_timer(4.0).timeout
 		is_stunned = false
-		is_invulnerable = false
 		_posture_break()
 	else:
 		# pummel — ждём конца анимации stunned
+		is_invulnerable = false  # ← тоже открыт
 		await anim.animation_finished
 		is_stunned = false
-		is_invulnerable = false

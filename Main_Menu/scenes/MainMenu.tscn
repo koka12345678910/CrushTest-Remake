@@ -1,10 +1,10 @@
 [gd_scene format=3 uid="uid://gbimy5tfcnp6"]
 
-[ext_resource type="Script" uid="uid://dcfm2q4ouuedv" path="res://Main_Menu/scripts/MainMenu.gd" id="1_mainmenu"]
+[ext_resource type="Script" path="res://Main_Menu/scripts/MainMenu.gd" id="1_mainmenu"]
 [ext_resource type="Texture2D" uid="uid://cqj5utqydyvdf" path="res://Main_Menu/Gemini_Generated_Image_7yz2rj7yz2rj7yz2.png" id="2_foslk"]
-[ext_resource type="Script" uid="uid://uj11ia2lmi3q" path="res://Main_Menu/scripts/RainEffect.gd" id="2_rain"]
-[ext_resource type="Script" uid="uid://kw6nivjxtdbw" path="res://Main_Menu/scripts/BirdsEffect.gd" id="4_birds"]
-[ext_resource type="Script" uid="uid://b4klukdv3id2k" path="res://Main_Menu/scripts/MenuButton.gd" id="5_btn"]
+[ext_resource type="Script" path="res://Main_Menu/scripts/RainEffect.gd" id="2_rain"]
+[ext_resource type="Script" path="res://Main_Menu/scripts/BirdsEffect.gd" id="4_birds"]
+[ext_resource type="Script" path="res://Main_Menu/scripts/MenuButton.gd" id="5_btn"]
 [ext_resource type="Theme" uid="uid://b7jwdfw7kv5fn" path="res://Main_Menu/theme/MenuTheme.tres" id="6_theme"]
 
 [sub_resource type="ParticleProcessMaterial" id="ParticleProcessMaterial_tqkod"]

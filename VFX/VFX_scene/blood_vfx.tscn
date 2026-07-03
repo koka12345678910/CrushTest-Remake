@@ -1,0 +1,109 @@
+[gd_scene format=3 uid="uid://xexvswxdg53m"]
+
+[ext_resource type="Texture2D" uid="uid://dcgaffbl0nofb" path="res://VFX/Blood/VFX Blood Batch 1_SpriteSheetColumns.png" id="1_d8tvn"]
+[ext_resource type="Script" path="res://VFX/VFX_scene/blood_vfx.gd" id="1_trtaq"]
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_trtaq"]
+atlas = ExtResource("1_d8tvn")
+region = Rect2(660, 0, 110, 93)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_160jq"]
+atlas = ExtResource("1_d8tvn")
+region = Rect2(660, 93, 110, 93)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_5wnpi"]
+atlas = ExtResource("1_d8tvn")
+region = Rect2(660, 186, 110, 93)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_bdkwm"]
+atlas = ExtResource("1_d8tvn")
+region = Rect2(660, 279, 110, 93)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_jqfqg"]
+atlas = ExtResource("1_d8tvn")
+region = Rect2(660, 372, 110, 93)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_su6hp"]
+atlas = ExtResource("1_d8tvn")
+region = Rect2(660, 465, 110, 93)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_ofppp"]
+atlas = ExtResource("1_d8tvn")
+region = Rect2(660, 558, 110, 93)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_2vcow"]
+atlas = ExtResource("1_d8tvn")
+region = Rect2(660, 651, 110, 93)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_2n6gg"]
+atlas = ExtResource("1_d8tvn")
+region = Rect2(660, 744, 110, 93)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_ajo2i"]
+atlas = ExtResource("1_d8tvn")
+region = Rect2(660, 837, 110, 93)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_8vmr2"]
+atlas = ExtResource("1_d8tvn")
+region = Rect2(660, 930, 110, 93)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_jmify"]
+atlas = ExtResource("1_d8tvn")
+region = Rect2(660, 1023, 110, 93)
+
+[sub_resource type="SpriteFrames" id="SpriteFrames_g4v7s"]
+animations = [{
+"frames": [{
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_trtaq")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_160jq")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_5wnpi")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_bdkwm")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_jqfqg")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_su6hp")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_ofppp")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_2vcow")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_2n6gg")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_ajo2i")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_8vmr2")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_jmify")
+}],
+"loop": 0,
+"name": &"blood",
+"speed": 25.0
+}]
+
+[node name="BloodVFX" type="Node2D" unique_id=2041794596]
+script = ExtResource("1_trtaq")
+
+[node name="AnimatedSprite2D" type="AnimatedSprite2D" parent="." unique_id=1959753202]
+texture_filter = 1
+scale = Vector2(0.45454547, 0.53763443)
+sprite_frames = SubResource("SpriteFrames_g4v7s")
+animation = &"blood"
+frame = 11
+frame_progress = 1.0
+
+[connection signal="animation_finished" from="AnimatedSprite2D" to="." method="_on_animated_sprite_2d_animation_finished"]

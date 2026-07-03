@@ -8,21 +8,21 @@ extends CharacterBody2D
 @export var direction_smoothness := 8.0
 
 @onready var shapes := {
-	"left": $Hitbox/Atack_hitbox/left,
-	"left_up": $Hitbox/Atack_hitbox/left_up,
-	"left_down": $Hitbox/Atack_hitbox/left_down,
-	"right": $Hitbox/Atack_hitbox/right,
-	"right_up": $Hitbox/Atack_hitbox/right_up,
-	"right_down": $Hitbox/Atack_hitbox/right_down,
-	"up": $Hitbox/Atack_hitbox/up,
-	"down": $Hitbox/Atack_hitbox/down,
+	"left":       $Hitbox/Atack_hitbox/left,
+	"up_left":    $Hitbox/Atack_hitbox/left_up,
+	"down_left":  $Hitbox/Atack_hitbox/left_down,
+	"right":      $Hitbox/Atack_hitbox/right,
+	"up_right":   $Hitbox/Atack_hitbox/right_up,
+	"down_right": $Hitbox/Atack_hitbox/right_down,
+	"up":         $Hitbox/Atack_hitbox/up,
+	"down":       $Hitbox/Atack_hitbox/down,
 }
 
 # Здоровье
 @export var max_health := 3
 @export var damage_flash_time := 0.3
 # Боевые параметры
-@export var attack_range := 30.0
+@export var attack_range := 45
 @export var attack_cooldown := 1.5
 @export var attack_damage := 1
 @export var attack_duration := 0.5
@@ -31,9 +31,11 @@ var current_attack_anim := "attack"
 
 # Визуальные эффекты
 @export var damage_flash_color := Color(2.0, 0.2, 0.2, 1.0)
+@export var berserk_highlight_color := Color(5.0, 4.5, 2.5, 1.0)
+var _rest_modulate := Color.WHITE
 
 # AI поведение
-@export var preferred_distance := 25.0
+@export var preferred_distance := 35.0
 @export var vision_range := 150.0
 @export var chase_range := 120.0
 @export var think_rate := 0.25
@@ -48,6 +50,10 @@ var current_attack_anim := "attack"
 @export var posture_regen_delay := 2.0
 @export var block_posture_damage := 25.0
 @export var block_chance := 0.4
+@export var coin_scene: PackedScene
+@export var coin_drop_min := 1
+@export var coin_drop_max := 3
+@export var blood_vfx_scene: PackedScene
 
 enum State {
 	IDLE,
@@ -111,6 +117,7 @@ var parry_timer := 0.0
 var parry_window := 0.3         # длительность окна парирования
 var counter_timer := 0.0
 var is_countering := false
+var is_player_berserk := false
 @export var counter_duration := 0.75
 @export var pummel_posture_damage := 40.0  # урон по концентрации игрока
 @onready var anim: AnimationPlayer = $EnemyAnim
@@ -242,7 +249,7 @@ func _decide_state() -> void:
 	# пробуем заблокировать если игрок атакует рядом
 	if player and is_instance_valid(player):
 		if _is_player_in_range(attack_range * 1.5):
-			if player.is_attacking and not is_blocking and not is_posture_broken:
+			if player.is_attacking and not is_blocking and not is_posture_broken and not is_player_berserk:
 				_try_block()
 				return
 	
@@ -270,10 +277,17 @@ func _decide_state() -> void:
 		_change_state(State.WANDER)
 		
 	# контратака если игрок атакует во время нашего парирования
-	if is_parrying and player and player.is_attacking:
+	if is_parrying and player and player.is_attacking and not is_player_berserk:
 		is_parrying = false
 		_change_state(State.COUNTER)
 		return
+
+func play_blood_vfx() -> void:
+	if blood_vfx_scene == null:
+		return
+	var vfx = blood_vfx_scene.instantiate()
+	vfx.global_position = global_position + Vector2(15, 0)  # смещение вправо
+	get_tree().current_scene.add_child(vfx)
 
 func _update_state(delta: float) -> void:
 	match current_state:
@@ -310,7 +324,6 @@ func _update_state(delta: float) -> void:
 # ============== STATE MACHINE ==============
 
 func _change_state(new_state: State) -> void:
-	print("state: ", current_state, " → ", new_state)
 	if current_state == new_state:
 		return
 
@@ -445,14 +458,20 @@ func _state_chase(delta: float) -> void:
 
 	var to_player := target_position - global_position
 	var dist := to_player.length()
-
+	
 	if dist == 0:
 		move_velocity = Vector2.ZERO
 		return
 
 	var dir := to_player / dist
 	var error := dist - preferred_distance
-
+	
+	# если слишком близко — останавливаемся полностью
+	if dist < preferred_distance * 0.5:
+		move_velocity = Vector2.ZERO
+		_play_animation("idle")
+		return
+	
 	if abs(error) > 5.0:
 		var move_dir := dir if error > 0.0 else -dir
 		direction = direction.lerp(move_dir, direction_smoothness * delta).normalized()
@@ -473,40 +492,31 @@ func _state_chase(delta: float) -> void:
 		move_velocity = Vector2.ZERO
 		_play_animation("idle")
 
-# ===================== ATTACK =====================
+var attack_direction_name := ""  # добавь в переменные
 func _state_attack(delta: float) -> void:
 	move_velocity = Vector2.ZERO
 
 	if not attack_started:
-		attack_started    = true
-		attack_active     = true
+		attack_started = true
+		attack_active = true
 		attack_hit_window = true
 		hit_targets.clear()
+		attack_direction_name = _get_direction_name(direction)  # ← фиксируем направление
 		_update_attack_shape()
-
-	_play_animation(current_attack_anim)
+		_play_animation(current_attack_anim)
 
 	# Игрок исчез — прерываем атаку
 	if not player or not is_instance_valid(player):
 		_exit_attack()
 		_change_state(State.WANDER)
-		return
-
-	# Атака завершена по времени
-	if state_time >= attack_duration:
-		_exit_attack()
-		if _is_player_in_range(attack_range):
-			_change_state(State.IDLE)
-		else:
-			_change_state(State.CHASE)
 
 
 func _exit_attack() -> void:
-	attack_active     = false
+	attack_active = false
 	attack_hit_window = false
-	attack_started    = false
+	attack_started = false
 	for s in shapes.values():
-		s.disabled = true
+		s.call_deferred("set", "disabled", true)
 	attack_cooldown_timer = attack_cooldown
 # =========================================================
 # HIT STUN
@@ -609,7 +619,29 @@ var knockback_velocity := Vector2.ZERO
 func take_damage(amount: int, source: Node2D = null) -> void:
 	if is_dead:
 		return
-	
+
+	# Безумие Берсерка — ломает защиту врага с первого удара: без блока, парирования и контратаки
+	if is_player_berserk:
+		is_parrying = false
+		is_blocking = false
+		health -= amount
+		hp_bar.visible = true
+		hp_bar.value = health
+		_trigger_damage_flash()
+		play_blood_vfx()
+
+		if health <= 0:
+			health = 0
+			is_dead = true
+			_change_state(State.DEAD)
+		else:
+			_trigger_stagger()
+
+		if source and not is_dead:
+			var knockback_dir = (global_position - source.global_position).normalized()
+			knockback_velocity = knockback_dir * 150.0
+		return
+
 	# Парирование — если игрок ударил во время окна парирования
 	if is_parrying:
 		is_parrying = false
@@ -647,6 +679,7 @@ func take_damage(amount: int, source: Node2D = null) -> void:
 	hp_bar.visible = true
 	hp_bar.value = health
 	_trigger_damage_flash()
+	play_blood_vfx()
 	
 	if health <= 0:
 		health = 0
@@ -660,13 +693,15 @@ func take_damage(amount: int, source: Node2D = null) -> void:
 		knockback_velocity = knockback_dir * 150.0
 
 func _try_block() -> void:
-	if is_posture_broken:
+	if is_posture_broken or is_player_berserk:
 		return
 	if randf() < block_chance:
 		is_blocking = true
 		_change_state(State.BLOCK)
 
 func _start_parry() -> void:
+	if is_player_berserk:
+		return
 	is_blocking = false
 	block_hit_count = 0
 	_change_state(State.PARRY)
@@ -756,37 +791,72 @@ func _trigger_block_effect() -> void:
 	var sp = $AnimatedSprite2D
 	sp.modulate = Color(2.0, 2.0, 0.5, 1.0)
 	var tween = create_tween()
-	tween.tween_property(sp, "modulate", Color.WHITE, 0.15)
+	tween.tween_property(sp, "modulate", _rest_modulate, 0.15)
 
 func _trigger_damage_flash() -> void:
 	var sp = $AnimatedSprite2D
 	sp.material = CanvasItemMaterial.new()
 	sp.modulate = Color(10.0, 10.0, 10.0, 1.0)  # экстремально яркий белый
 	var tween = create_tween()
-	tween.tween_property(sp, "modulate", Color.WHITE, 0.4)
+	tween.tween_property(sp, "modulate", _rest_modulate, 0.4)
+
+func set_berserk_vulnerable(enabled: bool) -> void:
+	is_player_berserk = enabled
+	if enabled:
+		is_blocking = false
+		is_parrying = false
+		is_countering = false
+
+func set_berserk_highlight(enabled: bool) -> void:
+	_rest_modulate = berserk_highlight_color if enabled else Color.WHITE
+	var sp = $AnimatedSprite2D
+	var tween = create_tween()
+	tween.tween_property(sp, "modulate", _rest_modulate, 0.25)
 
 # ===================== DEATH =====================
+var death_handled := false
 
 func _on_dead() -> void:
-
+	if death_handled:
+		return
+	death_handled = true
+	
 	move_velocity = Vector2.ZERO
-
 	anim.play("die_" + _get_direction_name(direction))
 
 	if hitbox:
 		hitbox.set_deferred("monitoring", false)
-
 	if vision_area:
 		vision_area.set_deferred("monitoring", false)
+
+	_drop_coins()  # ← добавь
 
 	await get_tree().create_timer(death_fade_time).timeout
 
 	var tween = create_tween()
 	tween.tween_property(self, "modulate:a", 0.0, 0.5)
-
 	await tween.finished
 
 	queue_free()
+
+func _drop_coins() -> void:
+	if not coin_scene:
+		return
+	var count = randi_range(coin_drop_min, coin_drop_max)
+	var spawn_pos = global_position
+	for i in count:
+		var coin = coin_scene.instantiate()
+		coin.global_position = spawn_pos
+		
+		# 30% шанс что монетка "блестящая" с большим номиналом
+		if randf() < 0.3:
+			coin.coin_value = randi_range(10, 15)
+			coin.is_big_coin = true
+		else:
+			coin.coin_value = 5
+			coin.is_big_coin = false
+		
+		get_tree().current_scene.call_deferred("add_child", coin)
 
 # ============== СИГНАЛЫ ==============
 func _on_animation_finished(anim_name: StringName) -> void:
@@ -798,6 +868,13 @@ func _on_animation_finished(anim_name: StringName) -> void:
 		_change_state(State.CHASE)
 	elif anim_name.begins_with("stagger"):
 		_change_state(State.CHASE)
+	elif anim_name.begins_with("attack") or anim_name.begins_with("attack2") or anim_name.begins_with("attack3"):
+		if current_state == State.ATTACK:
+			_exit_attack()
+			if _is_player_in_range(attack_range):
+				_change_state(State.IDLE)
+			else:
+				_change_state(State.CHASE)
 
 func _on_vision_body_entered(body: Node2D) -> void:
 	if body.is_in_group("player"):
@@ -864,21 +941,18 @@ func _get_damage_from(body: Node2D) -> int:
 
 	if body.has_method("get_damage"):
 		return int(body.call("get_damage"))
-
 	return attack_damage
-	
+
 func _get_attack_dir_name(dir: Vector2) -> String:
 	if abs(dir.x) > abs(dir.y):
 		return "right" if dir.x > 0 else "left"
 	else:
 		return "down" if dir.y > 0 else "up"
 
-
 func _update_attack_shape() -> void:
-	var dir_name = _get_attack_dir_name(direction)
-
-	for key in shapes.keys():
-		shapes[key].disabled = true
-
-	if shapes.has(dir_name):
-		shapes[dir_name].disabled = false
+	for key in shapes:
+		shapes[key].call_deferred("set", "disabled", true)
+	if current_state == State.ATTACK or current_state == State.COUNTER:
+		var dir_name = attack_direction_name if attack_direction_name != "" else _get_direction_name(direction)
+		if dir_name in shapes:
+			shapes[dir_name].call_deferred("set", "disabled", false)

@@ -1,0 +1,118 @@
+[gd_scene format=3 uid="uid://clxk311ld8km6"]
+
+[ext_resource type="Script" path="res://VFX/VFX_scene/fire_ring_vfx.gd" id="1_ay7b7"]
+[ext_resource type="Texture2D" uid="uid://b5fmc8106ecyi" path="res://VFX/elemental effects/fire-ring.png" id="1_lgmv6"]
+
+[sub_resource type="CanvasItemMaterial" id="CanvasItemMaterial_ay7b7"]
+blend_mode = 1
+light_mode = 1
+particles_animation = true
+particles_anim_h_frames = 1
+particles_anim_v_frames = 1
+particles_anim_loop = false
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_ay7b7"]
+atlas = ExtResource("1_lgmv6")
+region = Rect2(0, 0, 128, 128)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_gvdqw"]
+atlas = ExtResource("1_lgmv6")
+region = Rect2(128, 0, 128, 128)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_s4p0e"]
+atlas = ExtResource("1_lgmv6")
+region = Rect2(256, 0, 128, 128)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_4le8u"]
+atlas = ExtResource("1_lgmv6")
+region = Rect2(384, 0, 128, 128)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_5aawe"]
+atlas = ExtResource("1_lgmv6")
+region = Rect2(512, 0, 128, 128)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_xjj0b"]
+atlas = ExtResource("1_lgmv6")
+region = Rect2(0, 128, 128, 128)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_l5cps"]
+atlas = ExtResource("1_lgmv6")
+region = Rect2(128, 128, 128, 128)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_4qcvd"]
+atlas = ExtResource("1_lgmv6")
+region = Rect2(256, 128, 128, 128)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_gcpgi"]
+atlas = ExtResource("1_lgmv6")
+region = Rect2(384, 128, 128, 128)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_qfr23"]
+atlas = ExtResource("1_lgmv6")
+region = Rect2(512, 128, 128, 128)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_ad2rx"]
+atlas = ExtResource("1_lgmv6")
+region = Rect2(0, 256, 128, 128)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_ys3ej"]
+atlas = ExtResource("1_lgmv6")
+region = Rect2(128, 256, 128, 128)
+
+[sub_resource type="SpriteFrames" id="SpriteFrames_g4v7s"]
+animations = [{
+"frames": [{
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_ay7b7")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_gvdqw")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_s4p0e")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_4le8u")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_5aawe")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_xjj0b")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_l5cps")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_4qcvd")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_gcpgi")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_qfr23")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_ad2rx")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_ys3ej")
+}],
+"loop": 0,
+"name": &"fire_ring",
+"speed": 8.0
+}]
+
+[node name="FireRingVFX" type="Node2D" unique_id=1894982586]
+light_mask = 0
+script = ExtResource("1_ay7b7")
+
+[node name="AnimatedSprite2D" type="AnimatedSprite2D" parent="." unique_id=898044184]
+light_mask = 0
+texture_filter = 3
+material = SubResource("CanvasItemMaterial_ay7b7")
+use_parent_material = true
+sprite_frames = SubResource("SpriteFrames_g4v7s")
+animation = &"fire_ring"
+frame = 8
+frame_progress = 0.115566194

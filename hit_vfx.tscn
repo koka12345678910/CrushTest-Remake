@@ -1,4 +1,4 @@
-[gd_scene format=3 uid="uid://bkhl65qmecrp3"]
+[gd_scene format=3 uid="uid://dbde6htb76nx1"]
 
 [ext_resource type="Script" uid="uid://cwrocww3avj5x" path="res://VFX/VFX_scene/hit_vfx.gd" id="1_f3m76"]
 [ext_resource type="Texture2D" uid="uid://b1j4yiy87laoa" path="res://VFX/ATTACK FREE/vSlash1.png" id="2_a5eyx"]
@@ -34,7 +34,7 @@ animations = [{
 "duration": 1.0,
 "texture": SubResource("AtlasTexture_jte3e")
 }],
-"loop": false,
+"loop": 0,
 "name": &"hit",
 "speed": 6.0
 }]

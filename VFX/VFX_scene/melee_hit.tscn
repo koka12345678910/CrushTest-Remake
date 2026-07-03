@@ -1,7 +1,7 @@
 [gd_scene format=3 uid="uid://ca4ngwbmoy8gy"]
 
 [ext_resource type="Texture2D" uid="uid://dycbtsmbrf8sc" path="res://VFX/ATTACK FREE/VslashSmall1.png" id="1_61iuc"]
-[ext_resource type="Script" uid="uid://blxtg5w8hhr6n" path="res://VFX/VFX_scene/melee_hit.gd" id="1_64bs1"]
+[ext_resource type="Script" path="res://VFX/VFX_scene/melee_hit.gd" id="1_64bs1"]
 
 [sub_resource type="AtlasTexture" id="AtlasTexture_rk623"]
 atlas = ExtResource("1_61iuc")

@@ -1,6 +1,6 @@
 [gd_scene format=3 uid="uid://ckjq1ftt8nvsw"]
 
-[ext_resource type="Script" uid="uid://bneovggn7rjhq" path="res://VFX/VFX_scene/move_start_vfx_scene.gd" id="1_0kp4a"]
+[ext_resource type="Script" path="res://VFX/VFX_scene/move_start_vfx_scene.gd" id="1_0kp4a"]
 [ext_resource type="Texture2D" uid="uid://m6c545issdx4" path="res://VFX/Smoke/SmokeNDust P03 VFX 5.png" id="1_pfn84"]
 
 [sub_resource type="AtlasTexture" id="AtlasTexture_0kp4a"]

@@ -22,93 +22,88 @@ extends Control
 
 var items: Array[Dictionary] = []
 
+var ability_class_map := {
+	"Мёд Поэзии": HoneyMeadAbility,
+	"Песнь валькирии": ValkyrieSongAbility,
+	"Эликсир Вальгаллы": ValhallaElixirAbility,
+	"Руна жертвы": SacrificeRuneAbility,
+	"Безумие Берсерка": BerserkAbility,
+	"Благословение Бальдра": BaldurBlessingAbility,
+	"Глаз Одина": OdinEyeAbility,
+	"Кровь Фенрира": FenrirBloodAbility,
+}
+
 func _build_items() -> void:
 	items = [
 		{
 			"name": "Мёд Поэзии",
-			"price": 500,
+			"price": 50,
 			"icon": "res://Shop/icons/jar_honey.png",       # ← ПУТЬ К ТВОЕМУ PNG
 			"description": "Постепенно восстанавливает здоровье.",
-			"lore": "Старинный напиток, рожденный из шёпота богов\nГоворят, его вкус дарует не только ясность ума, но и силу, что течёт глубже крови.\n
-			Немногие знают, из чего он создан.
-И ещё меньше — чем приходится за него платить.",
+			"lore": "Старинный напиток, рожденный из шёпота богов\nГоворят, его вкус дарует не только ясность ума, но и силу, что течёт глубже крови.\nНемногие знают, из чего он создан.\nИ ещё меньше — чем приходится за него платить.",
 			"col": Color(0.4, 0.8, 0.3),
 			"texture": null
 		},
 		{
 			"name": "Песнь валькирии",
-			"price": 300,
+			"price": 100,
 			"icon": "res://Shop/icons/flask_gold.png",
-			"description": "Те, кто слышит её песнь, возвращаются к бою.
-Но не все возвращаются прежними.",
-			"lore": "Тихий отголосок битв, что давно затихли.
-Считается, что в этом сосуде запечатан последний вздох павшей валькирии.",
+			"description": "Те, кто слышит её песнь, возвращаются к бою.\nНо не все возвращаются прежними.",
+			"lore": "Тихий отголосок битв, что давно затихли.\nСчитается, что в этом сосуде запечатан последний вздох павшей валькирии.",
 			"col": Color(0.9, 0.75, 0.2),
 			"texture": null
 		},
 		{
 			"name": "Эликсир Вальгаллы",
-			"price": 1200,
+			"price": 120,
 			"icon": "res://Shop/icons/flask_red.png",
-			"description": "Тот, кто испьёт его, на мгновение ощущает силу тех, кто уже пал.
-Но даже мимолётный взгляд за порог не проходит бесследно.",
-			"lore": "Густой напиток, которым провожают павших воинов.
-Говорят, он пропитан эхом пиршеств из Вальгалла.",
+			"description": "Тот, кто испьёт его, на мгновение ощущает силу тех, кто уже пал.\nНо даже мимолётный взгляд за порог не проходит бесследно.",
+			"lore": "Густой напиток, которым провожают павших воинов.\nГоворят, он пропитан эхом пиршеств из Вальгалла.",
 			"col": Color(0.6, 0.4, 0.9),
 			"texture": null
 		},
 		{
 			"name": "Руна жертвы",
-			"price": 450,
+			"price": 200,
 			"icon": "res://Shop/icons/potion_blood.png",
-			"description": "Она откликается на боль владельца, возвращая утраченное.
-Но всегда забирает больше, чем было отдано.",
-			"lore": "Старинный знак, вырезанный не ради защиты, а ради расплаты.
-Каждая линия на ней — напоминание о цене силы.",
+			"description": "Она откликается на боль владельца, возвращая утраченное.\nНо всегда забирает больше, чем было отдано.",
+			"lore": "Старинный знак, вырезанный не ради защиты, а ради расплаты.\nКаждая линия на ней — напоминание о цене силы.",
 			"col": Color(0.95, 0.55, 0.1),
 			"texture": null
 		},
 		{
 			"name": "Безумие Берсерка",
-			"price": 2500,
+			"price": 30,
 			"icon": "res://Shop/icons/blood_pouch.png",
-			"description": "С каждым ударом сила растёт.
-Но вместе с ней исчезает и контроль.",
-			"lore": "Ярость, в которой теряется грань между человеком и зверем.
-Говорят, те, кто поддаются ей, больше не чувствуют боли.",
+			"description": "С каждым ударом сила растёт.\nНо вместе с ней исчезает и контроль.",
+			"lore": "Ярость, в которой теряется грань между человеком и зверем.\nГоворят, те, кто поддаются ей, больше не чувствуют боли.",
 			"col": Color(0.7, 0.85, 0.95),
 			"texture": null
 		},
 		{
 			"name": "Благословение Бальдра",
-			"price": 800,
+			"price": 300,
 			"icon": "res://Shop/icons/light_orb.png",
-			"description": "Свет, к которому не может прикоснуться ни сталь, ни тьма.
-Он дарует защиту, что кажется абсолютной.",
-			"lore": "Но даже самый чистый свет имеет то, что было упущено.
-И именно через это приходит конец.",
+			"description": "Свет, к которому не может прикоснуться ни сталь, ни тьма.\nОн дарует защиту, что кажется абсолютной.",
+			"lore": "Но даже самый чистый свет имеет то, что было упущено.\nИ именно через это приходит конец.",
 			"col": Color(0.9, 0.3, 0.25),
 			"texture": null
 		},
 		{
 			"name": "Глаз Одина",
-			"price": 3500,
+			"price": 400,
 			"icon": "res://Shop/icons/eye_amulet.png",
-			"description": "Истина открывается тем, кто осмелится взглянуть.
-Но не каждый разум способен её выдержать.",
-			"lore": "Око, отданное в обмен на знание, что недоступно смертным.
-Оно видит больше, чем должен видеть человек.",
+			"description": "Истина открывается тем, кто осмелится взглянуть.\nНо не каждый разум способен её выдержать.",
+			"lore": "Око, отданное в обмен на знание, что недоступно смертным.\nОно видит больше, чем должен видеть человек.",
 			"col": Color(0.85, 0.85, 0.9),
 			"texture": null
 		},
 		{
 			"name": "Кровь Фенрира",
-			"price": 1800,
+			"price": 450,
 			"icon": "res://Shop/icons/demon_flask.png",
-			"description": "Дарует мощь, способную сокрушить всё на пути.
-Но зверь внутри никогда не служит долго.",
-			"lore": "Сила зверя, что однажды разорвёт сами оковы мира.
-Она кипит, даже будучи заключённой.",
+			"description": "Дарует мощь, способную сокрушить всё на пути.\nНо зверь внутри никогда не служит долго.",
+			"lore": "Сила зверя, что однажды разорвёт сами оковы мира.\nОна кипит, даже будучи заключённой.",
 			"col": Color(0.75, 0.8, 0.85),
 			"texture": null
 		},
@@ -130,15 +125,38 @@ const LIST_MARGIN_X: int = 30
 
 var font_default: Font
 var font_bold: Font
-
+var current_player: Node2D = null
+var pending_buy_index: int = -1
 # ─── LIFECYCLE ─────────────────────────────────────────────────────────────────
 func _ready() -> void:
 	_build_items()
 	_load_textures()
+	set_process(false)       # ← было true, замени на false
+	set_process_input(false) # ← было true, замени на false
+	font_default = ThemeDB.fallback_font
+	font_bold = ThemeDB.fallback_font
+	visible = false
+
+func open_shop(player: Node2D) -> void:
+	if visible:
+		return  # магазин уже открыт — игнорируем повторный вызов
+	current_player = player
+	player_gold = player.gold
+	player.is_in_shop = true
+	
+	visible = true
 	set_process(true)
 	set_process_input(true)
-	font_default = ThemeDB.fallback_font
-	font_bold    = ThemeDB.fallback_font
+	
+	modulate = Color(1, 1, 1, 0)
+	scale = Vector2(0.96, 0.96)
+	pivot_offset = size / 2.0
+	
+	var tw = create_tween().set_parallel()
+	tw.tween_property(self, "modulate", Color.WHITE, 0.18)
+	tw.tween_property(self, "scale", Vector2.ONE, 0.18).set_ease(Tween.EASE_OUT)
+	
+	queue_redraw()
 
 # Загружаем все PNG заранее — один раз при старте
 func _load_textures() -> void:
@@ -156,6 +174,10 @@ func _process(delta: float) -> void:
 	queue_redraw()
 
 func _input(event: InputEvent) -> void:
+	if event is InputEventKey and event.pressed and event.keycode == KEY_ESCAPE:
+		close_shop()
+		get_viewport().set_input_as_handled()  # ← добавь
+		return
 	if event is InputEventMouseMotion:
 		_update_hover((event as InputEventMouseMotion).position)
 	if event is InputEventMouseButton:
@@ -170,6 +192,18 @@ func _input(event: InputEvent) -> void:
 				var max_s: float = maxf(0.0, float(items.size() * ITEM_H) - 400.0)
 				target_scroll = clampf(target_scroll - 60.0, 0.0, max_s)
 
+func close_shop() -> void:
+	pivot_offset = size / 2.0
+	var tw = create_tween().set_parallel()
+	tw.tween_property(self, "modulate", Color(1, 1, 1, 0), 0.14)
+	tw.tween_property(self, "scale", Vector2(0.96, 0.96), 0.14)
+	await tw.finished
+	if current_player:
+		current_player.is_in_shop = false
+	visible = false
+	set_process(false)
+	set_process_input(false)
+
 func _update_hover(mouse_pos: Vector2) -> void:
 	var prev: int = hovered_index
 	hovered_index = -1
@@ -182,14 +216,87 @@ func _update_hover(mouse_pos: Vector2) -> void:
 	if hovered_index != prev:
 		queue_redraw()
 
+var last_click_time: float = 0.0
+var last_click_index: int = -1
+const DOUBLE_CLICK_TIME := 0.35
+
 func _handle_click(mouse_pos: Vector2) -> void:
+	if pending_buy_index >= 0:
+		_handle_confirm_click(mouse_pos)
+		return
+	
 	for i: int in items.size():
 		var iy: float = float(LIST_START_Y) + float(i * ITEM_H) - scroll_offset
 		var r := Rect2(float(LIST_MARGIN_X), iy, float(LEFT_PANEL_W - LIST_MARGIN_X * 2), float(ITEM_H - 4))
 		if r.has_point(mouse_pos):
-			if player_gold >= (items[i]["price"] as int):
+			var now := Time.get_ticks_msec() / 1000.0
+			if i == last_click_index and (now - last_click_time) < DOUBLE_CLICK_TIME:
+				_open_confirm(i)
+				last_click_index = -1
+			else:
 				selected_index = i
+				last_click_index = i
+				last_click_time = now
+			break
 	queue_redraw()
+
+func _open_confirm(index: int) -> void:
+	var item = items[index]
+	if player_gold < (item["price"] as int):
+		return  # недостаточно золота — не открываем окно
+	pending_buy_index = index
+	queue_redraw()
+
+func _handle_confirm_click(mouse_pos: Vector2) -> void:
+	var W: float = size.x
+	var H: float = size.y
+	var box_w := 420.0
+	var box_h := 200.0
+	var box_x := (W - box_w) * 0.5
+	var box_y := (H - box_h) * 0.5
+	
+	var btn_w := 140.0
+	var btn_h := 44.0
+	var btn_y := box_y + box_h - 70.0
+	var yes_x := box_x + box_w * 0.5 - btn_w - 10.0
+	var no_x  := box_x + box_w * 0.5 + 10.0
+	
+	var yes_rect := Rect2(yes_x, btn_y, btn_w, btn_h)
+	var no_rect  := Rect2(no_x, btn_y, btn_w, btn_h)
+	
+	if yes_rect.has_point(mouse_pos):
+		_try_buy(pending_buy_index)
+		pending_buy_index = -1
+	elif no_rect.has_point(mouse_pos):
+		pending_buy_index = -1
+	queue_redraw()
+
+func _try_buy(index: int) -> void:
+	var item = items[index]
+	var price: int = item["price"] as int
+	
+	if player_gold < price:
+		return  # недостаточно золота
+	
+	if not current_player:
+		return
+	
+	var item_name: String = item["name"] as String
+	if not ability_class_map.has(item_name):
+		print("ShopMenu: нет класса способности для ", item_name)
+		return
+	
+	# списываем золото
+	current_player.gold -= price
+	player_gold = current_player.gold
+	
+	# создаём способность и добавляем в инвентарь
+	var ability_class = ability_class_map[item_name]
+	var ability_instance: Ability = ability_class.new()
+	current_player.inventory_ui.add_item(ability_instance)
+	
+	selected_index = index
+	print("Куплено: ", item_name, " за ", price)
 
 # ─── MAIN DRAW ─────────────────────────────────────────────────────────────────
 func _draw() -> void:
@@ -197,7 +304,7 @@ func _draw() -> void:
 	var H: float = size.y
 
 	draw_rect(Rect2(0.0, 0.0, W, H), Color(0.04, 0.03, 0.02))
-
+	
 	# Grain
 	var rng := RandomNumberGenerator.new()
 	rng.seed = 42
@@ -214,6 +321,8 @@ func _draw() -> void:
 	_draw_item_list()
 	_draw_scrollbar()
 	_draw_footer_hint(H)
+	if pending_buy_index >= 0:
+		_draw_confirm_dialog(W, H)
 
 # ─── DIVIDER ───────────────────────────────────────────────────────────────────
 func _draw_vertical_divider() -> void:
@@ -360,12 +469,12 @@ func _draw_right_panel(W: float, H: float) -> void:
 	var rx: float = float(RIGHT_PANEL_X)
 	var pw: float = W - rx
 
-	if hovered_index < 0:
+	if selected_index < 0:
 		draw_string(font_default, Vector2(rx + pw * 0.5 - 80.0, H * 0.5),
-				"Наведите на предмет", HORIZONTAL_ALIGNMENT_LEFT, -1, 14, Color(0.35, 0.3, 0.22))
+				"Выберите предмет", HORIZONTAL_ALIGNMENT_LEFT, -1, 14, Color(0.35, 0.3, 0.22))
 		return
 
-	var item: Dictionary = items[hovered_index]
+	var item: Dictionary = items[selected_index]
 	var col: Color  = item["col"] as Color
 	var pulse: float = (sin(anim_time * 2.5) + 1.0) * 0.5
 
@@ -382,9 +491,9 @@ func _draw_right_panel(W: float, H: float) -> void:
 	var icon_r: float  = 130.0
 
 	# Внешние кольца пульсации
-	for ri: int in 3:
-		draw_arc(Vector2(icon_cx, icon_cy), icon_r + 20.0 + float(ri) * 14.0, 0.0, TAU, 64,
-				Color(col.r, col.g, col.b, 0.06 - float(ri) * 0.015 + pulse * 0.03), 1.5)
+	#for ri: int in 3:
+	#	draw_arc(Vector2(icon_cx, icon_cy), icon_r + 20.0 + float(ri) * 14.0, 0.0, TAU, 64,
+	#			Color(col.r, col.g, col.b, 0.06 - float(ri) * 0.015 + pulse * 0.03), 1.5)
 
 	# Свечение
 	for gi: int in 8:
@@ -400,6 +509,7 @@ func _draw_right_panel(W: float, H: float) -> void:
 
 	# PNG иконка — обрезанная по кругу через треугольники
 	var tex: Texture2D = item["texture"] as Texture2D
+	print("рисуем иконку, tex=", tex, " icon_cx=", icon_cx, " icon_cy=", icon_cy, " icon_r=", icon_r)
 	if tex != null:
 		var segments: int = 64
 		var verts := PackedVector2Array()
@@ -467,6 +577,47 @@ func _draw_right_panel(W: float, H: float) -> void:
 
 	draw_rect(Rect2(rx + 30.0, H - 12.0, pw - 60.0, 2.0),
 			Color(col.r, col.g, col.b, 0.4 + pulse * 0.15))
+
+func _draw_confirm_dialog(W: float, H: float) -> void:
+	# затемнение всего фона
+	draw_rect(Rect2(0.0, 0.0, W, H), Color(0.0, 0.0, 0.0, 0.6))
+	
+	var item = items[pending_buy_index]
+	var col: Color = item["col"] as Color
+	
+	var box_w := 420.0
+	var box_h := 200.0
+	var box_x := (W - box_w) * 0.5
+	var box_y := (H - box_h) * 0.5
+	
+	draw_rect(Rect2(box_x, box_y, box_w, box_h), Color(0.08, 0.07, 0.05, 0.98))
+	draw_rect(Rect2(box_x, box_y, box_w, 2.0), Color(col.r, col.g, col.b, 0.7))
+	draw_rect(Rect2(box_x, box_y + box_h - 2.0, box_w, 2.0), Color(col.r, col.g, col.b, 0.7))
+	draw_rect(Rect2(box_x, box_y, 2.0, box_h), Color(col.r, col.g, col.b, 0.4))
+	draw_rect(Rect2(box_x + box_w - 2.0, box_y, 2.0, box_h), Color(col.r, col.g, col.b, 0.4))
+	
+	var item_name: String = item["name"] as String
+	var msg := "Купить «" + item_name + "» за " + str(item["price"]) + " Sen?"
+	draw_string(font_default, Vector2(box_x + 30.0, box_y + 50.0),
+			msg, HORIZONTAL_ALIGNMENT_LEFT, int(box_w - 60.0), 17, Color(0.92, 0.86, 0.7))
+	
+	var btn_w := 140.0
+	var btn_h := 44.0
+	var btn_y := box_y + box_h - 70.0
+	var yes_x := box_x + box_w * 0.5 - btn_w - 10.0
+	var no_x  := box_x + box_w * 0.5 + 10.0
+	
+	# Кнопка ДА
+	draw_rect(Rect2(yes_x, btn_y, btn_w, btn_h), Color(0.15, 0.25, 0.1))
+	draw_rect(Rect2(yes_x, btn_y, btn_w, 1.0), Color(0.4, 0.8, 0.3, 0.8))
+	draw_string(font_bold, Vector2(yes_x + btn_w * 0.5 - 20.0, btn_y + btn_h * 0.5 + 6.0),
+			"Да", HORIZONTAL_ALIGNMENT_LEFT, -1, 18, Color(0.6, 0.95, 0.5))
+	
+	# Кнопка НЕТ
+	draw_rect(Rect2(no_x, btn_y, btn_w, btn_h), Color(0.25, 0.1, 0.1))
+	draw_rect(Rect2(no_x, btn_y, btn_w, 1.0), Color(0.8, 0.3, 0.3, 0.8))
+	draw_string(font_bold, Vector2(no_x + btn_w * 0.5 - 22.0, btn_y + btn_h * 0.5 + 6.0),
+			"Нет", HORIZONTAL_ALIGNMENT_LEFT, -1, 18, Color(0.95, 0.5, 0.5))	
 
 # ─── ЗАГЛУШКА (если PNG не найден) ────────────────────────────────────────────
 # Рисует круг с первой буквой названия предмета

@@ -1,6 +1,6 @@
 [gd_scene format=3 uid="uid://y4x16714fwdf"]
 
-[ext_resource type="Script" uid="uid://cb5brs6osb50j" path="res://VFX/VFX_scene/melee_2_hit.gd" id="1_e5qc4"]
+[ext_resource type="Script" path="res://VFX/VFX_scene/melee_2_hit.gd" id="1_e5qc4"]
 [ext_resource type="Texture2D" uid="uid://b1j4yiy87laoa" path="res://VFX/ATTACK FREE/vSlash1.png" id="2_e5qc4"]
 
 [sub_resource type="AtlasTexture" id="AtlasTexture_jqnkx"]

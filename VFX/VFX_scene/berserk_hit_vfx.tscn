@@ -1,0 +1,122 @@
+[gd_scene format=3 uid="uid://cqxqqejl7fntn"]
+
+[ext_resource type="Script" path="res://VFX/VFX_scene/berserk_hit_vfx.gd" id="1_2thgi"]
+[ext_resource type="Texture2D" uid="uid://ca1qxdeh7rdo4" path="res://VFX/VFX_with_buff/mad_berserk/sprite-sheet.png" id="1_3sd1b"]
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_2thgi"]
+atlas = ExtResource("1_3sd1b")
+region = Rect2(0, 128, 128, 128)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_db2kl"]
+atlas = ExtResource("1_3sd1b")
+region = Rect2(128, 128, 128, 128)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_krgv5"]
+atlas = ExtResource("1_3sd1b")
+region = Rect2(256, 128, 128, 128)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_5p5de"]
+atlas = ExtResource("1_3sd1b")
+region = Rect2(384, 128, 128, 128)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_qx7v6"]
+atlas = ExtResource("1_3sd1b")
+region = Rect2(0, 0, 128, 128)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_ix5ch"]
+atlas = ExtResource("1_3sd1b")
+region = Rect2(128, 0, 128, 128)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_yji7k"]
+atlas = ExtResource("1_3sd1b")
+region = Rect2(256, 0, 128, 128)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_d3ree"]
+atlas = ExtResource("1_3sd1b")
+region = Rect2(384, 0, 128, 128)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_3sd1b"]
+atlas = ExtResource("1_3sd1b")
+region = Rect2(512, 0, 128, 128)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_dgwhi"]
+atlas = ExtResource("1_3sd1b")
+region = Rect2(384, 0, 128, 128)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_riycd"]
+atlas = ExtResource("1_3sd1b")
+region = Rect2(256, 0, 128, 128)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_l6us7"]
+atlas = ExtResource("1_3sd1b")
+region = Rect2(128, 0, 128, 128)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_1jnge"]
+atlas = ExtResource("1_3sd1b")
+region = Rect2(0, 0, 128, 128)
+
+[sub_resource type="SpriteFrames" id="SpriteFrames_g4v7s"]
+animations = [{
+"frames": [{
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_2thgi")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_db2kl")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_krgv5")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_5p5de")
+}],
+"loop": 0,
+"name": &"berserk_hit_1",
+"speed": 8.0
+}, {
+"frames": [{
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_qx7v6")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_ix5ch")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_yji7k")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_d3ree")
+}],
+"loop": 0,
+"name": &"berserk_hit_2",
+"speed": 12.0
+}, {
+"frames": [{
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_3sd1b")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_dgwhi")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_riycd")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_l6us7")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_1jnge")
+}],
+"loop": 0,
+"name": &"berserk_hit_3",
+"speed": 13.0
+}]
+
+[node name="berserk_hit_vfx" type="Node2D" unique_id=1041185551]
+script = ExtResource("1_2thgi")
+
+[node name="AnimatedSprite2D" type="AnimatedSprite2D" parent="." unique_id=1489035997]
+sprite_frames = SubResource("SpriteFrames_g4v7s")
+animation = &"berserk_hit_2"
+
+[connection signal="animation_finished" from="AnimatedSprite2D" to="." method="_on_animated_sprite_2d_animation_finished"]
