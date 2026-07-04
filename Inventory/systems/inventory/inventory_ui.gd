@@ -3,10 +3,10 @@ extends CanvasLayer
 
 signal closed
 
-const COLOR_BG          = Color(0.04, 0.03, 0.05, 0.97)
-const COLOR_PANEL       = Color(0.08, 0.06, 0.09, 1.0)
-const COLOR_SLOT_EMPTY  = Color(0.11, 0.09, 0.13, 1.0)
-const COLOR_SLOT_HOVER  = Color(0.18, 0.14, 0.20, 1.0)
+const COLOR_BG          = Color(0.04, 0.03, 0.02, 0.97)
+const COLOR_PANEL       = Color(0.08, 0.06, 0.04, 1.0)
+const COLOR_SLOT_EMPTY  = Color(0.11, 0.09, 0.06, 1.0)
+const COLOR_SLOT_HOVER  = Color(0.20, 0.15, 0.09, 1.0)
 const COLOR_SLOT_SEL    = Color(0.22, 0.16, 0.08, 1.0)
 const COLOR_BORDER      = Color(0.45, 0.35, 0.15, 1.0)
 const COLOR_BORDER_HI   = Color(0.80, 0.62, 0.22, 1.0)
@@ -49,6 +49,8 @@ var _detail_w: float
 
 func _ready() -> void:
 	visible = false
+	# продолжаем работать во время паузы, чтобы инвентарь оставался интерактивным
+	process_mode = Node.PROCESS_MODE_ALWAYS
 
 
 func init(ability_system: AbilitySystem, inventory_system: InventorySystem) -> void:
@@ -58,6 +60,8 @@ func init(ability_system: AbilitySystem, inventory_system: InventorySystem) -> v
 
 
 func open() -> void:
+	# ставим игру на паузу — враги останавливаются и не бьют игрока
+	get_tree().paused = true
 	visible = true
 	_refresh_grid()
 	_root.modulate = Color(1, 1, 1, 0)
@@ -75,6 +79,8 @@ func close() -> void:
 	tw.tween_property(_root, "scale", Vector2(0.96, 0.96), 0.14)
 	await tw.finished
 	visible = false
+	# снимаем паузу — мир снова оживает
+	get_tree().paused = false
 	emit_signal("closed")
 
 
@@ -259,7 +265,7 @@ func _build_detail_panel(parent: Control) -> void:
 	var ibg := ColorRect.new()
 	ibg.position = Vector2(icon_x, y)
 	ibg.size = Vector2(icon_size, icon_size)
-	ibg.color = Color(0.05, 0.04, 0.06, 1.0)
+	ibg.color = Color(0.06, 0.05, 0.03, 1.0)
 	parent.add_child(ibg)
 
 	_detail_icon = TextureRect.new()

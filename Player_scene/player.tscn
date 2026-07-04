@@ -20,6 +20,7 @@
 [ext_resource type="Script" uid="uid://boe05f5ffn3mn" path="res://Inventory/systems/inventory/inventory_ui.gd" id="14_2ys5t"]
 [ext_resource type="Texture2D" uid="uid://ci32yhu826l26" path="res://VFX/Effect_BigHit/30fps/Frames/Effect_BigHit_1/Effect_BigHit_1_000.png" id="16_wc173"]
 [ext_resource type="Texture2D" uid="uid://s6gypbamk87h" path="res://VFX/Effect_BigHit/30fps/Frames/Effect_BigHit_1/Effect_BigHit_1_001.png" id="17_8gugs"]
+[ext_resource type="Texture2D" uid="uid://d87v7r5suyfc" path="res://VFX/VFX_with_buff/blood_fenrir/fenrir_wolf_flash2.png" id="17_ccbl8"]
 [ext_resource type="Texture2D" uid="uid://cb3j37k4pprq1" path="res://VFX/Effect_BigHit/30fps/Frames/Effect_BigHit_1/Effect_BigHit_1_002.png" id="18_l3nxm"]
 [ext_resource type="Texture2D" uid="uid://o8dyw0sxd5kt" path="res://VFX/Effect_BigHit/30fps/Frames/Effect_BigHit_1/Effect_BigHit_1_003.png" id="19_jr5wu"]
 [ext_resource type="Texture2D" uid="uid://v81042wxytgg" path="res://VFX/Effect_BigHit/30fps/Frames/Effect_BigHit_1/Effect_BigHit_1_004.png" id="20_ck4pg"]
@@ -5174,7 +5175,7 @@ _data = {
 }
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_v6ddd"]
-size = Vector2(18, 24)
+size = Vector2(28, 34)
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_wc173"]
 size = Vector2(48.000008, 54.000008)
@@ -5304,8 +5305,7 @@ modulate = Color(0.7722583, 0.7722583, 0.7722583, 1)
 texture_filter = 1
 scale = Vector2(0.640625, 0.78125006)
 sprite_frames = ExtResource("2_tgf2g")
-animation = &"Attack_4_Down"
-frame = 9
+animation = &"Turn_Up_Right"
 
 [node name="Collision" type="CollisionShape2D" parent="." unique_id=706763296]
 shape = SubResource("CapsuleShape2D_m414l")
@@ -5361,6 +5361,18 @@ offset_right = 2168.0
 offset_bottom = 1246.0
 mouse_filter = 2
 texture = ExtResource("55_fwolf2")
+expand_mode = 1
+stretch_mode = 6
+
+[node name="Wolf2" type="TextureRect" parent="Camera2D/CanvasLayer/FenrirFlash" unique_id=1014078788]
+modulate = Color(1, 1, 1, 0)
+material = SubResource("CanvasItemMaterial_fwolf1")
+offset_left = -286.0
+offset_top = -94.0
+offset_right = 2168.0
+offset_bottom = 1246.0
+mouse_filter = 2
+texture = ExtResource("17_ccbl8")
 expand_mode = 1
 stretch_mode = 6
 

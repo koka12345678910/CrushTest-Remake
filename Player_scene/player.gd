@@ -207,6 +207,10 @@ func _physics_process(delta):
 	handle_parry_input(delta)
 	handle_dodge_input()
 	check_for_turn()
+	if is_taking_damage or is_parrying:
+		velocity = Vector2.ZERO
+		move_and_slide()
+		return
 	if is_rolling:
 		roll_control += delta
 		# 🔥 фаза ускорения и торможения
@@ -363,24 +367,30 @@ func check_for_turn():
 		start_turn(input_dir)
 
 func start_turn(new_dir: Vector2):
+	var old_dir = facing_dir
+	var new_facing = new_dir.normalized()
+	var new_last_direction = get_direction(new_facing)
+	var anim_name = "Turn_" + new_last_direction
+
+	# Если для этого направления нет анимации разворота — просто меняем направление
+	# без блокирующего состояния. Иначе флаги is_turning/turn_lock залипали бы навсегда
+	# (они сбрасываются только по окончании Turn_-анимации), и игрок застревал.
+	if not anim.has_animation(anim_name):
+		facing_dir = new_facing
+		last_direction = new_last_direction
+		return
+
 	turn_lock = true
 	is_turning = true
 
-	var old_dir = facing_dir
-	var new_facing = new_dir.normalized()
-
 	# фиксируем новое направление заранее (как в Hades)
 	facing_dir = new_facing
-	last_direction = get_direction(new_facing)
+	last_direction = new_last_direction
 
 	# стоп движения (важно для feel)
 	turn_velocity = velocity * 0.4
 
-	# анимация
-	var anim_name = "Turn_" + last_direction
-	if anim.has_animation(anim_name):
-		anim.play(anim_name)
-
+	anim.play(anim_name)
 	play_turn_vfx(old_dir, new_facing)
 
 func start_roll():
@@ -664,9 +674,9 @@ func take_damage(amount: int) -> void:
 	posture_regen_timer = posture_regen_delay
 	health_bar.set_posture(current_posture)
 	
-	await anim.animation_finished
+	await gfx.animation_finished
 	is_taking_damage = false
-	
+
 	if current_posture >= max_posture:
 		_posture_break()
 
@@ -782,6 +792,7 @@ func start_run_attack():
 		reset_all_states()
 		return
 	update_weapon_tip()
+	melee_weapon_tip()  # позиционируем player_hitbox перед игроком, иначе удар на бегу не попадает
 	anim.play(anim_name)
 	# задаём скорость для скольжения
 	attack_velocity = input_vector.normalized() * 250
@@ -1065,12 +1076,22 @@ func _on_player_hitbox_area_entered(area: Area2D) -> void:
 		hit_targets.append(enemy)
 		if enemy.has_method("receive_attack"):
 			var attack_data = {
-				"damage": attack_damage,
+				"damage": int(attack_damage * get_damage_multiplier()),
 				"source": self
 			}
 			enemy.receive_attack(attack_data)
 
+func get_damage_multiplier() -> float:
+	var mult := 1.0
+	for buff in active_buffs.values():
+		if buff.has("damage_multiplier"):
+			mult *= buff["damage_multiplier"]
+	return mult
+
 func receive_parry(posture_damage: float) -> void:
+	# Неуязвимость (дэш/Кровь Фенрира) снимает и урон, и стан от контратак
+	if is_invulnerable:
+		return
 	current_posture += posture_damage
 	current_posture = min(current_posture, max_posture)
 	health_bar.set_posture(current_posture)

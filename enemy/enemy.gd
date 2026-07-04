@@ -215,6 +215,7 @@ func _physics_process(delta: float) -> void:
 	else:
 		move_velocity = move_velocity.move_toward(Vector2.ZERO, friction * delta)
 		velocity = move_velocity
+	_separate_from_player()
 	move_and_slide()
 	if current_state == State.WANDER and get_slide_collision_count() > 0:
 		if _direction_change_cooldown <= 0.0:
@@ -231,6 +232,23 @@ func _physics_process(delta: float) -> void:
 			_change_state(State.CHASE)
 	
 	state_label.text = State.keys()[current_state]
+
+# move_and_slide() не расталкивает уже перекрывшиеся тела с нулевой скоростью —
+# без этого враг может "прилипнуть" к игроку и отлепится только от столкновения со стеной
+func _separate_from_player() -> void:
+	if not player or not is_instance_valid(player):
+		return
+	# во время своей атаки/контратаки враг подходит ближе, чтобы хитбокс доставал,
+	# но всё равно не даём телам полностью наложиться
+	var min_separation := 34.0
+	if current_state in [State.ATTACK, State.COUNTER]:
+		min_separation = 22.0
+	var offset := global_position - player.global_position
+	var dist := offset.length()
+	if dist < min_separation:
+		var dir := offset.normalized() if dist > 0.001 else Vector2.DOWN
+		global_position += dir * (min_separation - dist)
+
 # ============== AI ==============
 
 func _decide_state() -> void:

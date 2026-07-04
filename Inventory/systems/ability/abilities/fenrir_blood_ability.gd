@@ -4,28 +4,37 @@ extends Ability
 
 @export var duration: float = 15.0
 @export var speed_bonus: float = 100.0
-@export var damage_multiplier: float = 1.75
+@export var damage_multiplier_start: float = 1.2
+@export var damage_multiplier_peak: float = 2.5
 
 func _init() -> void:
 	ability_name = "Кровь Фенрира"
 	cooldown_duration = 60.0
-	description = "Неуязвимость, скорость и сила на 5 секунд"
+	description = "Неуязвимость к урону и контролю, сила растёт по ходу действия"
 	icon = load("res://Shop/icons/demon_flask.png")
 
 func _execute(player: Node) -> void:
-	# Неуязвимость через существующую систему i-frames
+	# Неуязвимость через существующую систему i-frames — теперь снимает и стан от контратак
 	player.is_invulnerable = true
-	player.active_ability_name = "fenrir"  # ← добавь здесь
+	player.active_ability_name = "fenrir"
 
-	# Применяем бафф
+	# Применяем бафф — множитель урона будет расти по ходу действия способности
+	var buff_data := {
+		"speed_bonus": speed_bonus,
+		"damage_multiplier": damage_multiplier_start,
+		"duration": duration,
+		"name": "fenrir_blood",
+		"invulnerable": true
+	}
 	if player.has_method("apply_buff"):
-		player.apply_buff({
-			"speed_bonus": speed_bonus,
-			"damage_multiplier": damage_multiplier,
-			"duration": duration,
-			"name": "fenrir_blood",
-			"invulnerable": true
-		})
+		player.apply_buff(buff_data)
+
+	# Растущая сила — волк рвёт цепи и набирает мощь к концу действия способности
+	var power_tween := player.create_tween()
+	power_tween.tween_method(
+		func(v: float): buff_data["damage_multiplier"] = v,
+		damage_multiplier_start, damage_multiplier_peak, duration
+	)
 
 	# Подмена VFX удара на время действия способности
 	if player.has_method("set") and "fenrir_hit_vfx_scene" in player:
