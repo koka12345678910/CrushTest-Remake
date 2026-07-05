@@ -17,7 +17,7 @@ void fragment() {
 
 	vec2 uv = SCREEN_UV - 0.5;
 	float vignette = 1.0 - smoothstep(0.3, 0.75, length(uv) * vignette_strength);
-	vec3 result = mono * mix(0.6, 1.0, vignette);
+	vec3 result = mono * mix(0.78, 1.0, vignette);
 
 	vec3 final_color = mix(scene.rgb, result, intensity);
 	final_color = mix(final_color, vec3(1.0), flash);

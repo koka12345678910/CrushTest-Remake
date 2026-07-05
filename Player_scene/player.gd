@@ -35,6 +35,10 @@ var current_posture := 0.0
 var posture_regen_timer := 0.0
 
 var attack_damage := 1
+# 4-й удар серии — вихрь: урон и отброс по всем врагам вокруг
+@export var spin_radius := 100.0
+@export var spin_damage_mult := 2.0
+@export var spin_knockback := 320.0
 var prev_velocity := Vector2.ZERO
 var move_vfx_cooldown := 0.0
 var input_vector := Vector2.ZERO
@@ -865,19 +869,43 @@ func play_melee_2_hit_vfx():
 	get_tree().current_scene.add_child(vfx)
 
 func play_fire_ring_vfx():
-	if active_ability_name != "fenrir":  # ← только для Фенрира
+	# Вихревой финишер 4-го удара: урон и отброс по всем врагам вокруг
+	_spin_finisher()
+
+	if active_ability_name != "fenrir":  # ← кольцо только для Фенрира
 		return
-	
+
 	if active_hit_vfx_override == null:
 		return  # кольцо только при активной способности
-	
+
 	if fire_ring_vfx_scene == null:
 		print("⚠ VFX огненного кольца не назначен")
 		return
-	
+
 	var vfx = fire_ring_vfx_scene.instantiate()
 	vfx.global_position = global_position  # на месте игрока
 	get_tree().current_scene.add_child(vfx)
+
+func _spin_finisher() -> void:
+	var dmg: int = maxi(1, int(round(attack_damage * spin_damage_mult * get_damage_multiplier())))
+	for e: Node2D in get_tree().get_nodes_in_group("enemy"):
+		if not is_instance_valid(e) or e.is_dead:
+			continue
+		if global_position.distance_to(e.global_position) > spin_radius:
+			continue
+		# сбрасываем защиту/контратаку врага, чтобы вихрь прерывал его в HIT_STUN,
+		# а не давал провести контратаку во время отлёта
+		e.is_parrying = false
+		e.is_blocking = false
+		e.is_countering = false
+		if e.has_method("take_damage"):
+			e.take_damage(dmg, self)
+		# усиленный отброс от игрока
+		var dir: Vector2 = (e.global_position - global_position).normalized()
+		if dir == Vector2.ZERO:
+			dir = Vector2.DOWN
+		if "knockback_velocity" in e:
+			e.knockback_velocity = dir * spin_knockback
 
 func play_running_hit_vfx():
 	if running_hit_vfx_scene == null:

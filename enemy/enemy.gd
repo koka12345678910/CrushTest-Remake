@@ -24,8 +24,8 @@ extends CharacterBody2D
 # Боевые параметры
 @export var attack_range := 45
 @export var attack_cooldown := 1.5
-@export var attack_damage_min := 30
-@export var attack_damage_max := 40
+@export var attack_damage_min := 15
+@export var attack_damage_max := 15
 @export var attack_duration := 0.5
 @onready var attack_hitbox: Area2D = $Hitbox/Atack_hitbox
 var current_attack_anim := "attack"
@@ -107,6 +107,14 @@ var attack_hit_window := false
 
 var wander_direction := Vector2.DOWN
 var wander_timer := 0.0
+# роум-блуждание: враг ходит по точкам вокруг «дома» и делает паузы
+@export var wander_radius := 130.0
+@export var wander_pause_min := 0.8
+@export var wander_pause_max := 2.5
+var home_position := Vector2.ZERO
+var _home_set := false
+var wander_target := Vector2.ZERO
+var wander_pause_timer := 0.0
 
 var last_anim_direction := "down"
 var posture := 0.0
@@ -223,9 +231,8 @@ func _physics_process(delta: float) -> void:
 	move_and_slide()
 	if current_state == State.WANDER and get_slide_collision_count() > 0:
 		if _direction_change_cooldown <= 0.0:
-			var collision := get_slide_collision(0)
-			wander_direction = wander_direction.bounce(collision.get_normal())
-			wander_timer = randf_range(2.0, 4.0)
+			# наткнулись на препятствие — выбираем новую точку блуждания
+			_pick_new_wander_direction()
 			_direction_change_cooldown = 0.8
 	# таймеры парирования и контратаки
 
@@ -364,8 +371,8 @@ func _change_state(new_state: State) -> void:
 			attack_active = true
 			hit_targets.clear()
 			_update_attack_shape()
-			# стан игрока
-			if player and player.has_method("receive_parry"):
+			# стан игрока — только если он в досягаемости (не издалека)
+			if player and player.has_method("receive_parry") and _is_player_in_range(attack_range * 1.4):
 				player.receive_parry(pummel_posture_damage)
 
 		State.IDLE:
@@ -428,43 +435,53 @@ func _state_idle(_delta: float) -> void:
 # ===================== WANDER =====================
 
 func _state_wander(delta: float) -> void:
-	wander_timer -= delta
+	# «Дом» фиксируем на первой точке блуждания (для заспавненных врагов
+	# позиция выставляется уже после _ready, поэтому берём её здесь)
+	if not _home_set:
+		home_position = global_position
+		_home_set = true
+		_pick_new_wander_direction()
 
+	# Пауза на месте — враг стоит и осматривается
+	if wander_pause_timer > 0.0:
+		wander_pause_timer -= delta
+		move_velocity = Vector2.ZERO
+		_play_animation("idle")
+		return
+
+	var to_target := wander_target - global_position
+	var dist := to_target.length()
+
+	# Дошли до точки — пауза, затем новая точка
+	if dist < 12.0:
+		wander_pause_timer = randf_range(wander_pause_min, wander_pause_max)
+		_pick_new_wander_direction()
+		move_velocity = Vector2.ZERO
+		_play_animation("idle")
+		return
+
+	# Застряли (стена/другой враг) — выбираем новую точку
 	var moved := global_position.distance_to(_last_position)
 	_last_position = global_position
-
 	if moved < 0.5:
 		_stuck_timer += delta
-		if _stuck_timer >= 0.3:
+		if _stuck_timer >= 0.5:
 			_stuck_timer = 0.0
 			_pick_new_wander_direction()
 	else:
 		_stuck_timer = 0.0
 
-	if wander_timer <= 0.0:
-		_pick_new_wander_direction()
-
-	var speed := walk_speed * wander_speed_multiplier
-
-	# БЫЛО: direction_smoothness * delta  — слишком резко
-	# СТАЛО: фиксированный медленный коэффициент
-	direction = wander_direction
-
-
-	move_velocity = direction * speed
+	# Плавно поворачиваемся к цели и идём
+	var target_dir := to_target / dist
+	direction = direction.lerp(target_dir, 6.0 * delta).normalized()
+	move_velocity = direction * walk_speed * wander_speed_multiplier
 	_play_animation("walk")
-	
+
 func _pick_new_wander_direction() -> void:
-	wander_direction = Vector2(
-		randf_range(-1.0, 1.0),
-		randf_range(-1.0, 1.0)
-	).normalized()
-
-	if wander_direction == Vector2.ZERO:
-		wander_direction = Vector2.DOWN
-
-	# БЫЛО: 2.0 - 4.0 сек — слишком часто
-	wander_timer = randf_range(2.0, 6.0)
+	# новая точка в пределах wander_radius вокруг «дома»
+	var angle := randf() * TAU
+	var r := sqrt(randf()) * wander_radius   # равномерно по площади круга
+	wander_target = home_position + Vector2(cos(angle), sin(angle)) * r
 
 # ===================== CHASE =====================
 func _state_chase(delta: float) -> void:
@@ -802,8 +819,9 @@ func _state_counter(_delta: float) -> void:
 	var anim_name = "pummel_" + _get_direction_name(direction)
 	if anim.current_animation != anim_name:
 		anim.play(anim_name)
-	# наносим урон по концентрации игрока
-	if attack_active and player and is_instance_valid(player):
+	# наносим урон по концентрации игрока — только если он реально в досягаемости
+	# (иначе отброшенный/отбежавший враг стунил бы издалека)
+	if attack_active and player and is_instance_valid(player) and _is_player_in_range(attack_range * 1.4):
 		if player not in hit_targets:
 			if player.has_method("receive_parry"):
 				player.receive_parry(pummel_posture_damage)

@@ -52,6 +52,7 @@
 [ext_resource type="Shader" uid="uid://b5vgsk6ilwh6x" path="res://Shaders/ghost_vision.gdshader" id="52_gvis1"]
 [ext_resource type="Script" uid="uid://cm12jsk4tbi2f" path="res://VFX/VFX_scene/screen_vision_effect.gd" id="53_gvis2"]
 [ext_resource type="Script" uid="uid://b7uco6a74t345" path="res://VFX/VFX_scene/fenrir_flash_effect.gd" id="54_fwolf1"]
+[ext_resource type="Script" path="res://VFX/VFX_scene/odin_vision_effect.gd" id="56_odin1"]
 [ext_resource type="Texture2D" uid="uid://lcw5nw2x5f13" path="res://VFX/VFX_with_buff/blood_fenrir/fenrir_wolf_flash.png" id="55_fwolf2"]
 
 [sub_resource type="CapsuleShape2D" id="CapsuleShape2D_m414l"]
@@ -5340,6 +5341,15 @@ offset_right = 2168.0
 offset_bottom = 1246.0
 mouse_filter = 2
 script = ExtResource("53_gvis2")
+
+[node name="OdinVision" type="ColorRect" parent="Camera2D/CanvasLayer" unique_id=1014078790]
+offset_left = -286.0
+offset_top = -94.0
+offset_right = 2168.0
+offset_bottom = 1246.0
+mouse_filter = 2
+color = Color(0.4, 0.62, 1.0, 0)
+script = ExtResource("56_odin1")
 
 [node name="FenrirFlash" type="Node" parent="Camera2D/CanvasLayer" unique_id=1014078785]
 script = ExtResource("54_fwolf1")

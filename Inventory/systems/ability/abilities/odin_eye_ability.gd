@@ -20,6 +20,11 @@ func _execute(player: Node) -> void:
 		if e.has_method("set_berserk_highlight"):
 			e.set_berserk_highlight(true)   # подсветка как «взгляд Одина»
 
+	# Экранный эффект: вспышка + голубоватый тон
+	var vision := player.get_node_or_null("Camera2D/CanvasLayer/OdinVision")
+	if vision:
+		vision.activate()
+
 	# Замедляем время
 	Engine.time_scale = slow_factor
 
@@ -27,6 +32,8 @@ func _execute(player: Node) -> void:
 	player.get_tree().create_timer(slow_duration, true, false, true).timeout.connect(
 		func():
 			Engine.time_scale = 1.0
+			if vision:
+				vision.deactivate()   # картинка возвращается в исходное состояние
 			for e in marked:
 				if is_instance_valid(e):
 					if e.has_method("set_berserk_highlight"):

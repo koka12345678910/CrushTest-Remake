@@ -1,6 +1,6 @@
 [gd_scene format=3 uid="uid://dagjww7y5ocjr"]
 
-[ext_resource type="Script" path="res://Resources/ResourcesScene/coin.gd" id="1_6o60j"]
+[ext_resource type="Script" uid="uid://c0y647sfl57or" path="res://Resources/ResourcesScene/coin.gd" id="1_6o60j"]
 [ext_resource type="Texture2D" uid="uid://oroaeu25ad7v" path="res://Resources/coin/MonedaD.png" id="2_6o60j"]
 
 [sub_resource type="AtlasTexture" id="AtlasTexture_eqil0"]
@@ -47,7 +47,7 @@ animations = [{
 }]
 
 [sub_resource type="CircleShape2D" id="CircleShape2D_g4v7s"]
-radius = 45.01111
+radius = 95.047356
 
 [node name="Coin" type="Area2D" unique_id=338569600]
 texture_filter = 1

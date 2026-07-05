@@ -99,6 +99,7 @@ animations = [{
 script = ExtResource("1_trtaq")
 
 [node name="AnimatedSprite2D" type="AnimatedSprite2D" parent="." unique_id=1959753202]
+modulate = Color(0.54178685, 0.5417869, 0.54178685, 1)
 texture_filter = 1
 scale = Vector2(0.45454547, 0.53763443)
 sprite_frames = SubResource("SpriteFrames_g4v7s")
