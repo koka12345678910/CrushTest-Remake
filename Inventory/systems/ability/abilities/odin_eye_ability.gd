@@ -2,36 +2,51 @@
 class_name OdinEyeAbility
 extends Ability
 
-@export var slow_duration: float = 2.0
-@export var slow_factor: float = 0.15      # время замедляется до 15%
-@export var max_targets: int = 3           # максимум целей для пометки
+@export var slow_duration: float = 2.5     # длительность замедления (реальные сек)
+@export var slow_factor: float = 0.2       # время замедляется до 20%
+@export var max_targets: int = 3           # сколько врагов помечается на казнь
+@export var mark_radius: float = 320.0     # радиус пометки вокруг игрока
 
 func _init() -> void:
 	ability_name = "Глаз Одина"
 	cooldown_duration = 40.0
-	description = "Замедляет время — пометь врагов для мгновенной казни"
+	description = "Замедляет время и метит ближайших врагов на мгновенную казнь"
 	icon = load("res://Shop/icons/eye_amulet.png")
 
 func _execute(player: Node) -> void:
-	if player.has_method("activate_odin_eye"):
-		player.activate_odin_eye(slow_duration, slow_factor, max_targets)
-	else:
-		_slow_time_stub(player)
+	# Помечаем до max_targets ближайших живых врагов в радиусе
+	var marked := _pick_targets(player)
+	for e in marked:
+		if e.has_method("set_berserk_highlight"):
+			e.set_berserk_highlight(true)   # подсветка как «взгляд Одина»
 
-func _slow_time_stub(player: Node) -> void:
-	# Заглушка — замедляем Engine.time_scale
+	# Замедляем время
 	Engine.time_scale = slow_factor
-	print("[ГлазОдина] Время замедлено до ", slow_factor * 100, "%")
 
-	# Восстанавливаем через slow_duration реального времени
-	# (используем SceneTree timer который НЕ зависит от time_scale)
+	# Таймер в РЕАЛЬНОМ времени (ignore_time_scale = true), не зависит от замедления
 	player.get_tree().create_timer(slow_duration, true, false, true).timeout.connect(
 		func():
 			Engine.time_scale = 1.0
-			print("[ГлазОдина] Время восстановлено")
+			for e in marked:
+				if is_instance_valid(e):
+					if e.has_method("set_berserk_highlight"):
+						e.set_berserk_highlight(false)
+					if e.has_method("execute_kill"):
+						e.execute_kill()
+			print("[ГлазОдина] Казнь помеченных: ", marked.size())
 	)
 
-	# TODO: когда появятся враги:
-	# 1. Показать UI для выбора целей (подсветка врагов в радиусе)
-	# 2. По нажатию attack — помечать врага (до max_targets штук)
-	# 3. При окончании замедления — мгновенно убить всех помеченных
+	print("[ГлазОдина] Время замедлено, помечено врагов: ", marked.size())
+
+func _pick_targets(player: Node) -> Array:
+	var candidates := []
+	for e in player.get_tree().get_nodes_in_group("enemy"):
+		if not is_instance_valid(e) or e.is_dead:
+			continue
+		if player.global_position.distance_to(e.global_position) <= mark_radius:
+			candidates.append(e)
+	# ближайшие первыми
+	candidates.sort_custom(func(a, b):
+		return player.global_position.distance_to(a.global_position) < player.global_position.distance_to(b.global_position)
+	)
+	return candidates.slice(0, max_targets)

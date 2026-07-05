@@ -7,8 +7,8 @@ extends Ability
 
 func _init() -> void:
 	ability_name = "Благословение Бальдра"
-	cooldown_duration = 25.0
-	description = "Значительно снижает получаемый урон"
+	cooldown_duration = 40.0
+	description = "Снижает урон и один раз воскрешает при гибели"
 	icon = load("res://Shop/icons/light_orb.png")
 
 func _execute(player: Node) -> void:
@@ -18,6 +18,13 @@ func _execute(player: Node) -> void:
 			"duration": duration,
 			"name": "baldur_blessing"
 		})
-	# TODO: когда появится система урона от врагов:
-	# в take_damage() умножать на (1.0 - damage_reduction) если бафф активен
-	print("[БлагословениеБальдра] Защита активна на ", duration, " сек, урон x", 1.0 - damage_reduction)
+
+	# Одноразовое воскрешение на время действия благословения
+	player.baldur_revive_ready = true
+	player.get_tree().create_timer(duration).timeout.connect(
+		func():
+			if is_instance_valid(player):
+				player.baldur_revive_ready = false
+	)
+
+	print("[БлагословениеБальдра] Защита на ", duration, " сек: урон x", 1.0 - damage_reduction, " + воскрешение")

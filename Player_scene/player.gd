@@ -65,6 +65,7 @@ var dodge_velocity := Vector2.ZERO
 var dodge_speed := 300.0
 var dodge_friction := 4.0
 var is_invulnerable := false
+var baldur_revive_ready := false  # Благословение Бальдра: одноразовое воскрешение
 var i_frame_time := 0.2
 var dodge_tap_timer := 0.0
 var dodge_tap_window := 0.18
@@ -352,6 +353,10 @@ func try_snap_to_enemy() -> void:
 
 func check_for_turn():
 	if is_attacking or is_run_attacking:  # 👈 добавь эту строку
+		return
+	# нельзя разворачиваться во время додже/переката — иначе Turn-анимация
+	# перекрывает Dodge/Rolling, и застревают флаги (игрок замерзает)
+	if is_dodging or is_rolling:
 		return
 	if input_vector == Vector2.ZERO:
 		return
@@ -656,9 +661,16 @@ func on_perfect_parry(attack_data: Dictionary):
 		source.take_posture_damage(35.0)
 
 func take_damage(amount: int) -> void:
+	# Снижение урона (Благословение Бальдра и т.п.)
+	amount = int(amount * get_damage_reduction_factor())
 	health_bar.take_damage(float(amount))
 	health = health_bar.current_hp
-	
+
+	# Благословение Бальдра — одноразовое воскрешение вместо гибели
+	if health <= 0.0 and baldur_revive_ready:
+		_baldur_revive()
+		return
+
 	# нокбэк от источника урона
 	var enemy = get_nearest_enemy()
 	if enemy:
@@ -1087,6 +1099,26 @@ func get_damage_multiplier() -> float:
 		if buff.has("damage_multiplier"):
 			mult *= buff["damage_multiplier"]
 	return mult
+
+func get_damage_reduction_factor() -> float:
+	# итоговый множитель входящего урона (1.0 = без снижения)
+	var factor := 1.0
+	for buff in active_buffs.values():
+		if buff.has("damage_reduction"):
+			factor *= (1.0 - buff["damage_reduction"])
+	return factor
+
+func _baldur_revive() -> void:
+	baldur_revive_ready = false
+	is_taking_damage = false
+	is_stunned = false
+	health_bar.heal(health_bar.max_hp * 0.45)
+	health = health_bar.current_hp
+	_trigger_damage_flash()
+	# короткая неуязвимость после воскрешения
+	is_invulnerable = true
+	get_tree().create_timer(1.5).timeout.connect(func(): is_invulnerable = false)
+	print("[БлагословениеБальдра] Воскрешение! HP восстановлено")
 
 func receive_parry(posture_damage: float) -> void:
 	# Неуязвимость (дэш/Кровь Фенрира) снимает и урон, и стан от контратак

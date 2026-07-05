@@ -24,10 +24,14 @@ extends CharacterBody2D
 # Боевые параметры
 @export var attack_range := 45
 @export var attack_cooldown := 1.5
-@export var attack_damage := 1
+@export var attack_damage_min := 30
+@export var attack_damage_max := 40
 @export var attack_duration := 0.5
 @onready var attack_hitbox: Area2D = $Hitbox/Atack_hitbox
-var current_attack_anim := "attack" 
+var current_attack_anim := "attack"
+
+func get_attack_damage() -> int:
+	return randi_range(attack_damage_min, attack_damage_max)
 
 # Визуальные эффекты
 @export var damage_flash_color := Color(2.0, 0.2, 0.2, 1.0)
@@ -170,7 +174,7 @@ func _on_hitbox_area_entered(area: Area2D) -> void:
 func _deal_damage_to_player() -> void:
 	if player and player.has_method("receive_attack"):
 		var attack_data = {
-			"damage": attack_damage,
+			"damage": get_attack_damage(),
 			"source": self
 		}
 		player.receive_attack(attack_data)
@@ -237,6 +241,9 @@ func _physics_process(delta: float) -> void:
 # без этого враг может "прилипнуть" к игроку и отлепится только от столкновения со стеной
 func _separate_from_player() -> void:
 	if not player or not is_instance_valid(player):
+		return
+	# пока игрок в додже/перекате — не расталкиваем, чтобы он проходил сквозь врагов
+	if player.is_dodging or player.is_rolling:
 		return
 	# во время своей атаки/контратаки враг подходит ближе, чтобы хитбокс доставал,
 	# но всё равно не даём телам полностью наложиться
@@ -623,7 +630,7 @@ func _on_attack_body_entered(body: Node2D) -> void:
 	if body.is_in_group("player"):
 		if body.has_method("receive_attack"):
 			var attack_data = {
-				"damage": attack_damage,
+				"damage": get_attack_damage(),
 				"source": self
 			}
 			body.receive_attack(attack_data)
@@ -834,6 +841,19 @@ func set_berserk_highlight(enabled: bool) -> void:
 # ===================== DEATH =====================
 var death_handled := false
 
+# Мгновенная казнь (Глаз Одина) — убивает независимо от блока/парирования
+func execute_kill() -> void:
+	if is_dead:
+		return
+	health = 0
+	hp_bar.visible = true
+	hp_bar.value = 0
+	is_blocking = false
+	is_parrying = false
+	play_blood_vfx()
+	is_dead = true
+	_change_state(State.DEAD)
+
 func _on_dead() -> void:
 	if death_handled:
 		return
@@ -959,7 +979,7 @@ func _get_damage_from(body: Node2D) -> int:
 
 	if body.has_method("get_damage"):
 		return int(body.call("get_damage"))
-	return attack_damage
+	return get_attack_damage()
 
 func _get_attack_dir_name(dir: Vector2) -> String:
 	if abs(dir.x) > abs(dir.y):

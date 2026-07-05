@@ -61,3 +61,11 @@ func get_current_ability() -> Ability:
 	if abilities.is_empty() or current_index >= abilities.size():
 		return null
 	return abilities[current_index]
+
+
+func reset_all_cooldowns(except: Ability = null) -> void:
+	for i in abilities.size():
+		if abilities[i] == except:
+			continue
+		abilities[i].reset_cooldown()
+		emit_signal("cooldown_updated", i, abilities[i].get_cooldown_progress())

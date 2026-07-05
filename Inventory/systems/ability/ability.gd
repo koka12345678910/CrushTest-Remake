@@ -36,3 +36,7 @@ func _execute(_player: Node) -> void:
 func tick(delta: float) -> void:
 	if _cooldown_timer > 0.0:
 		_cooldown_timer -= delta
+
+
+func reset_cooldown() -> void:
+	_cooldown_timer = 0.0

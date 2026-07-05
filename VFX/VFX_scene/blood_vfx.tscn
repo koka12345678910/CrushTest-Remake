@@ -1,7 +1,7 @@
 [gd_scene format=3 uid="uid://xexvswxdg53m"]
 
 [ext_resource type="Texture2D" uid="uid://dcgaffbl0nofb" path="res://VFX/Blood/VFX Blood Batch 1_SpriteSheetColumns.png" id="1_d8tvn"]
-[ext_resource type="Script" path="res://VFX/VFX_scene/blood_vfx.gd" id="1_trtaq"]
+[ext_resource type="Script" uid="uid://d2sn7c3s6225a" path="res://VFX/VFX_scene/blood_vfx.gd" id="1_trtaq"]
 
 [sub_resource type="AtlasTexture" id="AtlasTexture_trtaq"]
 atlas = ExtResource("1_d8tvn")
@@ -92,7 +92,7 @@ animations = [{
 }],
 "loop": 0,
 "name": &"blood",
-"speed": 25.0
+"speed": 18.0
 }]
 
 [node name="BloodVFX" type="Node2D" unique_id=2041794596]
