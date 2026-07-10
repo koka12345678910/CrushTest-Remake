@@ -29,6 +29,34 @@ extends CharacterBody2D
 @onready var player_hitbox: Area2D = $PlayerHitbox
 @onready var parry_vfx: AnimatedSprite2D = $ParryVFXanim
 @onready var hud = $HUD
+@onready var swing_audio: AudioStreamPlayer2D = $SwingAudio
+@onready var hit_audio: AudioStreamPlayer2D = $HitAudio
+@onready var voice_audio: AudioStreamPlayer2D = $VoiceAudio
+@onready var footstep_audio: AudioStreamPlayer2D = $FootstepAudio
+@onready var block_audio: AudioStreamPlayer2D = $BlockAudio
+
+# Замах (whoosh) — играется всегда при ударе
+const SWING_SOUND := preload("res://Sound/melee_sound/swing.mp3")
+const RUN_SWING_SOUND := preload("res://Sound/melee_sound/running_attack_swing.wav")
+# Попадание по врагу — свой звук в зависимости от удара серии
+const HIT_1_SOUND := preload("res://Sound/melee_sound/hit.mp3")          # 1-й удар
+const HIT_REST_SOUND := preload("res://Sound/melee_sound/hit2.wav")      # 2-й и 3-й удары
+const RUN_HIT_SOUND := preload("res://Sound/melee_sound/running_attack_hit.wav")  # удар на бегу
+# Выхватывание меча — на старте игры
+const UNSHEATH_SOUND := preload("res://Sound/melee_sound/unsneath_sword.wav")
+# Боевые вскрики — вместе с замахом, по номеру удара серии
+const GRUNT_1_SOUND := preload("res://Sound/groaning_sound/attack1.mp3")
+const GRUNT_2_SOUND := preload("res://Sound/groaning_sound/attack2.mp3")
+const GRUNT_3_SOUND := preload("res://Sound/groaning_sound/attack3.mp3")
+const GRUNT_RUN_SOUND := preload("res://Sound/groaning_sound/running_attack.mp3")
+# Шаги при ходьбе/беге — чередуются по пройденному расстоянию
+const FOOTSTEP_LEFT := preload("res://Sound/Run/left-leg.wav")
+const FOOTSTEP_RIGHT := preload("res://Sound/Run/right-leg.wav")
+@export var footstep_step_distance := 42.0  # px пройденного пути на один шаг
+var _footstep_distance := 0.0
+# Звук блока — играется, когда удар игрока натыкается на блок врага
+const BLOCK_HIT_SOUND := preload("res://Sound/melee_sound/block.wav")
+var _footstep_left_next := true
 
 var max_posture := 100.0
 var current_posture := 0.0
@@ -126,6 +154,9 @@ func _ready() -> void:
 		anim.animation_finished.connect(_on_anim_finished)
 	
 	anim.play("Started_" + last_direction)
+	# Выхватывание меча из ножен в начале игры
+	swing_audio.stream = UNSHEATH_SOUND
+	swing_audio.play()
 	print(anim.get_animation_list())
 	add_to_group("player")
 	player_hitbox.add_to_group("player_attack")
@@ -288,6 +319,7 @@ func _physics_process(delta):
 		last_direction = get_direction(facing_dir)
 	play_movement_animation()
 	handle_movement_vfx(delta)
+	handle_footsteps(delta)
 
 
 # ----------------------------------------------------------
@@ -530,6 +562,17 @@ func handle_movement_vfx(delta):
 	# обновляем состояние
 	was_running = is_running
 
+func handle_footsteps(delta: float) -> void:
+	if velocity.length() < 10.0:
+		_footstep_distance = 0.0
+		return
+	_footstep_distance += velocity.length() * delta
+	if _footstep_distance >= footstep_step_distance:
+		_footstep_distance = 0.0
+		footstep_audio.stream = FOOTSTEP_LEFT if _footstep_left_next else FOOTSTEP_RIGHT
+		footstep_audio.play()
+		_footstep_left_next = not _footstep_left_next
+
 func play_turn_vfx(_old_dir: Vector2, _new_dir: Vector2):
 	if turn_around_vfx_scene == null:
 		return
@@ -765,6 +808,20 @@ func play_attack(step: int):
 
 	anim.play(anim_name)
 
+	# Звук замаха (whoosh) — на каждом ударе серии
+	swing_audio.stream = SWING_SOUND
+	swing_audio.play()
+
+	# Боевой вскрик — свой на каждый из первых трёх ударов, 4-й (вихрь) — без вскрика
+	var grunt: AudioStream = null
+	match step:
+		1: grunt = GRUNT_1_SOUND
+		2: grunt = GRUNT_2_SOUND
+		3: grunt = GRUNT_3_SOUND
+	if grunt:
+		voice_audio.stream = grunt
+		voice_audio.play()
+
 	# --- микро-рывок вперёд после удара ---
 	attack_velocity = direction_to_vector(last_direction) * 125  # сила рывка подбирается
 
@@ -810,6 +867,10 @@ func start_run_attack():
 	update_weapon_tip()
 	melee_weapon_tip()  # позиционируем player_hitbox перед игроком, иначе удар на бегу не попадает
 	anim.play(anim_name)
+	swing_audio.stream = RUN_SWING_SOUND
+	swing_audio.play()
+	voice_audio.stream = GRUNT_RUN_SOUND
+	voice_audio.play()
 	# задаём скорость для скольжения
 	attack_velocity = input_vector.normalized() * 250
 
@@ -1120,6 +1181,24 @@ func _on_player_hitbox_area_entered(area: Area2D) -> void:
 				"source": self
 			}
 			enemy.receive_attack(attack_data)
+		_play_hit_sound()
+
+func _play_hit_sound() -> void:
+	var snd: AudioStream = null
+	if is_run_attacking:
+		snd = RUN_HIT_SOUND
+	elif combo_step == 1:
+		snd = HIT_1_SOUND
+	elif combo_step == 2 or combo_step == 3:
+		snd = HIT_REST_SOUND
+	# 4-й удар (вихрь) — без звука попадания
+	if snd:
+		hit_audio.stream = snd
+		hit_audio.play()
+
+func play_block_hit_sound() -> void:
+	block_audio.stream = BLOCK_HIT_SOUND
+	block_audio.play()
 
 func get_damage_multiplier() -> float:
 	var mult := 1.0

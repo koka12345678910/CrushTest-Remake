@@ -152,6 +152,8 @@ func _ready() -> void:
 	posture_bar.value = 0.0
 	hp_bar.visible = false
 	posture_bar.visible = false
+	if state_label:
+		state_label.visible = false  # отладочный флаг состояния над головой — скрыт
 	attack_hitbox.body_entered.connect(_on_attack_body_entered)
 
 	$Hurtbox.add_to_group("enemy_hurtbox")
@@ -704,6 +706,8 @@ func take_damage(amount: int, source: Node2D = null) -> void:
 		if source:
 			var knockback_dir = (global_position - source.global_position).normalized()
 			knockback_velocity = knockback_dir * 80.0
+			if source.has_method("play_block_hit_sound"):
+				source.play_block_hit_sound()
 
 		if posture >= max_posture:
 			posture = max_posture
