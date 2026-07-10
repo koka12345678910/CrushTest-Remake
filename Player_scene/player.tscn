@@ -54,17 +54,6 @@
 [ext_resource type="Script" uid="uid://b7uco6a74t345" path="res://VFX/VFX_scene/fenrir_flash_effect.gd" id="54_fwolf1"]
 [ext_resource type="Texture2D" uid="uid://lcw5nw2x5f13" path="res://VFX/VFX_with_buff/blood_fenrir/fenrir_wolf_flash.png" id="55_fwolf2"]
 [ext_resource type="Script" uid="uid://optkt6hfk2j5" path="res://VFX/VFX_scene/odin_vision_effect.gd" id="56_odin1"]
-[ext_resource type="AudioStream" path="res://Sound/melee_sound/swing.mp3" id="57_swing1"]
-[ext_resource type="AudioStream" path="res://Sound/melee_sound/unsneath_sword.wav" id="58_swing2"]
-[ext_resource type="AudioStream" path="res://Sound/melee_sound/running_attack_swing.wav" id="59_swing3"]
-[ext_resource type="AudioStream" path="res://Sound/melee_sound/hit.mp3" id="60_hit1"]
-[ext_resource type="AudioStream" path="res://Sound/melee_sound/hit2.wav" id="61_hit2"]
-[ext_resource type="AudioStream" path="res://Sound/melee_sound/running_attack_hit.wav" id="62_hit3"]
-[ext_resource type="AudioStream" path="res://Sound/groaning_sound/attack1.mp3" id="63_grunt1"]
-[ext_resource type="AudioStream" path="res://Sound/groaning_sound/attack2.mp3" id="64_grunt2"]
-[ext_resource type="AudioStream" path="res://Sound/groaning_sound/attack3.mp3" id="65_grunt3"]
-[ext_resource type="AudioStream" path="res://Sound/groaning_sound/running_attack.mp3" id="66_grunt4"]
-[ext_resource type="AudioStream" path="res://Sound/melee_sound/block.wav" id="67_block1"]
 
 [sub_resource type="CapsuleShape2D" id="CapsuleShape2D_m414l"]
 radius = 5.0

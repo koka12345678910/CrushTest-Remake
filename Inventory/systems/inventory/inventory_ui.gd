@@ -18,6 +18,16 @@ const COLOR_DIVIDER     = Color(0.40, 0.30, 0.12, 0.7)
 const GRID_COLS := 3
 const GRID_ROWS := 4
 
+# ─── UI-ЗВУКИ ──────────────────────────────────────────────────────────────────
+const SOUND_ACCEPT := preload("res://Sound/UI_button/accept.wav")
+const SOUND_DENIED := preload("res://Sound/UI_button/denied.wav")
+const SOUND_CHOICE := preload("res://Sound/UI_button/choice.wav")
+var _ui_audio: AudioStreamPlayer
+
+func _play_ui_sound(stream: AudioStream) -> void:
+	_ui_audio.stream = stream
+	_ui_audio.play()
+
 var _ability_system: AbilitySystem
 var _inventory_system: InventorySystem
 
@@ -51,6 +61,8 @@ func _ready() -> void:
 	visible = false
 	# продолжаем работать во время паузы, чтобы инвентарь оставался интерактивным
 	process_mode = Node.PROCESS_MODE_ALWAYS
+	_ui_audio = AudioStreamPlayer.new()
+	add_child(_ui_audio)
 
 
 func init(ability_system: AbilitySystem, inventory_system: InventorySystem) -> void:
@@ -462,6 +474,7 @@ func _select_slot(idx: int) -> void:
 	_selected_index = idx
 
 	if idx >= 0 and idx < items.size():
+		_play_ui_sound(SOUND_CHOICE)
 		var ab       := items[idx] as Ability
 		var cnt: int  = _item_counts.get(ab.ability_name, 1)
 		var max_cnt  := _get_max_count(ab.ability_name)
@@ -519,10 +532,12 @@ func _on_equip_pressed() -> void:
 	var ab: Ability = items[_selected_index] as Ability
 	for i in _ability_system.abilities.size():
 		if _ability_system.abilities[i].ability_name == ab.ability_name:
+			_play_ui_sound(SOUND_DENIED)
 			print("[Инвентарь] Уже в быстром доступе")
 			return
 	_ability_system.add_ability(ab)
 	_refresh_quick_slot_preview()
+	_play_ui_sound(SOUND_ACCEPT)
 	print("[Инвентарь] Добавлено: ", ab.ability_name)
 
 

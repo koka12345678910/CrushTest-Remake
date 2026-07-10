@@ -127,6 +127,17 @@ var font_default: Font
 var font_bold: Font
 var current_player: Node2D = null
 var pending_buy_index: int = -1
+
+# ─── UI-ЗВУКИ ──────────────────────────────────────────────────────────────────
+const SOUND_ACCEPT := preload("res://Sound/UI_button/accept.wav")
+const SOUND_DENIED := preload("res://Sound/UI_button/denied.wav")
+const SOUND_CHOICE := preload("res://Sound/UI_button/choice.wav")
+var _ui_audio: AudioStreamPlayer
+
+func _play_ui_sound(stream: AudioStream) -> void:
+	_ui_audio.stream = stream
+	_ui_audio.play()
+
 # ─── LIFECYCLE ─────────────────────────────────────────────────────────────────
 func _ready() -> void:
 	_build_items()
@@ -136,6 +147,9 @@ func _ready() -> void:
 	font_default = ThemeDB.fallback_font
 	font_bold = ThemeDB.fallback_font
 	visible = false
+
+	_ui_audio = AudioStreamPlayer.new()
+	add_child(_ui_audio)
 
 func open_shop(player: Node2D) -> void:
 	if visible:
@@ -237,12 +251,14 @@ func _handle_click(mouse_pos: Vector2) -> void:
 				selected_index = i
 				last_click_index = i
 				last_click_time = now
+				_play_ui_sound(SOUND_CHOICE)
 			break
 	queue_redraw()
 
 func _open_confirm(index: int) -> void:
 	var item = items[index]
 	if player_gold < (item["price"] as int):
+		_play_ui_sound(SOUND_DENIED)
 		return  # недостаточно золота — не открываем окно
 	pending_buy_index = index
 	queue_redraw()
@@ -265,6 +281,7 @@ func _handle_confirm_click(mouse_pos: Vector2) -> void:
 	var no_rect  := Rect2(no_x, btn_y, btn_w, btn_h)
 	
 	if yes_rect.has_point(mouse_pos):
+		_play_ui_sound(SOUND_ACCEPT)
 		_try_buy(pending_buy_index)
 		pending_buy_index = -1
 	elif no_rect.has_point(mouse_pos):
