@@ -5436,6 +5436,8 @@ volume_db = -4.0
 
 [node name="BlockAudio" type="AudioStreamPlayer2D" parent="." unique_id=1772501579]
 
+[node name="ParryAudio" type="AudioStreamPlayer2D" parent="." unique_id=1772501580]
+
 [node name="InventoryUI" type="CanvasLayer" parent="." unique_id=37486928]
 script = ExtResource("14_2ys5t")
 

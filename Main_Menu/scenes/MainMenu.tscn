@@ -1,15 +1,23 @@
 [gd_scene format=3 uid="uid://gbimy5tfcnp6"]
 
-[ext_resource type="Script" path="res://Main_Menu/scripts/MainMenu.gd" id="1_mainmenu"]
-[ext_resource type="Texture2D" uid="uid://cqj5utqydyvdf" path="res://Main_Menu/Gemini_Generated_Image_7yz2rj7yz2rj7yz2.png" id="2_foslk"]
-[ext_resource type="Script" path="res://Main_Menu/scripts/RainEffect.gd" id="2_rain"]
-[ext_resource type="Script" path="res://Main_Menu/scripts/BirdsEffect.gd" id="4_birds"]
-[ext_resource type="Script" path="res://Main_Menu/scripts/MenuButton.gd" id="5_btn"]
+[ext_resource type="Script" uid="uid://dcfm2q4ouuedv" path="res://Main_Menu/scripts/MainMenu.gd" id="1_mainmenu"]
+[ext_resource type="Script" uid="uid://uj11ia2lmi3q" path="res://Main_Menu/scripts/RainEffect.gd" id="2_rain"]
+[ext_resource type="Texture2D" uid="uid://bib3kwr771v5q" path="res://Main_Menu/IMG_main_menu (2).png" id="3_nacxu"]
+[ext_resource type="Script" uid="uid://b4klukdv3id2k" path="res://Main_Menu/scripts/MenuButton.gd" id="5_btn"]
 [ext_resource type="Theme" uid="uid://b7jwdfw7kv5fn" path="res://Main_Menu/theme/MenuTheme.tres" id="6_theme"]
+[ext_resource type="Shader" uid="uid://bx6jobhc2yyal" path="res://Shaders/wallpaper_flow.gdshader" id="7_wallpaper"]
+[ext_resource type="AudioStream" uid="uid://dbjtefscy7yc0" path="res://Soundtrack/Main_Menu/mainMenu_soundtrack.mp3" id="8_music"]
+[ext_resource type="AudioStream" uid="uid://bh0x85so1hd2s" path="res://Sound/weather_sound/atmospheric_rain.wav" id="9_rain_amb"]
 
 [sub_resource type="ParticleProcessMaterial" id="ParticleProcessMaterial_tqkod"]
 particle_flag_disable_z = true
 gravity = Vector3(0, 98, 0)
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_wallpaper"]
+shader = ExtResource("7_wallpaper")
+shader_parameter/warp_strength = 0.006
+shader_parameter/warp_speed = 0.35
+shader_parameter/parallax_offset = Vector2(0, 0)
 
 [node name="MainMenu" type="Control" unique_id=1294809207]
 layout_mode = 3
@@ -37,19 +45,18 @@ lifetime = 1.8
 process_material = SubResource("ParticleProcessMaterial_tqkod")
 script = ExtResource("2_rain")
 
-[node name="Birds" type="Node2D" parent="EffectsLayer" unique_id=1933953640]
-script = ExtResource("4_birds")
-
 [node name="Background" type="TextureRect" parent="." unique_id=971412128]
+material = SubResource("ShaderMaterial_wallpaper")
 layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
-offset_left = -5.739746
-offset_right = 31.40918
+offset_left = -15.126404
+offset_right = 29.0
+offset_bottom = 9.0
 grow_horizontal = 2
 grow_vertical = 2
-texture = ExtResource("2_foslk")
+texture = ExtResource("3_nacxu")
 expand_mode = 3
 stretch_mode = 6
 
@@ -61,21 +68,29 @@ layer = 2
 [node name="LeftPanel" type="VBoxContainer" parent="UILayer" unique_id=1197256295]
 anchors_preset = 9
 anchor_bottom = 1.0
-offset_left = 127.0
-offset_right = 427.0
+offset_left = 289.0
+offset_right = 589.0
 grow_vertical = 2
 alignment = 1
 
-[node name="GameTitle" type="VBoxContainer" parent="UILayer/LeftPanel" unique_id=244491220]
-layout_mode = 2
+[node name="GameTitle" type="VBoxContainer" parent="UILayer" unique_id=244491220]
+layout_mode = 1
+anchors_preset = 0
+offset_left = 48.0
+offset_top = 32.0
+offset_right = 700.0
+offset_bottom = 150.0
 
-[node name="Subtitle" type="Label" parent="UILayer/LeftPanel/GameTitle" unique_id=321473873]
+[node name="Subtitle" type="Label" parent="UILayer/GameTitle" unique_id=321473873]
 layout_mode = 2
+theme_override_font_sizes/font_size = 16
 text = "A  D A R K  F A N T A S Y"
 
-[node name="TitleLabel" type="Label" parent="UILayer/LeftPanel/GameTitle" unique_id=1708821285]
+[node name="TitleLabel" type="Label" parent="UILayer/GameTitle" unique_id=1708821285]
 layout_mode = 2
-text = "ASHENFALL"
+theme_override_colors/font_color = Color(1, 1, 1, 0.55)
+theme_override_font_sizes/font_size = 56
+text = "CrushTest"
 
 [node name="Spacer" type="Control" parent="UILayer/LeftPanel" unique_id=1953702604]
 custom_minimum_size = Vector2(0, 48)
@@ -124,5 +139,11 @@ layout_mode = 2
 text = "v0.1.0  —  Early Access"
 
 [node name="AmbientMusic" type="AudioStreamPlayer" parent="." unique_id=1943123550]
-volume_db = -8.0
+stream = ExtResource("8_music")
+volume_db = -15.0
+autoplay = true
+
+[node name="RainAmbience" type="AudioStreamPlayer" parent="." unique_id=1943123551]
+stream = ExtResource("9_rain_amb")
+volume_db = -18.0
 autoplay = true

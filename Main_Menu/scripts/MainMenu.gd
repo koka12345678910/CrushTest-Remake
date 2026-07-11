@@ -4,49 +4,49 @@ extends Control
 ## зумом фона и переходами между сценами.
 
 @onready var background: TextureRect = $Background
-@onready var camera_anim: AnimationPlayer = $Background/CameraAnim
 @onready var fog: ColorRect = $EffectsLayer/FogOverlay
 @onready var left_panel: VBoxContainer = $UILayer/LeftPanel
-@onready var title_label: Label = $UILayer/LeftPanel/GameTitle/TitleLabel
+@onready var title_label: Label = $UILayer/GameTitle/TitleLabel
 @onready var menu_buttons: VBoxContainer = $UILayer/LeftPanel/MenuButtons
+@onready var ambient_music: AudioStreamPlayer = $AmbientMusic
+@onready var rain_ambience: AudioStreamPlayer = $RainAmbience
 
 const SCENE_GAME := "res://scenes/Game.tscn"
 const SCENE_SETTINGS := "res://scenes/Settings.tscn"
 
 var _tween: Tween
 
+# ── Параллакс фона от мыши (эффект "живых обоев") ──────────────────────────────
+@export var parallax_strength := 0.025
+@export var parallax_smoothing := 4.0
+var _parallax_current := Vector2.ZERO
+
 
 func _ready() -> void:
-	_setup_background_zoom()
+	_setup_audio_loops()
 	_setup_fog_pulse()
 	_animate_intro()
 	_connect_buttons()
 
 
-# ── Фон: плавный кинематографический зум ──────────────────────────────────────
-func _setup_background_zoom() -> void:
-	var anim := AnimationLibrary.new()
-	var zoom_anim := Animation.new()
-	zoom_anim.length = 20.0
-	zoom_anim.loop_mode = Animation.LOOP_PINGPONG
+# ── Звук: музыка на переднем плане + тихий фоновый дождь, оба зациклены ────────
+func _setup_audio_loops() -> void:
+	var music := ambient_music.stream as AudioStreamMP3
+	if music:
+		music.loop = true
+	var rain := rain_ambience.stream as AudioStreamWAV
+	if rain:
+		rain.loop_mode = AudioStreamWAV.LOOP_FORWARD
 
-	# Трек масштаба фона
-	var track_idx := zoom_anim.add_track(Animation.TYPE_VALUE)
-	zoom_anim.track_set_path(track_idx, ".:scale")
-	zoom_anim.track_insert_key(track_idx, 0.0, Vector2(1.0, 1.0))
-	zoom_anim.track_insert_key(track_idx, 20.0, Vector2(1.06, 1.06))
-	zoom_anim.value_track_set_update_mode(track_idx, Animation.UPDATE_CONTINUOUS)
 
-	# Трек смещения (лёгкое покачивание)
-	var pos_track := zoom_anim.add_track(Animation.TYPE_VALUE)
-	zoom_anim.track_set_path(pos_track, ".:position")
-	zoom_anim.track_insert_key(pos_track, 0.0, Vector2(0, 0))
-	zoom_anim.track_insert_key(pos_track, 10.0, Vector2(-8, -5))
-	zoom_anim.track_insert_key(pos_track, 20.0, Vector2(4, 0))
-
-	anim.add_animation("zoom", zoom_anim)
-	camera_anim.add_animation_library("bg", anim)
-	camera_anim.play("bg/zoom")
+func _process(delta: float) -> void:
+	if not background.material:
+		return
+	var viewport_size := get_viewport_rect().size
+	var mouse_norm := (get_viewport().get_mouse_position() / viewport_size) - Vector2(0.5, 0.5)
+	var target := mouse_norm * parallax_strength
+	_parallax_current = _parallax_current.lerp(target, min(1.0, parallax_smoothing * delta))
+	background.material.set_shader_parameter("parallax_offset", _parallax_current)
 
 
 # ── Туман: пульсирующая прозрачность ──────────────────────────────────────────

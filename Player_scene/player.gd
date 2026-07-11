@@ -34,6 +34,7 @@ extends CharacterBody2D
 @onready var voice_audio: AudioStreamPlayer2D = $VoiceAudio
 @onready var footstep_audio: AudioStreamPlayer2D = $FootstepAudio
 @onready var block_audio: AudioStreamPlayer2D = $BlockAudio
+@onready var parry_audio: AudioStreamPlayer2D = $ParryAudio
 
 # Замах (whoosh) — играется всегда при ударе
 const SWING_SOUND := preload("res://Sound/melee_sound/swing.mp3")
@@ -57,6 +58,8 @@ var _footstep_distance := 0.0
 # Звук блока — играется, когда удар игрока натыкается на блок врага
 const BLOCK_HIT_SOUND := preload("res://Sound/melee_sound/block.wav")
 var _footstep_left_next := true
+# Звук парирования — играется при успешном парировании удара врага
+const PARRY_SOUND := preload("res://Sound/melee_sound/parry.wav")
 
 var max_posture := 100.0
 var current_posture := 0.0
@@ -702,6 +705,8 @@ func on_perfect_parry(attack_data: Dictionary):
 	can_counter = true
 	counter_timer = counter_window
 	play_parry_vfx()
+	parry_audio.stream = PARRY_SOUND
+	parry_audio.play()
 	# урон по концентрации врага
 	var source = attack_data.get("source", null)
 	if source and source.has_method("take_posture_damage"):

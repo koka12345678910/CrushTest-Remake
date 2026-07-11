@@ -3,9 +3,9 @@ extends GPUParticles2D
 ## Настраивает систему частиц дождя через код —
 ## не нужно вручную создавать .tres файл материала.
 
-@export var rain_color := Color(0.65, 0.72, 0.82, 0.55)
-@export var drop_speed_min := 800.0
-@export var drop_speed_max := 1400.0
+@export var rain_color := Color(0.65, 0.72, 0.82, 0.32)
+@export var drop_speed_min := 1000.0
+@export var drop_speed_max := 1700.0
 @export var wind_angle_deg := -12.0  # наклон дождя влево
 
 
@@ -42,16 +42,16 @@ func _setup_material() -> void:
 
 	# Масштаб: вытянутый по вертикали — имитирует капли а не точки
 	mat.scale_min = 1.0
-	mat.scale_max = 1.0
+	mat.scale_max = 1.4
 
 	process_material = mat
 
 	# Текстура капли — генерируем программно
 	texture = _make_drop_texture()
 
-	# Параметры самого GPUParticles2D
-	lifetime = 1.8
-	amount = 600
+	# Параметры самого GPUParticles2D — плотный проливной дождь
+	lifetime = 1.4
+	amount = 2200
 	one_shot = false
 	explosiveness = 0.0
 	randomness = 0.4
