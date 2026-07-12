@@ -733,11 +733,11 @@ func take_damage(amount: int) -> void:
 	gfx.play("Take_Damage_" + last_direction)
 	_trigger_damage_flash()
 	
-	current_posture += 20.0
+	current_posture += 10.0
 	current_posture = min(current_posture, max_posture)
 	posture_regen_timer = posture_regen_delay
 	health_bar.set_posture(current_posture)
-	
+
 	await gfx.animation_finished
 	is_taking_damage = false
 

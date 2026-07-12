@@ -132,6 +132,7 @@ var pending_buy_index: int = -1
 const SOUND_ACCEPT := preload("res://Sound/UI_button/accept.wav")
 const SOUND_DENIED := preload("res://Sound/UI_button/denied.wav")
 const SOUND_CHOICE := preload("res://Sound/UI_button/choice.wav")
+const SOUND_OPEN := preload("res://Sound/openUI_sound.mp3")
 var _ui_audio: AudioStreamPlayer
 
 func _play_ui_sound(stream: AudioStream) -> void:
@@ -158,7 +159,8 @@ func open_shop(player: Node2D) -> void:
 	current_player = player
 	player_gold = player.gold
 	player.is_in_shop = true
-	
+	_play_ui_sound(SOUND_OPEN)
+
 	visible = true
 	set_process(true)
 	set_process_input(true)
@@ -208,6 +210,7 @@ func _input(event: InputEvent) -> void:
 				target_scroll = clampf(target_scroll - 60.0, 0.0, max_s)
 
 func close_shop() -> void:
+	_play_ui_sound(SOUND_OPEN)
 	pivot_offset = size / 2.0
 	var tw = create_tween().set_parallel()
 	tw.tween_property(self, "modulate", Color(1, 1, 1, 0), 0.14)

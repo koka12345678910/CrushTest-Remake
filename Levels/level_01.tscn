@@ -13952,6 +13952,7 @@ script = ExtResource("94_music1")
 
 [node name="RainPlayer" type="AudioStreamPlayer" parent="MusicManager" unique_id=1900000005]
 stream = ExtResource("18_5qegs")
+volume_db = -8.0
 autoplay = true
 
 [node name="DirectionalLight2D" type="DirectionalLight2D" parent="." unique_id=820769438]

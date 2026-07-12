@@ -22,6 +22,7 @@ const GRID_ROWS := 4
 const SOUND_ACCEPT := preload("res://Sound/UI_button/accept.wav")
 const SOUND_DENIED := preload("res://Sound/UI_button/denied.wav")
 const SOUND_CHOICE := preload("res://Sound/UI_button/choice.wav")
+const SOUND_OPEN := preload("res://Sound/openUI_sound.mp3")
 var _ui_audio: AudioStreamPlayer
 
 func _play_ui_sound(stream: AudioStream) -> void:
@@ -74,6 +75,7 @@ func init(ability_system: AbilitySystem, inventory_system: InventorySystem) -> v
 func open() -> void:
 	# ставим игру на паузу — враги останавливаются и не бьют игрока
 	get_tree().paused = true
+	_play_ui_sound(SOUND_OPEN)
 	visible = true
 	_refresh_grid()
 	_root.modulate = Color(1, 1, 1, 0)
@@ -85,6 +87,7 @@ func open() -> void:
 
 
 func close() -> void:
+	_play_ui_sound(SOUND_OPEN)
 	_root.pivot_offset = _screen / 2.0
 	var tw = create_tween().set_parallel()
 	tw.tween_property(_root, "modulate", Color(1, 1, 1, 0), 0.14)
