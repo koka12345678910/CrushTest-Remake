@@ -5430,13 +5430,16 @@ script = ExtResource("13_ung07")
 [node name="SwingAudio" type="AudioStreamPlayer2D" parent="." unique_id=1772501576]
 
 [node name="HitAudio" type="AudioStreamPlayer2D" parent="." unique_id=1772501577]
+volume_db = -9.5
 
 [node name="VoiceAudio" type="AudioStreamPlayer2D" parent="." unique_id=1772501578]
-volume_db = -4.0
+volume_db = -13.5
 
 [node name="BlockAudio" type="AudioStreamPlayer2D" parent="." unique_id=1772501579]
+volume_db = -9.5
 
 [node name="ParryAudio" type="AudioStreamPlayer2D" parent="." unique_id=1772501580]
+volume_db = -9.5
 
 [node name="InventoryUI" type="CanvasLayer" parent="." unique_id=37486928]
 script = ExtResource("14_2ys5t")

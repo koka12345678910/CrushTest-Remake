@@ -139,6 +139,11 @@ func _build_ui() -> void:
 
 	_root = Control.new()
 	_root.set_anchors_preset(Control.PRESET_FULL_RECT)
+	var custom_font := load("res://Font/sikandinarie.ttf") as Font
+	if custom_font:
+		var font_theme := Theme.new()
+		font_theme.default_font = custom_font
+		_root.theme = font_theme
 	add_child(_root)
 
 	var bg := ColorRect.new()

@@ -144,8 +144,9 @@ func _ready() -> void:
 	_load_textures()
 	set_process(false)       # ← было true, замени на false
 	set_process_input(false) # ← было true, замени на false
-	font_default = ThemeDB.fallback_font
-	font_bold = ThemeDB.fallback_font
+	var custom_font := load("res://Font/sikandinarie.ttf") as Font
+	font_default = custom_font if custom_font else ThemeDB.fallback_font
+	font_bold = custom_font if custom_font else ThemeDB.fallback_font
 	visible = false
 
 	_ui_audio = AudioStreamPlayer.new()

@@ -10,9 +10,17 @@ extends Control
 @onready var menu_buttons: VBoxContainer = $UILayer/LeftPanel/MenuButtons
 @onready var ambient_music: AudioStreamPlayer = $AmbientMusic
 @onready var rain_ambience: AudioStreamPlayer = $RainAmbience
+@onready var ui_audio: AudioStreamPlayer = $UIAudio
 
 const SCENE_GAME := "res://scenes/Game.tscn"
 const SCENE_SETTINGS := "res://scenes/Settings.tscn"
+
+const SOUND_ACCEPT := preload("res://Sound/UI_button/accept.wav")
+const SOUND_DENIED := preload("res://Sound/UI_button/denied.wav")
+
+func _play_ui_sound(stream: AudioStream) -> void:
+	ui_audio.stream = stream
+	ui_audio.play()
 
 var _tween: Tween
 
@@ -100,23 +108,29 @@ func _transition_to(scene_path: String) -> void:
 
 
 func _on_new_game() -> void:
+	_play_ui_sound(SOUND_ACCEPT)
 	_transition_to(SCENE_GAME)
 
 func _on_continue() -> void:
 	# Здесь можно проверить наличие сейва
 	if _has_save():
+		_play_ui_sound(SOUND_ACCEPT)
 		_transition_to(SCENE_GAME)
 	else:
+		_play_ui_sound(SOUND_DENIED)
 		_flash_button($UILayer/LeftPanel/MenuButtons/BtnContinue)
 
 func _on_load() -> void:
-	# TODO: открыть LoadGame диалог
-	pass
+	# TODO: открыть LoadGame диалог — пока функция недоступна
+	_play_ui_sound(SOUND_DENIED)
+	_flash_button($UILayer/LeftPanel/MenuButtons/BtnLoad)
 
 func _on_settings() -> void:
+	_play_ui_sound(SOUND_ACCEPT)
 	_transition_to(SCENE_SETTINGS)
 
 func _on_quit() -> void:
+	_play_ui_sound(SOUND_ACCEPT)
 	var t := create_tween()
 	t.tween_property(self, "modulate:a", 0.0, 0.6)
 	await t.finished

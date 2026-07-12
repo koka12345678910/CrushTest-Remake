@@ -4,7 +4,7 @@ extends DirectionalLight2D
 
 @export var lightning_interval_min := 5.0
 @export var lightning_interval_max := 15.0
-@export var night_energy := 0.7 # обычное ночное освещение — поставь своё значение
+@export var night_energy := 1.0 # обычное ночное освещение — поставь своё значение
 
 var lightning_timer := 0.0
 var next_lightning_time := 0.0
