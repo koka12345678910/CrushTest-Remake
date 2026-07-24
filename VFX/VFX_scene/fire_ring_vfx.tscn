@@ -1,7 +1,8 @@
 [gd_scene format=3 uid="uid://clxk311ld8km6"]
 
-[ext_resource type="Script" path="res://VFX/VFX_scene/fire_ring_vfx.gd" id="1_ay7b7"]
+[ext_resource type="Script" uid="uid://btdu5be3rutq0" path="res://VFX/VFX_scene/fire_ring_vfx.gd" id="1_ay7b7"]
 [ext_resource type="Texture2D" uid="uid://b5fmc8106ecyi" path="res://VFX/elemental effects/fire-ring.png" id="1_lgmv6"]
+[ext_resource type="Texture2D" uid="uid://nxl6tvs3uy7u" path="res://circle.png" id="3_gvdqw"]
 
 [sub_resource type="CanvasItemMaterial" id="CanvasItemMaterial_ay7b7"]
 blend_mode = 1
@@ -103,6 +104,90 @@ animations = [{
 "speed": 8.0
 }]
 
+[sub_resource type="Animation" id="Animation_s4p0e"]
+length = 0.001
+tracks/0/type = "value"
+tracks/0/imported = false
+tracks/0/enabled = true
+tracks/0/path = NodePath("PointLight2D:energy")
+tracks/0/interp = 1
+tracks/0/loop_wrap = true
+tracks/0/keys = {
+"times": PackedFloat32Array(0),
+"transitions": PackedFloat32Array(1),
+"update": 0,
+"values": [0.5]
+}
+tracks/1/type = "value"
+tracks/1/imported = false
+tracks/1/enabled = true
+tracks/1/path = NodePath("PointLight2D:color")
+tracks/1/interp = 1
+tracks/1/loop_wrap = true
+tracks/1/keys = {
+"times": PackedFloat32Array(0),
+"transitions": PackedFloat32Array(1),
+"update": 0,
+"values": [Color(1, 1, 0.28707156, 1)]
+}
+
+[sub_resource type="Animation" id="Animation_4le8u"]
+length = 1.5
+tracks/0/type = "value"
+tracks/0/imported = false
+tracks/0/enabled = true
+tracks/0/path = NodePath("AnimatedSprite2D:frame")
+tracks/0/interp = 1
+tracks/0/loop_wrap = true
+tracks/0/keys = {
+"times": PackedFloat32Array(0, 0.125, 0.25, 0.375, 0.5, 0.625, 0.75, 0.875, 1, 1.125, 1.25, 1.375),
+"transitions": PackedFloat32Array(1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1),
+"update": 1,
+"values": [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]
+}
+tracks/1/type = "value"
+tracks/1/imported = false
+tracks/1/enabled = true
+tracks/1/path = NodePath("AnimatedSprite2D:animation")
+tracks/1/interp = 1
+tracks/1/loop_wrap = true
+tracks/1/keys = {
+"times": PackedFloat32Array(0),
+"transitions": PackedFloat32Array(1),
+"update": 1,
+"values": ["fire_ring"]
+}
+tracks/2/type = "value"
+tracks/2/imported = false
+tracks/2/enabled = true
+tracks/2/path = NodePath("PointLight2D:energy")
+tracks/2/interp = 1
+tracks/2/loop_wrap = true
+tracks/2/keys = {
+"times": PackedFloat32Array(0, 0.8, 1.5),
+"transitions": PackedFloat32Array(1, 1, 1),
+"update": 0,
+"values": [0.5, 1.5, 0.0]
+}
+tracks/3/type = "value"
+tracks/3/imported = false
+tracks/3/enabled = true
+tracks/3/path = NodePath("PointLight2D:color")
+tracks/3/interp = 1
+tracks/3/loop_wrap = true
+tracks/3/keys = {
+"times": PackedFloat32Array(0, 0.8333333, 1.5),
+"transitions": PackedFloat32Array(1, 1, 1),
+"update": 0,
+"values": [Color(1, 1, 0.28707156, 1), Color(1, 1, 0.28707156, 1), Color(0.8237365, 0.19721058, 0, 1)]
+}
+
+[sub_resource type="AnimationLibrary" id="AnimationLibrary_5aawe"]
+_data = {
+&"RESET": SubResource("Animation_s4p0e"),
+&"fire_ring": SubResource("Animation_4le8u")
+}
+
 [node name="FireRingVFX" type="Node2D" unique_id=1894982586]
 light_mask = 0
 script = ExtResource("1_ay7b7")
@@ -114,5 +199,12 @@ material = SubResource("CanvasItemMaterial_ay7b7")
 use_parent_material = true
 sprite_frames = SubResource("SpriteFrames_g4v7s")
 animation = &"fire_ring"
-frame = 8
-frame_progress = 0.115566194
+
+[node name="PointLight2D" type="PointLight2D" parent="." unique_id=603076314]
+scale = Vector2(0.3625, 0.3775)
+color = Color(1, 1, 0.28707156, 1)
+energy = 0.5
+texture = ExtResource("3_gvdqw")
+
+[node name="AnimationPlayer" type="AnimationPlayer" parent="." unique_id=444240462]
+libraries/ = SubResource("AnimationLibrary_5aawe")

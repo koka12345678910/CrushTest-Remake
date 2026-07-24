@@ -7,16 +7,10 @@ extends CharacterBody2D
 @export var friction := 500.0
 @export var direction_smoothness := 8.0
 
-@onready var shapes := {
-	"left":       $Hitbox/Atack_hitbox/left,
-	"up_left":    $Hitbox/Atack_hitbox/left_up,
-	"down_left":  $Hitbox/Atack_hitbox/left_down,
-	"right":      $Hitbox/Atack_hitbox/right,
-	"up_right":   $Hitbox/Atack_hitbox/right_up,
-	"down_right": $Hitbox/Atack_hitbox/right_down,
-	"up":         $Hitbox/Atack_hitbox/up,
-	"down":       $Hitbox/Atack_hitbox/down,
-}
+# Хитбокс атаки — как у игрока: одна форма, которая двигается по направлению
+# взгляда (вместо 8 отдельных хитбоксов под каждое направление)
+@onready var attack_shape: CollisionShape2D = $Hitbox/Atack_hitbox/CollisionShape2D
+@export var attack_hitbox_offset := 24.0
 
 # Здоровье
 @export var max_health := 3
@@ -122,8 +116,16 @@ var posture_regen_timer := 0.0
 var is_blocking := false
 var is_posture_broken := false
 
-var block_hit_count := 0          # сколько ударов заблокировал подряд
-var parry_threshold := 2          # после скольки ударов парирует
+var _nan_reported := false
+var block_hit_count := 0          # сколько ударов заблокировал подряд (для анимации/статистики)
+# Парирование решается рандомно на каждый заблокированный удар — не по
+# фиксированному счётчику, чтобы не было предсказуемого паттерна
+# "блок-блок-всегда парирует"
+@export var parry_chance := 0.35
+# Блок держится, пока игрок атакует; после того как перестал — ещё столько секунд,
+# затем враг выходит из блока (иначе застревал в блоке и таскался за игроком)
+@export var block_hold_time := 0.45
+var block_hold_timer := 0.0
 var is_parrying := false          # окно парирования
 var parry_timer := 0.0
 var parry_window := 0.3         # длительность окна парирования
@@ -193,6 +195,24 @@ func _deal_damage_to_player() -> void:
 func _physics_process(delta: float) -> void:
 	if is_dead:
 		return
+	# Санитизация от NaN: если позиция/скорость/направление стали нефинитными,
+	# сбрасываем в безопасное состояние. Иначе NaN самораспространяется и
+	# move_and_slide каждый кадр спамит "cannot be normalized", игра встаёт колом.
+	if not (global_position.is_finite() and velocity.is_finite() and move_velocity.is_finite() and direction.is_finite()):
+		if not _nan_reported:
+			_nan_reported = true
+			var _ppos: Vector2 = player.global_position if (player and is_instance_valid(player)) else Vector2(INF, INF)
+			var _pvel: Vector2 = player.velocity if (player and is_instance_valid(player)) else Vector2(INF, INF)
+			push_warning("[enemy NaN] state=%s pos=%s vel=%s mv=%s dir=%s home=%s wander=%s target=%s ppos=%s pvel=%s" % [State.keys()[current_state], global_position, velocity, move_velocity, direction, home_position, wander_target, target_position, _ppos, _pvel])
+		if not home_position.is_finite():
+			home_position = Vector2.ZERO
+		if not global_position.is_finite():
+			global_position = home_position
+		if not wander_target.is_finite():
+			wander_target = global_position
+		velocity = Vector2.ZERO
+		move_velocity = Vector2.ZERO
+		direction = Vector2.DOWN
 	state_time += delta
 	think_timer += delta
 	_direction_change_cooldown = max(0.0, _direction_change_cooldown - delta)
@@ -229,7 +249,10 @@ func _physics_process(delta: float) -> void:
 	else:
 		move_velocity = move_velocity.move_toward(Vector2.ZERO, friction * delta)
 		velocity = move_velocity
-	_separate_from_player()
+	_separate_from_player(delta)
+	_separate_from_enemies(delta)
+	if not velocity.is_finite():
+		velocity = Vector2.ZERO
 	move_and_slide()
 	if current_state == State.WANDER and get_slide_collision_count() > 0:
 		if _direction_change_cooldown <= 0.0:
@@ -247,12 +270,35 @@ func _physics_process(delta: float) -> void:
 	state_label.text = State.keys()[current_state]
 
 # move_and_slide() не расталкивает уже перекрывшиеся тела с нулевой скоростью —
-# без этого враг может "прилипнуть" к игроку и отлепится только от столкновения со стеной
-func _separate_from_player() -> void:
+# без этого враг может "прилипнуть" к игроку и отлепится только от столкновения со стеной.
+# ВАЖНО: коррекция ограничена по скорости (separation_push_speed), а не мгновенная.
+# Раньше global_position восстанавливалась на полную величину КАЖДЫЙ кадр — если
+# игрок непрерывно шёл на врага, коррекция идеально компенсировала его движение,
+# и враг просто ехал вместе с игроком 1-в-1 (особенно заметно в BLOCK/PARRY/COUNTER,
+# где у врага move_velocity = 0 и больше ничего его не двигает). Ограничение скорости
+# ломает это "идеальное слежение": если игрок давит быстрее, чем едет коррекция,
+# дистанция реально уменьшается до настоящего физического столкновения капсул.
+#
+# НО: додж/перекат (dodge_speed=300, roll_speed=225) временно отключают коллизию
+# с врагами и МОГУТ прогнать игрока глубоко "сквозь" врага за один рывок — а пока
+# is_dodging/is_rolling мы коррекцию вообще не запускаем. Если после такого рывка
+# просто ползти с ограниченной скоростью, глубокий нахлёст будет расползаться
+# заметно долго ("прилипает, потом сам отлипает"). Поэтому: маленькие постоянные
+# нахлёсты (игрок давит вплотную) — ползут с кэпом, а большие одноразовые
+# нахлёсты (после доджа/переката) — снапаются мгновенно, как раньше.
+@export var separation_push_speed := 140.0
+@export var separation_snap_distance := 18.0
+
+func _separate_from_player(delta: float) -> void:
 	if not player or not is_instance_valid(player):
 		return
-	# пока игрок в додже/перекате — не расталкиваем, чтобы он проходил сквозь врагов
-	if player.is_dodging or player.is_rolling:
+	# Пока игрок реально прокатывается/уворачивается на заметной скорости — не
+	# расталкиваем, чтобы он проходил сквозь врагов. НО is_dodging/is_rolling
+	# держатся до конца АНИМАЦИИ, а сама скорость рывка (dodge_velocity) гасится
+	# заметно быстрее — если ориентироваться только на флаг, враг застревает на
+	# слишком близкой (физически столкнулся) дистанции на весь хвост анимации,
+	# и это выглядит как "прилип прямо во время доджа/переката".
+	if (player.is_dodging or player.is_rolling) and player.dodge_velocity.length() > 20.0:
 		return
 	# во время своей атаки/контратаки враг подходит ближе, чтобы хитбокс доставал,
 	# но всё равно не даём телам полностью наложиться
@@ -263,7 +309,32 @@ func _separate_from_player() -> void:
 	var dist := offset.length()
 	if dist < min_separation:
 		var dir := offset.normalized() if dist > 0.001 else Vector2.DOWN
-		global_position += dir * (min_separation - dist)
+		var needed := min_separation - dist
+		if needed > separation_snap_distance:
+			global_position += dir * needed
+		else:
+			global_position += dir * min(needed, separation_push_speed * delta)
+
+# Раздвигаем врагов друг от друга — без этого два врага могут оказаться
+# почти в одной точке (пачка спавна, нокбэк и т.п.), и тогда move_and_slide
+# сам пытается их разъединить и падает на normalize(0,0) ("Vector2 cannot
+# be normalized"), потому что дистанция между центрами равна нулю
+func _separate_from_enemies(delta: float) -> void:
+	var min_separation := 26.0
+	for e in get_tree().get_nodes_in_group("enemy"):
+		if e == self or not is_instance_valid(e) or e.is_dead:
+			continue
+		var offset: Vector2 = global_position - e.global_position
+		var dist: float = offset.length()
+		if dist < min_separation:
+			# ровно наложенные тела — расталкиваем в случайную сторону,
+			# а не normalized(), которое на нулевом векторе даёт (0,0)/NaN
+			var dir: Vector2 = offset.normalized() if dist > 0.001 else Vector2.RIGHT.rotated(randf() * TAU)
+			var needed: float = (min_separation - dist) * 0.5
+			if needed > separation_snap_distance:
+				global_position += dir * needed
+			else:
+				global_position += dir * min(needed, separation_push_speed * delta)
 
 # ============== AI ==============
 
@@ -407,6 +478,7 @@ func _change_state(new_state: State) -> void:
 		State.BLOCK:
 			move_velocity = Vector2.ZERO
 			is_blocking = true
+			block_hold_timer = block_hold_time
 
 		State.DEAD:
 			_on_dead()
@@ -559,8 +631,7 @@ func _exit_attack() -> void:
 	attack_active = false
 	attack_hit_window = false
 	attack_started = false
-	for s in shapes.values():
-		s.call_deferred("set", "disabled", true)
+	attack_shape.call_deferred("set", "disabled", true)
 	attack_cooldown_timer = attack_cooldown
 # =========================================================
 # HIT STUN
@@ -714,9 +785,10 @@ func take_damage(amount: int, source: Node2D = null) -> void:
 			_posture_break()
 			return
 
-		# после N ударов — парируем
-		if block_hit_count >= parry_threshold:
-			_change_state(State.PARRY)
+		# рандомный шанс парировать именно этот удар — не зависит от того,
+		# сколько ударов уже заблокировано, поэтому нет предсказуемого паттерна
+		if randf() < parry_chance:
+			_start_parry()
 			return
 
 		return
@@ -753,21 +825,31 @@ func _start_parry() -> void:
 	_change_state(State.PARRY)
 	# ждём удара игрока во время окна
 
-func _state_block(_delta: float) -> void:
+func _state_block(delta: float) -> void:
 	move_velocity = Vector2.ZERO
 	var anim_name = "block_" + _get_direction_name(direction)
 	if anim.current_animation != anim_name:
 		anim.play(anim_name)
-	
-	# парируем после N ударов
-	if block_hit_count >= parry_threshold and not is_parrying:
-		_start_parry()
-		return
-	
+
+	# игрок ушёл из зоны — сразу выходим из блока
 	if not player or not _is_player_in_range(attack_range * 2.0):
-		is_blocking = false
-		block_hit_count = 0
-		_change_state(State.CHASE)
+		_exit_block()
+		return
+
+	# держим блок, пока игрок реально атакует; как только перестал —
+	# короткая задержка и выходим, чтобы враг не залипал в блоке
+	if player.is_attacking:
+		block_hold_timer = block_hold_time
+	else:
+		block_hold_timer -= delta
+		if block_hold_timer <= 0.0:
+			_exit_block()
+
+func _exit_block() -> void:
+	is_blocking = false
+	block_hit_count = 0
+	block_hold_timer = 0.0
+	_change_state(State.CHASE)
 
 func _posture_break() -> void:
 	is_posture_broken = true
@@ -1010,9 +1092,13 @@ func _get_attack_dir_name(dir: Vector2) -> String:
 		return "down" if dir.y > 0 else "up"
 
 func _update_attack_shape() -> void:
-	for key in shapes:
-		shapes[key].call_deferred("set", "disabled", true)
+	# Хитбокс — как у игрока: одна форма, вынесенная вперёд по направлению
+	# взгляда (непрерывный вектор, а не 8 хвостатых хитбоксов под фиксированные углы)
 	if current_state == State.ATTACK or current_state == State.COUNTER:
-		var dir_name = attack_direction_name if attack_direction_name != "" else _get_direction_name(direction)
-		if dir_name in shapes:
-			shapes[dir_name].call_deferred("set", "disabled", false)
+		var dir_vec := direction.normalized()
+		if dir_vec == Vector2.ZERO:
+			dir_vec = Vector2.DOWN
+		attack_hitbox.position = dir_vec * attack_hitbox_offset
+		attack_shape.call_deferred("set", "disabled", false)
+	else:
+		attack_shape.call_deferred("set", "disabled", true)

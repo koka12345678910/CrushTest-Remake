@@ -8,8 +8,7 @@ extends Node2D
 func _ready():
 	scale = Vector2.ONE * start_scale
 	modulate.a = 1.0
-	$AnimatedSprite2D.play("fire_ring")
-	$AnimatedSprite2D.modulate = Color(2.5, 2.0, 1.2, 1.0)
+	$AnimationPlayer.play("fire_ring")
 	
 	var tween = create_tween()
 	tween.tween_property(self, "scale", Vector2.ONE * end_scale, grow_duration).set_ease(Tween.EASE_OUT)

@@ -73,6 +73,17 @@ var attack_damage := 1
 var prev_velocity := Vector2.ZERO
 var move_vfx_cooldown := 0.0
 var input_vector := Vector2.ZERO
+
+# Нокбэк игрока при получении удара — игрок отлетает от врага.
+# friction здесь — коэффициент lerp-затухания (больше = быстрее гаснет).
+@export var knockback_force := 180.0
+@export var knockback_friction := 9.0
+var knockback_velocity := Vector2.ZERO
+
+# Хитстоп — короткая заморозка в момент попадания (даёт «мясистость» удара)
+@export var hitstop_duration := 0.06
+@export var hitstop_scale := 0.0  # 0.0 = полная заморозка, 0.05 = лёгкий слоу-мо
+var _hitstop_token := 0
 var is_running := false
 var last_direction := "Down"
 
@@ -147,6 +158,7 @@ var is_stunned := false
 var is_taking_damage := false
 
 var hit_targets: Array = []
+var _nan_reported := false
 var gold := 0
 var is_in_shop := false
 
@@ -203,6 +215,18 @@ func _unhandled_input(event: InputEvent) -> void:
 			inventory_ui.open()
 
 func _physics_process(delta):
+	# Санитизация от NaN — не даём нефинитной позиции/скорости уронить физику
+	# (иначе move_and_slide спамит "cannot be normalized" и игра встаёт)
+	if not (global_position.is_finite() and velocity.is_finite()):
+		if not _nan_reported:
+			_nan_reported = true
+			push_warning("[player NaN] pos=%s vel=%s kb=%s dodge=%s attack=%s" % [global_position, velocity, knockback_velocity, dodge_velocity, attack_velocity])
+		if not global_position.is_finite():
+			global_position = Vector2.ZERO
+		velocity = Vector2.ZERO
+		knockback_velocity = Vector2.ZERO
+		dodge_velocity = Vector2.ZERO
+		attack_velocity = Vector2.ZERO
 	if is_in_shop:
 		velocity = Vector2.ZERO
 		move_and_slide()
@@ -221,16 +245,18 @@ func _physics_process(delta):
 	if is_rolling:
 		handle_roll(delta)
 		return
-	prev_velocity = velocity
-	# --- ввод ---
+
+	# --- ДОДЖ / ПЕРЕКАТ «ВНЕ ОЧЕРЕДИ» ------------------------------------------
+	# Ввод и запуск уворота/переката обрабатываем ДО стана получения урона и
+	# нокбэка, чтобы зажатого игрока нельзя было залочить: он всегда может
+	# вырваться уворотом/перекатом (оба дают неуязвимость в _on_hurtbox).
 	if not is_rolling:
 		input_vector = Input.get_vector("move_left", "move_right", "move_up", "move_down")
 	is_running = Input.is_action_pressed("run")
+	handle_dodge_input()
 	if dodge_tap_timer > 0:
 		dodge_tap_timer -= delta
-	
 		if dodge_tap_timer <= 0:
-			
 			# 🔥 РЕШАЕМ: dodge или roll
 			if dodge_tap_count >= 2:
 				interrupt_all_actions()
@@ -238,31 +264,35 @@ func _physics_process(delta):
 			else:
 				interrupt_all_actions()
 				start_dodge()
-			
 			dodge_tap_count = 0
-		
-	handle_attack_input()
-	handle_kick_input()
-	handle_parry_input(delta)
-	handle_dodge_input()
-	check_for_turn()
-	if is_taking_damage or is_parrying:
-		velocity = Vector2.ZERO
-		move_and_slide()
-		return
+	# Перекат, запущенный этим же кадром, отрабатываем сразу
 	if is_rolling:
-		roll_control += delta
-		# 🔥 фаза ускорения и торможения
-		var t: float = clamp(roll_control / roll_duration, 0.0, 1.0) as float
-		var speed_multiplier := sin(t * PI)  # плавная кривая
-		dodge_velocity = roll_dir * roll_speed * speed_multiplier
+		handle_roll(delta)
+		return
+	# Активный уворот двигается здесь — до блоков стана/нокбэка
+	if is_dodging:
+		dodge_velocity = dodge_velocity.lerp(Vector2.ZERO, dodge_friction * delta)
 		velocity = dodge_velocity
 		move_and_slide()
 		return
 
-	if is_dodging:
-		dodge_velocity = dodge_velocity.lerp(Vector2.ZERO, dodge_friction * delta)
-		velocity = dodge_velocity
+	# Нокбэк от удара врага — короткая потеря контроля, игрок отлетает.
+	# Плавное экспоненциальное затухание (мягкий выкат, без резкого рывка).
+	if knockback_velocity != Vector2.ZERO:
+		knockback_velocity = knockback_velocity.lerp(Vector2.ZERO, knockback_friction * delta)
+		if knockback_velocity.length() < 5.0:
+			knockback_velocity = Vector2.ZERO
+		velocity = knockback_velocity
+		move_and_slide()
+		return
+
+	prev_velocity = velocity
+	handle_attack_input()
+	handle_kick_input()
+	handle_parry_input(delta)
+	check_for_turn()
+	if is_taking_damage or is_parrying:
+		velocity = Vector2.ZERO
 		move_and_slide()
 		return
 
@@ -528,6 +558,10 @@ func start_i_frames():
 func interrupt_all_actions():
 	is_attacking = false
 	is_run_attacking = false
+	# Уворот/перекат снимают стан получения урона и нокбэк — это и даёт игроку
+	# вырваться, когда его зажали (иначе is_taking_damage лочит движение)
+	is_taking_damage = false
+	knockback_velocity = Vector2.ZERO
 	is_turning = false
 	turn_lock = false
 	dodge_velocity = Vector2.ZERO
@@ -682,7 +716,10 @@ func _parry_whiff() -> void:
 
 # Вызывается врагом (или hitbox-ом) когда его атака задела игрока
 func receive_attack(attack_data: Dictionary) -> bool:
-	if is_invulnerable:
+	# Во время уворота И переката игрок неуязвим — иначе его бьёт посреди
+	# переката и анимация take_damage проигрывается поверх движения.
+	# (то же условие, что и в _on_hurtbox_area_entered — держим их синхронно)
+	if is_invulnerable or is_dodging or is_rolling:
 		return false
 
 	# --- PERFECT PARRY ---
@@ -692,7 +729,7 @@ func receive_attack(attack_data: Dictionary) -> bool:
 		return true
 
 	# --- ОБЫЧНЫЙ УРОН ---
-	take_damage(attack_data.get("damage", 10))
+	take_damage(attack_data.get("damage", 10), attack_data.get("source", null))
 	return true
 
 func play_parry_vfx() -> void:
@@ -712,7 +749,7 @@ func on_perfect_parry(attack_data: Dictionary):
 	if source and source.has_method("take_posture_damage"):
 		source.take_posture_damage(35.0)
 
-func take_damage(amount: int) -> void:
+func take_damage(amount: int, source: Node = null) -> void:
 	# Снижение урона (Благословение Бальдра и т.п.)
 	amount = int(amount * get_damage_reduction_factor())
 	health_bar.take_damage(float(amount))
@@ -723,11 +760,11 @@ func take_damage(amount: int) -> void:
 		_baldur_revive()
 		return
 
-	# нокбэк от источника урона
-	var enemy = get_nearest_enemy()
-	if enemy:
-		var knockback_dir = (global_position - enemy.global_position).normalized()
-		velocity = knockback_dir * 50.0
+	# нокбэк от источника урона — игрок отлетает от врага
+	var attacker = source if source else get_nearest_enemy()
+	if attacker and is_instance_valid(attacker):
+		var knockback_dir = (global_position - attacker.global_position).normalized()
+		knockback_velocity = knockback_dir * knockback_force
 	
 	is_taking_damage = true
 	gfx.play("Take_Damage_" + last_direction)
@@ -1187,6 +1224,20 @@ func _on_player_hitbox_area_entered(area: Area2D) -> void:
 			}
 			enemy.receive_attack(attack_data)
 		_play_hit_sound()
+		do_hitstop()
+
+func do_hitstop() -> void:
+	# Замораживаем время на пару кадров. Таймер с ignore_time_scale=true
+	# продолжает идти в реальном времени, поэтому разморозка сработает.
+	# Токен защищает от наложения нескольких попаданий в один кадр:
+	# время восстанавливает только самый последний вызов.
+	_hitstop_token += 1
+	var token := _hitstop_token
+	Engine.time_scale = hitstop_scale
+	await get_tree().create_timer(hitstop_duration, true, false, true).timeout
+	if token == _hitstop_token:
+		Engine.time_scale = 1.0
+
 
 func _play_hit_sound() -> void:
 	var snd: AudioStream = null

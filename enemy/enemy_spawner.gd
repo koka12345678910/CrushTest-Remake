@@ -50,10 +50,26 @@ func _try_spawn() -> void:
 
 	var chosen: Marker2D = hidden.pick_random()
 	var pack_size := randi_range(pack_min, pack_max)
+	# минимальная дистанция между врагами одной пачки — иначе независимые
+	# случайные офсеты иногда кладут двух врагов друг на друга (коллизии
+	# точно совпадают), и физика Godot спотыкается на normalize(0,0)
+	# ("Vector2 cannot be normalized") пытаясь их раздвинуть
+	var min_spacing := 40.0
+	var placed: Array[Vector2] = []
 	for i in pack_size:
+		var offset := Vector2.ZERO
+		for attempt in 8:
+			offset = Vector2(randf_range(-pack_spread, pack_spread), randf_range(-pack_spread, pack_spread))
+			var far_enough := true
+			for p in placed:
+				if offset.distance_to(p) < min_spacing:
+					far_enough = false
+					break
+			if far_enough:
+				break
+		placed.append(offset)
 		var enemy := enemy_scene.instantiate()
 		get_parent().add_child(enemy)
-		var offset := Vector2(randf_range(-pack_spread, pack_spread), randf_range(-pack_spread, pack_spread))
 		enemy.global_position = chosen.global_position + offset
 
 func _get_spawn_points() -> Array:
