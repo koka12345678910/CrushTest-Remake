@@ -215,6 +215,12 @@ func _unhandled_input(event: InputEvent) -> void:
 			inventory_ui.open()
 
 func _physics_process(delta):
+	# speed_scale — общее свойство AnimationPlayer на ВСЕ анимации, не только
+	# на бег. Сбрасываем его тут по умолчанию каждый кадр; если в этом же
+	# кадре ниже сработает бег — play_movement_animation() перезапишет его
+	# скейлом под скорость. Иначе оставшийся с бега scale тянется на атаку,
+	# додж, парирование и т.д., и они играют в замедлении.
+	anim.speed_scale = 1.0
 	# Санитизация от NaN — не даём нефинитной позиции/скорости уронить физику
 	# (иначе move_and_slide спамит "cannot be normalized" и игра встаёт)
 	if not (global_position.is_finite() and velocity.is_finite()):
@@ -498,12 +504,21 @@ func play_movement_animation():
 
 	# --- пороги скорости ---
 	if speed < 10:
+		anim.speed_scale = 1.0
 		anim.play("Idle_" + last_direction)
 		return
 	elif speed < 120:
+		anim.speed_scale = 1.0
 		anim_name = "Walk_" + last_direction
 	else:
 		anim_name = "Run_" + last_direction
+		# Клипы Run_* сняты на 25 fps (шаг кадра 0.04с = speed_scale 1.0) — это и
+		# есть "естественный максимум", выше него не поднимаем. Растягиваем
+		# видимый диапазон от 0.35 (только вбежал в зону бега) до 1.0 (полный
+		# разгон) — простое speed/run_speed давало разницу всего 0.6-1.0 (40%),
+		# что на глаз почти незаметно за доли секунды разгона
+		var t = clamp((speed - 120.0) / (run_speed - 120.0), 0.0, 1.0)
+		anim.speed_scale = lerp(0.35, 1.0, t)
 
 	anim.play(anim_name)
 
@@ -733,7 +748,9 @@ func receive_attack(attack_data: Dictionary) -> bool:
 	return true
 
 func play_parry_vfx() -> void:
-	parry_vfx.global_position = melee_hit.global_position
+	# На самом игроке, а не на MeleeHit — тот маркер смещается вперёд по
+	# направлению атаки (для обычных ударов) и не всегда подходит под анимацию парирования
+	parry_vfx.global_position = global_position
 	parry_vfx.play("parry_vfx")
 	await parry_vfx.animation_finished
 	parry_vfx.stop()

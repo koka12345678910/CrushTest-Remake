@@ -100,9 +100,13 @@ var attack_active := false
 var attack_hit_window := false
 
 var wander_direction := Vector2.DOWN
-var wander_timer := 0.0
-# роум-блуждание: враг ходит по точкам вокруг «дома» и делает паузы
-@export var wander_radius := 130.0
+# роум-блуждание: каждый отрезок пути — случайный шаг от ТЕКУЩЕЙ позиции
+# (а не орбита вокруг одной точки), поэтому враг реально обходит area, а не
+# топчется на пятачке. Мягкий поводок (patrol_leash_radius) вокруг точки
+# спавна не даёт разбрестись по всей карте.
+@export var wander_step_min := 70.0
+@export var wander_step_max := 220.0
+@export var patrol_leash_radius := 360.0
 @export var wander_pause_min := 0.8
 @export var wander_pause_max := 2.5
 var home_position := Vector2.ZERO
@@ -167,8 +171,6 @@ func _ready() -> void:
 	if hitbox:
 		hitbox.area_entered.connect(_on_hitbox_area_entered)
 		hitbox.body_entered.connect(_on_hitbox_hit)
-
-	wander_timer = randf_range(2.0, 4.0)
 
 	_change_state(State.IDLE)
 	anim.animation_finished.connect(_on_animation_finished)
@@ -247,7 +249,6 @@ func _physics_process(delta: float) -> void:
 		knockback_velocity = knockback_velocity.move_toward(Vector2.ZERO, friction * 2 * delta)
 		velocity = knockback_velocity
 	else:
-		move_velocity = move_velocity.move_toward(Vector2.ZERO, friction * delta)
 		velocity = move_velocity
 	_separate_from_player(delta)
 	_separate_from_enemies(delta)
@@ -289,6 +290,16 @@ func _physics_process(delta: float) -> void:
 @export var separation_push_speed := 140.0
 @export var separation_snap_distance := 18.0
 
+# .normalized() на векторе с NaN/Inf-компонентами — это и есть источник
+# "Vector2 cannot be normalized" (не просто нулевая длина, её Godot нормализует
+# молча в (0,0)). Если позиции двух тел совпали точно (после доджа/переката,
+# скопления врагов), безопаснее взять запасное направление, чем звать
+# normalized() на потенциально проблемном векторе.
+func _safe_direction(vec: Vector2, fallback: Vector2 = Vector2.DOWN) -> Vector2:
+	if vec.length() > 0.001 and vec.is_finite():
+		return vec.normalized()
+	return fallback
+
 func _separate_from_player(delta: float) -> void:
 	if not player or not is_instance_valid(player):
 		return
@@ -308,7 +319,7 @@ func _separate_from_player(delta: float) -> void:
 	var offset := global_position - player.global_position
 	var dist := offset.length()
 	if dist < min_separation:
-		var dir := offset.normalized() if dist > 0.001 else Vector2.DOWN
+		var dir := _safe_direction(offset)
 		var needed := min_separation - dist
 		if needed > separation_snap_distance:
 			global_position += dir * needed
@@ -320,7 +331,14 @@ func _separate_from_player(delta: float) -> void:
 # сам пытается их разъединить и падает на normalize(0,0) ("Vector2 cannot
 # be normalized"), потому что дистанция между центрами равна нулю
 func _separate_from_enemies(delta: float) -> void:
+	# Копим коррекцию от ВСЕХ близких врагов сразу и применяем один раз в
+	# конце — а не сразу по каждому соседу по очереди. При скоплении 3+ врагов
+	# последовательные коррекции могут частично гасить друг друга (оттолкнулись
+	# от одного — придвинулись к другому), оставляя остаточное перекрытие,
+	# на котором Godot спотыкается в своей собственной физике.
 	var min_separation := 26.0
+	var push := Vector2.ZERO
+	var deepest_needed := 0.0
 	for e in get_tree().get_nodes_in_group("enemy"):
 		if e == self or not is_instance_valid(e) or e.is_dead:
 			continue
@@ -328,13 +346,20 @@ func _separate_from_enemies(delta: float) -> void:
 		var dist: float = offset.length()
 		if dist < min_separation:
 			# ровно наложенные тела — расталкиваем в случайную сторону,
-			# а не normalized(), которое на нулевом векторе даёт (0,0)/NaN
-			var dir: Vector2 = offset.normalized() if dist > 0.001 else Vector2.RIGHT.rotated(randf() * TAU)
+			# а не normalized(), которое на нулевом/NaN векторе даёт (0,0)/NaN
+			var dir: Vector2 = _safe_direction(offset, Vector2.RIGHT.rotated(randf() * TAU))
 			var needed: float = (min_separation - dist) * 0.5
-			if needed > separation_snap_distance:
-				global_position += dir * needed
-			else:
-				global_position += dir * min(needed, separation_push_speed * delta)
+			push += dir * needed
+			deepest_needed = max(deepest_needed, needed)
+
+	if push == Vector2.ZERO:
+		return
+	if deepest_needed > separation_snap_distance:
+		global_position += push
+	else:
+		var push_len := push.length()
+		var capped_len: float = min(push_len, separation_push_speed * delta)
+		global_position += push * (capped_len / push_len)
 
 # ============== AI ==============
 
@@ -452,7 +477,7 @@ func _change_state(new_state: State) -> void:
 			move_velocity = Vector2.ZERO
 
 		State.WANDER:
-			wander_timer = randf_range(2.0, 4.0)
+			pass
 
 		State.CHASE:
 			pass
@@ -461,7 +486,11 @@ func _change_state(new_state: State) -> void:
 			move_velocity = Vector2.ZERO
 			attack_started = false
 			if player:
-				direction = (player.global_position - global_position).normalized()
+				var to_player := player.global_position - global_position
+				# на случай точного совпадения позиций (после доджа/переката,
+				# скопления врагов и т.п.) — не даём normalized() получить (0,0)
+				if to_player.length() > 0.001:
+					direction = to_player.normalized()
 			can_attack = false
 			hit_targets.clear()
 			_update_attack_shape()
@@ -552,10 +581,23 @@ func _state_wander(delta: float) -> void:
 	_play_animation("walk")
 
 func _pick_new_wander_direction() -> void:
-	# новая точка в пределах wander_radius вокруг «дома»
+	# Случайный шаг от ТЕКУЩЕЙ позиции в случайном направлении и на случайную
+	# длину — так враг реально обходит территорию, а не орбитирует вокруг
+	# одной точки (движение непредсказуемо: разный угол и длина каждый раз).
 	var angle := randf() * TAU
-	var r := sqrt(randf()) * wander_radius   # равномерно по площади круга
-	wander_target = home_position + Vector2(cos(angle), sin(angle)) * r
+	var step := randf_range(wander_step_min, wander_step_max)
+	var candidate := global_position + Vector2(cos(angle), sin(angle)) * step
+
+	# Мягкий поводок: если предложенный шаг уводит слишком далеко от точки
+	# спавна — вместо жёсткого ограничения направляем шаг обратно к дому,
+	# так враг сам "спохватывается" и возвращается в свою зону патрулирования
+	if candidate.distance_to(home_position) > patrol_leash_radius:
+		var back_dir := (home_position - global_position).normalized()
+		if back_dir == Vector2.ZERO:
+			back_dir = -Vector2(cos(angle), sin(angle))
+		candidate = global_position + back_dir * step
+
+	wander_target = candidate
 
 # ===================== CHASE =====================
 func _state_chase(delta: float) -> void:
@@ -753,7 +795,7 @@ func take_damage(amount: int, source: Node2D = null) -> void:
 			_trigger_stagger()
 
 		if source and not is_dead:
-			var knockback_dir = (global_position - source.global_position).normalized()
+			var knockback_dir := _safe_direction(global_position - source.global_position)
 			knockback_velocity = knockback_dir * 150.0
 		return
 
@@ -775,7 +817,7 @@ func take_damage(amount: int, source: Node2D = null) -> void:
 		_trigger_block_effect()
 
 		if source:
-			var knockback_dir = (global_position - source.global_position).normalized()
+			var knockback_dir := _safe_direction(global_position - source.global_position)
 			knockback_velocity = knockback_dir * 80.0
 			if source.has_method("play_block_hit_sound"):
 				source.play_block_hit_sound()
@@ -807,7 +849,7 @@ func take_damage(amount: int, source: Node2D = null) -> void:
 		_change_state(State.HIT_STUN)
 	
 	if source and not is_dead:
-		var knockback_dir = (global_position - source.global_position).normalized()
+		var knockback_dir := _safe_direction(global_position - source.global_position)
 		knockback_velocity = knockback_dir * 150.0
 
 func _try_block() -> void:
@@ -888,7 +930,7 @@ func _trigger_stagger() -> void:
 	anim.play(anim_name)
 	
 	if player:
-		var knockback_dir = (global_position - player.global_position).normalized()
+		var knockback_dir := _safe_direction(global_position - player.global_position)
 		knockback_velocity = knockback_dir * 200.0
 
 func _state_stagger(_delta: float) -> void:
