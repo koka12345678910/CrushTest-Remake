@@ -52,6 +52,7 @@ var _rest_modulate := Color.WHITE
 @export var coin_drop_min := 1
 @export var coin_drop_max := 3
 @export var blood_vfx_scene: PackedScene
+@export var parry_vfx_scene: PackedScene
 
 enum State {
 	IDLE,
@@ -412,6 +413,13 @@ func _decide_state() -> void:
 		_change_state(State.COUNTER)
 		return
 
+func play_parry_vfx() -> void:
+	if parry_vfx_scene == null:
+		return
+	var vfx = parry_vfx_scene.instantiate()
+	vfx.global_position = global_position
+	get_tree().current_scene.add_child(vfx)
+
 func play_blood_vfx() -> void:
 	if blood_vfx_scene == null:
 		return
@@ -651,7 +659,7 @@ func _state_chase(delta: float) -> void:
 		_play_animation("idle")
 
 var attack_direction_name := ""  # добавь в переменные
-func _state_attack(delta: float) -> void:
+func _state_attack(_delta: float) -> void:
 	move_velocity = Vector2.ZERO
 
 	if not attack_started:
@@ -814,7 +822,6 @@ func take_damage(amount: int, source: Node2D = null) -> void:
 		posture_bar.value = posture
 		posture_regen_timer = 0.0
 		block_hit_count += 1
-		_trigger_block_effect()
 
 		if source:
 			var knockback_dir := _safe_direction(global_position - source.global_position)
@@ -824,15 +831,19 @@ func take_damage(amount: int, source: Node2D = null) -> void:
 
 		if posture >= max_posture:
 			posture = max_posture
+			_trigger_block_effect()
 			_posture_break()
 			return
 
 		# рандомный шанс парировать именно этот удар — не зависит от того,
-		# сколько ударов уже заблокировано, поэтому нет предсказуемого паттерна
+		# сколько ударов уже заблокировано, поэтому нет предсказуемого паттерна.
+		# У парирования свой VFX (не искры блока), чтобы игрок видел разницу
 		if randf() < parry_chance:
+			play_parry_vfx()
 			_start_parry()
 			return
 
+		_trigger_block_effect()
 		return
 	
 	health -= amount

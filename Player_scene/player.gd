@@ -147,6 +147,21 @@ var max_health: float = 100.0
 var stamina: float = 100.0
 var max_stamina: float = 100.0
 
+# --- Стамина: расход по действиям (снижено относительно старых значений) ---
+@export var dodge_stamina_cost := 15.0     # было 20
+@export var roll_stamina_cost := 22.0      # было 30
+@export var attack_stamina_cost := 7.0     # было 10, за каждый удар серии
+@export var run_stamina_drain := 10.0      # было 15, в секунду
+@export var run_attack_stamina_drain := 12.0  # было 20.5 — но с багом: тратилось
+# каждый КАДР, а не в секунду (~1230/сек), из-за чего стамина обнулялась мгновенно
+
+# --- Истощение: когда стамина кончилась, игрок "выдохся" ---
+@export var exhausted_speed_multiplier := 0.5   # во сколько раз медленнее ходьба
+@export var exhausted_attack_speed_scale := 0.55  # во сколько раз медленнее анимация удара
+
+func is_exhausted() -> bool:
+	return health_bar.current_stamina <= 0.0
+
 var active_buffs: Dictionary = {}
 var active_ability_name := ""
 var coins: int = 0
@@ -313,7 +328,8 @@ func _physics_process(delta):
 	# --- RUN ATTACK ---
 	if is_run_attacking:
 		combo_timer -= delta
-		use_stamina(20.5)
+		use_stamina(run_attack_stamina_drain * delta)
+		anim.speed_scale = exhausted_attack_speed_scale if is_exhausted() else 1.0
 		attack_velocity = attack_velocity.lerp(Vector2.ZERO, friction * delta)
 		velocity = attack_velocity
 		move_and_slide()
@@ -322,7 +338,10 @@ func _physics_process(delta):
 	# --- обычная атака с микро-рывком ---
 	if is_attacking:
 		combo_timer -= delta
-		
+		# выдохся — удары идут медленнее и тяжелее (каждый кадр, а не один раз
+		# в play_attack: speed_scale общий на весь AnimationPlayer и сбрасывается
+		# в 1.0 в начале каждого физического кадра)
+		anim.speed_scale = exhausted_attack_speed_scale if is_exhausted() else 1.0
 		attack_velocity = attack_velocity.lerp(Vector2.ZERO, friction * delta)
 		velocity = attack_velocity
 		move_and_slide()
@@ -337,8 +356,11 @@ func _physics_process(delta):
 
 	# --- обычное движение ---
 	var target_speed = walk_speed
-	if is_running:
-		use_stamina(15.0 * delta)
+	if is_exhausted():
+		# выдохся — бежать не может вообще, даже ходьба медленнее
+		target_speed = walk_speed * exhausted_speed_multiplier
+	elif is_running:
+		use_stamina(run_stamina_drain * delta)
 		target_speed = run_speed
 
 	var target_velocity = input_vector.normalized() * target_speed
@@ -403,7 +425,10 @@ func get_nearest_enemy() -> Node2D:
 	var nearest_dist := snap_radius
 	
 	for enemy in get_tree().get_nodes_in_group("enemy"):
-		if not is_instance_valid(enemy):
+		# враг доигрывает fade ещё death_fade_time секунд после смерти, всё
+		# ещё числясь в группе — без этой проверки таргет/снап цепляется за
+		# труп вместо переключения на живого врага
+		if not is_instance_valid(enemy) or enemy.is_dead:
 			continue
 		var dist = global_position.distance_to(enemy.global_position)
 		if dist < nearest_dist:
@@ -476,7 +501,7 @@ func start_turn(new_dir: Vector2):
 func start_roll():
 	if is_rolling:
 		return
-	if not use_stamina(30.0):
+	if not use_stamina(roll_stamina_cost):
 		return
 	roll_control = 0.0
 	is_rolling = true
@@ -533,7 +558,7 @@ func handle_dodge_input():
 		dodge_tap_timer = dodge_tap_window
 
 func start_dodge():
-	if not use_stamina(20.0):
+	if not use_stamina(dodge_stamina_cost):
 		return
 	if is_dodging or is_rolling:
 		return
@@ -841,7 +866,7 @@ func start_combo():
 
 func play_attack(step: int):
 	is_attacking = true
-	use_stamina(10.0)
+	use_stamina(attack_stamina_cost)
 	combo_timer = combo_window
 	combo_queued = false
 	dodge_velocity = Vector2.ZERO

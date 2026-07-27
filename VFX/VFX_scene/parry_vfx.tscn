@@ -1,0 +1,80 @@
+[gd_scene format=3 uid="uid://bprdcflmqn66g"]
+
+[ext_resource type="Texture2D" uid="uid://ci32yhu826l26" path="res://VFX/Effect_BigHit/30fps/Frames/Effect_BigHit_1/Effect_BigHit_1_000.png" id="1_frame"]
+[ext_resource type="Script" uid="uid://b73mumfjvbsdq" path="res://VFX/VFX_scene/parry_vfx.gd" id="1_script"]
+[ext_resource type="Texture2D" uid="uid://s6gypbamk87h" path="res://VFX/Effect_BigHit/30fps/Frames/Effect_BigHit_1/Effect_BigHit_1_001.png" id="2_frame"]
+[ext_resource type="Texture2D" uid="uid://cb3j37k4pprq1" path="res://VFX/Effect_BigHit/30fps/Frames/Effect_BigHit_1/Effect_BigHit_1_002.png" id="3_frame"]
+[ext_resource type="Texture2D" uid="uid://o8dyw0sxd5kt" path="res://VFX/Effect_BigHit/30fps/Frames/Effect_BigHit_1/Effect_BigHit_1_003.png" id="4_frame"]
+[ext_resource type="Texture2D" uid="uid://v81042wxytgg" path="res://VFX/Effect_BigHit/30fps/Frames/Effect_BigHit_1/Effect_BigHit_1_004.png" id="5_frame"]
+[ext_resource type="Texture2D" uid="uid://bkcs77vqs4lo3" path="res://VFX/Effect_BigHit/30fps/Frames/Effect_BigHit_1/Effect_BigHit_1_005.png" id="6_frame"]
+[ext_resource type="Texture2D" uid="uid://dloftaqg276xb" path="res://VFX/Effect_BigHit/30fps/Frames/Effect_BigHit_1/Effect_BigHit_1_006.png" id="7_frame"]
+[ext_resource type="Texture2D" uid="uid://colwwd5y3niqn" path="res://VFX/Effect_BigHit/30fps/Frames/Effect_BigHit_1/Effect_BigHit_1_007.png" id="8_frame"]
+[ext_resource type="Texture2D" uid="uid://dr4khnatc0la5" path="res://VFX/Effect_BigHit/30fps/Frames/Effect_BigHit_1/Effect_BigHit_1_008.png" id="9_frame"]
+[ext_resource type="Texture2D" uid="uid://x44iokiqs01v" path="res://VFX/Effect_BigHit/30fps/Frames/Effect_BigHit_1/Effect_BigHit_1_009.png" id="10_frame"]
+[ext_resource type="Texture2D" uid="uid://c40kmelqjfovq" path="res://VFX/Effect_BigHit/30fps/Frames/Effect_BigHit_1/Effect_BigHit_1_010.png" id="11_frame"]
+[ext_resource type="Texture2D" uid="uid://cax4ai80p2r0m" path="res://VFX/Effect_BigHit/30fps/Frames/Effect_BigHit_1/Effect_BigHit_1_011.png" id="12_frame"]
+
+[sub_resource type="CanvasItemMaterial" id="CanvasItemMaterial_parry"]
+blend_mode = 1
+particles_animation = true
+particles_anim_h_frames = 1
+particles_anim_v_frames = 1
+particles_anim_loop = false
+
+[sub_resource type="SpriteFrames" id="SpriteFrames_parry"]
+animations = [{
+"frames": [{
+"duration": 1.0,
+"texture": ExtResource("1_frame")
+}, {
+"duration": 1.0,
+"texture": ExtResource("2_frame")
+}, {
+"duration": 1.0,
+"texture": ExtResource("3_frame")
+}, {
+"duration": 1.0,
+"texture": ExtResource("4_frame")
+}, {
+"duration": 1.0,
+"texture": ExtResource("5_frame")
+}, {
+"duration": 1.0,
+"texture": ExtResource("6_frame")
+}, {
+"duration": 1.0,
+"texture": ExtResource("7_frame")
+}, {
+"duration": 1.0,
+"texture": ExtResource("8_frame")
+}, {
+"duration": 1.0,
+"texture": ExtResource("9_frame")
+}, {
+"duration": 1.0,
+"texture": ExtResource("10_frame")
+}, {
+"duration": 1.0,
+"texture": ExtResource("11_frame")
+}, {
+"duration": 1.0,
+"texture": ExtResource("12_frame")
+}],
+"loop": 0,
+"name": &"parry_vfx",
+"speed": 15.0
+}]
+
+[node name="ParryVFX" type="Node2D" unique_id=366042344]
+script = ExtResource("1_script")
+
+[node name="AnimatedSprite2D" type="AnimatedSprite2D" parent="." unique_id=1975426131]
+texture_filter = 1
+material = SubResource("CanvasItemMaterial_parry")
+scale = Vector2(0.18671454, 0.19168174)
+sprite_frames = SubResource("SpriteFrames_parry")
+animation = &"parry_vfx"
+frame = 11
+frame_progress = 1.0
+
+[connection signal="animation_finished" from="AnimatedSprite2D" to="." method="_on_animated_sprite_2d_animation_finished"]
