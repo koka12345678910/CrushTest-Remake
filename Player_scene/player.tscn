@@ -54,6 +54,12 @@
 [ext_resource type="Script" uid="uid://b7uco6a74t345" path="res://VFX/VFX_scene/fenrir_flash_effect.gd" id="54_fwolf1"]
 [ext_resource type="Texture2D" uid="uid://lcw5nw2x5f13" path="res://VFX/VFX_with_buff/blood_fenrir/fenrir_wolf_flash.png" id="55_fwolf2"]
 [ext_resource type="Script" uid="uid://optkt6hfk2j5" path="res://VFX/VFX_scene/odin_vision_effect.gd" id="56_odin1"]
+[ext_resource type="Shader" uid="uid://b8du3ypbh4h1e" path="res://UI/damage_vignette.gdshader" id="57_dmgv1"]
+[ext_resource type="Script" uid="uid://bhq2t657ftoax" path="res://UI/damage_vignette.gd" id="58_dmgv2"]
+[ext_resource type="Script" uid="uid://b4gtgy8df5ev1" path="res://UI/sustained_vignette.gd" id="59_exhv1"]
+[ext_resource type="AudioStream" uid="uid://dstw43fvc7587" path="res://Sound/pulse.mp3" id="60_pulse1"]
+[ext_resource type="Script" uid="uid://2otpfiauqhyr" path="res://UI/hit_flash.gd" id="61_hitfl1"]
+[ext_resource type="AudioStream" uid="uid://bc21crvjx4vk7" path="res://Sound/ambient_sound/dyspnea.mp3" id="62_dyspnea1"]
 
 [sub_resource type="CapsuleShape2D" id="CapsuleShape2D_m414l"]
 radius = 5.0
@@ -5203,6 +5209,20 @@ _data = {
 &"new_animation": SubResource("Animation_tgf2g")
 }
 
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_dmgv"]
+shader = ExtResource("57_dmgv1")
+shader_parameter/strength = 0.0
+shader_parameter/vignette_color = Color(0.75, 0, 0, 1)
+shader_parameter/radius = 0.4
+shader_parameter/softness = 0.55
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_exhv"]
+shader = ExtResource("57_dmgv1")
+shader_parameter/strength = 0.0
+shader_parameter/vignette_color = Color(0.15, 0.45, 0.85, 1)
+shader_parameter/radius = 0.35
+shader_parameter/softness = 0.6
+
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_v6ddd"]
 size = Vector2(28, 34)
 
@@ -5342,7 +5362,7 @@ frame_progress = 0.76769924
 shape = SubResource("CapsuleShape2D_m414l")
 
 [node name="Camera2D" type="Camera2D" parent="." unique_id=1677170942]
-zoom = Vector2(1.5, 1.5)
+zoom = Vector2(1.7, 1.7)
 limit_smoothed = true
 
 [node name="Rain" type="GPUParticles2D" parent="Camera2D" unique_id=1488762265]
@@ -5446,8 +5466,8 @@ script = ExtResource("11_2ys5t")
 [node name="QuickSlotUI" type="Control" parent="HUD" unique_id=1468830696]
 layout_mode = 3
 anchors_preset = 0
-offset_left = 1636.0
-offset_top = 810.0
+offset_left = 1625.0
+offset_top = 797.0
 offset_right = 1845.0
 offset_bottom = 1017.0
 script = ExtResource("12_wfmf0")
@@ -5455,21 +5475,68 @@ script = ExtResource("12_wfmf0")
 [node name="HealthStaminaBar" type="CanvasLayer" parent="." unique_id=630230056]
 script = ExtResource("13_ung07")
 
+[node name="DamageVignette" type="CanvasLayer" parent="." unique_id=1900000010]
+script = ExtResource("58_dmgv2")
+
+[node name="ColorRect" type="ColorRect" parent="DamageVignette" unique_id=1900000011]
+material = SubResource("ShaderMaterial_dmgv")
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+mouse_filter = 2
+
+[node name="ExhaustVignette" type="CanvasLayer" parent="." unique_id=1900000012]
+script = ExtResource("59_exhv1")
+
+[node name="ColorRect" type="ColorRect" parent="ExhaustVignette" unique_id=1900000013]
+material = SubResource("ShaderMaterial_exhv")
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+mouse_filter = 2
+
+[node name="HeartbeatAudio" type="AudioStreamPlayer" parent="." unique_id=1900000014]
+stream = ExtResource("60_pulse1")
+volume_db = -20.0
+
+[node name="DyspneaAudio" type="AudioStreamPlayer" parent="." unique_id=1900000017]
+stream = ExtResource("62_dyspnea1")
+volume_db = -20.0
+
+[node name="HitFlash" type="CanvasLayer" parent="." unique_id=1900000015]
+script = ExtResource("61_hitfl1")
+
+[node name="ColorRect" type="ColorRect" parent="HitFlash" unique_id=1900000016]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+mouse_filter = 2
+color = Color(1, 1, 1, 0)
+
 [node name="FootstepAudio" type="AudioStreamPlayer2D" parent="." unique_id=1772501575]
 
 [node name="SwingAudio" type="AudioStreamPlayer2D" parent="." unique_id=1772501576]
+bus = &"Combat"
 
 [node name="HitAudio" type="AudioStreamPlayer2D" parent="." unique_id=1772501577]
 volume_db = -9.5
+bus = &"Combat"
+
+[node name="BodyImpactAudio" type="AudioStreamPlayer2D" parent="." unique_id=1900000033]
+volume_db = -13.0
+bus = &"Combat"
 
 [node name="VoiceAudio" type="AudioStreamPlayer2D" parent="." unique_id=1772501578]
 volume_db = -13.5
+bus = &"Combat"
 
 [node name="BlockAudio" type="AudioStreamPlayer2D" parent="." unique_id=1772501579]
 volume_db = -9.5
+bus = &"Combat"
 
 [node name="ParryAudio" type="AudioStreamPlayer2D" parent="." unique_id=1772501580]
 volume_db = -9.5
+bus = &"Combat"
 
 [node name="InventoryUI" type="CanvasLayer" parent="." unique_id=37486928]
 script = ExtResource("14_2ys5t")

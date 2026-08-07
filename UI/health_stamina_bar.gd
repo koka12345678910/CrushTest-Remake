@@ -23,12 +23,17 @@ var _displayed_posture: float = 0.0  # то что видит игрок
 # --- Размеры (подгонишь в редакторе через export) ---
 @export var posture_fill_speed: float = 8.0   # скорость заполнения
 @export var posture_drain_speed: float = 40.0  # скорость опустошения (быстрее)
-@export var hp_bar_size: Vector2 = Vector2(350, 20)
-@export var stamina_bar_size: Vector2 = Vector2(280, 14)
-@export var hp_position: Vector2 = Vector2(16, 16)
+@export var hp_bar_size: Vector2 = Vector2(460, 26)
+@export var stamina_bar_size: Vector2 = Vector2(380, 18)
+# hp_position теперь отсчитывается от НИЖНЕГО левого угла экрана (контейнер
+# висит на якоре BOTTOM_LEFT) — отрицательный Y поднимает полоску над нижним
+# краем, а не опускает от верхнего, как было раньше
+@export var hp_position: Vector2 = Vector2(16, -76)
 @export var stamina_offset_x: float = 16.0  # смещение от левого края
-@export var posture_bar_size: Vector2 = Vector2(300, 10)
-@export var posture_offset_x: float = -150.0
+@export var stamina_position_y: float = -124.0  # отступ от нижнего края, стамина висит НАД HP
+@export var posture_bar_size: Vector2 = Vector2(440, 16)
+@export var posture_offset_x: float = -220.0  # половина ширины — центрирует полоску
+@export var posture_position_y: float = 16.0    # теперь отступ от ВЕРХНЕГО края
 
 # --- Концентрация (Posture) ---
 var max_posture: float = 100.0
@@ -186,6 +191,7 @@ func _build_ui() -> void:
 
 func _build_hp_bar() -> void:
 	var container := Control.new()
+	container.set_anchors_preset(Control.PRESET_BOTTOM_LEFT)
 	container.position = hp_position
 	container.size = hp_bar_size + Vector2(0, 30)
 	_root.add_child(container)
@@ -227,9 +233,9 @@ func _build_hp_bar() -> void:
 
 func _build_stamina_bar() -> void:
 	var container := Control.new()
-	# левый верхний угол, под hp баром
-	container.set_anchors_preset(Control.PRESET_TOP_LEFT)
-	container.position = Vector2(stamina_offset_x, 52)
+	# левый нижний угол, НАД hp баром
+	container.set_anchors_preset(Control.PRESET_BOTTOM_LEFT)
+	container.position = Vector2(stamina_offset_x, stamina_position_y)
 	container.size = stamina_bar_size + Vector2(0, 20)
 	_root.add_child(container)
 
@@ -294,8 +300,8 @@ func _make_border(pos: Vector2, bar_size: Vector2) -> Control:
 
 func _build_posture_bar() -> void:
 	var container := Control.new()
-	container.set_anchors_preset(Control.PRESET_CENTER_BOTTOM)
-	container.position = Vector2(posture_offset_x, -90)
+	container.set_anchors_preset(Control.PRESET_CENTER_TOP)
+	container.position = Vector2(posture_offset_x, posture_position_y)
 	container.size = posture_bar_size + Vector2(0, 20)
 	_root.add_child(container)
 

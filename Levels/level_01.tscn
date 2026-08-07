@@ -30,6 +30,8 @@
 [ext_resource type="Script" uid="uid://b1stpf8ujkvv8" path="res://enemy/enemy_spawner.gd" id="92_spawn1"]
 [ext_resource type="Script" uid="uid://dxm3kamx2vel8" path="res://Levels/directional_light_2d.gd" id="93_night1"]
 [ext_resource type="Script" uid="uid://8xt7ostioyfr" path="res://Levels/level_music_manager.gd" id="94_music1"]
+[ext_resource type="AudioStream" uid="uid://clc2r8kf7inb0" path="res://Sound/thunder.mp3" id="95_thunder"]
+[ext_resource type="AudioStream" uid="uid://b14esm420pu71" path="res://Sound/ambient_sound/crows.mp3" id="96_crows"]
 
 [sub_resource type="TileSetAtlasSource" id="TileSetAtlasSource_i35eu"]
 texture = ExtResource("1_5ty2h")
@@ -13941,7 +13943,7 @@ tile_map_data = PackedByteArray("AAAqAOT/AAABAAQAAAAqAOX/AAABAAUAAAAqAOb/AAABAAY
 tile_set = SubResource("TileSet_gpk31")
 
 [node name="NightModulate" type="CanvasModulate" parent="." unique_id=820769400]
-color = Color(0.24, 0.34, 0.42, 1)
+color = Color(0.2, 0.29, 0.36, 1)
 
 [node name="MusicManager" type="Node" parent="." unique_id=1900000002]
 script = ExtResource("94_music1")
@@ -13955,6 +13957,10 @@ stream = ExtResource("18_5qegs")
 volume_db = -8.0
 autoplay = true
 
+[node name="CrowsPlayer" type="AudioStreamPlayer" parent="MusicManager" unique_id=1900000021]
+stream = ExtResource("96_crows")
+volume_db = -11.0
+
 [node name="DirectionalLight2D" type="DirectionalLight2D" parent="." unique_id=820769438]
 color = Color(0.42, 0.5, 0.78, 1)
 energy = 1.2
@@ -13962,6 +13968,9 @@ blend_mode = 2
 shadow_enabled = true
 shadow_filter = 1
 script = ExtResource("93_night1")
+
+[node name="ThunderAudio" type="AudioStreamPlayer" parent="DirectionalLight2D" unique_id=1900000020]
+stream = ExtResource("95_thunder")
 
 [node name="PointLight2D2" type="PointLight2D" parent="DirectionalLight2D" unique_id=1814475435]
 position = Vector2(1913, 1623)
@@ -14232,6 +14241,21 @@ shape = SubResource("RectangleShape2D_g4v7s")
 [node name="Player2" parent="." unique_id=493723598 instance=ExtResource("15_5ty2h")]
 z_index = 1
 position = Vector2(1212, -259)
+
+[node name="ColorRect" parent="Player2/DamageVignette" parent_id_path=PackedInt32Array(493723598, 1900000010) index="0" unique_id=1900000011]
+anchors_preset = 15
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="ColorRect" parent="Player2/ExhaustVignette" parent_id_path=PackedInt32Array(493723598, 1900000012) index="0" unique_id=1900000013]
+anchors_preset = 15
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="ColorRect" parent="Player2/HitFlash" parent_id_path=PackedInt32Array(493723598, 1900000015) index="0" unique_id=1900000016]
+anchors_preset = 15
+grow_horizontal = 2
+grow_vertical = 2
 
 [node name="Enemy" parent="." unique_id=71146591 instance=ExtResource("22_i35eu")]
 position = Vector2(1501, -382)

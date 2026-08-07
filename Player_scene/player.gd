@@ -29,27 +29,144 @@ extends CharacterBody2D
 @onready var player_hitbox: Area2D = $PlayerHitbox
 @onready var parry_vfx: AnimatedSprite2D = $ParryVFXanim
 @onready var hud = $HUD
+@onready var damage_vignette = $DamageVignette
+@onready var hit_flash = $HitFlash
+@onready var exhaust_vignette = $ExhaustVignette
+@onready var heartbeat_audio: AudioStreamPlayer = $HeartbeatAudio
+@onready var dyspnea_audio: AudioStreamPlayer = $DyspneaAudio
+@onready var camera: Camera2D = $Camera2D
+
+# Тряска камеры при получении урона
+@export var damage_shake_strength := 10.0
+# Тряска при ПОПАДАНИИ своего удара по врагу — слабее, чем от урона: атака
+# должна ощущаться весомо, но не путаться с "меня бьют"
+@export var hit_shake_strength := 3.0
+# Разброс высоты тона на повторяющихся звуках (доля от 1.0)
+@export var pitch_variation := 0.12
+# Разброс громкости на повторяющихся звуках (в дБ, +/- от базовой)
+@export var volume_variation_db := 1.8
+# Базовая громкость каждого аудио-узла, снятая из сцены в _ready — джиттер
+# всегда считается от неё, а не от текущего значения
+var _base_volume_db: Dictionary = {}
+# Индекс последнего сыгранного семпла в каждом пуле (чтобы не повторяться)
+var _last_sample_idx: Dictionary = {}
+
+# Вид игрока во время неуязвимости (додж/перекат/i-frames) — призрачный и
+# холодный, чтобы игрок ВИДЕЛ, что тайминг сработал и урон сейчас не проходит.
+# Красим self_modulate, а не modulate: последний занят вспышкой урона, они бы
+# перетирали друг друга
+@export var immune_tint := Color(0.6, 0.85, 1.0, 0.5)
+@export var immune_visual_speed := 14.0
+
+# Сила удара -> сила отдачи (тряска + длительность хитстопа). Раньше у лёгкого
+# тычка и у добивающего вихря отдача была одинаковой, и разница между слабым и
+# мощным ударом никак не ощущалась физически
+@export var run_attack_impact_mult := 1.4
+@export var spin_impact_mult := 2.2
+@export var shake_decay := 6.0   # чем больше — тем быстрее гаснет
+var _shake_strength := 0.0
+
+# --- Состояния "на грани": низкое здоровье и полное истощение ---
+# Низкое HP — только приглушённое сердцебиение.
+@export var low_health_threshold := 20.0
+# Истощение (стамина на нуле) — голубая виньетка, тряска и громкое
+# сердцебиение. Включается на 0 и держится, пока стамина не восстановится
+# до exhaust_fx_recover_threshold (гистерезис: иначе эффекты моргали бы,
+# дёргаясь у самого нуля при малейшем регене)
+@export var exhaust_fx_recover_threshold := 50.0
+@export var exhaust_shake_strength := 6.0
+@export var heartbeat_volume_low_hp := -18.0
+@export var heartbeat_volume_exhausted := 3.0
+@export var heartbeat_fade_speed := 25.0  # дБ в секунду, плавность нарастания
+const HEARTBEAT_SILENT_DB := -40.0
+# Одышка (dyspnea) — играется вместе с громким сердцебиением ТОЛЬКО при
+# истощении (не на низком HP, в отличие от сердцебиения)
+@export var dyspnea_volume := -3.0
+var _exhaust_fx_active := false
+
+# Плавное покачивание камеры во время бега — фигура-восьмёрка (лемниската):
+# X колеблется на одинарной частоте, Y — на двойной, поэтому камера описывает
+# плавную петлю по разным точкам, а не просто дёргается вверх-вниз по прямой
+@export var run_bob_amplitude_x := 5.0
+@export var run_bob_amplitude_y := 3.5
+@export var run_bob_cycle_distance := 90.0  # больше = медленнее и спокойнее качает
+@export var run_bob_fade_speed := 7.5       # скорость нарастания/затухания покачивания
+# Доп. сглаживание итогового движения камеры. ВАЖНО: lerp с фиксированным
+# коэффициентом работает как low-pass фильтр — на частоте покачивания при
+# полном разгоне (Y-составляющая колеблется вдвое чаще X) он заметно СЪЕДАЕТ
+# амплитуду сверху, а не только убирает рывки. Поэтому smoothing поднят вместе
+# с амплитудой — иначе прибавка амплитуды просто терялась бы в фильтре
+@export var run_bob_smoothing := 11.0
+var _bob_phase := 0.0
+var _bob_intensity := 0.0
+var _bob_smoothed := Vector2.ZERO
 @onready var swing_audio: AudioStreamPlayer2D = $SwingAudio
 @onready var hit_audio: AudioStreamPlayer2D = $HitAudio
 @onready var voice_audio: AudioStreamPlayer2D = $VoiceAudio
 @onready var footstep_audio: AudioStreamPlayer2D = $FootstepAudio
 @onready var block_audio: AudioStreamPlayer2D = $BlockAudio
 @onready var parry_audio: AudioStreamPlayer2D = $ParryAudio
+@onready var body_impact_audio: AudioStreamPlayer2D = $BodyImpactAudio
 
-# Замах (whoosh) — играется всегда при ударе
-const SWING_SOUND := preload("res://Sound/melee_sound/swing.mp3")
-const RUN_SWING_SOUND := preload("res://Sound/melee_sound/running_attack_swing.wav")
-# Попадание по врагу — свой звук в зависимости от удара серии
-const HIT_1_SOUND := preload("res://Sound/melee_sound/hit.mp3")          # 1-й удар
-const HIT_REST_SOUND := preload("res://Sound/melee_sound/hit2.wav")      # 2-й и 3-й удары
-const RUN_HIT_SOUND := preload("res://Sound/melee_sound/running_attack_hit.wav")  # удар на бегу
+# Слой "тела" звучит сильно ниже слоя оружия — это и делает его отдельным
+# событием на слух, а не эхом того же удара
+@export var body_layer_pitch := 0.55
+# Сила удара -> звук. Лёгкий тычок и добивающий вихрь раньше звучали одинаково,
+# хотя тряска камеры и хитстоп у них уже разные. Мощный удар громче И ниже —
+# низкий тон ухо считывает как "тяжелее", это работает сильнее громкости
+@export var impact_power_volume_db := 4.0
+@export var impact_power_pitch_drop := 0.14
+# Ниже этого веса удар музыку не трогает: если давить её на каждом тычке серии,
+# эффект перестаёт читаться как акцент и превращается в постоянное "бульканье"
+# громкости музыки
+@export var duck_power_threshold := 1.3
+
+# --- Пулы боевых сэмплов ---
+# Каждое действие озвучивается НАБОРОМ файлов, а не одним. Питч-вариация
+# маскирует повтор только первые минуты боя — дальше ухо всё равно узнаёт один
+# и тот же семпл. Реальная вариативность = разные записи. Пул может содержать
+# один файл (тогда работает как раньше); чтобы добавить вариантов, достаточно
+# дописать сюда preload новой строкой — вся остальная логика не меняется.
+const SWING_SOUNDS: Array[AudioStream] = [
+	preload("res://Sound/melee_sound/swing.mp3"),
+]
+const RUN_SWING_SOUNDS: Array[AudioStream] = [
+	preload("res://Sound/melee_sound/running_attack_swing.wav"),
+]
+# Попадание по врагу — свой пул в зависимости от удара серии
+const HIT_1_SOUNDS: Array[AudioStream] = [
+	preload("res://Sound/melee_sound/hit.mp3"),          # 1-й удар
+]
+const HIT_REST_SOUNDS: Array[AudioStream] = [
+	preload("res://Sound/melee_sound/hit2.wav"),         # 2-й и 3-й удары
+]
+const RUN_HIT_SOUNDS: Array[AudioStream] = [
+	preload("res://Sound/melee_sound/running_attack_hit.wav"),  # удар на бегу
+]
+# --- Второй слой удара ("тело") ---
+# Одиночный семпл на попадание звучит плоско, потому что настоящий удар — это
+# ДВА события разом: звонкий лязг оружия и глухой тяжёлый удар по телу. Играем
+# их параллельно разными плеерами. Здесь пока тот же семпл, но сильно
+# опущенный по тону (body_layer_pitch) — низкая часть читается ухом как "туша",
+# а не как металл. Заменить на настоящий thud-семпл = просто поменять preload
+const BODY_IMPACT_SOUNDS: Array[AudioStream] = [
+	preload("res://Sound/melee_sound/hit2.wav"),
+]
 # Выхватывание меча — на старте игры
 const UNSHEATH_SOUND := preload("res://Sound/melee_sound/unsneath_sword.wav")
 # Боевые вскрики — вместе с замахом, по номеру удара серии
-const GRUNT_1_SOUND := preload("res://Sound/groaning_sound/attack1.mp3")
-const GRUNT_2_SOUND := preload("res://Sound/groaning_sound/attack2.mp3")
-const GRUNT_3_SOUND := preload("res://Sound/groaning_sound/attack3.mp3")
-const GRUNT_RUN_SOUND := preload("res://Sound/groaning_sound/running_attack.mp3")
+const GRUNT_1_SOUNDS: Array[AudioStream] = [
+	preload("res://Sound/groaning_sound/attack1.mp3"),
+]
+const GRUNT_2_SOUNDS: Array[AudioStream] = [
+	preload("res://Sound/groaning_sound/attack2.mp3"),
+]
+const GRUNT_3_SOUNDS: Array[AudioStream] = [
+	preload("res://Sound/groaning_sound/attack3.mp3"),
+]
+const GRUNT_RUN_SOUNDS: Array[AudioStream] = [
+	preload("res://Sound/groaning_sound/running_attack.mp3"),
+]
 # Шаги при ходьбе/беге — чередуются по пройденному расстоянию
 const FOOTSTEP_LEFT := preload("res://Sound/Run/left-leg.wav")
 const FOOTSTEP_RIGHT := preload("res://Sound/Run/right-leg.wav")
@@ -183,6 +300,14 @@ func _ready() -> void:
 	if not anim.animation_finished.is_connected(_on_anim_finished):
 		anim.animation_finished.connect(_on_anim_finished)
 	
+	# Запоминаем базовые громкости ДО первого проигрывания — дальше джиттер
+	# в _play_varied отсчитывается от них
+	for p: AudioStreamPlayer2D in [
+		swing_audio, hit_audio, voice_audio, footstep_audio, block_audio, parry_audio,
+		body_impact_audio
+	]:
+		_base_volume_db[p] = p.volume_db
+
 	anim.play("Started_" + last_direction)
 	# Выхватывание меча из ножен в начале игры
 	swing_audio.stream = UNSHEATH_SOUND
@@ -192,6 +317,16 @@ func _ready() -> void:
 	player_hitbox.add_to_group("player_attack")
 	player_hitbox.set_meta("damage", attack_damage)
 	hurtbox.area_entered.connect(_on_hurtbox_area_entered)
+	# Сердцебиение должно звучать непрерывно, пока держится состояние —
+	# зацикливаем сам поток (тот же приём, что для музыки в главном меню)
+	var heartbeat_stream := heartbeat_audio.stream as AudioStreamMP3
+	if heartbeat_stream:
+		heartbeat_stream.loop = true
+	heartbeat_audio.volume_db = HEARTBEAT_SILENT_DB
+	var dyspnea_stream := dyspnea_audio.stream as AudioStreamMP3
+	if dyspnea_stream:
+		dyspnea_stream.loop = true
+	dyspnea_audio.volume_db = HEARTBEAT_SILENT_DB
 	# Сначала инициализируем все системы
 	health_bar.set_max_hp(max_health)
 	health_bar.set_max_stamina(max_stamina)
@@ -228,6 +363,115 @@ func _unhandled_input(event: InputEvent) -> void:
 			inventory_ui.close()
 		else:
 			inventory_ui.open()
+
+func _process(delta: float) -> void:
+	# Обновляем состояния "на грани" ДО расчёта тряски — истощение подкачивает
+	# _shake_strength, и так тряска применится уже в этом же кадре
+	_update_condition_fx(delta)
+	_update_immunity_visual(delta)
+
+	# Итоговое смещение камеры = тряска от урона + плавное покачивание на беге.
+	# Считаем их по отдельности и складываем, а не перезаписываем camera.offset
+	# в двух местах — иначе один эффект стирал бы другой.
+
+	# Тряска от урона — случайное смещение, угасающее со временем ("trauma"-
+	# подход: просто затухающая величина, а не путь твина, поэтому повторные
+	# удары естественно накладываются друг на друга без рывков)
+	var shake_offset := Vector2.ZERO
+	if _shake_strength > 0.01:
+		shake_offset = Vector2(randf_range(-1.0, 1.0), randf_range(-1.0, 1.0)) * _shake_strength
+		_shake_strength = move_toward(_shake_strength, 0.0, shake_decay * _shake_strength * delta + 1.0 * delta)
+	else:
+		_shake_strength = 0.0
+
+	# Плавное покачивание камеры на беге — фигура-восьмёрка, а не прямая
+	# вверх-вниз: X колеблется на одинарной частоте, Y — на двойной, вместе
+	# камера описывает плавную петлю по разным точкам. Цикл длиннее, чем шаг
+	# (run_bob_cycle_distance > footstep_step_distance), поэтому качает спокойнее,
+	# а не резко в такт каждому шагу. Амплитуда плавно нарастает/гаснет при
+	# старте/остановке бега, а сверху ещё лёгкое сглаживание итоговой позиции —
+	# камера "догоняет" цель, а не дёргается к ней рывком
+	var is_sprinting := velocity.length() >= 120.0
+	_bob_intensity = move_toward(_bob_intensity, 1.0 if is_sprinting else 0.0, run_bob_fade_speed * delta)
+	var bob_target := Vector2.ZERO
+	if _bob_intensity > 0.001:
+		_bob_phase += velocity.length() * delta
+		var t := _bob_phase / run_bob_cycle_distance * TAU
+		bob_target = Vector2(sin(t) * run_bob_amplitude_x, sin(t * 2.0) * run_bob_amplitude_y) * _bob_intensity
+
+	_bob_smoothed = _bob_smoothed.lerp(bob_target, minf(run_bob_smoothing * delta, 1.0))
+	camera.offset = shake_offset + _bob_smoothed
+
+
+func _update_immunity_visual(delta: float) -> void:
+	# то же условие, что и в receive_attack — визуал показывает РЕАЛЬНУЮ
+	# неуязвимость, а не приблизительную (иначе игрок учился бы врать себе)
+	var immune := is_invulnerable or is_dodging or is_rolling
+	var target := immune_tint if immune else Color.WHITE
+	# вес lerp обязательно ограничиваем: при просадке FPS speed*delta уходит
+	# за 1.0, и цвет проскакивает мимо цели, начиная колебаться вокруг неё
+	var weight := minf(immune_visual_speed * delta, 1.0)
+	gfx.self_modulate = gfx.self_modulate.lerp(target, weight)
+
+
+func _update_condition_fx(delta: float) -> void:
+	var stamina: float = health_bar.current_stamina
+	var hp: float = health_bar.current_hp
+
+	# --- Истощение: входим при нулевой стамине, выходим только когда она
+	# восстановится до порога (гистерезис против мерцания у нуля) ---
+	if _exhaust_fx_active:
+		if stamina >= exhaust_fx_recover_threshold:
+			_exhaust_fx_active = false
+	elif stamina <= 0.0:
+		_exhaust_fx_active = true
+
+	exhaust_vignette.set_active(_exhaust_fx_active)
+
+	# Тряска держится постоянно, пока длится истощение: каждый кадр
+	# подкачиваем силу, а штатное затухание не даёт ей накапливаться
+	if _exhaust_fx_active:
+		shake_camera(exhaust_shake_strength)
+
+	# --- Сердцебиение: тихое на низком HP, громкое при истощении ---
+	var low_hp := hp > 0.0 and hp <= low_health_threshold
+	var want_heartbeat := _exhaust_fx_active or low_hp
+
+	var target_db := HEARTBEAT_SILENT_DB
+	if want_heartbeat:
+		target_db = heartbeat_volume_exhausted if _exhaust_fx_active else heartbeat_volume_low_hp
+
+	# стартуем с тишины и плавно выводим громкость — иначе звук "щёлкал" бы
+	# при включении и при переходе тихое->громкое
+	if want_heartbeat and not heartbeat_audio.playing:
+		heartbeat_audio.volume_db = HEARTBEAT_SILENT_DB
+		heartbeat_audio.play()
+
+	if heartbeat_audio.playing:
+		heartbeat_audio.volume_db = move_toward(
+			heartbeat_audio.volume_db, target_db, heartbeat_fade_speed * delta
+		)
+		if not want_heartbeat and heartbeat_audio.volume_db <= HEARTBEAT_SILENT_DB + 0.01:
+			heartbeat_audio.stop()
+
+	# --- Одышка: только при истощении, вместе с сердцебиением и виньеткой ---
+	var dyspnea_target_db := dyspnea_volume if _exhaust_fx_active else HEARTBEAT_SILENT_DB
+
+	if _exhaust_fx_active and not dyspnea_audio.playing:
+		dyspnea_audio.volume_db = HEARTBEAT_SILENT_DB
+		dyspnea_audio.play()
+
+	if dyspnea_audio.playing:
+		dyspnea_audio.volume_db = move_toward(
+			dyspnea_audio.volume_db, dyspnea_target_db, heartbeat_fade_speed * delta
+		)
+		if not _exhaust_fx_active and dyspnea_audio.volume_db <= HEARTBEAT_SILENT_DB + 0.01:
+			dyspnea_audio.stop()
+
+
+func shake_camera(strength: float) -> void:
+	_shake_strength = max(_shake_strength, strength)
+
 
 func _physics_process(delta):
 	# speed_scale — общее свойство AnimationPlayer на ВСЕ анимации, не только
@@ -647,7 +891,7 @@ func handle_footsteps(delta: float) -> void:
 	if _footstep_distance >= footstep_step_distance:
 		_footstep_distance = 0.0
 		footstep_audio.stream = FOOTSTEP_LEFT if _footstep_left_next else FOOTSTEP_RIGHT
-		footstep_audio.play()
+		_play_varied(footstep_audio)
 		_footstep_left_next = not _footstep_left_next
 
 func play_turn_vfx(_old_dir: Vector2, _new_dir: Vector2):
@@ -785,7 +1029,9 @@ func on_perfect_parry(attack_data: Dictionary):
 	counter_timer = counter_window
 	play_parry_vfx()
 	parry_audio.stream = PARRY_SOUND
-	parry_audio.play()
+	# парирование — особый момент, разброс меньше, чтобы звук оставался
+	# узнаваемым и "чистым", а не плавал как рядовые удары
+	_play_varied(parry_audio, 0.05)
 	# урон по концентрации врага
 	var source = attack_data.get("source", null)
 	if source and source.has_method("take_posture_damage"):
@@ -811,6 +1057,9 @@ func take_damage(amount: int, source: Node = null) -> void:
 	is_taking_damage = true
 	gfx.play("Take_Damage_" + last_direction)
 	_trigger_damage_flash()
+	damage_vignette.flash()
+	hit_flash.flash()
+	shake_camera(damage_shake_strength)
 	
 	current_posture += 10.0
 	current_posture = min(current_posture, max_posture)
@@ -893,18 +1142,13 @@ func play_attack(step: int):
 	anim.play(anim_name)
 
 	# Звук замаха (whoosh) — на каждом ударе серии
-	swing_audio.stream = SWING_SOUND
-	swing_audio.play()
+	_play_pool(swing_audio, SWING_SOUNDS, "swing")
 
 	# Боевой вскрик — свой на каждый из первых трёх ударов, 4-й (вихрь) — без вскрика
-	var grunt: AudioStream = null
 	match step:
-		1: grunt = GRUNT_1_SOUND
-		2: grunt = GRUNT_2_SOUND
-		3: grunt = GRUNT_3_SOUND
-	if grunt:
-		voice_audio.stream = grunt
-		voice_audio.play()
+		1: _play_pool(voice_audio, GRUNT_1_SOUNDS, "grunt1")
+		2: _play_pool(voice_audio, GRUNT_2_SOUNDS, "grunt2")
+		3: _play_pool(voice_audio, GRUNT_3_SOUNDS, "grunt3")
 
 	# --- микро-рывок вперёд после удара ---
 	attack_velocity = direction_to_vector(last_direction) * 125  # сила рывка подбирается
@@ -951,10 +1195,8 @@ func start_run_attack():
 	update_weapon_tip()
 	melee_weapon_tip()  # позиционируем player_hitbox перед игроком, иначе удар на бегу не попадает
 	anim.play(anim_name)
-	swing_audio.stream = RUN_SWING_SOUND
-	swing_audio.play()
-	voice_audio.stream = GRUNT_RUN_SOUND
-	voice_audio.play()
+	_play_pool(swing_audio, RUN_SWING_SOUNDS, "run_swing")
+	_play_pool(voice_audio, GRUNT_RUN_SOUNDS, "grunt_run")
 	# задаём скорость для скольжения
 	attack_velocity = input_vector.normalized() * 250
 
@@ -1033,11 +1275,13 @@ func play_fire_ring_vfx():
 
 func _spin_finisher() -> void:
 	var dmg: int = maxi(1, int(round(attack_damage * spin_damage_mult * get_damage_multiplier())))
+	var hit_any := false
 	for e: Node2D in get_tree().get_nodes_in_group("enemy"):
 		if not is_instance_valid(e) or e.is_dead:
 			continue
 		if global_position.distance_to(e.global_position) > spin_radius:
 			continue
+		hit_any = true
 		# сбрасываем защиту/контратаку врага, чтобы вихрь прерывал его в HIT_STUN,
 		# а не давал провести контратаку во время отлёта
 		e.is_parrying = false
@@ -1051,6 +1295,15 @@ func _spin_finisher() -> void:
 			dir = Vector2.DOWN
 		if "knockback_velocity" in e:
 			e.knockback_velocity = dir * spin_knockback
+
+	# отдача вихря — один раз на весь замах, а не на каждого задетого врага,
+	# иначе в толпе стоп-кадр и тряска складывались бы в кашу
+	if hit_any:
+		shake_camera(hit_shake_strength * spin_impact_mult)
+		do_hitstop(spin_impact_mult)
+		# combo_step == 4, поэтому слой оружия внутри промолчит и сыграет только
+		# низкий слой тела — самый тяжёлый звук в серии, ровно на добивании
+		_play_hit_sound(spin_impact_mult)
 
 func play_running_hit_vfx():
 	if running_hit_vfx_scene == null:
@@ -1265,38 +1518,106 @@ func _on_player_hitbox_area_entered(area: Area2D) -> void:
 				"source": self
 			}
 			enemy.receive_attack(attack_data)
-		_play_hit_sound()
-		do_hitstop()
+		# удар на бегу весомее обычного удара серии
+		var power := run_attack_impact_mult if is_run_attacking else 1.0
+		_play_hit_sound(power)
+		shake_camera(hit_shake_strength * power)
+		do_hitstop(power)
 
-func do_hitstop() -> void:
+func do_hitstop(power := 1.0) -> void:
 	# Замораживаем время на пару кадров. Таймер с ignore_time_scale=true
 	# продолжает идти в реальном времени, поэтому разморозка сработает.
 	# Токен защищает от наложения нескольких попаданий в один кадр:
 	# время восстанавливает только самый последний вызов.
+	# power — множитель "веса" удара: чем мощнее, тем дольше стоп-кадр.
 	_hitstop_token += 1
 	var token := _hitstop_token
 	Engine.time_scale = hitstop_scale
-	await get_tree().create_timer(hitstop_duration, true, false, true).timeout
+	await get_tree().create_timer(hitstop_duration * power, true, false, true).timeout
 	if token == _hitstop_token:
 		Engine.time_scale = 1.0
 
 
-func _play_hit_sound() -> void:
-	var snd: AudioStream = null
+# Проигрывает звук со случайным разбросом высоты тона. Без этого каждый удар,
+# вскрик и шаг звучат абсолютно идентично, и ухо быстро считывает повтор одного
+# и того же семпла — бой начинает ощущаться "механическим"
+func _play_varied(player: AudioStreamPlayer2D, variation := -1.0, volume_offset_db := 0.0, pitch_mult := 1.0) -> void:
+	var v: float = pitch_variation if variation < 0.0 else variation
+	player.pitch_scale = randf_range(1.0 - v, 1.0 + v) * pitch_mult
+	# Живой человек не бьёт дважды с одинаковой силой — небольшой разброс
+	# громкости делает серию ударов "неровной" так же, как питч делает её
+	# неодинаковой по тону. Отсчитываем от БАЗОВОЙ громкости из сцены, иначе
+	# volume_db дрейфовал бы всё дальше с каждым выстрелом
+	if _base_volume_db.has(player):
+		var base: float = _base_volume_db[player]
+		player.volume_db = base + randf_range(-volume_variation_db, volume_variation_db) + volume_offset_db
+	player.play()
+
+
+# Берёт случайный семпл из пула, никогда не повторяя предыдущий подряд.
+# Чистый randf() на пуле из 2-3 файлов регулярно выдаёт один и тот же дважды,
+# и ухо ловит именно эти повторы — а не общую случайность
+func _pick_from_pool(pool: Array[AudioStream], key: String) -> AudioStream:
+	if pool.is_empty():
+		return null
+	if pool.size() == 1:
+		return pool[0]
+	var last: int = _last_sample_idx.get(key, -1)
+	var idx := randi() % pool.size()
+	if idx == last:
+		idx = (idx + 1 + randi() % (pool.size() - 1)) % pool.size()
+	_last_sample_idx[key] = idx
+	return pool[idx]
+
+
+# Единая точка "сыграть звук действия": выбор семпла из пула + питч + громкость
+func _play_pool(player: AudioStreamPlayer2D, pool: Array[AudioStream], key: String, variation := -1.0, volume_offset_db := 0.0, pitch_mult := 1.0) -> void:
+	var snd := _pick_from_pool(pool, key)
+	if snd == null:
+		return
+	player.stream = snd
+	_play_varied(player, variation, volume_offset_db, pitch_mult)
+
+
+func _play_hit_sound(power := 1.0) -> void:
+	# power приходит тот же самый, что уже управляет тряской камеры и хитстопом
+	# (1.0 = обычный удар серии ... spin_impact_mult = вихрь), поэтому звук,
+	# картинка и время реагируют на силу удара согласованно
+	var t: float = clamp((power - 1.0) / (spin_impact_mult - 1.0), 0.0, 1.0)
+	var vol_offset: float = lerpf(0.0, impact_power_volume_db, t)
+	var pitch_mult: float = lerpf(1.0, 1.0 - impact_power_pitch_drop, t)
+
+	# Слой оружия — лязг, свой семпл под конкретный удар серии
 	if is_run_attacking:
-		snd = RUN_HIT_SOUND
+		_play_pool(hit_audio, RUN_HIT_SOUNDS, "run_hit", -1.0, vol_offset, pitch_mult)
 	elif combo_step == 1:
-		snd = HIT_1_SOUND
+		_play_pool(hit_audio, HIT_1_SOUNDS, "hit1", -1.0, vol_offset, pitch_mult)
 	elif combo_step == 2 or combo_step == 3:
-		snd = HIT_REST_SOUND
-	# 4-й удар (вихрь) — без звука попадания
-	if snd:
-		hit_audio.stream = snd
-		hit_audio.play()
+		_play_pool(hit_audio, HIT_REST_SOUNDS, "hit_rest", -1.0, vol_offset, pitch_mult)
+
+	# Слой тела — глухой низкий удар, играется ПОД любым попаданием, включая
+	# вихрь (у него нет своего лязга, но вес чувствоваться должен)
+	_play_pool(
+		body_impact_audio, BODY_IMPACT_SOUNDS, "body",
+		-1.0, vol_offset, body_layer_pitch * pitch_mult
+	)
+
+	_duck_music(power)
+
+
+# Короткая просадка музыки под сильный удар — освобождает место удару в миксе.
+# Менеджер музыки живёт в сцене уровня, поэтому находим его через группу
+# (тот же приём, которым магазин приглушает дождь)
+func _duck_music(power: float) -> void:
+	if power < duck_power_threshold:
+		return
+	var music_mgr := get_tree().get_first_node_in_group("level_music")
+	if music_mgr and music_mgr.has_method("duck_music"):
+		music_mgr.duck_music(power, spin_impact_mult)
 
 func play_block_hit_sound() -> void:
 	block_audio.stream = BLOCK_HIT_SOUND
-	block_audio.play()
+	_play_varied(block_audio)
 
 func get_damage_multiplier() -> float:
 	var mult := 1.0

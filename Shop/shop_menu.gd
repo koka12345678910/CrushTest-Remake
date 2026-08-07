@@ -172,7 +172,8 @@ func open_shop(player: Node2D) -> void:
 	var tw = create_tween().set_parallel()
 	tw.tween_property(self, "modulate", Color.WHITE, 0.18)
 	tw.tween_property(self, "scale", Vector2.ONE, 0.18).set_ease(Tween.EASE_OUT)
-	
+	_set_level_rain_muffled(true, 0.18)
+
 	queue_redraw()
 
 # Загружаем все PNG заранее — один раз при старте
@@ -209,12 +210,21 @@ func _input(event: InputEvent) -> void:
 				var max_s: float = maxf(0.0, float(items.size() * ITEM_H) - 400.0)
 				target_scroll = clampf(target_scroll - 60.0, 0.0, max_s)
 
+# Приглушаем дождь уровня на время, пока открыт магазин — плавно, за то же
+# время, что идёт анимация открытия/закрытия самого окна (см. duration в
+# вызовах ниже), как приглушение звука за дверью в Sekiro
+func _set_level_rain_muffled(muffled: bool, duration: float) -> void:
+	var music_mgr = get_tree().get_first_node_in_group("level_music")
+	if music_mgr and music_mgr.has_method("set_shop_open"):
+		music_mgr.set_shop_open(muffled, duration)
+
 func close_shop() -> void:
 	_play_ui_sound(SOUND_OPEN)
 	pivot_offset = size / 2.0
 	var tw = create_tween().set_parallel()
 	tw.tween_property(self, "modulate", Color(1, 1, 1, 0), 0.14)
 	tw.tween_property(self, "scale", Vector2(0.96, 0.96), 0.14)
+	_set_level_rain_muffled(false, 0.14)
 	await tw.finished
 	if current_player:
 		current_player.is_in_shop = false

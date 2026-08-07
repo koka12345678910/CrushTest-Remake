@@ -146,6 +146,24 @@ var is_player_berserk := false
 @onready var posture_bar: ProgressBar = $EnemyUI/PostureBar
 @onready var block_vfx: GPUParticles2D = $BlockVFX
 @onready var state_label: Label = $StateLabel
+@onready var attack_audio: AudioStreamPlayer2D = $AttackAudio
+@onready var impact_audio: AudioStreamPlayer2D = $ImpactAudio
+@onready var voice_audio: AudioStreamPlayer2D = $VoiceAudio
+
+# Враг переиспользует боевые сэмплы игрока, но звучит ниже: Death Knight —
+# крупнее и тяжелее, и по одному тону слышно, чей это удар. Позиционный
+# AudioStreamPlayer2D + attenuation в сцене довершают: дальний враг тише
+const ENEMY_SWING_SOUND := preload("res://Sound/melee_sound/swing.mp3")
+const ENEMY_HIT_SOUND := preload("res://Sound/melee_sound/hit.mp3")
+const ENEMY_GRUNT_SOUNDS := [
+	preload("res://Sound/groaning_sound/attack1.mp3"),
+	preload("res://Sound/groaning_sound/attack2.mp3"),
+	preload("res://Sound/groaning_sound/attack3.mp3"),
+]
+@export var enemy_pitch_down := 0.78   # общий сдвиг тона вниз — "крупнее" игрока
+@export var enemy_pitch_variation := 0.1
+# Вскрик не на каждой атаке — иначе враг тараторит без остановки
+@export var enemy_grunt_chance := 0.5
 
 # ============== READY ==============
 
@@ -505,6 +523,7 @@ func _change_state(new_state: State) -> void:
 			# рандомно выбираем атаку
 			var attacks = ["attack", "attack2"]
 			current_attack_anim = attacks[randi() % attacks.size()]
+			_trigger_attack_telegraph()
 
 		State.HIT_STUN:
 			move_velocity = Vector2.ZERO
@@ -670,6 +689,7 @@ func _state_attack(_delta: float) -> void:
 		attack_direction_name = _get_direction_name(direction)  # ← фиксируем направление
 		_update_attack_shape()
 		_play_animation(current_attack_anim)
+		_play_attack_sound()
 
 	# Игрок исчез — прерываем атаку
 	if not player or not is_instance_valid(player):
@@ -750,7 +770,8 @@ func _get_direction_name(dir: Vector2) -> String:
 		return "up"
 	else:
 		return "up_right"
-
+	
+	
 
 # ===================== ATTACK DAMAGE FIX =====================
 
@@ -775,6 +796,7 @@ func _on_attack_body_entered(body: Node2D) -> void:
 			}
 			body.receive_attack(attack_data)
 			hit_targets.append(body)  # ← добавь
+			_play_enemy_sound(impact_audio, ENEMY_HIT_SOUND)
 
 
 # ===================== HIT DAMAGE =====================
@@ -794,6 +816,7 @@ func take_damage(amount: int, source: Node2D = null) -> void:
 		hp_bar.value = health
 		_trigger_damage_flash()
 		play_blood_vfx()
+		_play_enemy_sound(voice_audio, ENEMY_GRUNT_SOUNDS.pick_random())
 
 		if health <= 0:
 			health = 0
@@ -851,7 +874,8 @@ func take_damage(amount: int, source: Node2D = null) -> void:
 	hp_bar.value = health
 	_trigger_damage_flash()
 	play_blood_vfx()
-	
+	_play_enemy_sound(voice_audio, ENEMY_GRUNT_SOUNDS.pick_random())
+
 	if health <= 0:
 		health = 0
 		is_dead = true
@@ -966,6 +990,19 @@ func _state_counter(_delta: float) -> void:
 				player.receive_parry(pummel_posture_damage)
 				hit_targets.append(player)
 				attack_active = false
+
+# Телеграф атаки — короткая вспышка в момент замаха, чтобы игрок успевал
+# прочитать "сейчас ударит" и осознанно парировать/увернуться. Без неё удар
+# врага прилетает без предупреждения, и парирование ощущается лотереей, а не
+# вопросом тайминга. Цвет отличается от блока (жёлтый) и урона (красный)
+@export var telegraph_color := Color(2.2, 1.1, 0.5, 1.0)
+@export var telegraph_fade_time := 0.22
+
+func _trigger_attack_telegraph() -> void:
+	var sp = $AnimatedSprite2D
+	sp.modulate = telegraph_color
+	var tween = create_tween()
+	tween.tween_property(sp, "modulate", _rest_modulate, telegraph_fade_time)
 
 func _trigger_block_effect() -> void:
 	block_vfx.restart()
@@ -1137,6 +1174,22 @@ func _get_damage_from(body: Node2D) -> int:
 	if body.has_method("get_damage"):
 		return int(body.call("get_damage"))
 	return get_attack_damage()
+
+func _play_enemy_sound(player_node: AudioStreamPlayer2D, stream: AudioStream) -> void:
+	if stream == null:
+		return
+	player_node.stream = stream
+	player_node.pitch_scale = enemy_pitch_down * randf_range(
+		1.0 - enemy_pitch_variation, 1.0 + enemy_pitch_variation
+	)
+	player_node.play()
+
+
+func _play_attack_sound() -> void:
+	_play_enemy_sound(attack_audio, ENEMY_SWING_SOUND)
+	if randf() < enemy_grunt_chance:
+		_play_enemy_sound(voice_audio, ENEMY_GRUNT_SOUNDS.pick_random())
+
 
 func _get_attack_dir_name(dir: Vector2) -> String:
 	if abs(dir.x) > abs(dir.y):
