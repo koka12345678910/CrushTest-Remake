@@ -41,6 +41,13 @@ extends CharacterBody2D
 # Тряска при ПОПАДАНИИ своего удара по врагу — слабее, чем от урона: атака
 # должна ощущаться весомо, но не путаться с "меня бьют"
 @export var hit_shake_strength := 3.0
+# Тряска при удачном парировании — короткий металлический "чирк", заметно
+# слабее урона, но чуть сильнее обычного попадания: парировать должно
+# ощущаться весомо (звон металла), а не как лёгкий тычок
+@export var parry_shake_strength := 5.0
+# Более высокий тон читается ухом как "звонче" — обычный лязг ощущается
+# глуше, чем чистый высокий звон металла
+@export var parry_pitch_mult := 1.15
 # Разброс высоты тона на повторяющихся звуках (доля от 1.0)
 @export var pitch_variation := 0.12
 # Разброс громкости на повторяющихся звуках (в дБ, +/- от базовой)
@@ -74,7 +81,15 @@ var _shake_strength := 0.0
 # до exhaust_fx_recover_threshold (гистерезис: иначе эффекты моргали бы,
 # дёргаясь у самого нуля при малейшем регене)
 @export var exhaust_fx_recover_threshold := 50.0
-@export var exhaust_shake_strength := 6.0
+# Дрожь истощения — НЕ через общую систему тряски от удара (та рассчитана на
+# одиночный импульс с затуханием). Здесь своя, отдельная и более мягкая логика:
+# см. _exhaust_shake_target/_exhaust_shake_current и _process
+@export var exhaust_shake_strength := 7.0
+@export var exhaust_shake_update_rate := 0.09  # как часто меняется цель дрожи
+@export var exhaust_shake_smoothing := 18.0    # скорость, с которой камера догоняет цель
+var _exhaust_shake_target := Vector2.ZERO
+var _exhaust_shake_current := Vector2.ZERO
+var _exhaust_shake_timer := 0.0
 @export var heartbeat_volume_low_hp := -18.0
 @export var heartbeat_volume_exhausted := 3.0
 @export var heartbeat_fade_speed := 25.0  # дБ в секунду, плавность нарастания
@@ -400,7 +415,10 @@ func _process(delta: float) -> void:
 		bob_target = Vector2(sin(t) * run_bob_amplitude_x, sin(t * 2.0) * run_bob_amplitude_y) * _bob_intensity
 
 	_bob_smoothed = _bob_smoothed.lerp(bob_target, minf(run_bob_smoothing * delta, 1.0))
-	camera.offset = shake_offset + _bob_smoothed
+
+	_exhaust_shake_current = _exhaust_shake_current.lerp(_exhaust_shake_target, minf(exhaust_shake_smoothing * delta, 1.0))
+
+	camera.offset = shake_offset + _bob_smoothed + _exhaust_shake_current
 
 
 func _update_immunity_visual(delta: float) -> void:
@@ -428,10 +446,19 @@ func _update_condition_fx(delta: float) -> void:
 
 	exhaust_vignette.set_active(_exhaust_fx_active)
 
-	# Тряска держится постоянно, пока длится истощение: каждый кадр
-	# подкачиваем силу, а штатное затухание не даёт ей накапливаться
+	# Дрожь истощения: цель обновляется РЕДКО (exhaust_shake_update_rate), а
+	# не каждый кадр — раньше здесь был shake_camera() на каждом кадре, из-за
+	# чего сила тряски держалась на максимуме и каждый кадр выдавала новое
+	# случайное смещение. Глазом это читалось как шум, а не как дрожание.
+	# Плавный lerp к редко сменяемой цели (в _process) даёт характерное
+	# дрожание уставших рук вместо мельтешения
+	_exhaust_shake_timer -= delta
 	if _exhaust_fx_active:
-		shake_camera(exhaust_shake_strength)
+		if _exhaust_shake_timer <= 0.0:
+			_exhaust_shake_timer = exhaust_shake_update_rate
+			_exhaust_shake_target = Vector2(randf_range(-1.0, 1.0), randf_range(-1.0, 1.0)) * exhaust_shake_strength
+	else:
+		_exhaust_shake_target = Vector2.ZERO
 
 	# --- Сердцебиение: тихое на низком HP, громкое при истощении ---
 	var low_hp := hp > 0.0 and hp <= low_health_threshold
@@ -1030,8 +1057,12 @@ func on_perfect_parry(attack_data: Dictionary):
 	play_parry_vfx()
 	parry_audio.stream = PARRY_SOUND
 	# парирование — особый момент, разброс меньше, чтобы звук оставался
-	# узнаваемым и "чистым", а не плавал как рядовые удары
-	_play_varied(parry_audio, 0.05)
+	# узнаваемым и "чистым", а не плавал как рядовые удары. Питч приподнят
+	# сверху (parry_pitch_mult) — так лязг звучит звонче, а не глухо
+	_play_varied(parry_audio, 0.05, 0.0, parry_pitch_mult)
+	# короткая тряска — удар металла о металл должен ощущаться физически,
+	# но парирование не урон, поэтому заметно слабее damage_shake_strength
+	shake_camera(parry_shake_strength)
 	# урон по концентрации врага
 	var source = attack_data.get("source", null)
 	if source and source.has_method("take_posture_damage"):

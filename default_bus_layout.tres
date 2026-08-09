@@ -10,6 +10,17 @@ release_ms = 120.0
 [sub_resource type="AudioEffectHardLimiter" id="AudioEffectHardLimiter_combat"]
 ceiling_db = -0.5
 
+[sub_resource type="AudioEffectReverb" id="AudioEffectReverb_parry"]
+room_size = 0.4
+damping = 0.15
+spread = 1.0
+wet = 0.32
+dry = 1.0
+
+[sub_resource type="AudioEffectHighShelfFilter" id="AudioEffectHighShelfFilter_parry"]
+cutoff_hz = 3200.0
+gain = 2.4
+
 [resource]
 bus/1/name = &"Combat"
 bus/1/solo = false
@@ -27,3 +38,13 @@ bus/2/mute = false
 bus/2/bypass_fx = false
 bus/2/volume_db = 0.0
 bus/2/send = &"Master"
+bus/3/name = &"ParryRing"
+bus/3/solo = false
+bus/3/mute = false
+bus/3/bypass_fx = false
+bus/3/volume_db = 0.0
+bus/3/send = &"Combat"
+bus/3/effect/0/effect = SubResource("AudioEffectHighShelfFilter_parry")
+bus/3/effect/0/enabled = true
+bus/3/effect/1/effect = SubResource("AudioEffectReverb_parry")
+bus/3/effect/1/enabled = true

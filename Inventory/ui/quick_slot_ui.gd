@@ -20,8 +20,11 @@ void fragment() {
 }
 """
 
-@export var icon_mask_radius := 0.46
-@export var icon_mask_feather := 0.12
+@export var icon_mask_radius := 0.48
+# Резкий край, а не размытая виньетка — в магазине круг рисуется полигоном
+# (жёсткая геометрическая граница), и здесь нужен тот же чёткий вид, а не
+# мягкое затухание
+@export var icon_mask_feather := 0.015
 
 # Мягкое тёплое свечение позади иконки — вместо жёсткой панели пытаемся
 # вписаться в уже существующий язык освещения уровня (тёплые круги света от
@@ -66,9 +69,16 @@ func _build_single_slot() -> void:
 	# Контейнер для свечения + иконки + вспышки — размер заметно увеличен
 	# относительно старых 112x112, чтобы слот было видно с одного взгляда
 	var icon_container := Control.new()
-	icon_container.custom_minimum_size = Vector2(150, 150)
-	icon_container.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	icon_container.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	icon_container.custom_minimum_size = Vector2(170, 170)
+	# ВАЖНО: раньше тут стоял EXPAND_FILL по обеим осям — VBoxContainer
+	# растягивал контейнер на всю доступную высоту/ширину слота (220x220
+	# минус полоска кулдауна и текст), а они не равны друг другу. Контейнер
+	# получался прямоугольным (шире, чем выше), и "круг" в UV-координатах
+	# превращался в эллипс. SHRINK_CENTER фиксирует контейнер РОВНО на
+	# custom_minimum_size (150x150 — квадрат) и центрирует его — без этого
+	# никакая математика в шейдере круг не спасёт
+	icon_container.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	icon_container.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	_vbox.add_child(icon_container)
 
 	# Свечение — фон-подложка. Радиальный градиент вместо панели: тёплое ядро,
@@ -107,10 +117,10 @@ func _build_single_slot() -> void:
 	_icon.set_anchors_preset(Control.PRESET_FULL_RECT)
 	# Отступ внутрь контейнера — оставляет свечению место "выйти" за пределы
 	# самой иконки мягким ореолом, а не обрываться точно по её границе
-	_icon.offset_left = 12
-	_icon.offset_top = 12
-	_icon.offset_right = -12
-	_icon.offset_bottom = -12
+	_icon.offset_left = 14
+	_icon.offset_top = 14
+	_icon.offset_right = -14
+	_icon.offset_bottom = -14
 	_icon.expand_mode = TextureRect.EXPAND_FIT_WIDTH_PROPORTIONAL
 	_icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 	_icon.material = mask_material
@@ -120,10 +130,10 @@ func _build_single_slot() -> void:
 	# при срабатывании она мигнула бы жёстким квадратом поверх круглой иконки
 	_flash = ColorRect.new()
 	_flash.set_anchors_preset(Control.PRESET_FULL_RECT)
-	_flash.offset_left = 12
-	_flash.offset_top = 12
-	_flash.offset_right = -12
-	_flash.offset_bottom = -12
+	_flash.offset_left = 14
+	_flash.offset_top = 14
+	_flash.offset_right = -14
+	_flash.offset_bottom = -14
 	_flash.color = Color(1, 1, 1, 0)
 	_flash.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_flash.material = mask_material
@@ -136,7 +146,11 @@ func _build_single_slot() -> void:
 	_cooldown_bar.max_value = 1.0
 	_cooldown_bar.value = 1.0
 	_cooldown_bar.show_percentage = false
-	_cooldown_bar.custom_minimum_size = Vector2(0, 6)
+	# Без ширины отдельно — по умолчанию VBoxContainer растягивает детей на всю
+	# ширину контейнера (330px), а иконка теперь уже (170px, SHRINK_CENTER) —
+	# полоса выглядела шире самой иконки. Ограничиваем шириной иконки и центрируем
+	_cooldown_bar.custom_minimum_size = Vector2(icon_container.custom_minimum_size.x, 7)
+	_cooldown_bar.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 
 	var bar_bg := StyleBoxFlat.new()
 	bar_bg.bg_color = Color(0, 0, 0, 0.35)
@@ -158,7 +172,7 @@ func _build_single_slot() -> void:
 
 	_index_label = Label.new()
 	_index_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	_index_label.add_theme_font_size_override("font_size", 18)
+	_index_label.add_theme_font_size_override("font_size", 20)
 	_index_label.add_theme_color_override("font_color", Color(0.95, 0.95, 0.9))
 	_index_label.add_theme_color_override("font_outline_color", Color(0, 0, 0, 0.85))
 	_index_label.add_theme_constant_override("outline_size", 5)

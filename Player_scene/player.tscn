@@ -5362,7 +5362,7 @@ frame_progress = 0.76769924
 shape = SubResource("CapsuleShape2D_m414l")
 
 [node name="Camera2D" type="Camera2D" parent="." unique_id=1677170942]
-zoom = Vector2(1.7, 1.7)
+zoom = Vector2(1.9, 1.9)
 limit_smoothed = true
 
 [node name="Rain" type="GPUParticles2D" parent="Camera2D" unique_id=1488762265]
@@ -5466,10 +5466,10 @@ script = ExtResource("11_2ys5t")
 [node name="QuickSlotUI" type="Control" parent="HUD" unique_id=1468830696]
 layout_mode = 3
 anchors_preset = 0
-offset_left = 1625.0
+offset_left = 1595.0
 offset_top = 797.0
 offset_right = 1845.0
-offset_bottom = 1017.0
+offset_bottom = 1047.0
 script = ExtResource("12_wfmf0")
 
 [node name="HealthStaminaBar" type="CanvasLayer" parent="." unique_id=630230056]
@@ -5536,7 +5536,6 @@ bus = &"Combat"
 
 [node name="ParryAudio" type="AudioStreamPlayer2D" parent="." unique_id=1772501580]
 volume_db = -9.5
-bus = &"Combat"
 
 [node name="InventoryUI" type="CanvasLayer" parent="." unique_id=37486928]
 script = ExtResource("14_2ys5t")

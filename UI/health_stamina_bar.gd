@@ -28,12 +28,41 @@ var _displayed_posture: float = 0.0  # то что видит игрок
 # hp_position теперь отсчитывается от НИЖНЕГО левого угла экрана (контейнер
 # висит на якоре BOTTOM_LEFT) — отрицательный Y поднимает полоску над нижним
 # краем, а не опускает от верхнего, как было раньше
-@export var hp_position: Vector2 = Vector2(16, -76)
+@export var hp_position: Vector2 = Vector2(16, -124)
 @export var stamina_offset_x: float = 16.0  # смещение от левого края
-@export var stamina_position_y: float = -124.0  # отступ от нижнего края, стамина висит НАД HP
+@export var stamina_position_y: float = -76.0  # отступ от нижнего края, стамина теперь ПОД HP
 @export var posture_bar_size: Vector2 = Vector2(440, 16)
 @export var posture_offset_x: float = -220.0  # половина ширины — центрирует полоску
 @export var posture_position_y: float = 16.0    # теперь отступ от ВЕРХНЕГО края
+
+# --- Презентабельный вид HP/стамины без готовых текстур: глянец + рамка со
+# скосом + сегменты-насечки. Всё считается кодом/шейдером, ни одного файла
+# с диска ---
+@export var hp_segment_count := 10
+@export var stamina_segment_count := 10
+@export var gloss_highlight_strength := 0.35
+@export var gloss_shade_strength := 0.3
+
+# Глянцевая световая полоса сверху + плавное затемнение к низу — придаёт
+# плоской заливке объём стеклянной/эмалевой полоски. COLOR уже содержит цвет
+# ColorRect'а (движок сам его туда кладёт для canvas_item шейдеров), поэтому
+# шейдеру достаточно домешать светлое/тёмное поверх него, не трогая альфу
+const GLOSS_SHADER_CODE := """
+shader_type canvas_item;
+
+uniform float highlight_strength : hint_range(0.0, 1.0) = 0.35;
+uniform float highlight_center : hint_range(0.0, 1.0) = 0.2;
+uniform float highlight_width : hint_range(0.01, 1.0) = 0.25;
+uniform float shade_strength : hint_range(0.0, 1.0) = 0.3;
+
+void fragment() {
+	float highlight = exp(-pow((UV.y - highlight_center) / highlight_width, 2.0)) * highlight_strength;
+	float shade = smoothstep(0.55, 1.0, UV.y) * shade_strength;
+	COLOR.rgb = mix(COLOR.rgb, vec3(1.0), highlight);
+	COLOR.rgb = mix(COLOR.rgb, vec3(0.0), shade);
+}
+"""
+var _gloss_material: ShaderMaterial
 
 # --- Концентрация (Posture) ---
 var max_posture: float = 100.0
@@ -46,7 +75,6 @@ var _posture_fill_right: ColorRect
 var _hp_bg: ColorRect
 var _hp_delayed: ColorRect
 var _hp_fill: ColorRect
-var _hp_label: Label
 
 var _stam_bg: ColorRect
 var _stam_fill: ColorRect
@@ -162,16 +190,14 @@ func _update_visuals() -> void:
 		_posture_fill.color = color
 		_posture_fill_right.color = color
 
-	# Цвет HP меняется при низком здоровье
+	# Цвет HP меняется при низком здоровье — тёмная, "кровавая" гамма вместо
+	# яркого пожарного красного: приглушённый бордовый вместо алого
 	if hp_ratio > 0.5:
-		_hp_fill.color = Color(0.85, 0.15, 0.15)
+		_hp_fill.color = Color(0.5, 0.03, 0.03)
 	elif hp_ratio > 0.25:
-		_hp_fill.color = Color(0.9, 0.35, 0.1)
+		_hp_fill.color = Color(0.58, 0.08, 0.02)
 	else:
-		_hp_fill.color = Color(1.0, 0.1, 0.05)
-
-	if _hp_label:
-		_hp_label.text = "%d / %d" % [int(current_hp), int(max_hp)]
+		_hp_fill.color = Color(0.7, 0.06, 0.02)
 
 
 # ----------------------------------------------------------
@@ -183,6 +209,15 @@ func _build_ui() -> void:
 	_root.set_anchors_preset(Control.PRESET_FULL_RECT)
 	_root.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(_root)
+
+	# Общий материал глянца — параметры одинаковые везде, поэтому один
+	# ShaderMaterial безопасно разделить между фоном и заливкой обеих полосок
+	var gloss_shader := Shader.new()
+	gloss_shader.code = GLOSS_SHADER_CODE
+	_gloss_material = ShaderMaterial.new()
+	_gloss_material.shader = gloss_shader
+	_gloss_material.set_shader_parameter("highlight_strength", gloss_highlight_strength)
+	_gloss_material.set_shader_parameter("shade_strength", gloss_shade_strength)
 
 	_build_hp_bar()
 	_build_stamina_bar()
@@ -196,14 +231,6 @@ func _build_hp_bar() -> void:
 	container.size = hp_bar_size + Vector2(0, 30)
 	_root.add_child(container)
 
-	# Метка HP
-	_hp_label = Label.new()
-	_hp_label.position = Vector2(0, 0)
-	_hp_label.add_theme_font_size_override("font_size", 11)
-	_hp_label.add_theme_color_override("font_color", Color(0.9, 0.75, 0.75))
-	_hp_label.text = "HP"
-	container.add_child(_hp_label)
-
 	var bar_y: float = 18.0
 
 	# Фон полоски
@@ -211,6 +238,7 @@ func _build_hp_bar() -> void:
 	_hp_bg.position = Vector2(0, bar_y)
 	_hp_bg.size = hp_bar_size
 	_hp_bg.color = Color(0.08, 0.08, 0.08, 0.9)
+	_hp_bg.material = _gloss_material
 	container.add_child(_hp_bg)
 
 	# Белая полоска отставания
@@ -225,26 +253,23 @@ func _build_hp_bar() -> void:
 	_hp_fill.position = Vector2(0, bar_y)
 	_hp_fill.size = hp_bar_size
 	_hp_fill.color = Color(0.85, 0.15, 0.15)
+	_hp_fill.material = _gloss_material
 	container.add_child(_hp_fill)
 
-	# Рамка
-	var border := _make_border(Vector2(0, bar_y), hp_bar_size)
+	# Рамка со скосом (светлый верх / тёмный низ — эффект объёма)
+	var border := _make_bevel_border(Vector2(0, bar_y), hp_bar_size)
 	container.add_child(border)
+
+	# Сегменты-насечки поверх всего — режут полоску на равные деления
+	_build_segments(container, Vector2(0, bar_y), hp_bar_size, hp_segment_count)
 
 func _build_stamina_bar() -> void:
 	var container := Control.new()
-	# левый нижний угол, НАД hp баром
+	# левый нижний угол, ПОД hp баром
 	container.set_anchors_preset(Control.PRESET_BOTTOM_LEFT)
 	container.position = Vector2(stamina_offset_x, stamina_position_y)
 	container.size = stamina_bar_size + Vector2(0, 20)
 	_root.add_child(container)
-
-	var lbl := Label.new()
-	lbl.position = Vector2(0, 0)
-	lbl.add_theme_font_size_override("font_size", 11)
-	lbl.add_theme_color_override("font_color", Color(0.7, 0.85, 0.7))
-	lbl.text = "STAMINA"
-	container.add_child(lbl)
 
 	var bar_y: float = 16.0
 
@@ -252,16 +277,20 @@ func _build_stamina_bar() -> void:
 	_stam_bg.position = Vector2(0, bar_y)
 	_stam_bg.size = stamina_bar_size
 	_stam_bg.color = Color(0.08, 0.08, 0.08, 0.85)
+	_stam_bg.material = _gloss_material
 	container.add_child(_stam_bg)
 
 	_stam_fill = ColorRect.new()
 	_stam_fill.position = Vector2(0, bar_y)
 	_stam_fill.size = stamina_bar_size
 	_stam_fill.color = Color(0.25, 0.75, 0.3)
+	_stam_fill.material = _gloss_material
 	container.add_child(_stam_fill)
 
-	var border := _make_border(Vector2(0, bar_y), stamina_bar_size)
+	var border := _make_bevel_border(Vector2(0, bar_y), stamina_bar_size)
 	container.add_child(border)
+
+	_build_segments(container, Vector2(0, bar_y), stamina_bar_size, stamina_segment_count)
 
 
 func _make_border(pos: Vector2, bar_size: Vector2) -> Control:
@@ -297,6 +326,67 @@ func _make_border(pos: Vector2, bar_size: Vector2) -> Control:
 	c.add_child(right)
 
 	return c
+
+
+# Рамка со скосом — та же идея, что у обычного _make_border, но грани
+# отличаются по цвету: светлая сверху (блик), тёмная снизу (тень). Именно
+# этот приём заставляет плоский прямоугольник читаться как объёмная деталь,
+# а не просто линия по контуру
+func _make_bevel_border(pos: Vector2, bar_size: Vector2) -> Control:
+	var c := Control.new()
+	c.position = pos
+	c.mouse_filter = Control.MOUSE_FILTER_IGNORE
+
+	var thickness := 1.5
+	var top_col := Color(0.8, 0.75, 0.55, 0.9)
+	var side_col := Color(0.35, 0.32, 0.22, 0.85)
+	var bottom_col := Color(0.03, 0.03, 0.03, 0.95)
+
+	var top := ColorRect.new()
+	top.position = Vector2(-thickness, -thickness)
+	top.size = Vector2(bar_size.x + thickness * 2, thickness)
+	top.color = top_col
+	c.add_child(top)
+
+	var bot := ColorRect.new()
+	bot.position = Vector2(-thickness, bar_size.y)
+	bot.size = Vector2(bar_size.x + thickness * 2, thickness)
+	bot.color = bottom_col
+	c.add_child(bot)
+
+	var left := ColorRect.new()
+	left.position = Vector2(-thickness, 0)
+	left.size = Vector2(thickness, bar_size.y)
+	left.color = side_col
+	c.add_child(left)
+
+	var right := ColorRect.new()
+	right.position = Vector2(bar_size.x, 0)
+	right.size = Vector2(thickness, bar_size.y)
+	right.color = side_col
+	c.add_child(right)
+
+	return c
+
+
+# Тонкие вертикальные насечки на ФИКСИРОВАННОЙ полной ширине полоски (не на
+# заливке — та меняет size.x при изменении ресурса, и насечки на ней сами бы
+# "плыли" вместе с усыханием ширины). Добавляются последними, поэтому лежат
+# поверх заливки — режут её на равные визуальные деления, как пипсы в Dark Souls
+func _build_segments(container: Control, pos: Vector2, bar_size: Vector2, count: int) -> void:
+	if count <= 1:
+		return
+	var line_color := Color(0, 0, 0, 0.45)
+	var line_width := 1.0
+	for i in range(1, count):
+		var line := ColorRect.new()
+		line.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		var x := bar_size.x * float(i) / float(count)
+		line.position = pos + Vector2(x - line_width / 2.0, 0)
+		line.size = Vector2(line_width, bar_size.y)
+		line.color = line_color
+		container.add_child(line)
+
 
 func _build_posture_bar() -> void:
 	var container := Control.new()
