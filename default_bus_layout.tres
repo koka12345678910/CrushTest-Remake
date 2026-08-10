@@ -10,16 +10,14 @@ release_ms = 120.0
 [sub_resource type="AudioEffectHardLimiter" id="AudioEffectHardLimiter_combat"]
 ceiling_db = -0.5
 
-[sub_resource type="AudioEffectReverb" id="AudioEffectReverb_parry"]
-room_size = 0.4
-damping = 0.15
-spread = 1.0
-wet = 0.32
-dry = 1.0
-
 [sub_resource type="AudioEffectHighShelfFilter" id="AudioEffectHighShelfFilter_parry"]
 cutoff_hz = 3200.0
 gain = 2.4
+
+[sub_resource type="AudioEffectReverb" id="AudioEffectReverb_parry"]
+room_size = 0.4
+damping = 0.15
+wet = 0.32
 
 [resource]
 bus/1/name = &"Combat"

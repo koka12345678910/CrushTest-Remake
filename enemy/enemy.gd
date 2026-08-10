@@ -149,12 +149,14 @@ var is_player_berserk := false
 @onready var attack_audio: AudioStreamPlayer2D = $AttackAudio
 @onready var impact_audio: AudioStreamPlayer2D = $ImpactAudio
 @onready var voice_audio: AudioStreamPlayer2D = $VoiceAudio
+@onready var death_audio: AudioStreamPlayer2D = $DeathAudio
 
 # Враг переиспользует боевые сэмплы игрока, но звучит ниже: Death Knight —
 # крупнее и тяжелее, и по одному тону слышно, чей это удар. Позиционный
 # AudioStreamPlayer2D + attenuation в сцене довершают: дальний враг тише
 const ENEMY_SWING_SOUND := preload("res://Sound/melee_sound/swing.mp3")
 const ENEMY_HIT_SOUND := preload("res://Sound/melee_sound/hit.mp3")
+const ENEMY_DEATH_SOUND := preload("res://Sound/death_sound/death.mp3")
 const ENEMY_GRUNT_SOUNDS := [
 	preload("res://Sound/groaning_sound/attack1.mp3"),
 	preload("res://Sound/groaning_sound/attack2.mp3"),
@@ -1052,9 +1054,10 @@ func _on_dead() -> void:
 	if death_handled:
 		return
 	death_handled = true
-	
+
 	move_velocity = Vector2.ZERO
 	anim.play("die_" + _get_direction_name(direction))
+	_play_enemy_sound(death_audio, ENEMY_DEATH_SOUND)
 
 	if hitbox:
 		hitbox.set_deferred("monitoring", false)

@@ -35,34 +35,11 @@ var _displayed_posture: float = 0.0  # то что видит игрок
 @export var posture_offset_x: float = -220.0  # половина ширины — центрирует полоску
 @export var posture_position_y: float = 16.0    # теперь отступ от ВЕРХНЕГО края
 
-# --- Презентабельный вид HP/стамины без готовых текстур: глянец + рамка со
-# скосом + сегменты-насечки. Всё считается кодом/шейдером, ни одного файла
-# с диска ---
+# --- Презентабельный вид HP/стамины без готовых текстур: строгая плоская
+# заливка + рамка со скосом + сегменты-насечки. Всё считается кодом, ни
+# одного файла с диска ---
 @export var hp_segment_count := 10
 @export var stamina_segment_count := 10
-@export var gloss_highlight_strength := 0.35
-@export var gloss_shade_strength := 0.3
-
-# Глянцевая световая полоса сверху + плавное затемнение к низу — придаёт
-# плоской заливке объём стеклянной/эмалевой полоски. COLOR уже содержит цвет
-# ColorRect'а (движок сам его туда кладёт для canvas_item шейдеров), поэтому
-# шейдеру достаточно домешать светлое/тёмное поверх него, не трогая альфу
-const GLOSS_SHADER_CODE := """
-shader_type canvas_item;
-
-uniform float highlight_strength : hint_range(0.0, 1.0) = 0.35;
-uniform float highlight_center : hint_range(0.0, 1.0) = 0.2;
-uniform float highlight_width : hint_range(0.01, 1.0) = 0.25;
-uniform float shade_strength : hint_range(0.0, 1.0) = 0.3;
-
-void fragment() {
-	float highlight = exp(-pow((UV.y - highlight_center) / highlight_width, 2.0)) * highlight_strength;
-	float shade = smoothstep(0.55, 1.0, UV.y) * shade_strength;
-	COLOR.rgb = mix(COLOR.rgb, vec3(1.0), highlight);
-	COLOR.rgb = mix(COLOR.rgb, vec3(0.0), shade);
-}
-"""
-var _gloss_material: ShaderMaterial
 
 # --- Концентрация (Posture) ---
 var max_posture: float = 100.0
@@ -210,15 +187,6 @@ func _build_ui() -> void:
 	_root.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(_root)
 
-	# Общий материал глянца — параметры одинаковые везде, поэтому один
-	# ShaderMaterial безопасно разделить между фоном и заливкой обеих полосок
-	var gloss_shader := Shader.new()
-	gloss_shader.code = GLOSS_SHADER_CODE
-	_gloss_material = ShaderMaterial.new()
-	_gloss_material.shader = gloss_shader
-	_gloss_material.set_shader_parameter("highlight_strength", gloss_highlight_strength)
-	_gloss_material.set_shader_parameter("shade_strength", gloss_shade_strength)
-
 	_build_hp_bar()
 	_build_stamina_bar()
 	_build_posture_bar()  # ← добавь
@@ -238,7 +206,6 @@ func _build_hp_bar() -> void:
 	_hp_bg.position = Vector2(0, bar_y)
 	_hp_bg.size = hp_bar_size
 	_hp_bg.color = Color(0.08, 0.08, 0.08, 0.9)
-	_hp_bg.material = _gloss_material
 	container.add_child(_hp_bg)
 
 	# Белая полоска отставания
@@ -253,7 +220,6 @@ func _build_hp_bar() -> void:
 	_hp_fill.position = Vector2(0, bar_y)
 	_hp_fill.size = hp_bar_size
 	_hp_fill.color = Color(0.85, 0.15, 0.15)
-	_hp_fill.material = _gloss_material
 	container.add_child(_hp_fill)
 
 	# Рамка со скосом (светлый верх / тёмный низ — эффект объёма)
@@ -277,14 +243,12 @@ func _build_stamina_bar() -> void:
 	_stam_bg.position = Vector2(0, bar_y)
 	_stam_bg.size = stamina_bar_size
 	_stam_bg.color = Color(0.08, 0.08, 0.08, 0.85)
-	_stam_bg.material = _gloss_material
 	container.add_child(_stam_bg)
 
 	_stam_fill = ColorRect.new()
 	_stam_fill.position = Vector2(0, bar_y)
 	_stam_fill.size = stamina_bar_size
 	_stam_fill.color = Color(0.25, 0.75, 0.3)
-	_stam_fill.material = _gloss_material
 	container.add_child(_stam_fill)
 
 	var border := _make_bevel_border(Vector2(0, bar_y), stamina_bar_size)

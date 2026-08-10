@@ -69,7 +69,7 @@ func _build_single_slot() -> void:
 	# Контейнер для свечения + иконки + вспышки — размер заметно увеличен
 	# относительно старых 112x112, чтобы слот было видно с одного взгляда
 	var icon_container := Control.new()
-	icon_container.custom_minimum_size = Vector2(170, 170)
+	icon_container.custom_minimum_size = Vector2(190, 190)
 	# ВАЖНО: раньше тут стоял EXPAND_FILL по обеим осям — VBoxContainer
 	# растягивал контейнер на всю доступную высоту/ширину слота (220x220
 	# минус полоска кулдауна и текст), а они не равны друг другу. Контейнер
@@ -117,10 +117,10 @@ func _build_single_slot() -> void:
 	_icon.set_anchors_preset(Control.PRESET_FULL_RECT)
 	# Отступ внутрь контейнера — оставляет свечению место "выйти" за пределы
 	# самой иконки мягким ореолом, а не обрываться точно по её границе
-	_icon.offset_left = 14
-	_icon.offset_top = 14
-	_icon.offset_right = -14
-	_icon.offset_bottom = -14
+	_icon.offset_left = 16
+	_icon.offset_top = 16
+	_icon.offset_right = -16
+	_icon.offset_bottom = -16
 	_icon.expand_mode = TextureRect.EXPAND_FIT_WIDTH_PROPORTIONAL
 	_icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 	_icon.material = mask_material
@@ -130,10 +130,10 @@ func _build_single_slot() -> void:
 	# при срабатывании она мигнула бы жёстким квадратом поверх круглой иконки
 	_flash = ColorRect.new()
 	_flash.set_anchors_preset(Control.PRESET_FULL_RECT)
-	_flash.offset_left = 14
-	_flash.offset_top = 14
-	_flash.offset_right = -14
-	_flash.offset_bottom = -14
+	_flash.offset_left = 16
+	_flash.offset_top = 16
+	_flash.offset_right = -16
+	_flash.offset_bottom = -16
 	_flash.color = Color(1, 1, 1, 0)
 	_flash.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_flash.material = mask_material

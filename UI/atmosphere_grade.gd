@@ -5,23 +5,23 @@ extends CanvasLayer
 ## layer=0 в сцене — рисуется НАД миром, но ПОД HUD-слоями игрока (у тех
 ## layer по умолчанию), поэтому здоровье/стамину/иконки не искажает.
 
-@export_range(0.0, 1.0) var desaturation := 0.22:
+@export_range(0.0, 1.0) var desaturation := 0.12:
 	set(value):
 		desaturation = value
 		_apply()
-@export_range(0.5, 2.0) var contrast := 1.06:
+@export_range(0.5, 2.0) var contrast := 1.02:
 	set(value):
 		contrast = value
 		_apply()
-@export var shadow_tint := Color(0.9, 0.93, 1.0):
+@export var shadow_tint := Color(0.96, 0.97, 1.0):
 	set(value):
 		shadow_tint = value
 		_apply()
-@export_range(0.0, 1.0) var vignette_strength := 0.3:
+@export_range(0.0, 1.0) var vignette_strength := 0.16:
 	set(value):
 		vignette_strength = value
 		_apply()
-@export_range(0.1, 1.5) var vignette_radius := 0.8:
+@export_range(0.1, 1.5) var vignette_radius := 0.85:
 	set(value):
 		vignette_radius = value
 		_apply()

@@ -5364,6 +5364,7 @@ shape = SubResource("CapsuleShape2D_m414l")
 [node name="Camera2D" type="Camera2D" parent="." unique_id=1677170942]
 zoom = Vector2(1.9, 1.9)
 limit_smoothed = true
+position_smoothing_enabled = true
 
 [node name="Rain" type="GPUParticles2D" parent="Camera2D" unique_id=1488762265]
 position = Vector2(-30, -451)
@@ -5523,7 +5524,7 @@ volume_db = -9.5
 bus = &"Combat"
 
 [node name="BodyImpactAudio" type="AudioStreamPlayer2D" parent="." unique_id=1900000033]
-volume_db = -13.0
+volume_db = -19.0
 bus = &"Combat"
 
 [node name="VoiceAudio" type="AudioStreamPlayer2D" parent="." unique_id=1772501578]
@@ -5536,6 +5537,11 @@ bus = &"Combat"
 
 [node name="ParryAudio" type="AudioStreamPlayer2D" parent="." unique_id=1772501580]
 volume_db = -9.5
+bus = &"ParryRing"
+
+[node name="StunAudio" type="AudioStreamPlayer2D" parent="." unique_id=1900000035]
+volume_db = -9.0
+bus = &"Combat"
 
 [node name="InventoryUI" type="CanvasLayer" parent="." unique_id=37486928]
 script = ExtResource("14_2ys5t")

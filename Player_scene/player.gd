@@ -48,6 +48,30 @@ extends CharacterBody2D
 # Более высокий тон читается ухом как "звонче" — обычный лязг ощущается
 # глуше, чем чистый высокий звон металла
 @export var parry_pitch_mult := 1.15
+# Тряска, когда КОНТРАТАКУЮТ игрока (receive_parry — враг спарировал/пробил
+# концентрацию и оглушил, оба сценария стана). Полное пробитие концентрации —
+# стан держится дольше, и тряска должна
+# держаться ВСЁ это время, а не мигнуть один раз. В отличие от дрожи
+# истощения (та специально сглажена, "усталые руки") здесь наоборот нужна
+# РЕЗКАЯ, дёрганая тряска — игрока только что оглушили, это должно
+# ощущаться как потеря контроля, а не мягкое покачивание. Цель меняется
+# очень часто (маленький update_rate) и камера почти мгновенно её
+# догоняет (высокий smoothing) — сумма даёт дёрганое, а не плавное дрожание
+@export var full_stun_duration := 3.0
+@export var stun_shake_strength := 11.0
+@export var stun_shake_update_rate := 0.025
+@export var stun_shake_smoothing := 45.0
+var _stun_shake_active := false
+var _stun_shake_target := Vector2.ZERO
+var _stun_shake_current := Vector2.ZERO
+var _stun_shake_timer := 0.0
+# Вспышка при подборе монеты — тёплый золотой блик поверх спрайта игрока.
+# Цвет специально ЗАСВЕЧЕН выше 1.0 (пересвет) — при обычных 1.0-1.7 это
+# читается как лёгкий тон, а не как вспышка. Такой сильный пересвет + очень
+# короткий in_time — тот самый "мини-флэш" из Sekiro на удачных действиях
+@export var coin_glow_color := Color(4.0, 3.6, 1.8, 1.0)
+@export var coin_glow_in_time := 0.03
+@export var coin_glow_out_time := 0.15
 # Разброс высоты тона на повторяющихся звуках (доля от 1.0)
 @export var pitch_variation := 0.12
 # Разброс громкости на повторяющихся звуках (в дБ, +/- от базовой)
@@ -121,6 +145,7 @@ var _bob_smoothed := Vector2.ZERO
 @onready var footstep_audio: AudioStreamPlayer2D = $FootstepAudio
 @onready var block_audio: AudioStreamPlayer2D = $BlockAudio
 @onready var parry_audio: AudioStreamPlayer2D = $ParryAudio
+@onready var stun_audio: AudioStreamPlayer2D = $StunAudio
 @onready var body_impact_audio: AudioStreamPlayer2D = $BodyImpactAudio
 
 # Слой "тела" звучит сильно ниже слоя оружия — это и делает его отдельным
@@ -192,6 +217,9 @@ const BLOCK_HIT_SOUND := preload("res://Sound/melee_sound/block.wav")
 var _footstep_left_next := true
 # Звук парирования — играется при успешном парировании удара врага
 const PARRY_SOUND := preload("res://Sound/melee_sound/parry.wav")
+# Звук ломающейся концентрации/оглушения — играется, когда игрока
+# контратакуют (receive_parry), звучит на протяжении стана
+const STUN_SOUND := preload("res://Sound/posture_break.mp3")
 
 var max_posture := 100.0
 var current_posture := 0.0
@@ -319,7 +347,7 @@ func _ready() -> void:
 	# в _play_varied отсчитывается от них
 	for p: AudioStreamPlayer2D in [
 		swing_audio, hit_audio, voice_audio, footstep_audio, block_audio, parry_audio,
-		body_impact_audio
+		body_impact_audio, stun_audio
 	]:
 		_base_volume_db[p] = p.volume_db
 
@@ -418,7 +446,16 @@ func _process(delta: float) -> void:
 
 	_exhaust_shake_current = _exhaust_shake_current.lerp(_exhaust_shake_target, minf(exhaust_shake_smoothing * delta, 1.0))
 
-	camera.offset = shake_offset + _bob_smoothed + _exhaust_shake_current
+	# Дрожь полного стана — обновляем цель, только пока активна (см.
+	# _start_stun_shake/_stop_stun_shake, дёргаются из receive_parry)
+	if _stun_shake_active:
+		_stun_shake_timer -= delta
+		if _stun_shake_timer <= 0.0:
+			_stun_shake_timer = stun_shake_update_rate
+			_stun_shake_target = Vector2(randf_range(-1.0, 1.0), randf_range(-1.0, 1.0)) * stun_shake_strength
+	_stun_shake_current = _stun_shake_current.lerp(_stun_shake_target, minf(stun_shake_smoothing * delta, 1.0))
+
+	camera.offset = shake_offset + _bob_smoothed + _exhaust_shake_current + _stun_shake_current
 
 
 func _update_immunity_visual(delta: float) -> void:
@@ -498,6 +535,16 @@ func _update_condition_fx(delta: float) -> void:
 
 func shake_camera(strength: float) -> void:
 	_shake_strength = max(_shake_strength, strength)
+
+
+func _start_stun_shake() -> void:
+	_stun_shake_active = true
+	_stun_shake_timer = 0.0
+
+
+func _stop_stun_shake() -> void:
+	_stun_shake_active = false
+	_stun_shake_target = Vector2.ZERO
 
 
 func _physics_process(delta):
@@ -1501,6 +1548,7 @@ func add_gold(amount: int) -> void:
 	gold += amount
 	if hud:
 		hud.update_gold(gold)
+	_trigger_coin_glow()
 
 # ============== HITBOX ==============
 
@@ -1517,6 +1565,15 @@ func _trigger_damage_flash() -> void:
 	var tween = create_tween()
 	tween.tween_property(gfx, "modulate", Color(1.5, 1.5, 1.5, 1.0), 0.05)
 	tween.tween_property(gfx, "modulate", Color.WHITE, 0.15)
+
+# Короткая тёплая золотая вспышка — визуальное подтверждение, что монета
+# долетела и засчиталась (тот же приём, что и _trigger_damage_flash, только
+# тёплый цвет вместо белого). Висит на modulate, а не self_modulate — тот
+# уже занят под тинт неуязвимости (_update_immunity_visual)
+func _trigger_coin_glow() -> void:
+	var tween = create_tween()
+	tween.tween_property(gfx, "modulate", coin_glow_color, coin_glow_in_time)
+	tween.tween_property(gfx, "modulate", Color.WHITE, coin_glow_out_time)
 
 func is_dead() -> bool:
 	return health <= 0.0
@@ -1690,17 +1747,38 @@ func receive_parry(posture_damage: float) -> void:
 	is_invulnerable = true
 	is_stunned = true
 	_trigger_damage_flash()
-	
+
 	anim.play("Stunned_" + last_direction)
-	
+
+	stun_audio.stream = STUN_SOUND
+	var stun_stream := stun_audio.stream as AudioStreamMP3
+
+	# Тряска всегда через постоянную дрожь (_start_stun_shake), а не разовый
+	# затухающий импульс — раньше короткий стан тряс один раз и гас сам по
+	# себе быстрее, чем доигрывала анимация. Теперь длительность тряски
+	# ЖЁСТКО привязана к тому, сколько реально идёт анимация/таймер
+	_start_stun_shake()
+
 	if current_posture >= max_posture:
-		# концентрация полная — долгий стан 5 секунд
+		# Концентрация полная — долгий стан. Тряска и звук держатся весь
+		# фиксированный таймер — игрок должен физически чувствовать, что
+		# застрял в стане, а не что его один раз тряхнуло
 		is_invulnerable = false  # ← игрок открыт для урона
-		await get_tree().create_timer(4.0).timeout
+		if stun_stream:
+			stun_stream.loop = true
+		_play_varied(stun_audio, 0.06)
+		await get_tree().create_timer(full_stun_duration).timeout
+		_stop_stun_shake()
+		stun_audio.stop()
 		is_stunned = false
 		_posture_break()
 	else:
-		# pummel — ждём конца анимации stunned
+		# pummel — короткий стан, тряска держится РОВНО пока играет анимация
+		# Stunned_, а не гаснет раньше неё
+		if stun_stream:
+			stun_stream.loop = false
+		_play_varied(stun_audio, 0.06)
 		is_invulnerable = false  # ← тоже открыт
 		await anim.animation_finished
+		_stop_stun_shake()
 		is_stunned = false

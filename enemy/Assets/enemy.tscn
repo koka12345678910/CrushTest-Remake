@@ -4,11 +4,11 @@
 [ext_resource type="PackedScene" uid="uid://dagjww7y5ocjr" path="res://Resources/ResourcesScene/coin.tscn" id="2_e57od"]
 [ext_resource type="Texture2D" uid="uid://ca1m2wqlfvbcm" path="res://enemy/Assets/DeathKnight/Melee2.png" id="2_qfo6m"]
 [ext_resource type="PackedScene" uid="uid://xexvswxdg53m" path="res://VFX/VFX_scene/blood_vfx.tscn" id="3_d6xl1"]
-[ext_resource type="PackedScene" path="res://VFX/VFX_scene/parry_vfx.tscn" id="4_parryvfx"]
 [ext_resource type="Texture2D" uid="uid://bkdp0cv230m5t" path="res://enemy/Assets/DeathKnight/Melee.png" id="3_gjdyj"]
 [ext_resource type="Texture2D" uid="uid://ua6obtnmvuga" path="res://enemy/Assets/DeathKnight/ShieldBlockStart.png" id="4_cysk4"]
 [ext_resource type="Texture2D" uid="uid://bjpeghl6584lr" path="res://enemy/Assets/DeathKnight/Die.png" id="4_mhdx1"]
 [ext_resource type="Texture2D" uid="uid://c5vbddr5kqsu0" path="res://enemy/Assets/DeathKnight/ShieldBlockMid.png" id="4_nda1t"]
+[ext_resource type="PackedScene" uid="uid://bprdcflmqn66g" path="res://VFX/VFX_scene/parry_vfx.tscn" id="4_parryvfx"]
 [ext_resource type="Texture2D" uid="uid://cgvmgrtppoh8e" path="res://enemy/Assets/DeathKnight/TakeDamage.png" id="5_qs20s"]
 [ext_resource type="Texture2D" uid="uid://dkggrkdymr8gw" path="res://enemy/Assets/DeathKnight/Idle.png" id="6_y66bb"]
 [ext_resource type="Texture2D" uid="uid://b432gnttix0yk" path="res://enemy/Assets/DeathKnight/UnSheathSword.png" id="7_uv8ge"]
@@ -7374,7 +7374,7 @@ animations = [{
 }],
 "loop": 0,
 "name": &"die_down",
-"speed": 15.0
+"speed": 7.0
 }, {
 "frames": [{
 "duration": 1.0,
@@ -7424,7 +7424,7 @@ animations = [{
 }],
 "loop": 0,
 "name": &"die_down_left",
-"speed": 15.0
+"speed": 7.0
 }, {
 "frames": [{
 "duration": 1.0,
@@ -7474,7 +7474,7 @@ animations = [{
 }],
 "loop": 0,
 "name": &"die_down_right",
-"speed": 15.0
+"speed": 7.0
 }, {
 "frames": [{
 "duration": 1.0,
@@ -7524,7 +7524,7 @@ animations = [{
 }],
 "loop": 0,
 "name": &"die_left",
-"speed": 15.0
+"speed": 7.0
 }, {
 "frames": [{
 "duration": 1.0,
@@ -7574,7 +7574,7 @@ animations = [{
 }],
 "loop": 0,
 "name": &"die_right",
-"speed": 15.0
+"speed": 7.0
 }, {
 "frames": [{
 "duration": 1.0,
@@ -7624,7 +7624,7 @@ animations = [{
 }],
 "loop": 0,
 "name": &"die_up",
-"speed": 15.0
+"speed": 7.0
 }, {
 "frames": [{
 "duration": 1.0,
@@ -7674,7 +7674,7 @@ animations = [{
 }],
 "loop": 0,
 "name": &"die_up_left",
-"speed": 15.0
+"speed": 7.0
 }, {
 "frames": [{
 "duration": 1.0,
@@ -7724,7 +7724,7 @@ animations = [{
 }],
 "loop": 0,
 "name": &"die_up_right",
-"speed": 15.0
+"speed": 7.0
 }, {
 "frames": [{
 "duration": 1.0,
@@ -11266,7 +11266,7 @@ animations = [{
 }]
 
 [sub_resource type="Animation" id="Animation_3m0g6"]
-length = 0.6818182
+length = 0.6818181818181818
 tracks/0/type = "value"
 tracks/0/imported = false
 tracks/0/enabled = true
@@ -11293,7 +11293,7 @@ tracks/1/keys = {
 }
 
 [sub_resource type="Animation" id="Animation_jx81e"]
-length = 0.6818182
+length = 0.6818181818181818
 tracks/0/type = "value"
 tracks/0/imported = false
 tracks/0/enabled = true
@@ -11320,7 +11320,7 @@ tracks/1/keys = {
 }
 
 [sub_resource type="Animation" id="Animation_s5sk2"]
-length = 0.6818182
+length = 0.6818181818181818
 tracks/0/type = "value"
 tracks/0/imported = false
 tracks/0/enabled = true
@@ -11347,7 +11347,7 @@ tracks/1/keys = {
 }
 
 [sub_resource type="Animation" id="Animation_qmjlo"]
-length = 0.6818182
+length = 0.6818181818181818
 tracks/0/type = "value"
 tracks/0/imported = false
 tracks/0/enabled = true
@@ -11374,7 +11374,7 @@ tracks/1/keys = {
 }
 
 [sub_resource type="Animation" id="Animation_w42uk"]
-length = 0.6818182
+length = 0.6818181818181818
 tracks/0/type = "value"
 tracks/0/imported = false
 tracks/0/enabled = true
@@ -11401,7 +11401,7 @@ tracks/1/keys = {
 }
 
 [sub_resource type="Animation" id="Animation_kiawo"]
-length = 0.6818182
+length = 0.6818181818181818
 tracks/0/type = "value"
 tracks/0/imported = false
 tracks/0/enabled = true
@@ -11428,7 +11428,7 @@ tracks/1/keys = {
 }
 
 [sub_resource type="Animation" id="Animation_soj4r"]
-length = 0.6818182
+length = 0.6818181818181818
 tracks/0/type = "value"
 tracks/0/imported = false
 tracks/0/enabled = true
@@ -11455,7 +11455,7 @@ tracks/1/keys = {
 }
 
 [sub_resource type="Animation" id="Animation_tpr2g"]
-length = 0.6818182
+length = 0.6818181818181818
 tracks/0/type = "value"
 tracks/0/imported = false
 tracks/0/enabled = true
@@ -11482,7 +11482,7 @@ tracks/1/keys = {
 }
 
 [sub_resource type="Animation" id="Animation_syhc7"]
-length = 0.6818182
+length = 0.6818181818181818
 tracks/0/type = "value"
 tracks/0/imported = false
 tracks/0/enabled = true
@@ -11914,6 +11914,7 @@ tracks/1/keys = {
 }
 
 [sub_resource type="Animation" id="Animation_ja7sv"]
+length = 2.142857142857143
 tracks/0/type = "value"
 tracks/0/imported = false
 tracks/0/enabled = true
@@ -11921,7 +11922,7 @@ tracks/0/path = NodePath("AnimatedSprite2D:frame")
 tracks/0/interp = 1
 tracks/0/loop_wrap = true
 tracks/0/keys = {
-"times": PackedFloat32Array(0, 0.06666667, 0.13333334, 0.2, 0.26666668, 0.33333334, 0.4, 0.46666667, 0.53333336, 0.6, 0.6666667, 0.73333335, 0.8, 0.8666667, 0.93333334),
+"times": PackedFloat32Array(0, 0.14285715, 0.2857143, 0.42857143, 0.5714286, 0.71428573, 0.85714287, 1, 1.1428572, 1.2857143, 1.4285715, 1.5714285, 1.7142857, 1.8571428, 2),
 "transitions": PackedFloat32Array(1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1),
 "update": 1,
 "values": [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14]
@@ -11940,6 +11941,7 @@ tracks/1/keys = {
 }
 
 [sub_resource type="Animation" id="Animation_fuj36"]
+length = 2.142857142857143
 tracks/0/type = "value"
 tracks/0/imported = false
 tracks/0/enabled = true
@@ -11947,7 +11949,7 @@ tracks/0/path = NodePath("AnimatedSprite2D:frame")
 tracks/0/interp = 1
 tracks/0/loop_wrap = true
 tracks/0/keys = {
-"times": PackedFloat32Array(0, 0.06666667, 0.13333334, 0.2, 0.26666668, 0.33333334, 0.4, 0.46666667, 0.53333336, 0.6, 0.6666667, 0.73333335, 0.8, 0.8666667, 0.93333334),
+"times": PackedFloat32Array(0, 0.14285715, 0.2857143, 0.42857143, 0.5714286, 0.71428573, 0.85714287, 1, 1.1428572, 1.2857143, 1.4285715, 1.5714285, 1.7142857, 1.8571428, 2),
 "transitions": PackedFloat32Array(1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1),
 "update": 1,
 "values": [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14]
@@ -11966,6 +11968,7 @@ tracks/1/keys = {
 }
 
 [sub_resource type="Animation" id="Animation_h70me"]
+length = 2.142857142857143
 tracks/0/type = "value"
 tracks/0/imported = false
 tracks/0/enabled = true
@@ -11973,7 +11976,7 @@ tracks/0/path = NodePath("AnimatedSprite2D:frame")
 tracks/0/interp = 1
 tracks/0/loop_wrap = true
 tracks/0/keys = {
-"times": PackedFloat32Array(0, 0.06666667, 0.13333334, 0.2, 0.26666668, 0.33333334, 0.4, 0.46666667, 0.53333336, 0.6, 0.6666667, 0.73333335, 0.8, 0.8666667, 0.93333334),
+"times": PackedFloat32Array(0, 0.14285715, 0.2857143, 0.42857143, 0.5714286, 0.71428573, 0.85714287, 1, 1.1428572, 1.2857143, 1.4285715, 1.5714285, 1.7142857, 1.8571428, 2),
 "transitions": PackedFloat32Array(1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1),
 "update": 1,
 "values": [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14]
@@ -11992,6 +11995,7 @@ tracks/1/keys = {
 }
 
 [sub_resource type="Animation" id="Animation_hyg3b"]
+length = 2.142857142857143
 tracks/0/type = "value"
 tracks/0/imported = false
 tracks/0/enabled = true
@@ -11999,7 +12003,7 @@ tracks/0/path = NodePath("AnimatedSprite2D:frame")
 tracks/0/interp = 1
 tracks/0/loop_wrap = true
 tracks/0/keys = {
-"times": PackedFloat32Array(0, 0.06666667, 0.13333334, 0.2, 0.26666668, 0.33333334, 0.4, 0.46666667, 0.53333336, 0.6, 0.6666667, 0.73333335, 0.8, 0.8666667, 0.93333334),
+"times": PackedFloat32Array(0, 0.14285715, 0.2857143, 0.42857143, 0.5714286, 0.71428573, 0.85714287, 1, 1.1428572, 1.2857143, 1.4285715, 1.5714285, 1.7142857, 1.8571428, 2),
 "transitions": PackedFloat32Array(1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1),
 "update": 1,
 "values": [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14]
@@ -12018,6 +12022,7 @@ tracks/1/keys = {
 }
 
 [sub_resource type="Animation" id="Animation_sooai"]
+length = 2.142857142857143
 tracks/0/type = "value"
 tracks/0/imported = false
 tracks/0/enabled = true
@@ -12025,7 +12030,7 @@ tracks/0/path = NodePath("AnimatedSprite2D:frame")
 tracks/0/interp = 1
 tracks/0/loop_wrap = true
 tracks/0/keys = {
-"times": PackedFloat32Array(0, 0.06666667, 0.13333334, 0.2, 0.26666668, 0.33333334, 0.4, 0.46666667, 0.53333336, 0.6, 0.6666667, 0.73333335, 0.8, 0.8666667, 0.93333334),
+"times": PackedFloat32Array(0, 0.14285715, 0.2857143, 0.42857143, 0.5714286, 0.71428573, 0.85714287, 1, 1.1428572, 1.2857143, 1.4285715, 1.5714285, 1.7142857, 1.8571428, 2),
 "transitions": PackedFloat32Array(1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1),
 "update": 1,
 "values": [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14]
@@ -12044,6 +12049,7 @@ tracks/1/keys = {
 }
 
 [sub_resource type="Animation" id="Animation_dw023"]
+length = 2.142857142857143
 tracks/0/type = "value"
 tracks/0/imported = false
 tracks/0/enabled = true
@@ -12051,7 +12057,7 @@ tracks/0/path = NodePath("AnimatedSprite2D:frame")
 tracks/0/interp = 1
 tracks/0/loop_wrap = true
 tracks/0/keys = {
-"times": PackedFloat32Array(0, 0.06666667, 0.13333334, 0.2, 0.26666668, 0.33333334, 0.4, 0.46666667, 0.53333336, 0.6, 0.6666667, 0.73333335, 0.8, 0.8666667, 0.93333334),
+"times": PackedFloat32Array(0, 0.14285715, 0.2857143, 0.42857143, 0.5714286, 0.71428573, 0.85714287, 1, 1.1428572, 1.2857143, 1.4285715, 1.5714285, 1.7142857, 1.8571428, 2),
 "transitions": PackedFloat32Array(1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1),
 "update": 1,
 "values": [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14]
@@ -12070,6 +12076,7 @@ tracks/1/keys = {
 }
 
 [sub_resource type="Animation" id="Animation_bh8ld"]
+length = 2.142857142857143
 tracks/0/type = "value"
 tracks/0/imported = false
 tracks/0/enabled = true
@@ -12077,7 +12084,7 @@ tracks/0/path = NodePath("AnimatedSprite2D:frame")
 tracks/0/interp = 1
 tracks/0/loop_wrap = true
 tracks/0/keys = {
-"times": PackedFloat32Array(0, 0.06666667, 0.13333334, 0.2, 0.26666668, 0.33333334, 0.4, 0.46666667, 0.53333336, 0.6, 0.6666667, 0.73333335, 0.8, 0.8666667, 0.93333334),
+"times": PackedFloat32Array(0, 0.14285715, 0.2857143, 0.42857143, 0.5714286, 0.71428573, 0.85714287, 1, 1.1428572, 1.2857143, 1.4285715, 1.5714285, 1.7142857, 1.8571428, 2),
 "transitions": PackedFloat32Array(1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1),
 "update": 1,
 "values": [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14]
@@ -12096,6 +12103,7 @@ tracks/1/keys = {
 }
 
 [sub_resource type="Animation" id="Animation_i0qaj"]
+length = 2.142857142857143
 tracks/0/type = "value"
 tracks/0/imported = false
 tracks/0/enabled = true
@@ -12103,7 +12111,7 @@ tracks/0/path = NodePath("AnimatedSprite2D:frame")
 tracks/0/interp = 1
 tracks/0/loop_wrap = true
 tracks/0/keys = {
-"times": PackedFloat32Array(0, 0.06666667, 0.13333334, 0.2, 0.26666668, 0.33333334, 0.4, 0.46666667, 0.53333336, 0.6, 0.6666667, 0.73333335, 0.8, 0.8666667, 0.93333334),
+"times": PackedFloat32Array(0, 0.14285715, 0.2857143, 0.42857143, 0.5714286, 0.71428573, 0.85714287, 1, 1.1428572, 1.2857143, 1.4285715, 1.5714285, 1.7142857, 1.8571428, 2),
 "transitions": PackedFloat32Array(1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1),
 "update": 1,
 "values": [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14]
@@ -12769,7 +12777,7 @@ tracks/1/keys = {
 }
 
 [sub_resource type="Animation" id="Animation_nda1t"]
-length = 0.42857143
+length = 0.42857142857142855
 tracks/0/type = "value"
 tracks/0/imported = false
 tracks/0/enabled = true
@@ -12796,7 +12804,7 @@ tracks/1/keys = {
 }
 
 [sub_resource type="Animation" id="Animation_e57od"]
-length = 0.42857143
+length = 0.42857142857142855
 tracks/0/type = "value"
 tracks/0/imported = false
 tracks/0/enabled = true
@@ -12823,7 +12831,7 @@ tracks/1/keys = {
 }
 
 [sub_resource type="Animation" id="Animation_d6xl1"]
-length = 0.42857143
+length = 0.42857142857142855
 tracks/0/type = "value"
 tracks/0/imported = false
 tracks/0/enabled = true
@@ -12850,7 +12858,7 @@ tracks/1/keys = {
 }
 
 [sub_resource type="Animation" id="Animation_vm8ka"]
-length = 0.42857143
+length = 0.42857142857142855
 tracks/0/type = "value"
 tracks/0/imported = false
 tracks/0/enabled = true
@@ -12877,7 +12885,7 @@ tracks/1/keys = {
 }
 
 [sub_resource type="Animation" id="Animation_yp0k1"]
-length = 0.42857143
+length = 0.42857142857142855
 tracks/0/type = "value"
 tracks/0/imported = false
 tracks/0/enabled = true
@@ -12904,7 +12912,7 @@ tracks/1/keys = {
 }
 
 [sub_resource type="Animation" id="Animation_g4noi"]
-length = 0.42857143
+length = 0.42857142857142855
 tracks/0/type = "value"
 tracks/0/imported = false
 tracks/0/enabled = true
@@ -12931,7 +12939,7 @@ tracks/1/keys = {
 }
 
 [sub_resource type="Animation" id="Animation_3sjel"]
-length = 0.42857143
+length = 0.42857142857142855
 tracks/0/type = "value"
 tracks/0/imported = false
 tracks/0/enabled = true
@@ -12958,7 +12966,7 @@ tracks/1/keys = {
 }
 
 [sub_resource type="Animation" id="Animation_576ft"]
-length = 0.42857143
+length = 0.42857142857142855
 tracks/0/type = "value"
 tracks/0/imported = false
 tracks/0/enabled = true
@@ -13632,7 +13640,7 @@ tracks/1/keys = {
 }
 
 [sub_resource type="Animation" id="Animation_gipsd"]
-length = 0.85714287
+length = 0.8571428571428571
 tracks/0/type = "value"
 tracks/0/imported = false
 tracks/0/enabled = true
@@ -13659,7 +13667,7 @@ tracks/1/keys = {
 }
 
 [sub_resource type="Animation" id="Animation_okq1w"]
-length = 0.85714287
+length = 0.8571428571428571
 tracks/0/type = "value"
 tracks/0/imported = false
 tracks/0/enabled = true
@@ -13686,7 +13694,7 @@ tracks/1/keys = {
 }
 
 [sub_resource type="Animation" id="Animation_f6mve"]
-length = 0.85714287
+length = 0.8571428571428571
 tracks/0/type = "value"
 tracks/0/imported = false
 tracks/0/enabled = true
@@ -13713,7 +13721,7 @@ tracks/1/keys = {
 }
 
 [sub_resource type="Animation" id="Animation_q8mln"]
-length = 0.85714287
+length = 0.8571428571428571
 tracks/0/type = "value"
 tracks/0/imported = false
 tracks/0/enabled = true
@@ -13766,7 +13774,7 @@ tracks/1/keys = {
 }
 
 [sub_resource type="Animation" id="Animation_rnjoe"]
-length = 0.85714287
+length = 0.8571428571428571
 tracks/0/type = "value"
 tracks/0/imported = false
 tracks/0/enabled = true
@@ -13793,7 +13801,7 @@ tracks/1/keys = {
 }
 
 [sub_resource type="Animation" id="Animation_yn65o"]
-length = 0.85714287
+length = 0.8571428571428571
 tracks/0/type = "value"
 tracks/0/imported = false
 tracks/0/enabled = true
@@ -13820,7 +13828,7 @@ tracks/1/keys = {
 }
 
 [sub_resource type="Animation" id="Animation_g65l8"]
-length = 0.85714287
+length = 0.8571428571428571
 tracks/0/type = "value"
 tracks/0/imported = false
 tracks/0/enabled = true
@@ -14527,6 +14535,11 @@ attenuation = 1.5
 
 [node name="VoiceAudio" type="AudioStreamPlayer2D" parent="." unique_id=1900000032]
 volume_db = -13.0
+max_distance = 700.0
+attenuation = 1.5
+
+[node name="DeathAudio" type="AudioStreamPlayer2D" parent="." unique_id=1900000034]
+volume_db = -8.0
 max_distance = 700.0
 attenuation = 1.5
 
