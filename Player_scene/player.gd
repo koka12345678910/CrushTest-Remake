@@ -146,6 +146,7 @@ var _bob_smoothed := Vector2.ZERO
 @onready var block_audio: AudioStreamPlayer2D = $BlockAudio
 @onready var parry_audio: AudioStreamPlayer2D = $ParryAudio
 @onready var stun_audio: AudioStreamPlayer2D = $StunAudio
+@onready var coin_audio: AudioStreamPlayer2D = $CoinAudio
 @onready var body_impact_audio: AudioStreamPlayer2D = $BodyImpactAudio
 
 # Слой "тела" звучит сильно ниже слоя оружия — это и делает его отдельным
@@ -220,6 +221,9 @@ const PARRY_SOUND := preload("res://Sound/melee_sound/parry.wav")
 # Звук ломающейся концентрации/оглушения — играется, когда игрока
 # контратакуют (receive_parry), звучит на протяжении стана
 const STUN_SOUND := preload("res://Sound/posture_break.mp3")
+# Подбор монеты — сам звук уже звонкий, шина CoinEcho добавляет лёгкий
+# металлический хвост, а не меняет тембр заново
+const COIN_SOUND := preload("res://Sound/coin_picking.mp3")
 
 var max_posture := 100.0
 var current_posture := 0.0
@@ -347,7 +351,7 @@ func _ready() -> void:
 	# в _play_varied отсчитывается от них
 	for p: AudioStreamPlayer2D in [
 		swing_audio, hit_audio, voice_audio, footstep_audio, block_audio, parry_audio,
-		body_impact_audio, stun_audio
+		body_impact_audio, stun_audio, coin_audio
 	]:
 		_base_volume_db[p] = p.volume_db
 
@@ -455,7 +459,14 @@ func _process(delta: float) -> void:
 			_stun_shake_target = Vector2(randf_range(-1.0, 1.0), randf_range(-1.0, 1.0)) * stun_shake_strength
 	_stun_shake_current = _stun_shake_current.lerp(_stun_shake_target, minf(stun_shake_smoothing * delta, 1.0))
 
-	camera.offset = shake_offset + _bob_smoothed + _exhaust_shake_current + _stun_shake_current
+	# Множитель тряски из настроек применяем ОДНОЙ точкой на сумму всех трёх
+	# трясок (удар, истощение, стан) — так настройка накрывает их разом, и
+	# добавив четвёртую, её не забудешь подключить. Покачивание на беге
+	# (_bob_smoothed) сюда намеренно не входит: это не тряска, а походка,
+	# и выключать её вместе с тряской неправильно
+	var shake_scale: float = GameSettings.shake_multiplier
+	camera.offset = (shake_offset + _exhaust_shake_current + _stun_shake_current) * shake_scale \
+		+ _bob_smoothed
 
 
 func _update_immunity_visual(delta: float) -> void:
@@ -1549,6 +1560,8 @@ func add_gold(amount: int) -> void:
 	if hud:
 		hud.update_gold(gold)
 	_trigger_coin_glow()
+	coin_audio.stream = COIN_SOUND
+	_play_varied(coin_audio, 0.08)
 
 # ============== HITBOX ==============
 
@@ -1595,6 +1608,13 @@ func disable_attack_hitbox() -> void:
 		player_hitbox.get_child(0).disabled = true
 
 func _on_player_hitbox_area_entered(area: Area2D) -> void:
+	# Оглушённый игрок не наносит урон. Это ГЛАВНАЯ страховка: хитбокс мог
+	# остаться включённым, если стан прервал атаку на полпути — анимация
+	# оборвалась, и её method-track с disable_attack_hitbox() уже не сработает.
+	# Проверять состояние здесь надёжнее, чем гасить хитбокс в каждой точке,
+	# откуда игрока можно застанить
+	if is_stunned:
+		return
 	if area.is_in_group("enemy_hurtbox"):
 		var enemy = area.get_parent()
 		if enemy in hit_targets:
@@ -1744,6 +1764,16 @@ func receive_parry(posture_damage: float) -> void:
 	posture_regen_timer = posture_regen_delay
 	
 	reset_combo()
+	# Стан обрывает атаку на полпути: анимация удара не доигрывает, поэтому её
+	# method-track с disable_attack_hitbox() не вызовется, а reset_combo()
+	# гасит только monitoring, оставляя саму коллизию включённой. Гасим руками
+	# и то и другое
+	disable_attack_hitbox()
+	# reset_combo() не знает про беговой удар — без этого флаг залипает
+	# (анимацию Run_Attack прервали, её reset_all_states() уже не сработает)
+	is_run_attacking = false
+	attack_velocity = Vector2.ZERO
+
 	is_invulnerable = true
 	is_stunned = true
 	_trigger_damage_flash()

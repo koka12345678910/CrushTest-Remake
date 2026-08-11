@@ -24,6 +24,10 @@ config/icon="res://icon.svg"
 
 buses/default_bus_layout="uid://dk64smh8bjytp"
 
+[autoload]
+
+GameSettings="*res://Main_Menu/scripts/GameSettings.gd"
+
 [display]
 
 window/size/viewport_width=1920

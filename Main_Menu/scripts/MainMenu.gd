@@ -11,9 +11,12 @@ extends Control
 @onready var ambient_music: AudioStreamPlayer = $AmbientMusic
 @onready var rain_ambience: AudioStreamPlayer = $RainAmbience
 @onready var ui_audio: AudioStreamPlayer = $UIAudio
+@onready var settings_panel := $UILayer/SettingsPanel
 
-const SCENE_GAME := "res://scenes/Game.tscn"
-const SCENE_SETTINGS := "res://scenes/Settings.tscn"
+## Первый уровень — он же main_scene в project.godot. Раньше здесь стоял
+## несуществующий res://scenes/Game.tscn, поэтому "NEW JOURNEY" молча ничего
+## не делала. Настройки теперь не отдельная сцена, а панель-оверлей
+const SCENE_GAME := "res://Levels/level_01.tscn"
 
 const SOUND_ACCEPT := preload("res://Sound/UI_button/accept.wav")
 const SOUND_DENIED := preload("res://Sound/UI_button/denied.wav")
@@ -42,9 +45,20 @@ func _setup_audio_loops() -> void:
 	var music := ambient_music.stream as AudioStreamMP3
 	if music:
 		music.loop = true
-	var rain := rain_ambience.stream as AudioStreamWAV
-	if rain:
-		rain.loop_mode = AudioStreamWAV.LOOP_FORWARD
+
+	# Дождь НЕ зацикливаем через loop_mode. Этот же WAV стоит и на уровне
+	# (Levels/level_01.tscn -> RainPlayer), а Godot кэширует ресурсы — то есть
+	# это ОДИН объект на обе сцены. Выставляя ему LOOP_FORWARD здесь, мы
+	# портили общий ресурс: у файла невалидный loop_end, получалась петля
+	# нулевой длины, и после старта игры из меню дождь на уровне пропадал
+	# совсем. Зацикливаем перезапуском по сигналу — ресурс при этом не
+	# трогаем вообще (так же сделано в level_music_manager.gd)
+	if not rain_ambience.finished.is_connected(_replay_rain):
+		rain_ambience.finished.connect(_replay_rain)
+
+
+func _replay_rain() -> void:
+	rain_ambience.play()
 
 
 func _process(delta: float) -> void:
@@ -127,7 +141,7 @@ func _on_load() -> void:
 
 func _on_settings() -> void:
 	_play_ui_sound(SOUND_ACCEPT)
-	_transition_to(SCENE_SETTINGS)
+	settings_panel.open()
 
 func _on_quit() -> void:
 	_play_ui_sound(SOUND_ACCEPT)

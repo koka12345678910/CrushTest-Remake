@@ -5373,6 +5373,7 @@ texture = ExtResource("9_kmod3")
 lifetime = 1.8
 speed_scale = 1.5
 local_coords = true
+visibility_rect = Rect2(-1400, -100, 2800, 1400)
 process_material = SubResource("ParticleProcessMaterial_v6ddd")
 
 [node name="CanvasLayer" type="CanvasLayer" parent="Camera2D" unique_id=1119566698]
@@ -5542,6 +5543,10 @@ bus = &"ParryRing"
 [node name="StunAudio" type="AudioStreamPlayer2D" parent="." unique_id=1900000035]
 volume_db = -9.0
 bus = &"Combat"
+
+[node name="CoinAudio" type="AudioStreamPlayer2D" parent="." unique_id=1900000036]
+volume_db = -10.0
+bus = &"CoinEcho"
 
 [node name="InventoryUI" type="CanvasLayer" parent="." unique_id=37486928]
 script = ExtResource("14_2ys5t")

@@ -94,8 +94,9 @@ func _ready() -> void:
 	_setup_crows_bus()
 	_next_crows_time = randf_range(crows_interval_min, crows_interval_max)
 	# Шины живут дольше сцены: если прошлый забег оборвался посреди просадки,
-	# музыка так и осталась бы приглушённой после рестарта уровня
-	_set_music_bus_db(0.0)
+	# музыка так и осталась бы приглушённой после рестарта уровня.
+	# Возвращаем именно на уровень из настроек, а не на 0 дБ
+	_set_music_bus_db(_music_base_db())
 
 	# Стартуем музыку на следующий кадр, а не в тот же, когда узел только вошёл
 	# в дерево — иначе AudioStreamPlayer иногда сразу "финиширует"
@@ -160,7 +161,11 @@ func duck_music(power := 1.0, max_power := 2.2) -> void:
 	if idx == -1:
 		return
 	var t: float = clamp((power - 1.0) / max(max_power - 1.0, 0.001), 0.0, 1.0)
-	var depth: float = lerpf(0.0, duck_depth_db, t)
+	# Проседаем ОТНОСИТЕЛЬНО громкости, выставленной игроком в настройках.
+	# Раньше здесь стоял жёсткий 0.0 как "нормальный" уровень, и первый же
+	# сильный удар возвращал музыку на полную громкость, затирая настройку
+	var base: float = _music_base_db()
+	var depth: float = base + lerpf(0.0, duck_depth_db, t)
 
 	# Новый удар перебивает предыдущую просадку, а не складывается с ней —
 	# иначе в быстром комбо музыка уезжала бы в тишину и не успевала вернуться
@@ -168,7 +173,19 @@ func duck_music(power := 1.0, max_power := 2.2) -> void:
 		_duck_tween.kill()
 	_duck_tween = create_tween()
 	_duck_tween.tween_method(_set_music_bus_db, AudioServer.get_bus_volume_db(idx), depth, duck_attack)
-	_duck_tween.tween_method(_set_music_bus_db, depth, 0.0, duck_release)
+	_duck_tween.tween_method(_set_music_bus_db, depth, base, duck_release)
+
+
+# Уровень музыки, к которому возвращается даккинг. Берём из настроек, а не
+# запоминаем текущее значение шины: если прошлый забег оборвался посреди
+# просадки, мы бы запомнили приглушённый уровень как нормальный
+func _music_base_db() -> float:
+	# Автозагрузка живёт как узел в /root — на случай запуска сцены в отрыве
+	# от проекта падать не хотим, поэтому проверяем наличие
+	var gs := get_node_or_null("/root/GameSettings")
+	if gs:
+		return gs.get_music_base_db()
+	return 0.0
 
 
 func _set_music_bus_db(value: float) -> void:

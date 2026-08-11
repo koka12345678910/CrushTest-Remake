@@ -10,6 +10,7 @@
 [ext_resource type="AudioStream" uid="uid://bh0x85so1hd2s" path="res://Sound/weather_sound/atmospheric_rain.wav" id="9_rain_amb"]
 [ext_resource type="FontFile" uid="uid://bdmqljkpucpi3" path="res://Font/sikandinarie.ttf" id="10_font"]
 [ext_resource type="Texture2D" uid="uid://nxl6tvs3uy7u" path="res://circle.png" id="10_qqakd"]
+[ext_resource type="Script" path="res://Main_Menu/scripts/SettingsPanel.gd" id="11_settings"]
 
 [sub_resource type="ParticleProcessMaterial" id="ParticleProcessMaterial_tqkod"]
 particle_flag_disable_z = true
@@ -134,6 +135,12 @@ offset_right = -24.0
 [node name="VersionLabel" type="Label" parent="UILayer/BottomBar" unique_id=1730489451]
 layout_mode = 2
 text = "v0.1.0  —  Early Access"
+
+[node name="SettingsPanel" type="Control" parent="UILayer" unique_id=1900000040]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+script = ExtResource("11_settings")
 
 [node name="AmbientMusic" type="AudioStreamPlayer" parent="." unique_id=1943123550]
 stream = ExtResource("8_music")

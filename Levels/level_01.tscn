@@ -14249,22 +14249,6 @@ shop_menu_path = NodePath("../../../ShopLayer/ShopMenu")
 position = Vector2(0, 15.984024)
 shape = SubResource("RectangleShape2D_g4v7s")
 
-[node name="Player2" parent="." unique_id=493723598 instance=ExtResource("15_5ty2h")]
-z_index = 1
-position = Vector2(1212, -259)
-
-[node name="ColorRect" parent="Player2/DamageVignette" parent_id_path=PackedInt32Array(493723598, 1900000010) index="0" unique_id=1900000011]
-grow_horizontal = 2
-grow_vertical = 2
-
-[node name="ColorRect" parent="Player2/ExhaustVignette" parent_id_path=PackedInt32Array(493723598, 1900000012) index="0" unique_id=1900000013]
-grow_horizontal = 2
-grow_vertical = 2
-
-[node name="ColorRect" parent="Player2/HitFlash" parent_id_path=PackedInt32Array(493723598, 1900000015) index="0" unique_id=1900000016]
-grow_horizontal = 2
-grow_vertical = 2
-
 [node name="Enemy" parent="." unique_id=71146591 instance=ExtResource("22_i35eu")]
 position = Vector2(1501, -382)
 
@@ -14325,5 +14309,21 @@ anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
 mouse_filter = 2
+
+[node name="Player2" parent="." unique_id=493723598 instance=ExtResource("15_5ty2h")]
+z_index = 1
+position = Vector2(1212, -259)
+
+[node name="ColorRect" parent="Player2/DamageVignette" parent_id_path=PackedInt32Array(493723598, 1900000010) index="0" unique_id=1900000011]
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="ColorRect" parent="Player2/ExhaustVignette" parent_id_path=PackedInt32Array(493723598, 1900000012) index="0" unique_id=1900000013]
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="ColorRect" parent="Player2/HitFlash" parent_id_path=PackedInt32Array(493723598, 1900000015) index="0" unique_id=1900000016]
+grow_horizontal = 2
+grow_vertical = 2
 
 [editable path="Player2"]
