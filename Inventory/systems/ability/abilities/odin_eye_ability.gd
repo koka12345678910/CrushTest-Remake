@@ -7,6 +7,11 @@ extends Ability
 @export var max_targets: int = 3           # сколько врагов помечается на казнь
 @export var mark_radius: float = 320.0     # радиус пометки вокруг игрока
 
+# Разброс питча на активации — как и у остальных повторяющихся звуков в игре,
+# чтобы способность не звучала абсолютно одинаково при каждом использовании
+@export var activation_pitch_variation := 0.05
+const ACTIVATION_SOUND := preload("res://Sound/abilities_sound/eye_amulet_sound.mp3")
+
 func _init() -> void:
 	ability_name = "Глаз Одина"
 	cooldown_duration = 40.0
@@ -24,6 +29,20 @@ func _execute(player: Node) -> void:
 	var vision := player.get_node_or_null("Camera2D/CanvasLayer/OdinVision")
 	if vision:
 		vision.activate()
+
+	# Вспышка с амулетом Ока Одина — по образцу FenrirFlash у Крови Фенрира
+	var eye_flash := player.get_node_or_null("Camera2D/CanvasLayer/OdinFlash")
+	if eye_flash:
+		eye_flash.play()
+
+	# Звук активации — синхронно со вспышкой
+	var odin_audio := player.get_node_or_null("OdinAudio")
+	if odin_audio:
+		odin_audio.stream = ACTIVATION_SOUND
+		odin_audio.pitch_scale = randf_range(
+			1.0 - activation_pitch_variation, 1.0 + activation_pitch_variation
+		)
+		odin_audio.play()
 
 	# Замедляем время
 	Engine.time_scale = slow_factor

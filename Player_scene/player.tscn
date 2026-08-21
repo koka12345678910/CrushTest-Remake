@@ -10,17 +10,18 @@
 [ext_resource type="PackedScene" uid="uid://d1ercr4q0c1n2" path="res://VFX/VFX_scene/turn_around_vfx_scene.tscn" id="7_m414l"]
 [ext_resource type="PackedScene" uid="uid://c1lxkyyffdy2u" path="res://VFX/VFX_scene/fenrir_hit_vfx.tscn" id="8_8gugs"]
 [ext_resource type="Script" uid="uid://bus7cngrbieyv" path="res://Inventory/systems/ability/ability_system.gd" id="9_hwflx"]
-[ext_resource type="Texture2D" uid="uid://lnq2t3rm0k1m" path="res://rain_drop.png" id="9_kmod3"]
 [ext_resource type="PackedScene" uid="uid://clxk311ld8km6" path="res://VFX/VFX_scene/fire_ring_vfx.tscn" id="9_l3nxm"]
 [ext_resource type="PackedScene" uid="uid://cqxqqejl7fntn" path="res://VFX/VFX_scene/berserk_hit_vfx.tscn" id="10_jr5wu"]
 [ext_resource type="Script" uid="uid://dd2eut03v48c0" path="res://Inventory/systems/inventory/inventory_system.gd" id="10_ung07"]
 [ext_resource type="Script" uid="uid://drhbg748ibedv" path="res://Inventory/ui/hud.gd" id="11_2ys5t"]
+[ext_resource type="Texture2D" uid="uid://3l2d3k0lwuuv" path="res://rain_drop_1.png" id="12_6r4ru"]
 [ext_resource type="Script" uid="uid://8nvpv44w8art" path="res://Inventory/ui/quick_slot_ui.gd" id="12_wfmf0"]
 [ext_resource type="Script" uid="uid://j0djrjdp0hsh" path="res://UI/health_stamina_bar.gd" id="13_ung07"]
 [ext_resource type="Script" uid="uid://boe05f5ffn3mn" path="res://Inventory/systems/inventory/inventory_ui.gd" id="14_2ys5t"]
 [ext_resource type="Texture2D" uid="uid://ci32yhu826l26" path="res://VFX/Effect_BigHit/30fps/Frames/Effect_BigHit_1/Effect_BigHit_1_000.png" id="16_wc173"]
 [ext_resource type="Texture2D" uid="uid://s6gypbamk87h" path="res://VFX/Effect_BigHit/30fps/Frames/Effect_BigHit_1/Effect_BigHit_1_001.png" id="17_8gugs"]
 [ext_resource type="Texture2D" uid="uid://d87v7r5suyfc" path="res://VFX/VFX_with_buff/blood_fenrir/fenrir_wolf_flash2.png" id="17_ccbl8"]
+[ext_resource type="Texture2D" uid="uid://b1i4efj2ir8g6" path="res://VFX/VFX_with_buff/eye_amulet/eye_amulet_effect_1920x1080.png" id="17_km7bv"]
 [ext_resource type="Texture2D" uid="uid://cb3j37k4pprq1" path="res://VFX/Effect_BigHit/30fps/Frames/Effect_BigHit_1/Effect_BigHit_1_002.png" id="18_l3nxm"]
 [ext_resource type="Texture2D" uid="uid://o8dyw0sxd5kt" path="res://VFX/Effect_BigHit/30fps/Frames/Effect_BigHit_1/Effect_BigHit_1_003.png" id="19_jr5wu"]
 [ext_resource type="Texture2D" uid="uid://v81042wxytgg" path="res://VFX/Effect_BigHit/30fps/Frames/Effect_BigHit_1/Effect_BigHit_1_004.png" id="20_ck4pg"]
@@ -60,6 +61,9 @@
 [ext_resource type="AudioStream" uid="uid://dstw43fvc7587" path="res://Sound/pulse.mp3" id="60_pulse1"]
 [ext_resource type="Script" uid="uid://2otpfiauqhyr" path="res://UI/hit_flash.gd" id="61_hitfl1"]
 [ext_resource type="AudioStream" uid="uid://bc21crvjx4vk7" path="res://Sound/ambient_sound/dyspnea.mp3" id="62_dyspnea1"]
+[ext_resource type="Script" uid="uid://cmtx2mj87qxw" path="res://VFX/VFX_scene/odin_eye_flash_effect.gd" id="62_oeye1"]
+[ext_resource type="Script" uid="uid://bgwd1m6lvvmm7" path="res://VFX/VFX_scene/sacrifice_rune_flash_effect.gd" id="64_srune1"]
+[ext_resource type="Texture2D" uid="uid://csuoga2htvuag" path="res://VFX/VFX_with_buff/rune_sacrifice/rune_effect_1920x1080.png" id="65_srune2"]
 
 [sub_resource type="CapsuleShape2D" id="CapsuleShape2D_m414l"]
 radius = 5.0
@@ -77,7 +81,7 @@ initial_velocity_max = 800.0
 gravity = Vector3(0, 98, 0)
 scale_min = 0.099999994
 scale_max = 1.3
-color = Color(0.7750634, 0.7750634, 0.7750634, 1)
+color = Color(0.65, 0.72, 0.82, 0.55)
 
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_gvis1"]
 shader = ExtResource("52_gvis1")
@@ -2173,6 +2177,230 @@ tracks/3/keys = {
 "args": [],
 "method": &"disable_attack_hitbox"
 }]
+}
+
+[sub_resource type="Animation" id="Animation_6r4ru"]
+length = 3.0
+loop_mode = 1
+tracks/0/type = "value"
+tracks/0/imported = false
+tracks/0/enabled = true
+tracks/0/path = NodePath("PlayerAnim:frame")
+tracks/0/interp = 1
+tracks/0/loop_wrap = true
+tracks/0/keys = {
+"times": PackedFloat32Array(0, 0.2, 0.4, 0.6, 0.8, 1, 1.2, 1.4, 1.6, 1.8, 2, 2.2, 2.4, 2.6, 2.8),
+"transitions": PackedFloat32Array(1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1),
+"update": 1,
+"values": [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14]
+}
+tracks/1/type = "value"
+tracks/1/imported = false
+tracks/1/enabled = true
+tracks/1/path = NodePath("PlayerAnim:animation")
+tracks/1/interp = 1
+tracks/1/loop_wrap = true
+tracks/1/keys = {
+"times": PackedFloat32Array(0),
+"transitions": PackedFloat32Array(1),
+"update": 1,
+"values": ["Block_Down"]
+}
+
+[sub_resource type="Animation" id="Animation_r3tdr"]
+length = 3.0
+loop_mode = 1
+tracks/0/type = "value"
+tracks/0/imported = false
+tracks/0/enabled = true
+tracks/0/path = NodePath("PlayerAnim:frame")
+tracks/0/interp = 1
+tracks/0/loop_wrap = true
+tracks/0/keys = {
+"times": PackedFloat32Array(0, 0.2, 0.4, 0.6, 0.8, 1, 1.2, 1.4, 1.6, 1.8, 2, 2.2, 2.4, 2.6, 2.8),
+"transitions": PackedFloat32Array(1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1),
+"update": 1,
+"values": [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14]
+}
+tracks/1/type = "value"
+tracks/1/imported = false
+tracks/1/enabled = true
+tracks/1/path = NodePath("PlayerAnim:animation")
+tracks/1/interp = 1
+tracks/1/loop_wrap = true
+tracks/1/keys = {
+"times": PackedFloat32Array(0),
+"transitions": PackedFloat32Array(1),
+"update": 1,
+"values": ["Block_Down_Left"]
+}
+
+[sub_resource type="Animation" id="Animation_f5obl"]
+length = 3.0
+loop_mode = 1
+tracks/0/type = "value"
+tracks/0/imported = false
+tracks/0/enabled = true
+tracks/0/path = NodePath("PlayerAnim:frame")
+tracks/0/interp = 1
+tracks/0/loop_wrap = true
+tracks/0/keys = {
+"times": PackedFloat32Array(0, 0.2, 0.4, 0.6, 0.8, 1, 1.2, 1.4, 1.6, 1.8, 2, 2.2, 2.4, 2.6, 2.8),
+"transitions": PackedFloat32Array(1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1),
+"update": 1,
+"values": [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14]
+}
+tracks/1/type = "value"
+tracks/1/imported = false
+tracks/1/enabled = true
+tracks/1/path = NodePath("PlayerAnim:animation")
+tracks/1/interp = 1
+tracks/1/loop_wrap = true
+tracks/1/keys = {
+"times": PackedFloat32Array(0),
+"transitions": PackedFloat32Array(1),
+"update": 1,
+"values": ["Block_Down_Right"]
+}
+
+[sub_resource type="Animation" id="Animation_7cuam"]
+length = 3.0
+loop_mode = 1
+tracks/0/type = "value"
+tracks/0/imported = false
+tracks/0/enabled = true
+tracks/0/path = NodePath("PlayerAnim:frame")
+tracks/0/interp = 1
+tracks/0/loop_wrap = true
+tracks/0/keys = {
+"times": PackedFloat32Array(0, 0.2, 0.4, 0.6, 0.8, 1, 1.2, 1.4, 1.6, 1.8, 2, 2.2, 2.4, 2.6, 2.8),
+"transitions": PackedFloat32Array(1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1),
+"update": 1,
+"values": [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14]
+}
+tracks/1/type = "value"
+tracks/1/imported = false
+tracks/1/enabled = true
+tracks/1/path = NodePath("PlayerAnim:animation")
+tracks/1/interp = 1
+tracks/1/loop_wrap = true
+tracks/1/keys = {
+"times": PackedFloat32Array(0),
+"transitions": PackedFloat32Array(1),
+"update": 1,
+"values": ["Block_Left"]
+}
+
+[sub_resource type="Animation" id="Animation_8v1j3"]
+length = 3.0
+loop_mode = 1
+tracks/0/type = "value"
+tracks/0/imported = false
+tracks/0/enabled = true
+tracks/0/path = NodePath("PlayerAnim:frame")
+tracks/0/interp = 1
+tracks/0/loop_wrap = true
+tracks/0/keys = {
+"times": PackedFloat32Array(0, 0.2, 0.4, 0.6, 0.8, 1, 1.2, 1.4, 1.6, 1.8, 2, 2.2, 2.4, 2.6, 2.8),
+"transitions": PackedFloat32Array(1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1),
+"update": 1,
+"values": [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14]
+}
+tracks/1/type = "value"
+tracks/1/imported = false
+tracks/1/enabled = true
+tracks/1/path = NodePath("PlayerAnim:animation")
+tracks/1/interp = 1
+tracks/1/loop_wrap = true
+tracks/1/keys = {
+"times": PackedFloat32Array(0),
+"transitions": PackedFloat32Array(1),
+"update": 1,
+"values": ["Block_Right"]
+}
+
+[sub_resource type="Animation" id="Animation_ur8ec"]
+length = 3.0
+loop_mode = 1
+tracks/0/type = "value"
+tracks/0/imported = false
+tracks/0/enabled = true
+tracks/0/path = NodePath("PlayerAnim:frame")
+tracks/0/interp = 1
+tracks/0/loop_wrap = true
+tracks/0/keys = {
+"times": PackedFloat32Array(0, 0.2, 0.4, 0.6, 0.8, 1, 1.2, 1.4, 1.6, 1.8, 2, 2.2, 2.4, 2.6, 2.8),
+"transitions": PackedFloat32Array(1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1),
+"update": 1,
+"values": [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14]
+}
+tracks/1/type = "value"
+tracks/1/imported = false
+tracks/1/enabled = true
+tracks/1/path = NodePath("PlayerAnim:animation")
+tracks/1/interp = 1
+tracks/1/loop_wrap = true
+tracks/1/keys = {
+"times": PackedFloat32Array(0),
+"transitions": PackedFloat32Array(1),
+"update": 1,
+"values": ["Block_Up"]
+}
+
+[sub_resource type="Animation" id="Animation_8eryl"]
+length = 3.0
+loop_mode = 1
+tracks/0/type = "value"
+tracks/0/imported = false
+tracks/0/enabled = true
+tracks/0/path = NodePath("PlayerAnim:frame")
+tracks/0/interp = 1
+tracks/0/loop_wrap = true
+tracks/0/keys = {
+"times": PackedFloat32Array(0, 0.2, 0.4, 0.6, 0.8, 1, 1.2, 1.4, 1.6, 1.8, 2, 2.2, 2.4, 2.6, 2.8),
+"transitions": PackedFloat32Array(1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1),
+"update": 1,
+"values": [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14]
+}
+tracks/1/type = "value"
+tracks/1/imported = false
+tracks/1/enabled = true
+tracks/1/path = NodePath("PlayerAnim:animation")
+tracks/1/interp = 1
+tracks/1/loop_wrap = true
+tracks/1/keys = {
+"times": PackedFloat32Array(0),
+"transitions": PackedFloat32Array(1),
+"update": 1,
+"values": ["Block_Up_Left"]
+}
+
+[sub_resource type="Animation" id="Animation_ae7pm"]
+length = 3.0
+loop_mode = 1
+tracks/0/type = "value"
+tracks/0/imported = false
+tracks/0/enabled = true
+tracks/0/path = NodePath("PlayerAnim:frame")
+tracks/0/interp = 1
+tracks/0/loop_wrap = true
+tracks/0/keys = {
+"times": PackedFloat32Array(0, 0.2, 0.4, 0.6, 0.8, 1, 1.2, 1.4, 1.6, 1.8, 2, 2.2, 2.4, 2.6, 2.8),
+"transitions": PackedFloat32Array(1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1),
+"update": 1,
+"values": [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14]
+}
+tracks/1/type = "value"
+tracks/1/imported = false
+tracks/1/enabled = true
+tracks/1/path = NodePath("PlayerAnim:animation")
+tracks/1/interp = 1
+tracks/1/loop_wrap = true
+tracks/1/keys = {
+"times": PackedFloat32Array(0),
+"transitions": PackedFloat32Array(1),
+"update": 1,
+"values": ["Block_Up_Right"]
 }
 
 [sub_resource type="Animation" id="Animation_omlgx"]
@@ -5044,7 +5272,7 @@ tracks/1/keys = {
 
 [sub_resource type="Animation" id="Animation_tgf2g"]
 resource_name = "new_animation"
-length = 0.7058823529411765
+length = 0.8823529411764706
 loop_mode = 1
 tracks/0/type = "value"
 tracks/0/imported = false
@@ -5053,10 +5281,10 @@ tracks/0/path = NodePath("PlayerAnim:frame")
 tracks/0/interp = 1
 tracks/0/loop_wrap = true
 tracks/0/keys = {
-"times": PackedFloat32Array(0, 0.05882353, 0.11764706, 0.1764706, 0.23529412, 0.29411766, 0.3529412, 0.4117647, 0.47058824, 0.5294118, 0.5882353, 0.64705884),
-"transitions": PackedFloat32Array(1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1),
+"times": PackedFloat32Array(0, 0.05882353, 0.11764706, 0.1764706, 0.23529412, 0.29411766, 0.3529412, 0.4117647, 0.47058824, 0.5294118, 0.5882353, 0.64705884, 0.7058824, 0.7647059, 0.8235294),
+"transitions": PackedFloat32Array(1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1),
 "update": 1,
-"values": [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]
+"values": [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14]
 }
 tracks/1/type = "value"
 tracks/1/imported = false
@@ -5069,6 +5297,33 @@ tracks/1/keys = {
 "transitions": PackedFloat32Array(1),
 "update": 1,
 "values": ["new_animation"]
+}
+
+[sub_resource type="Animation" id="Animation_clv68"]
+length = 0.001
+tracks/0/type = "value"
+tracks/0/imported = false
+tracks/0/enabled = true
+tracks/0/path = NodePath("PlayerAnim:frame")
+tracks/0/interp = 1
+tracks/0/loop_wrap = true
+tracks/0/keys = {
+"times": PackedFloat32Array(),
+"transitions": PackedFloat32Array(),
+"update": 1,
+"values": []
+}
+tracks/1/type = "value"
+tracks/1/imported = false
+tracks/1/enabled = true
+tracks/1/path = NodePath("PlayerAnim:animation")
+tracks/1/interp = 1
+tracks/1/loop_wrap = true
+tracks/1/keys = {
+"times": PackedFloat32Array(0),
+"transitions": PackedFloat32Array(1),
+"update": 1,
+"values": ["new_animation_1"]
 }
 
 [sub_resource type="AnimationLibrary" id="AnimationLibrary_tna0o"]
@@ -5109,6 +5364,14 @@ _data = {
 &"Attack_Up": SubResource("Animation_5eo1e"),
 &"Attack_Up_Left": SubResource("Animation_wa2l0"),
 &"Attack_Up_Right": SubResource("Animation_g8nbm"),
+&"Block_Down": SubResource("Animation_6r4ru"),
+&"Block_Down_Left": SubResource("Animation_r3tdr"),
+&"Block_Down_Right": SubResource("Animation_f5obl"),
+&"Block_Left": SubResource("Animation_7cuam"),
+&"Block_Right": SubResource("Animation_8v1j3"),
+&"Block_Up": SubResource("Animation_ur8ec"),
+&"Block_Up_Left": SubResource("Animation_8eryl"),
+&"Block_Up_Right": SubResource("Animation_ae7pm"),
 &"Dodge_Down": SubResource("Animation_omlgx"),
 &"Dodge_Down_Left": SubResource("Animation_in86o"),
 &"Dodge_Down_Right": SubResource("Animation_cwipg"),
@@ -5206,7 +5469,8 @@ _data = {
 &"Walk_Up": SubResource("Animation_heyyk"),
 &"Walk_Up_Left": SubResource("Animation_p5cvp"),
 &"Walk_Up_Right": SubResource("Animation_u848l"),
-&"new_animation": SubResource("Animation_tgf2g")
+&"new_animation": SubResource("Animation_tgf2g"),
+&"new_animation_1": SubResource("Animation_clv68")
 }
 
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_dmgv"]
@@ -5355,8 +5619,7 @@ modulate = Color(0.7722583, 0.7722583, 0.7722583, 1)
 texture_filter = 1
 scale = Vector2(0.640625, 0.78125006)
 sprite_frames = ExtResource("2_tgf2g")
-animation = &"new_animation"
-frame_progress = 0.76769924
+animation = &"Attack_2_Down"
 
 [node name="Collision" type="CollisionShape2D" parent="." unique_id=706763296]
 shape = SubResource("CapsuleShape2D_m414l")
@@ -5366,14 +5629,26 @@ zoom = Vector2(1.9, 1.9)
 limit_smoothed = true
 position_smoothing_enabled = true
 
-[node name="Rain" type="GPUParticles2D" parent="Camera2D" unique_id=1488762265]
+[node name="Rain2" type="GPUParticles2D" parent="Camera2D" unique_id=271765989]
+texture_filter = 1
 position = Vector2(-30, -451)
-amount = 5000
-texture = ExtResource("9_kmod3")
+amount = 500
+texture = ExtResource("12_6r4ru")
 lifetime = 1.8
 speed_scale = 1.5
-local_coords = true
 visibility_rect = Rect2(-1400, -100, 2800, 1400)
+local_coords = true
+process_material = SubResource("ParticleProcessMaterial_v6ddd")
+
+[node name="Rain" type="GPUParticles2D" parent="Camera2D" unique_id=1488762265]
+texture_filter = 1
+position = Vector2(-30, -451)
+amount = 500
+texture = ExtResource("12_6r4ru")
+lifetime = 1.8
+speed_scale = 1.5
+visibility_rect = Rect2(-1400, -100, 2800, 1400)
+local_coords = true
 process_material = SubResource("ParticleProcessMaterial_v6ddd")
 
 [node name="CanvasLayer" type="CanvasLayer" parent="Camera2D" unique_id=1119566698]
@@ -5403,6 +5678,50 @@ mouse_filter = 2
 color = Color(0.4, 0.62, 1, 0)
 script = ExtResource("56_odin1")
 
+[node name="OdinFlash" type="Node" parent="Camera2D/CanvasLayer" unique_id=1900000038]
+script = ExtResource("62_oeye1")
+
+[node name="Flash" type="ColorRect" parent="Camera2D/CanvasLayer/OdinFlash" unique_id=1900000039]
+offset_left = -286.0
+offset_top = -94.0
+offset_right = 2168.0
+offset_bottom = 1246.0
+mouse_filter = 2
+color = Color(0.4, 0.62, 1, 0)
+
+[node name="Eye" type="TextureRect" parent="Camera2D/CanvasLayer/OdinFlash" unique_id=1900000040]
+modulate = Color(1, 1, 1, 0)
+material = SubResource("CanvasItemMaterial_fwolf1")
+offset_left = -6.0
+offset_top = -6.0
+offset_right = 1921.0
+offset_bottom = 1156.0
+mouse_filter = 2
+texture = ExtResource("17_km7bv")
+expand_mode = 1
+
+[node name="RuneFlash" type="Node" parent="Camera2D/CanvasLayer" unique_id=1900000042]
+script = ExtResource("64_srune1")
+
+[node name="Flash" type="ColorRect" parent="Camera2D/CanvasLayer/RuneFlash" unique_id=1900000043]
+offset_left = -286.0
+offset_top = -94.0
+offset_right = 2168.0
+offset_bottom = 1246.0
+mouse_filter = 2
+color = Color(0.7, 0.05, 0.08, 0)
+
+[node name="Rune" type="TextureRect" parent="Camera2D/CanvasLayer/RuneFlash" unique_id=1900000044]
+modulate = Color(1, 1, 1, 0)
+material = SubResource("CanvasItemMaterial_fwolf1")
+offset_left = -6.0
+offset_top = -6.0
+offset_right = 1921.0
+offset_bottom = 1156.0
+mouse_filter = 2
+texture = ExtResource("65_srune2")
+expand_mode = 1
+
 [node name="FenrirFlash" type="Node" parent="Camera2D/CanvasLayer" unique_id=1014078785]
 script = ExtResource("54_fwolf1")
 
@@ -5417,10 +5736,10 @@ color = Color(0.7, 0.22, 0.32, 0)
 [node name="Wolf" type="TextureRect" parent="Camera2D/CanvasLayer/FenrirFlash" unique_id=1014078787]
 modulate = Color(1, 1, 1, 0)
 material = SubResource("CanvasItemMaterial_fwolf1")
-offset_left = -286.0
-offset_top = -94.0
-offset_right = 2168.0
-offset_bottom = 1246.0
+offset_left = -10.0
+offset_top = -50.0
+offset_right = 1940.0
+offset_bottom = 1202.0
 mouse_filter = 2
 texture = ExtResource("55_fwolf2")
 expand_mode = 1
@@ -5429,10 +5748,10 @@ stretch_mode = 6
 [node name="Wolf2" type="TextureRect" parent="Camera2D/CanvasLayer/FenrirFlash" unique_id=1014078788]
 modulate = Color(1, 1, 1, 0)
 material = SubResource("CanvasItemMaterial_fwolf1")
-offset_left = -286.0
-offset_top = -94.0
-offset_right = 2168.0
-offset_bottom = 1246.0
+offset_left = -24.0
+offset_top = -20.0
+offset_right = 1952.0
+offset_bottom = 1172.0
 mouse_filter = 2
 texture = ExtResource("17_ccbl8")
 expand_mode = 1
@@ -5547,6 +5866,26 @@ bus = &"Combat"
 [node name="CoinAudio" type="AudioStreamPlayer2D" parent="." unique_id=1900000036]
 volume_db = -10.0
 bus = &"CoinEcho"
+
+[node name="FenrirAudio" type="AudioStreamPlayer2D" parent="." unique_id=1900000037]
+volume_db = -6.0
+bus = &"FenrirEcho"
+
+[node name="OdinAudio" type="AudioStreamPlayer2D" parent="." unique_id=1900000041]
+volume_db = -7.0
+bus = &"Combat"
+
+[node name="RuneAudio" type="AudioStreamPlayer2D" parent="." unique_id=1900000045]
+volume_db = -6.5
+bus = &"RuneEcho"
+
+[node name="HurtAudio" type="AudioStreamPlayer2D" parent="." unique_id=1900000046]
+volume_db = -11.0
+bus = &"HurtEcho"
+
+[node name="DrinkAudio" type="AudioStreamPlayer2D" parent="." unique_id=1900000048]
+volume_db = -5.0
+bus = &"Combat"
 
 [node name="InventoryUI" type="CanvasLayer" parent="." unique_id=37486928]
 script = ExtResource("14_2ys5t")

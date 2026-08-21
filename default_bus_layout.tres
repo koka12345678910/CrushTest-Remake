@@ -24,6 +24,33 @@ room_size = 0.25
 damping = 0.12
 wet = 0.28
 
+[sub_resource type="AudioEffectLowShelfFilter" id="AudioEffectLowShelfFilter_fenrir"]
+cutoff_hz = 500.0
+gain = 1.9
+
+[sub_resource type="AudioEffectReverb" id="AudioEffectReverb_fenrir"]
+room_size = 0.7
+damping = 0.45
+wet = 0.4
+
+[sub_resource type="AudioEffectLowShelfFilter" id="AudioEffectLowShelfFilter_rune"]
+cutoff_hz = 450.0
+gain = 1.9
+
+[sub_resource type="AudioEffectReverb" id="AudioEffectReverb_rune"]
+room_size = 0.65
+damping = 0.4
+wet = 0.38
+
+[sub_resource type="AudioEffectLowShelfFilter" id="AudioEffectLowShelfFilter_hurt"]
+cutoff_hz = 350.0
+gain = 1.7
+
+[sub_resource type="AudioEffectReverb" id="AudioEffectReverb_hurt"]
+room_size = 0.3
+damping = 0.35
+wet = 0.18
+
 [resource]
 bus/1/name = &"Combat"
 bus/1/solo = false
@@ -59,3 +86,33 @@ bus/4/volume_db = 0.0
 bus/4/send = &"Master"
 bus/4/effect/0/effect = SubResource("AudioEffectReverb_coin")
 bus/4/effect/0/enabled = true
+bus/5/name = &"FenrirEcho"
+bus/5/solo = false
+bus/5/mute = false
+bus/5/bypass_fx = false
+bus/5/volume_db = 0.0
+bus/5/send = &"Master"
+bus/5/effect/0/effect = SubResource("AudioEffectLowShelfFilter_fenrir")
+bus/5/effect/0/enabled = true
+bus/5/effect/1/effect = SubResource("AudioEffectReverb_fenrir")
+bus/5/effect/1/enabled = true
+bus/6/name = &"RuneEcho"
+bus/6/solo = false
+bus/6/mute = false
+bus/6/bypass_fx = false
+bus/6/volume_db = 0.0
+bus/6/send = &"Master"
+bus/6/effect/0/effect = SubResource("AudioEffectLowShelfFilter_rune")
+bus/6/effect/0/enabled = true
+bus/6/effect/1/effect = SubResource("AudioEffectReverb_rune")
+bus/6/effect/1/enabled = true
+bus/7/name = &"HurtEcho"
+bus/7/solo = false
+bus/7/mute = false
+bus/7/bypass_fx = false
+bus/7/volume_db = 0.0
+bus/7/send = &"Combat"
+bus/7/effect/0/effect = SubResource("AudioEffectLowShelfFilter_hurt")
+bus/7/effect/0/enabled = true
+bus/7/effect/1/effect = SubResource("AudioEffectReverb_hurt")
+bus/7/effect/1/enabled = true

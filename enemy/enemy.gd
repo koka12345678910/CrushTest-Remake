@@ -21,8 +21,24 @@ extends CharacterBody2D
 @export var attack_damage_min := 15
 @export var attack_damage_max := 15
 @export var attack_duration := 0.5
+# Насколько замедлить проигрывание анимации замаха (1.0 = как нарисовано,
+# меньше — медленнее). Читается через custom_speed у AnimationPlayer.play(),
+# а не через persistent speed_scale — так замедление не "утекает" в другие
+# анимации (idle/walk и т.п.) после атаки, откатывать вручную не нужно
+@export_range(0.3, 1.0) var attack_speed_scale := 0.85
+# На каком проценте замаха ЗАСЧИТЫВАЕТСЯ удар (0.55 = чуть за серединой).
+# Раньше удар засчитывался только когда анимация ПОЛНОСТЬЮ доигрывала —
+# смотрелось неестественно (клинок явно долетел до цели давно, а урон
+# всё ещё не шёл). Оставшаяся часть клипа после этой точки — визуальный
+# доигрыш/возврат в стойку, уже не связанный с уроном
+@export_range(0.3, 0.9) var attack_impact_fraction := 0.55
 @onready var attack_hitbox: Area2D = $Hitbox/Atack_hitbox
 var current_attack_anim := "attack"
+# Реальная (с учётом attack_speed_scale) длительность текущего замаха и
+# момент внутри неё, когда засчитывается удар — считаются один раз при
+# входе в ATTACK (см. _change_state) и читаются в _state_attack
+var _attack_windup_time := 0.0
+var _attack_impact_time := 0.0
 
 func get_attack_damage() -> int:
 	return randi_range(attack_damage_min, attack_damage_max)
@@ -31,6 +47,17 @@ func get_attack_damage() -> int:
 @export var damage_flash_color := Color(2.0, 0.2, 0.2, 1.0)
 @export var berserk_highlight_color := Color(5.0, 4.5, 2.5, 1.0)
 var _rest_modulate := Color.WHITE
+# Исходный масштаб спрайта — считываем реальный (0.64/0.77, не 1.0) в _ready,
+# чтобы пульсация замаха возвращалась ровно к нему, а не схлопывала спрайт к
+# неверному размеру
+var _rest_scale := Vector2.ONE
+# Зацикленный tween пульсации замаха — храним ссылку, чтобы гарантированно
+# остановить его при прерывании атаки (стан, смерть, новый замах и т.п.).
+# Обычные одноразовые tween-ы в этом файле никто не хранит и не убивает —
+# им не нужно, они сами доигрывают и пропадают. Зацикленный — другое дело:
+# если не убить его явно, он будет вечно дёргать scale/modulate даже после
+# того, как враг давно вышел из атаки
+var _telegraph_tween: Tween
 
 # AI поведение
 @export var preferred_distance := 35.0
@@ -157,6 +184,17 @@ var is_player_berserk := false
 const ENEMY_SWING_SOUND := preload("res://Sound/melee_sound/swing.mp3")
 const ENEMY_HIT_SOUND := preload("res://Sound/melee_sound/hit.mp3")
 const ENEMY_DEATH_SOUND := preload("res://Sound/death_sound/death.mp3")
+# Реакция на боль при получении урона — те же 4 файла, что и у игрока (уже
+# заведён принцип "враг переиспользует боевые сэмплы игрока, но звучит ниже"
+# через enemy_pitch_down в _play_enemy_sound). Раньше здесь заглушкой играл
+# ENEMY_GRUNT_SOUNDS — тот же пул, что и на замахе атаки, теперь он остаётся
+# только под атаку, а боль звучит отдельно
+const ENEMY_HURT_SOUNDS := [
+	preload("res://Sound/take_damage_sound/take_damage_sound_1.mp3"),
+	preload("res://Sound/take_damage_sound/take_damage_sound_2.mp3"),
+	preload("res://Sound/take_damage_sound/take_damage_sound_3.mp3"),
+	preload("res://Sound/take_damage_sound/take_damage_sound_4.mp3"),
+]
 const ENEMY_GRUNT_SOUNDS := [
 	preload("res://Sound/groaning_sound/attack1.mp3"),
 	preload("res://Sound/groaning_sound/attack2.mp3"),
@@ -192,6 +230,8 @@ func _ready() -> void:
 	if hitbox:
 		hitbox.area_entered.connect(_on_hitbox_area_entered)
 		hitbox.body_entered.connect(_on_hitbox_hit)
+
+	_rest_scale = $AnimatedSprite2D.scale
 
 	_change_state(State.IDLE)
 	anim.animation_finished.connect(_on_animation_finished)
@@ -485,6 +525,14 @@ func _change_state(new_state: State) -> void:
 	if current_state == new_state:
 		return
 
+	# Ловим ЛЮБОЙ уход из ATTACK, а не только через _exit_attack() — врага
+	# могли застаннить/убить/парировать прямо посреди замаха (HIT_STUN,
+	# STAGGER, DEAD и т.п. переключают состояние напрямую, не заходя в
+	# _exit_attack), и без этой подстраховки зацикленный tween пульсации
+	# телеграфа так и продолжил бы дёргать scale/modulate до бесконечности
+	if current_state == State.ATTACK and _telegraph_tween:
+		_stop_attack_telegraph()
+
 	current_state = new_state
 	state_time = 0.0
 
@@ -525,7 +573,22 @@ func _change_state(new_state: State) -> void:
 			# рандомно выбираем атаку
 			var attacks = ["attack", "attack2"]
 			current_attack_anim = attacks[randi() % attacks.size()]
-			_trigger_attack_telegraph()
+			attack_direction_name = _get_direction_name(direction)
+			# Замах показывает НАСТОЯЩИЙ свинг оружия, а не заглушку с цветом —
+			# парирование завязано на чтение движения врага, а не на вспышку
+			# (см. _state_attack). Проигрываем чуть медленнее (attack_speed_scale)
+			# — так замах читается яснее и оставляет больше времени на реакцию.
+			# current_animation_length — "сырая" длина клипа БЕЗ учёта скорости
+			# воспроизведения, поэтому реальную длительность считаем сами
+			_play_animation(current_attack_anim, attack_speed_scale)
+			_play_attack_sound()
+			_attack_windup_time = anim.current_animation_length / attack_speed_scale
+			# Удар засчитывается не в конце анимации, а в её середине —
+			# клинок долетает до цели раньше, чем доигрывает весь замах и
+			# возврат в стойку. Остаток клипа после этой точки — чистый
+			# доигрыш, уже не завязанный на попадание
+			_attack_impact_time = _attack_windup_time * attack_impact_fraction
+			_trigger_attack_telegraph(_attack_impact_time)
 
 		State.HIT_STUN:
 			move_velocity = Vector2.ZERO
@@ -683,20 +746,46 @@ var attack_direction_name := ""  # добавь в переменные
 func _state_attack(_delta: float) -> void:
 	move_velocity = Vector2.ZERO
 
+	# Игрок исчез — прерываем атаку. Проверяем на ЛЮБОЙ фазе (замах или уже
+	# бьёт), а не только после активации хитбокса — иначе враг доигрывал бы
+	# замах против пустоты
+	if not player or not is_instance_valid(player):
+		_exit_attack()
+		_change_state(State.WANDER)
+		return
+
 	if not attack_started:
+		# Хитбокс активируется в _attack_impact_time — момент ВНУТРИ реальной
+		# анимации замаха (см. _change_state), а не когда она полностью
+		# доиграет. Раньше ждали конец всего клипа — смотрелось неестественно:
+		# клинок уже давно долетел до цели по картинке, а урон всё ещё не
+		# шёл. Оставшиеся кадры после этой точки — чистый доигрыш/возврат в
+		# стойку, уже никак не завязанный на попадание. Парировать/уворачиваться
+		# нужно по движению оружия, а не по цветной вспышке — та осталась лишь
+		# фоновой подсказкой (см. _trigger_attack_telegraph)
+		if state_time < _attack_impact_time:
+			return
+		# Направление НЕ переприцеливаем здесь специально: свинг уже играет
+		# в направлении, зафиксированном в момент входа в замах (иначе хитбокс
+		# бил бы не туда же, куда визуально размахивается оружие). Раньше
+		# переприцел был нужен, пока замах был невидимой паузой без всякого
+		# движения — теперь то, что видит игрок, и есть честная цель удара
 		attack_started = true
 		attack_active = true
 		attack_hit_window = true
 		hit_targets.clear()
-		attack_direction_name = _get_direction_name(direction)  # ← фиксируем направление
 		_update_attack_shape()
-		_play_animation(current_attack_anim)
-		_play_attack_sound()
+		_stop_attack_telegraph()
 
-	# Игрок исчез — прерываем атаку
-	if not player or not is_instance_valid(player):
-		_exit_attack()
-		_change_state(State.WANDER)
+	# Прямой опрос перекрытия каждый кадр, пока хитбокс активен — подстраховка
+	# к сигналу body_entered. На самом первом кадре активации форма ещё
+	# физически выключена (disabled=false применится позже, на следующий кадр,
+	# через call_deferred в _update_attack_shape), так что опрос ничего не
+	# найдёт — но со следующего кадра он надёжно поймает игрока, даже если тот
+	# уже стоял в зоне, а не только что в неё зашёл
+	if attack_active:
+		for body in attack_hitbox.get_overlapping_bodies():
+			_try_hit_body(body)
 
 
 func _exit_attack() -> void:
@@ -705,6 +794,10 @@ func _exit_attack() -> void:
 	attack_started = false
 	attack_shape.call_deferred("set", "disabled", true)
 	attack_cooldown_timer = attack_cooldown
+	# Атака могла прерваться прямо посреди замаха (игрок исчез, врага
+	# застаннило и т.п.) — гасим пульсацию телеграфа и здесь тоже, иначе
+	# зацикленный tween так и продолжит дёргать scale/modulate до бесконечности
+	_stop_attack_telegraph()
 # =========================================================
 # HIT STUN
 # =========================================================
@@ -721,9 +814,9 @@ func _state_hit_stun(delta: float) -> void:
 		_change_state(State.CHASE)
 
 # ===================== ANIMATION =====================
-func _play_animation(state: String) -> void:
+func _play_animation(state: String, speed := 1.0) -> void:
 	var dir_name = _get_direction_name(direction)
-	
+
 	# маппинг правильных имён анимаций
 	var anim_map = {
 		"idle": "idle2",
@@ -741,12 +834,15 @@ func _play_animation(state: String) -> void:
 		"pummel": "pummel",
 		"die": "die"
 	}
-	
+
 	var mapped = anim_map.get(state, state)
 	var anim_name = mapped + "_" + dir_name
 	if anim.current_animation == anim_name and anim.is_playing():
 		return
-	anim.play(anim_name)
+	# custom_speed, а не persistent anim.speed_scale — замедление действует
+	# только на ЭТОТ конкретный проигрыш, не остаётся висеть на следующих
+	# анимациях (idle/walk и т.п.), сбрасывать вручную не нужно
+	anim.play(anim_name, -1, speed)
 
 
 func _get_direction_name(dir: Vector2) -> String:
@@ -778,7 +874,17 @@ func _get_direction_name(dir: Vector2) -> String:
 # ===================== ATTACK DAMAGE FIX =====================
 
 func _on_attack_body_entered(body: Node2D) -> void:
+	_try_hit_body(body)
 
+
+# Основная логика попадания — вынесена из сигнала body_entered в отдельную
+# функцию, потому что теперь вызывается из ДВУХ мест: из самого сигнала (для
+# игрока, который заходит в зону хитбокса ПОСЛЕ его активации) и из прямого
+# опроса get_overlapping_bodies() в _state_attack (для игрока, который уже
+# стоял в зоне ДО активации — body_entered ловит только момент входа, а форма
+# включается с задержкой в кадр через call_deferred, из-за чего этот случай
+# мог остаться незамеченным движком)
+func _try_hit_body(body: Node2D) -> void:
 	if is_dead:
 		return
 
@@ -818,7 +924,7 @@ func take_damage(amount: int, source: Node2D = null) -> void:
 		hp_bar.value = health
 		_trigger_damage_flash()
 		play_blood_vfx()
-		_play_enemy_sound(voice_audio, ENEMY_GRUNT_SOUNDS.pick_random())
+		_play_enemy_sound(voice_audio, ENEMY_HURT_SOUNDS.pick_random())
 
 		if health <= 0:
 			health = 0
@@ -876,7 +982,7 @@ func take_damage(amount: int, source: Node2D = null) -> void:
 	hp_bar.value = health
 	_trigger_damage_flash()
 	play_blood_vfx()
-	_play_enemy_sound(voice_audio, ENEMY_GRUNT_SOUNDS.pick_random())
+	_play_enemy_sound(voice_audio, ENEMY_HURT_SOUNDS.pick_random())
 
 	if health <= 0:
 		health = 0
@@ -993,18 +1099,40 @@ func _state_counter(_delta: float) -> void:
 				hit_targets.append(player)
 				attack_active = false
 
-# Телеграф атаки — короткая вспышка в момент замаха, чтобы игрок успевал
-# прочитать "сейчас ударит" и осознанно парировать/увернуться. Без неё удар
-# врага прилетает без предупреждения, и парирование ощущается лотереей, а не
-# вопросом тайминга. Цвет отличается от блока (жёлтый) и урона (красный)
-@export var telegraph_color := Color(2.2, 1.1, 0.5, 1.0)
-@export var telegraph_fade_time := 0.22
+# Телеграф атаки — раньше был ОСНОВНЫМ сигналом для тайминга (держался на
+# пике весь замах), из-за чего парирование сводилось к "жди, пока цвет
+# погаснет" — не имело значения, куда враг реально бьёт. Теперь тайминг
+# читается по настоящей анимации замаха (она играет с самого входа в ATTACK,
+# см. _change_state), а вспышка — лишь короткая приглушённая подсветка в
+# начале, чтобы боковым зрением зацепить "враг начал действие". Она гаснет
+# быстро и заведомо ДО того, как замах реально закончится — весь смысл в
+# том, чтобы дальше игрок читал движение оружия, а не ждал цвет
+@export var telegraph_color := Color(1.35, 1.1, 0.85, 1.0)
+@export var telegraph_flash_time := 0.18
 
-func _trigger_attack_telegraph() -> void:
+func _trigger_attack_telegraph(_windup_duration: float) -> void:
+	if _telegraph_tween:
+		_telegraph_tween.kill()
 	var sp = $AnimatedSprite2D
 	sp.modulate = telegraph_color
+	sp.scale = _rest_scale
+	_telegraph_tween = create_tween()
+	_telegraph_tween.tween_property(sp, "modulate", _rest_modulate, telegraph_flash_time)
+
+
+# Подчищает вспышку — вызывается либо когда хитбокс реально активировался
+# (удар пошёл, см. _state_attack), либо когда атака прервалась раньше срока
+# (см. _exit_attack). К этому моменту вспышка обычно уже сама погасла
+# (telegraph_flash_time короче всего замаха), это просто гарантия, что
+# ничего не зависло на середине
+func _stop_attack_telegraph() -> void:
+	if _telegraph_tween:
+		_telegraph_tween.kill()
+		_telegraph_tween = null
+	var sp = $AnimatedSprite2D
+	sp.scale = _rest_scale
 	var tween = create_tween()
-	tween.tween_property(sp, "modulate", _rest_modulate, telegraph_fade_time)
+	tween.tween_property(sp, "modulate", _rest_modulate, 0.05)
 
 func _trigger_block_effect() -> void:
 	block_vfx.restart()

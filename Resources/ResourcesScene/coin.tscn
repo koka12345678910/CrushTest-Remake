@@ -49,6 +49,39 @@ animations = [{
 [sub_resource type="CircleShape2D" id="CircleShape2D_g4v7s"]
 radius = 95.047356
 
+[sub_resource type="CanvasItemMaterial" id="CanvasItemMaterial_coin_trail"]
+blend_mode = 1
+
+[sub_resource type="Gradient" id="Gradient_coin_trail"]
+offsets = PackedFloat32Array(0, 0.5, 1)
+colors = PackedColorArray(1, 1, 1, 1, 1, 1, 1, 0.6, 1, 1, 1, 0)
+
+[sub_resource type="GradientTexture2D" id="GradientTexture2D_coin_trail"]
+gradient = SubResource("Gradient_coin_trail")
+width = 32
+height = 32
+fill = 1
+fill_from = Vector2(0.5, 0.5)
+fill_to = Vector2(1, 0.5)
+
+[sub_resource type="Gradient" id="Gradient_coin_trail_color"]
+offsets = PackedFloat32Array(0, 0.4, 1)
+colors = PackedColorArray(3.2, 2.6, 0.9, 1, 3, 2.2, 0.6, 0.8, 2.4, 1.6, 0.3, 0)
+
+[sub_resource type="GradientTexture1D" id="GradientTexture1D_coin_trail"]
+gradient = SubResource("Gradient_coin_trail_color")
+
+[sub_resource type="ParticleProcessMaterial" id="ParticleProcessMaterial_coin_trail"]
+particle_flag_disable_z = true
+direction = Vector3(0, 0, 0)
+spread = 180.0
+initial_velocity_min = 4.0
+initial_velocity_max = 18.0
+gravity = Vector3(0, 0, 0)
+scale_min = 0.15
+scale_max = 0.32
+color_ramp = SubResource("GradientTexture1D_coin_trail")
+
 [node name="Coin" type="Area2D" unique_id=338569600]
 texture_filter = 1
 collision_layer = 9
@@ -63,3 +96,12 @@ frame_progress = 0.53418976
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="." unique_id=1695090279]
 shape = SubResource("CircleShape2D_g4v7s")
+
+[node name="TrailParticles" type="GPUParticles2D" parent="." unique_id=1900000101]
+texture_filter = 1
+material = SubResource("CanvasItemMaterial_coin_trail")
+emitting = false
+amount = 15
+texture = SubResource("GradientTexture2D_coin_trail")
+lifetime = 0.45
+process_material = SubResource("ParticleProcessMaterial_coin_trail")

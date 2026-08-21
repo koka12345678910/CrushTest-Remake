@@ -11,6 +11,15 @@ extends CharacterBody2D
 @export var snap_radius := 80.0  # радиус поиска врагов
 @export var posture_regen_rate := 10.0
 @export var posture_regen_delay := 2.5
+# --- БЛОК (зажатое ПКМ, is_blocking) ---
+# Сколько концентрации заполняет один заблокированный удар — блок не убирает
+# урон бесплатно, вместо этого копится усталость от держания щита
+@export var block_posture_gain := 16.0
+@export var block_shake_strength := 3.0
+# Блок работает только спереди — щит не закрывает спину. dot(facing, to_attacker)
+# > 0 — это ровно фронтальная половина (180°); выше — уже конус, ниже —
+# шире прикрытие по бокам
+@export_range(-1.0, 1.0) var block_frontal_dot_threshold := 0.0
 @export var fenrir_hit_vfx_scene: PackedScene
 @export var fire_ring_vfx_scene: PackedScene
 @export var berserk_hit_vfx_scene: PackedScene
@@ -48,6 +57,9 @@ extends CharacterBody2D
 # Более высокий тон читается ухом как "звонче" — обычный лязг ощущается
 # глуше, чем чистый высокий звон металла
 @export var parry_pitch_mult := 1.15
+# Тряска на идеальный уворот — слабее парирования: это не столкновение
+# металла, а лёгкий рывок в сторону от удара
+@export var perfect_dodge_shake_strength := 4.0
 # Тряска, когда КОНТРАТАКУЮТ игрока (receive_parry — враг спарировал/пробил
 # концентрацию и оглушил, оба сценария стана). Полное пробитие концентрации —
 # стан держится дольше, и тряска должна
@@ -146,6 +158,8 @@ var _bob_smoothed := Vector2.ZERO
 @onready var block_audio: AudioStreamPlayer2D = $BlockAudio
 @onready var parry_audio: AudioStreamPlayer2D = $ParryAudio
 @onready var stun_audio: AudioStreamPlayer2D = $StunAudio
+@onready var hurt_audio: AudioStreamPlayer2D = $HurtAudio
+@onready var drink_audio: AudioStreamPlayer2D = $DrinkAudio
 @onready var coin_audio: AudioStreamPlayer2D = $CoinAudio
 @onready var body_impact_audio: AudioStreamPlayer2D = $BodyImpactAudio
 
@@ -218,9 +232,23 @@ const BLOCK_HIT_SOUND := preload("res://Sound/melee_sound/block.wav")
 var _footstep_left_next := true
 # Звук парирования — играется при успешном парировании удара врага
 const PARRY_SOUND := preload("res://Sound/melee_sound/parry.wav")
+# Звук идеального уворота — играется через parry_audio (тот же узел, что и
+# парирование: оба defensive-действия, звучат в разные моменты, конфликта
+# нет). pulse.mp3 ранее нигде не использовался — свободный ассет в проекте
+const PERFECT_DODGE_SOUND := preload("res://Sound/pulse.mp3")
 # Звук ломающейся концентрации/оглушения — играется, когда игрока
 # контратакуют (receive_parry), звучит на протяжении стана
 const STUN_SOUND := preload("res://Sound/posture_break.mp3")
+# Питьё зелья — общий звук для всех трёх аптечек
+const DRINK_SOUND := preload("res://Sound/abilities_sound/drink_potion_sound.mp3")
+# Крик боли при получении урона — пул из 4 разных вскриков вместо одного, чтобы
+# на серии ударов не было слышно, что это один и тот же семпл по кругу
+const HURT_SOUNDS: Array[AudioStream] = [
+	preload("res://Sound/take_damage_sound/take_damage_sound_1.mp3"),
+	preload("res://Sound/take_damage_sound/take_damage_sound_2.mp3"),
+	preload("res://Sound/take_damage_sound/take_damage_sound_3.mp3"),
+	preload("res://Sound/take_damage_sound/take_damage_sound_4.mp3"),
+]
 # Подбор монеты — сам звук уже звонкий, шина CoinEcho добавляет лёгкий
 # металлический хвост, а не меняет тембр заново
 const COIN_SOUND := preload("res://Sound/coin_picking.mp3")
@@ -247,7 +275,18 @@ var knockback_velocity := Vector2.ZERO
 # Хитстоп — короткая заморозка в момент попадания (даёт «мясистость» удара)
 @export var hitstop_duration := 0.06
 @export var hitstop_scale := 0.0  # 0.0 = полная заморозка, 0.05 = лёгкий слоу-мо
-var _hitstop_token := 0
+# Слоу-мо на идеальный уворот («witch time») — заметно мягче хитстопа и
+# ощутимо дольше: хитстоп — стоп-кадр на миг удара, это — растянутое
+# мгновение "я успел" перед контратакой
+@export var perfect_dodge_slowmo_scale := 0.25
+@export var perfect_dodge_slowmo_duration := 0.35
+# Общий счётчик для ЛЮБОГО управления Engine.time_scale от игрока (хитстоп
+# и слоу-мо уворота) — если оба сработают почти одновременно (уворот →
+# мгновенная контратака → хитстоп от попадания), должен победить самый
+# ПОСЛЕДНИЙ вызов, а не тот, что запустился раньше. Раздельные токены дали
+# бы рассинхрон: например, короткий хитстоп мог бы восстановить time_scale
+# раньше, чем достоверно завершится более длинное слоу-мо, запущенное позже
+var _timescale_token := 0
 var is_running := false
 var last_direction := "Down"
 
@@ -292,7 +331,11 @@ var roll_control := 0.0
 
 # --- PARRY SYSTEM ---
 var is_parrying := false
-var parry_window := 0.2     # секунды активного окна
+# Раньше 0.2 — при вспышке-предупреждении этого хватало, чтобы парировать
+# "на глаз", не глядя на реальный замах врага. Теперь тайминг удара берётся
+# из настоящей анимации замаха (enemy.gd, _state_attack), и окно сужено —
+# нужно целиться в конкретный момент свинга, а не иметь запас на угадать
+var parry_window := 0.12     # секунды активного окна
 var parry_timer := 0.0
 var parry_cooldown := 0.6       # кулдаун между парированиями
 var parry_cd_timer := 0.0
@@ -351,7 +394,7 @@ func _ready() -> void:
 	# в _play_varied отсчитывается от них
 	for p: AudioStreamPlayer2D in [
 		swing_audio, hit_audio, voice_audio, footstep_audio, block_audio, parry_audio,
-		body_impact_audio, stun_audio, coin_audio
+		body_impact_audio, stun_audio, coin_audio, hurt_audio, drink_audio
 	]:
 		_base_volume_db[p] = p.volume_db
 
@@ -388,10 +431,10 @@ func _unhandled_input(event: InputEvent) -> void:
 	if is_in_shop:
 		return  # ← добавь, магазин сам обрабатывает свой Esc
 	
-	# Блокируем всё кроме инвентаря если он открыт
+	# Блокируем всё кроме инвентаря если он открыт. Esc обрабатывает сам
+	# инвентарь (у него есть подразделы — настройки и навыки, и Esc должен
+	# закрывать сначала их, а не всё окно целиком)
 	if inventory_ui.visible:
-		if event.is_action_pressed("ui_cancel"):
-			inventory_ui.close()
 		return
 	
 	# Переключение слотов только когда не атакуем и не уклоняемся
@@ -406,10 +449,9 @@ func _unhandled_input(event: InputEvent) -> void:
 		if not is_attacking and not is_dodging and not is_rolling and not is_parrying:
 			ability_system.use_current(self)
 	if event.is_action_pressed("ui_cancel"):
-		if inventory_ui.visible:
-			inventory_ui.close()
-		else:
-			inventory_ui.open()
+		# Сюда доходим только с закрытым инвентарём (открытый отсекается выше и
+		# сам гасит Esc), так что здесь остаётся только открытие
+		inventory_ui.open()
 
 func _process(delta: float) -> void:
 	# Обновляем состояния "на грани" ДО расчёта тряски — истощение подкачивает
@@ -641,7 +683,7 @@ func _physics_process(delta):
 	handle_kick_input()
 	handle_parry_input(delta)
 	check_for_turn()
-	if is_taking_damage or is_parrying:
+	if is_taking_damage or is_parrying or is_blocking:
 		velocity = Vector2.ZERO
 		move_and_slide()
 		return
@@ -1025,11 +1067,18 @@ func handle_parry_input(delta):
 	if is_dodging or is_rolling or is_attacking:
 		is_blocking = false
 		return
+	# Кулдаун считаем ОТДЕЛЬНО от остального — раньше ранний return на все
+	# 0.6с кулдауна глушил весь остаток функции, включая отсчёт parry_timer
+	# ниже. Из-за этого переход в блок (когда parry_timer истекает, см. ниже)
+	# физически не мог сработать раньше, чем закончится кулдаун — поза блока
+	# появлялась с задержкой ~0.6-0.7с после нажатия вместо почти мгновенной.
+	# Кулдаун должен запрещать только НОВУЮ попытку идеального парирования,
+	# а не тормозить уже идущий переход в блок
 	if parry_cd_timer > 0:
 		parry_cd_timer -= delta
-		return
-	# just_pressed ПЕРВЫМ — иначе pressed перехватывает
-	if Input.is_action_just_pressed("parry"):
+	# just_pressed ПЕРВЫМ — иначе pressed перехватывает. Новую попытку
+	# парирования можно начать только вне кулдауна
+	if parry_cd_timer <= 0 and Input.is_action_just_pressed("parry"):
 		is_blocking = false
 		start_parry()
 	elif Input.is_action_pressed("parry"):
@@ -1042,7 +1091,18 @@ func handle_parry_input(delta):
 	if is_parrying:
 		parry_timer -= delta
 		if parry_timer <= 0:
-			end_parry(false)
+			# Кнопка всё ещё зажата — игрок не пытался поймать тайминг заново,
+			# а просто продолжает держать щит. Штрафовать станом за промах
+			# нечестно в этом случае: это осознанный переход в блок, а не
+			# сорвавшееся парирование. Стан-наказание остаётся только для
+			# случая, когда кнопку уже отпустили до конца окна (см. else)
+			if Input.is_action_pressed("parry"):
+				is_parrying = false
+				is_blocking = true
+				anim.play("Parry_" + last_direction)
+				anim.pause()
+			else:
+				end_parry(false)
 	if can_counter:
 		counter_timer -= delta
 		if counter_timer <= 0:
@@ -1085,10 +1145,18 @@ func _parry_whiff() -> void:
 
 # Вызывается врагом (или hitbox-ом) когда его атака задела игрока
 func receive_attack(attack_data: Dictionary) -> bool:
-	# Во время уворота И переката игрок неуязвим — иначе его бьёт посреди
-	# переката и анимация take_damage проигрывается поверх движения.
-	# (то же условие, что и в _on_hurtbox_area_entered — держим их синхронно)
-	if is_invulnerable or is_dodging or is_rolling:
+	# Уворот/перекат — не просто неуязвимость, а НАГРАДА за тайминг: раньше
+	# атака молча "проваливалась" здесь без всякой обратной связи, будто
+	# игрок и не был под угрозой. Проверяем ДО общей is_invulnerable — та же
+	# неуязвимость стоит и в грейс-период после урона, и от баффов (Кровь
+	# Фенрира), а награждать имеет смысл именно активное уклонение
+	if is_dodging or is_rolling:
+		_on_perfect_dodge(attack_data)
+		return false
+
+	# Неуязвимость из других источников (грейс-период после урона, баффы) —
+	# молча гасим, здесь награждать нечего, это не игровой навык
+	if is_invulnerable:
 		return false
 
 	# --- PERFECT PARRY ---
@@ -1097,9 +1165,47 @@ func receive_attack(attack_data: Dictionary) -> bool:
 		on_perfect_parry(attack_data)
 		return true
 
+	# --- БЛОК ---
+	# Щит закрывает только фронт. Бьют сзади/сбоку за пределами конуса —
+	# урон проходит насквозь, как будто блока и не было: держать щит имеет
+	# смысл, только если реально смотришь на противника, а не бегать в блоке
+	# спиной к бою и ничего не бояться
+	if is_blocking and _is_facing_attacker(attack_data.get("source", null)):
+		_on_blocked_attack(attack_data)
+		return true
+
 	# --- ОБЫЧНЫЙ УРОН ---
 	take_damage(attack_data.get("damage", 10), attack_data.get("source", null))
 	return true
+
+
+func _is_facing_attacker(attacker: Node) -> bool:
+	if attacker == null or not is_instance_valid(attacker) or not (attacker is Node2D):
+		return true  # источник неизвестен — не наказываем игрока недоверием
+	var to_attacker: Vector2 = (attacker as Node2D).global_position - global_position
+	if to_attacker.length() < 0.001:
+		return true
+	return facing_dir.dot(to_attacker.normalized()) > block_frontal_dot_threshold
+
+
+# Удар остановлен щитом: урон не проходит, но держать блок не бесплатно —
+# концентрация заполняется так же, как от обычного попадания (см. take_damage),
+# и при полной шкале срабатывает тот же _posture_break()
+func _on_blocked_attack(_attack_data: Dictionary) -> void:
+	current_posture += block_posture_gain
+	current_posture = min(current_posture, max_posture)
+	health_bar.set_posture(current_posture)
+	posture_regen_timer = posture_regen_delay
+
+	play_block_hit_sound()
+	shake_camera(block_shake_strength)
+	# Холодная бело-голубая искра щита — отличается и от белой вспышки урона,
+	# и от тёплых тонов лечения/монет: блок должен читаться как "звон металла",
+	# а не как что-то из этих двух категорий
+	flash_tint(Color(1.3, 1.4, 1.7, 1.0), 0.04, 0.18)
+
+	if current_posture >= max_posture:
+		_posture_break()
 
 func play_parry_vfx() -> void:
 	# На самом игроке, а не на MeleeHit — тот маркер смещается вперёд по
@@ -1108,6 +1214,25 @@ func play_parry_vfx() -> void:
 	parry_vfx.play("parry_vfx")
 	await parry_vfx.animation_finished
 	parry_vfx.stop()
+
+# Идеальный уворот — атака врага реально задела бы игрока (сработал
+# receive_attack), но в этот момент шёл уворот/перекат. В отличие от
+# парирования это не столкновение с ударом, а чистая уклончивость — поэтому
+# урон по концентрации врага не наносится (нечем клэшить), награда чисто в
+# темпе: короткое "witch time" слоу-мо + то же окно на свободную контратаку,
+# что даёт perfect parry
+func _on_perfect_dodge(_attack_data: Dictionary) -> void:
+	can_counter = true
+	counter_timer = counter_window
+	_perfect_dodge_slowmo()
+	shake_camera(perfect_dodge_shake_strength)
+	# Холодная бело-голубая вспышка вместо белой (урон) или золотой (монеты/
+	# лечение) — свой узнаваемый цвет момента, чтобы уворот не путался с
+	# другими вспышками на глаз
+	flash_tint(Color(1.15, 1.25, 1.5), 0.05, 0.25)
+	parry_audio.stream = PERFECT_DODGE_SOUND
+	_play_varied(parry_audio, 0.05, 0.0, 1.1)
+
 
 func on_perfect_parry(attack_data: Dictionary):
 	can_counter = true
@@ -1146,6 +1271,7 @@ func take_damage(amount: int, source: Node = null) -> void:
 	is_taking_damage = true
 	gfx.play("Take_Damage_" + last_direction)
 	_trigger_damage_flash()
+	_play_pool(hurt_audio, HURT_SOUNDS, "hurt")
 	damage_vignette.flash()
 	hit_flash.flash()
 	shake_camera(damage_shake_strength)
@@ -1456,7 +1582,13 @@ func _on_anim_finished(finished_anim: StringName) -> void:
 	
 	player_hitbox.monitoring = true
 	
-	if combo_queued and combo_step < 4:  # теперь до 4 шагов
+	# Урезано до 3 шагов серии — 4-й удар (вихрь/spin finisher) временно
+	# вынут из обычной цепочки, станет отдельным навыком. Код 4-го удара не
+	# удалён (play_attack умеет step==4, _spin_finisher/play_fire_ring_vfx на
+	# месте) — серия просто больше до него не доходит. Когда навык будет
+	# готов и получит свой отдельный вызов play_attack(4), эту цифру можно
+	# вернуть обратно на 4, если 4-й удар снова понадобится и в обычной серии
+	if combo_queued and combo_step < 3:
 		combo_step += 1
 		play_attack(combo_step)
 	else:
@@ -1501,11 +1633,17 @@ func _load_starting_abilities() -> void:
 
 # --- ПОСТЕПЕННОЕ ЛЕЧЕНИЕ (для Мёда Поэзии и Песни Валькирии) ---
 
-func start_heal_over_time(amount_per_tick: float, interval: float, ticks: int) -> void:
+func start_heal_over_time(amount_per_tick: float, interval: float, ticks: int,
+		tint := Color(0.6, 1.5, 0.8, 1.0)) -> void:
+	# Пауза между тиками РОВНАЯ (interval), а не interval * i. Раньше каждая
+	# итерация ждала всё дольше предыдущей (0, 0.5, 1.0, 1.5...), и "лечение
+	# за 3 секунды" на деле растягивалось на 7.5 с нарастающими паузами
 	for i in ticks:
-		await get_tree().create_timer(interval * i).timeout
-		if is_instance_valid(self):
-			heal(amount_per_tick)
+		if not is_instance_valid(self):
+			return
+		heal(amount_per_tick)
+		flash_tint(tint)
+		await get_tree().create_timer(interval).timeout
 
 # --- СИСТЕМА БАФФОВ (заглушка — подключишь когда нужно) ---
 
@@ -1584,9 +1722,28 @@ func _trigger_damage_flash() -> void:
 # тёплый цвет вместо белого). Висит на modulate, а не self_modulate — тот
 # уже занят под тинт неуязвимости (_update_immunity_visual)
 func _trigger_coin_glow() -> void:
+	flash_tint(coin_glow_color, coin_glow_in_time, coin_glow_out_time)
+
+
+# Короткая цветная вспышка на спрайте игрока. Общая точка для всех подсветок
+# (подбор монеты, тик лечения, мгновенный хил) — цвет и тайминги задаёт
+# вызывающий, поэтому событиям не нужен свой почти одинаковый метод
+func flash_tint(tint: Color, in_time := 0.08, out_time := 0.22) -> void:
 	var tween = create_tween()
-	tween.tween_property(gfx, "modulate", coin_glow_color, coin_glow_in_time)
-	tween.tween_property(gfx, "modulate", Color.WHITE, coin_glow_out_time)
+	tween.tween_property(gfx, "modulate", tint, in_time)
+	tween.tween_property(gfx, "modulate", Color.WHITE, out_time)
+
+
+# Проигрывает звук питья и ЖДЁТ, пока он доиграет до конца. Аптечки вызывают
+# через await, поэтому лечение начинается только после того, как игрок реально
+# "допил" — сначала действие, потом эффект.
+# Ждём именно сигнал finished, а не таймер на глазок: питч слегка случайный
+# (_play_varied), значит фактическая длительность каждый раз чуть разная, и
+# захардкоженная пауза рассинхронизировалась бы со звуком
+func play_drink_sound() -> void:
+	drink_audio.stream = DRINK_SOUND
+	_play_varied(drink_audio, 0.04)
+	await drink_audio.finished
 
 func is_dead() -> bool:
 	return health <= 0.0
@@ -1599,13 +1756,18 @@ func _on_player_dead() -> void:
 
 func enable_attack_hitbox() -> void:
 	hit_targets.clear()  # ← сброс перед каждым ударом
-	player_hitbox.monitoring = true
-	player_hitbox.get_child(0).disabled = false
+	# set_deferred, а не прямое присваивание — эти вызовы прилетают из
+	# method-track анимации, который может сработать прямо во время
+	# обработки физических запросов (Godot тогда пишет в консоль "Can't
+	# change this state while flushing queries"). Отложенный вызов дожидается
+	# конца текущего физического шага, прежде чем менять monitoring/disabled
+	player_hitbox.set_deferred("monitoring", true)
+	player_hitbox.get_child(0).set_deferred("disabled", false)
 
 func disable_attack_hitbox() -> void:
-	player_hitbox.monitoring = false
+	player_hitbox.set_deferred("monitoring", false)
 	if player_hitbox.get_child(0):
-		player_hitbox.get_child(0).disabled = true
+		player_hitbox.get_child(0).set_deferred("disabled", true)
 
 func _on_player_hitbox_area_entered(area: Area2D) -> void:
 	# Оглушённый игрок не наносит урон. Это ГЛАВНАЯ страховка: хитбокс мог
@@ -1633,16 +1795,30 @@ func _on_player_hitbox_area_entered(area: Area2D) -> void:
 		do_hitstop(power)
 
 func do_hitstop(power := 1.0) -> void:
-	# Замораживаем время на пару кадров. Таймер с ignore_time_scale=true
-	# продолжает идти в реальном времени, поэтому разморозка сработает.
-	# Токен защищает от наложения нескольких попаданий в один кадр:
-	# время восстанавливает только самый последний вызов.
 	# power — множитель "веса" удара: чем мощнее, тем дольше стоп-кадр.
-	_hitstop_token += 1
-	var token := _hitstop_token
-	Engine.time_scale = hitstop_scale
-	await get_tree().create_timer(hitstop_duration * power, true, false, true).timeout
-	if token == _hitstop_token:
+	_apply_timescale(hitstop_scale, hitstop_duration * power)
+
+
+# Слоу-мо идеального уворота — та же механика, что и хитстоп (см.
+# _apply_timescale), но мягче и заметно дольше: не стоп-кадр удара, а
+# растянутое "я успел увернуться" перед контратакой
+func _perfect_dodge_slowmo() -> void:
+	_apply_timescale(perfect_dodge_slowmo_scale, perfect_dodge_slowmo_duration)
+
+
+# Общая точка входа для любого временного управления Engine.time_scale от
+# игрока. Замораживаем/замедляем время на реальную (не игровую) длительность
+# — таймер с ignore_time_scale=true идёт в реальном времени, поэтому
+# разморозка сработает вовремя даже при scale=0. Токен общий для ВСЕХ
+# вызовов (хитстоп и слоу-мо), поэтому при наложении (уворот → мгновенная
+# контратака → хитстоп от попадания) время корректно восстановит только
+# самый последний по времени вызов, а не тот, что запустился раньше
+func _apply_timescale(scale: float, duration: float) -> void:
+	_timescale_token += 1
+	var token := _timescale_token
+	Engine.time_scale = scale
+	await get_tree().create_timer(duration, true, false, true).timeout
+	if token == _timescale_token:
 		Engine.time_scale = 1.0
 
 

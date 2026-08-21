@@ -8,7 +8,13 @@ extends Ability
 @export var hp_cost_percent: float = 0.3   # доля ТЕКУЩЕГО HP в жертву (не убивает)
 @export var blood_count: int = 3           # сколько брызг крови на игроке
 
+# Питч занижен — по тому же приёму, что и у рычания Фенрира: более низкий тон
+# читается ухом как тяжелее и объёмнее, а не просто громче
+@export var sound_pitch := 0.82
+@export var sound_pitch_variation := 0.04
+
 const BLOOD_VFX := preload("res://VFX/VFX_scene/blood_vfx.tscn")
+const RUNE_SOUND := preload("res://Sound/abilities_sound/rune_sound.mp3")
 
 func _init() -> void:
 	ability_name = "Руна Жертвы"
@@ -25,6 +31,21 @@ func _execute(player: Node) -> void:
 
 	# Брызги крови на игроке
 	_spawn_blood(player)
+
+	# Вспышка с руной — по образцу FenrirFlash/OdinFlash
+	var rune_flash := player.get_node_or_null("Camera2D/CanvasLayer/RuneFlash")
+	if rune_flash:
+		rune_flash.play()
+
+	# Звук — с реверб-хвостом (шина RuneEcho) и заниженным питчем, синхронно
+	# со вспышкой
+	var rune_audio := player.get_node_or_null("RuneAudio")
+	if rune_audio:
+		rune_audio.stream = RUNE_SOUND
+		rune_audio.pitch_scale = randf_range(
+			sound_pitch - sound_pitch_variation, sound_pitch + sound_pitch_variation
+		)
+		rune_audio.play()
 
 	# Сброс кулдаунов всех остальных способностей (кроме самой Руны)
 	var ab_system = player.get("ability_system")

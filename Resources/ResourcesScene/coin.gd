@@ -13,18 +13,53 @@ var target_player: Node2D = null
 var player_in_range: Node2D = null
 
 @onready var sprite: AnimatedSprite2D = $AnimatedSprite2D
+@onready var trail_particles: GPUParticles2D = $TrailParticles
 
 func _ready() -> void:
 	sprite.play("coin")
 	var angle = randf_range(0, TAU)
 	var force = randf_range(spawn_force_min, spawn_force_max)
 	velocity = Vector2(cos(angle), sin(angle)) * force
-	
+
 	body_entered.connect(_on_body_entered)
 	body_exited.connect(_on_body_exited)
-	
+
 	if is_big_coin:
 		_start_shine()
+
+	_compensate_for_ambient_tint()
+
+
+# Уровень красит весь мир через CanvasModulate (сейчас — холодный ночной
+# синеватый), и монета живёт в мире, а не на отдельном HUD-слое — поэтому
+# золотой цвет частиц шлейфа умножается на этот тон и на глаз съезжает в
+# голубой/зелёный. Компенсируем через modulate самого узла частиц (обратный
+# множитель), а не правкой цвета частиц напрямую — ParticleProcessMaterial
+# общий на все монеты (один SubResource в .tscn), и если красить его
+# напрямую, мигать/перекрашиваться будут ВСЕ монеты на экране разом.
+# Значение считаем от РЕАЛЬНОГО CanvasModulate.color на сцене, а не
+# захардкоженным числом — переживёт смену освещения/будущую пасмурную карту
+func _compensate_for_ambient_tint() -> void:
+	var cm := _find_canvas_modulate()
+	if cm == null:
+		return
+	var t := cm.color
+	trail_particles.modulate = Color(
+		1.0 / maxf(t.r, 0.05),
+		1.0 / maxf(t.g, 0.05),
+		1.0 / maxf(t.b, 0.05),
+		1.0
+	)
+
+
+func _find_canvas_modulate() -> CanvasModulate:
+	var scene := get_tree().current_scene
+	if scene == null:
+		return null
+	for child in scene.get_children():
+		if child is CanvasModulate:
+			return child
+	return null
 
 func _physics_process(delta: float) -> void:
 	if is_flying_to_player and target_player and is_instance_valid(target_player):
@@ -42,6 +77,10 @@ func _physics_process(delta: float) -> void:
 	if player_in_range and Input.is_action_pressed("interact"):
 		target_player = player_in_range
 		is_flying_to_player = true
+		# золотой шлейф загорается ровно в момент, когда монета срывается к
+		# игроку — до этого она просто лежит/разлетается после спавна, шлейф
+		# тут неуместен, он должен читаться как "магнитом тянет к игроку"
+		trail_particles.emitting = true
 
 func _start_shine() -> void:
 	# пульсация яркости — "блеск"

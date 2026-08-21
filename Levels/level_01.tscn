@@ -30,6 +30,7 @@
 [ext_resource type="Script" uid="uid://b1stpf8ujkvv8" path="res://enemy/enemy_spawner.gd" id="92_spawn1"]
 [ext_resource type="Script" uid="uid://dxm3kamx2vel8" path="res://Levels/directional_light_2d.gd" id="93_night1"]
 [ext_resource type="Script" uid="uid://8xt7ostioyfr" path="res://Levels/level_music_manager.gd" id="94_music1"]
+[ext_resource type="Script" path="res://Levels/rain_splash_spawner.gd" id="99_rsplash"]
 [ext_resource type="AudioStream" uid="uid://clc2r8kf7inb0" path="res://Sound/thunder.mp3" id="95_thunder"]
 [ext_resource type="AudioStream" uid="uid://b14esm420pu71" path="res://Sound/ambient_sound/crows.mp3" id="96_crows"]
 [ext_resource type="Script" uid="uid://bjm5sm86metbn" path="res://UI/atmosphere_grade.gd" id="97_atmos1"]
@@ -13958,6 +13959,9 @@ color = Color(0.2, 0.29, 0.36, 1)
 
 [node name="MusicManager" type="Node" parent="." unique_id=1900000002]
 script = ExtResource("94_music1")
+
+[node name="RainSplashSpawner" type="Node2D" parent="." unique_id=1900000047]
+script = ExtResource("99_rsplash")
 
 [node name="CalmPlayer" type="AudioStreamPlayer" parent="MusicManager" unique_id=1900000003]
 

@@ -7,6 +7,11 @@ extends Ability
 @export var damage_multiplier_start: float = 1.2
 @export var damage_multiplier_peak: float = 2.5
 
+# Рычание волка на активацию. Питч занижен — низкий рык звучит тяжелее и
+# первобытнее, чем тот же семпл на исходной высоте
+@export var growl_pitch := 0.74
+const GROWL_SOUND := preload("res://Sound/abilities_sound/fenrir_blood.mp3")
+
 func _init() -> void:
 	ability_name = "Кровь Фенрира"
 	cooldown_duration = 60.0
@@ -44,6 +49,14 @@ func _execute(player: Node) -> void:
 	var flash_fx := player.get_node_or_null("Camera2D/CanvasLayer/FenrirFlash")
 	if flash_fx:
 		flash_fx.play()
+
+	# Рычание волка на активацию — с реверб-хвостом (шина FenrirEcho) и
+	# заниженным питчем, чтобы звучало тяжело и первобытно
+	var growl_audio := player.get_node_or_null("FenrirAudio")
+	if growl_audio:
+		growl_audio.stream = GROWL_SOUND
+		growl_audio.pitch_scale = growl_pitch
+		growl_audio.play()
 
 	# Снимаем неуязвимость и VFX через duration секунд
 	player.get_tree().create_timer(duration).timeout.connect(

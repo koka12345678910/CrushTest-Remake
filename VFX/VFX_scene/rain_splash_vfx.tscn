@@ -1,0 +1,139 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://VFX/VFX_scene/rain_splash_vfx.gd" id="1_splash"]
+[ext_resource type="Texture2D" uid="uid://ct8bl7dh7cfca" path="res://VFX/Raindrop/michael_dashow_dry_drop1.png" id="2_drop1"]
+[ext_resource type="Texture2D" uid="uid://jqwribu5ov1g" path="res://VFX/Raindrop/michael_dashow_dry_drop2.png" id="3_drop2"]
+[ext_resource type="Texture2D" uid="uid://d2l7vnark8hl1" path="res://VFX/Raindrop/michael_dashow_rain_ping_sheet.png" id="4_drop3"]
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_d1_0"]
+atlas = ExtResource("2_drop1")
+region = Rect2(0, 0, 300, 150)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_d1_1"]
+atlas = ExtResource("2_drop1")
+region = Rect2(0, 150, 300, 150)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_d1_2"]
+atlas = ExtResource("2_drop1")
+region = Rect2(0, 300, 300, 150)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_d1_3"]
+atlas = ExtResource("2_drop1")
+region = Rect2(0, 450, 300, 150)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_d1_4"]
+atlas = ExtResource("2_drop1")
+region = Rect2(0, 600, 300, 150)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_d2_0"]
+atlas = ExtResource("3_drop2")
+region = Rect2(0, 0, 300, 150)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_d2_1"]
+atlas = ExtResource("3_drop2")
+region = Rect2(0, 150, 300, 150)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_d2_2"]
+atlas = ExtResource("3_drop2")
+region = Rect2(0, 300, 300, 150)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_d2_3"]
+atlas = ExtResource("3_drop2")
+region = Rect2(0, 450, 300, 150)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_d2_4"]
+atlas = ExtResource("3_drop2")
+region = Rect2(0, 600, 300, 150)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_d3_0"]
+atlas = ExtResource("4_drop3")
+region = Rect2(0, 0, 300, 150)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_d3_1"]
+atlas = ExtResource("4_drop3")
+region = Rect2(0, 150, 300, 150)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_d3_2"]
+atlas = ExtResource("4_drop3")
+region = Rect2(0, 300, 300, 150)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_d3_3"]
+atlas = ExtResource("4_drop3")
+region = Rect2(0, 450, 300, 150)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_d3_4"]
+atlas = ExtResource("4_drop3")
+region = Rect2(0, 600, 300, 150)
+
+[sub_resource type="SpriteFrames" id="SpriteFrames_splash"]
+animations = [{
+"frames": [{
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_d1_0")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_d1_1")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_d1_2")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_d1_3")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_d1_4")
+}],
+"loop": false,
+"name": &"splash_1",
+"speed": 16.0
+}, {
+"frames": [{
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_d2_0")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_d2_1")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_d2_2")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_d2_3")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_d2_4")
+}],
+"loop": false,
+"name": &"splash_2",
+"speed": 16.0
+}, {
+"frames": [{
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_d3_0")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_d3_1")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_d3_2")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_d3_3")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_d3_4")
+}],
+"loop": false,
+"name": &"splash_3",
+"speed": 16.0
+}]
+
+[node name="RainSplashVFX" type="Node2D"]
+script = ExtResource("1_splash")
+
+[node name="AnimatedSprite2D" type="AnimatedSprite2D" parent="."]
+scale = Vector2(0.16, 0.16)
+sprite_frames = SubResource("SpriteFrames_splash")
+animation = &"splash_1"
+
+[connection signal="animation_finished" from="AnimatedSprite2D" to="." method="_on_animated_sprite_2d_animation_finished"]

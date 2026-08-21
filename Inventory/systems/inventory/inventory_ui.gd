@@ -15,8 +15,14 @@ const COLOR_TEXT_DIM    = Color(0.52, 0.47, 0.36, 1.0)
 const COLOR_TEXT_GOLD   = Color(0.98, 0.78, 0.28, 1.0)
 const COLOR_DIVIDER     = Color(0.40, 0.30, 0.12, 0.7)
 
+const COLOR_WARN        = Color(0.85, 0.35, 0.20, 1.0)
+
 const GRID_COLS := 3
 const GRID_ROWS := 4
+
+# Настройки — та же панель, что и в главном меню, а не её копия: значения живут
+# в автозагрузке GameSettings, и второй реализации взяться неоткуда
+const SettingsPanelScript := preload("res://Main_Menu/scripts/SettingsPanel.gd")
 
 # ─── UI-ЗВУКИ ──────────────────────────────────────────────────────────────────
 const SOUND_ACCEPT := preload("res://Sound/UI_button/accept.wav")
@@ -35,7 +41,12 @@ var _inventory_system: InventorySystem
 var _root: Control
 var _grid_slots: Array[Control] = []
 var _selected_index: int = -1
-var _item_counts: Dictionary = {}
+
+# Оверлеи поверх инвентаря (настройки / навыки). Пока хоть один открыт, Esc
+# закрывает его, а не весь инвентарь
+var _settings_panel: Control
+var _skills_panel: Control
+var _is_closing := false
 
 var _detail_icon: TextureRect
 var _detail_name: Label
@@ -46,6 +57,8 @@ var _detail_desc: Label
 var _detail_effect: Label
 var _btn_equip: Button
 var _quick_slot_preview: Control
+var _quick_slot_header: Label
+var _quick_slot_status: Label
 
 var _screen: Vector2
 var _panel_w: float
@@ -69,12 +82,18 @@ func _ready() -> void:
 func init(ability_system: AbilitySystem, inventory_system: InventorySystem) -> void:
 	_ability_system = ability_system
 	_inventory_system = inventory_system
+	# Заряды списывает быстрый слот, а лежат они в сумке — связываем одно с другим
+	_ability_system.inventory = inventory_system
+	_inventory_system.count_changed.connect(_on_count_changed)
 	_build_ui()
 
 
 func open() -> void:
+	if visible:
+		return
 	# ставим игру на паузу — враги останавливаются и не бьют игрока
 	get_tree().paused = true
+	_is_closing = false
 	_play_ui_sound(SOUND_OPEN)
 	visible = true
 	_refresh_grid()
@@ -87,6 +106,11 @@ func open() -> void:
 
 
 func close() -> void:
+	# Esc может прилететь дважды (пока идёт твин закрытия) — без флага мир
+	# снимался бы с паузы повторно и сигнал closed летел бы два раза
+	if _is_closing or not visible:
+		return
+	_is_closing = true
 	_play_ui_sound(SOUND_OPEN)
 	_root.pivot_offset = _screen / 2.0
 	var tw = create_tween().set_parallel()
@@ -94,27 +118,55 @@ func close() -> void:
 	tw.tween_property(_root, "scale", Vector2(0.96, 0.96), 0.14)
 	await tw.finished
 	visible = false
+	_is_closing = false
 	# снимаем паузу — мир снова оживает
 	get_tree().paused = false
 	emit_signal("closed")
 
 
 func add_item(ability: Ability) -> void:
-	var aname := ability.ability_name
-	if _item_counts.has(aname):
-		_item_counts[aname] += 1
-	else:
-		_item_counts[aname] = 1
-		_inventory_system.add_item(ability)
+	# Стаки и счётчики целиком на стороне InventorySystem — UI только рисует
+	if _inventory_system == null:
+		push_warning("[Инвентарь] add_item до init() — предмет потерян: %s" % ability.ability_name)
+		return
+	_inventory_system.add_item(ability)
 	if visible:
 		_refresh_grid()
+
+
+## Открыт ли поверх инвентаря какой-то подраздел — по этому же признаку player.gd
+## понимает, что Esc сейчас не его
+func has_overlay_open() -> bool:
+	if is_instance_valid(_skills_panel) and _skills_panel.visible:
+		return true
+	if is_instance_valid(_settings_panel) and _settings_panel.visible:
+		return true
+	return false
 
 
 func _unhandled_input(event: InputEvent) -> void:
 	if not visible:
 		return
 	if event.is_action_pressed("ui_cancel"):
+		# Помечаем ввод обработанным, чтобы player.gd не закрыл инвентарь вторым
+		# обработчиком того же нажатия
+		get_viewport().set_input_as_handled()
+		# Панель настроек гасит Esc сама (у неё свой _unhandled_input и она в
+		# дереве ниже), сюда событие доходит только когда её нет
+		if is_instance_valid(_skills_panel) and _skills_panel.visible:
+			_close_skills()
+			return
 		close()
+		return
+
+	# E работает на весь экран инвентаря, а не только по сфокусированной ячейке:
+	# у слотов gui_input срабатывает лишь при фокусе, поэтому подсказка "[E] в
+	# слот" без этого обработчика была бы враньём
+	if event is InputEventKey and event.pressed and not event.echo and event.keycode == KEY_E:
+		if has_overlay_open():
+			return
+		get_viewport().set_input_as_handled()
+		_on_equip_pressed()
 
 
 # ─────────────────────────────────────────────
@@ -163,6 +215,7 @@ func _build_ui() -> void:
 	title.add_theme_color_override("font_color", COLOR_BORDER_HI)
 	panel.add_child(title)
 
+	_build_top_bar(panel)
 	_add_divider(panel, Vector2(20, 62), _panel_w - 40.0)
 
 	var vdiv := ColorRect.new()
@@ -175,6 +228,27 @@ func _build_ui() -> void:
 	_build_detail_panel(panel)
 	_build_quick_slot_bar(panel)
 	_build_hints(panel)
+
+
+# Кнопки разделов в шапке инвентаря — справа от заголовка, над разделителем.
+# Порядок справа налево: сначала "Настройки" (край панели), левее "Навыки"
+func _build_top_bar(parent: Control) -> void:
+	var btn_w := 150.0
+	var btn_h := 34.0
+	var gap := 10.0
+	var y := 16.0
+	var x := _panel_w - 36.0 - btn_w
+
+	var btn_settings := _make_button("НАСТРОЙКИ", Vector2(x, y), Vector2(btn_w, btn_h))
+	btn_settings.add_theme_font_size_override("font_size", 13)
+	btn_settings.pressed.connect(_open_settings)
+	parent.add_child(btn_settings)
+
+	x -= btn_w + gap
+	var btn_skills := _make_button("НАВЫКИ", Vector2(x, y), Vector2(btn_w, btn_h))
+	btn_skills.add_theme_font_size_override("font_size", 13)
+	btn_skills.pressed.connect(_open_skills)
+	parent.add_child(btn_skills)
 
 
 func _build_grid(parent: Control) -> void:
@@ -380,20 +454,30 @@ func _build_detail_panel(parent: Control) -> void:
 
 func _build_quick_slot_bar(parent: Control) -> void:
 	var y := _panel_h - 52.0
-	var lbl := _make_label("БЫСТРЫЙ ДОСТУП", 12)
-	lbl.position = Vector2(_grid_x, y)
-	lbl.add_theme_color_override("font_color", COLOR_TEXT_DIM)
-	parent.add_child(lbl)
+	_quick_slot_header = _make_label("БЫСТРЫЙ ДОСТУП", 12)
+	_quick_slot_header.position = Vector2(_grid_x, y)
+	_quick_slot_header.add_theme_color_override("font_color", COLOR_TEXT_DIM)
+	parent.add_child(_quick_slot_header)
 
 	_quick_slot_preview = Control.new()
 	_quick_slot_preview.position = Vector2(_grid_x, y + 18.0)
 	_quick_slot_preview.size = Vector2(GRID_COLS * (_slot_size.x + _slot_gap), 30.0)
 	parent.add_child(_quick_slot_preview)
+
+	# Строка обратной связи под кнопкой экипировки: "слоты заняты", "предмет
+	# кончился" и т.п. Без неё отказ добавить четвёртый предмет был бы слышен
+	# (звук denied), но не виден
+	_quick_slot_status = _make_label("", 13)
+	_quick_slot_status.position = Vector2(_detail_x, _panel_h - 46.0)
+	_quick_slot_status.size = Vector2(_detail_w, 20)
+	_quick_slot_status.add_theme_color_override("font_color", COLOR_TEXT_DIM)
+	parent.add_child(_quick_slot_status)
+
 	_refresh_quick_slot_preview()
 
 
 func _build_hints(parent: Control) -> void:
-	var hints := [["ESC", "Закрыть"], ["ЛКМ", "Выбрать"], ["E", "В быстрый доступ"]]
+	var hints := [["ESC", "Закрыть"], ["ЛКМ", "Выбрать"], ["E", "В слот / из слота"]]
 	var x := _panel_w - 20.0
 	var y := _panel_h - 16.0
 	for h in hints:
@@ -425,8 +509,12 @@ func _refresh_grid() -> void:
 			var ab      := items[i] as Ability
 			icon.texture = ab.icon
 			name_l.text  = ab.ability_name
-			var cnt: int = _item_counts.get(ab.ability_name, 1)
+			var cnt := _inventory_system.get_count(ab.ability_name)
 			count_l.text = "x%d" % cnt
+			# Последний заряд подсвечиваем красным: предмет вот-вот исчезнет из
+			# сумки, и это должно быть видно ещё до того, как игрок его потратит
+			count_l.add_theme_color_override(
+				"font_color", COLOR_WARN if cnt <= 1 else COLOR_TEXT_GOLD)
 		else:
 			icon.texture  = null
 			name_l.text   = ""
@@ -445,16 +533,25 @@ func _refresh_quick_slot_preview() -> void:
 		ch.queue_free()
 	if _ability_system == null:
 		return
-	var ss := Vector2(28, 28)
-	for i in _ability_system.abilities.size():
-		var ab := _ability_system.abilities[i]
-		var bx := i * (ss.x + 4.0)
 
+	var used := _ability_system.abilities.size()
+	if is_instance_valid(_quick_slot_header):
+		_quick_slot_header.text = "БЫСТРЫЙ ДОСТУП   %d / %d" % [used, AbilitySystem.MAX_SLOTS]
+
+	var ss := Vector2(28, 28)
+	# Рисуем ВСЕ три ячейки, включая пустые — так видно, сколько места осталось,
+	# а не только то, что уже занято
+	for i in AbilitySystem.MAX_SLOTS:
+		var bx := i * (ss.x + 4.0)
 		var bg := ColorRect.new()
 		bg.position = Vector2(bx, 0)
 		bg.size = ss
 		bg.color = COLOR_SLOT_EMPTY
 		_quick_slot_preview.add_child(bg)
+
+	for i in used:
+		var ab := _ability_system.abilities[i]
+		var bx := i * (ss.x + 4.0)
 
 		if ab.icon:
 			var ic := TextureRect.new()
@@ -477,24 +574,33 @@ func _refresh_quick_slot_preview() -> void:
 				_quick_slot_preview.add_child(line)
 
 
-func _select_slot(idx: int) -> void:
+# play_sound=false — для перерисовки после действия (экипировка, трата заряда):
+# карточка справа пересобирается тем же кодом, но щелчок выбора звучать не должен
+func _select_slot(idx: int, play_sound := true) -> void:
 	var items := _inventory_system.get_all()
 	_selected_index = idx
 
 	if idx >= 0 and idx < items.size():
-		_play_ui_sound(SOUND_CHOICE)
+		if play_sound:
+			_play_ui_sound(SOUND_CHOICE)
 		var ab       := items[idx] as Ability
-		var cnt: int  = _item_counts.get(ab.ability_name, 1)
+		var cnt      := _inventory_system.get_count(ab.ability_name)
 		var max_cnt  := _get_max_count(ab.ability_name)
+		var equipped := _ability_system.has_ability(ab.ability_name)
 
 		_detail_icon.texture   = ab.icon
 		_detail_name.text      = ab.ability_name
-		_detail_type.text      = "Расходуемое"
+		_detail_type.text      = "Расходуемое  •  в слоте" if equipped else "Расходуемое"
 		_detail_desc.text      = ab.description
 		_detail_effect.text    = ab.description
 		_detail_count.text     = "%d / %d" % [cnt, max_cnt]
 		_detail_max_count.text = "%d" % max_cnt
-		_btn_equip.disabled    = false
+		# Кнопка работает как переключатель: повторное нажатие на предмет,
+		# который уже в быстром доступе, освобождает слот. Без этого при трёх
+		# занятых ячейках поменять набор было бы нечем
+		_btn_equip.text     = "[ E ]  УБРАТЬ ИЗ СЛОТА" if equipped else "[ E ]  В БЫСТРЫЙ ДОСТУП"
+		_btn_equip.disabled = false
+		_set_status("")
 	else:
 		_detail_icon.texture   = null
 		_detail_name.text      = ""
@@ -503,6 +609,7 @@ func _select_slot(idx: int) -> void:
 		_detail_effect.text    = ""
 		_detail_count.text     = ""
 		_detail_max_count.text = ""
+		_btn_equip.text        = "[ E ]  В БЫСТРЫЙ ДОСТУП"
 		_btn_equip.disabled    = true
 
 	_refresh_grid()
@@ -538,15 +645,130 @@ func _on_equip_pressed() -> void:
 	if _selected_index < 0 or _selected_index >= items.size():
 		return
 	var ab: Ability = items[_selected_index] as Ability
-	for i in _ability_system.abilities.size():
-		if _ability_system.abilities[i].ability_name == ab.ability_name:
-			_play_ui_sound(SOUND_DENIED)
-			print("[Инвентарь] Уже в быстром доступе")
-			return
+
+	# Уже в слоте — снимаем (переключатель), освобождая место под другой предмет
+	var slot := _ability_system.find_slot(ab.ability_name)
+	if slot != -1:
+		_ability_system.remove_ability(slot)
+		_play_ui_sound(SOUND_CHOICE)
+		# Перерисовку делаем ДО статуса: _select_slot чистит строку сообщения
+		_select_slot(_selected_index, false)
+		_set_status("Убрано из быстрого доступа: %s" % ab.ability_name, COLOR_TEXT_DIM)
+		return
+
+	if _ability_system.is_full():
+		_play_ui_sound(SOUND_DENIED)
+		_set_status("Быстрый доступ заполнен (%d/%d) — сначала уберите предмет"
+			% [_ability_system.abilities.size(), AbilitySystem.MAX_SLOTS], COLOR_WARN)
+		return
+
+	if not _inventory_system.has_charges(ab.ability_name):
+		_play_ui_sound(SOUND_DENIED)
+		_set_status("Предмет закончился", COLOR_WARN)
+		return
+
 	_ability_system.add_ability(ab)
-	_refresh_quick_slot_preview()
 	_play_ui_sound(SOUND_ACCEPT)
-	print("[Инвентарь] Добавлено: ", ab.ability_name)
+	_select_slot(_selected_index, false)
+	_set_status("В быстром доступе: %s" % ab.ability_name, COLOR_TEXT_GOLD)
+
+
+func _set_status(text: String, color := COLOR_TEXT_DIM) -> void:
+	if not is_instance_valid(_quick_slot_status):
+		return
+	_quick_slot_status.text = text
+	_quick_slot_status.add_theme_color_override("font_color", color)
+
+
+# Заряды могли измениться, пока инвентарь открыт (нельзя — игра на паузе) или
+# закрыт (обычный случай: применили способность в бою). Перерисовываем только
+# когда окно на экране — иначе это лишняя работа каждый раз
+func _on_count_changed(_item_name: String, _count: int) -> void:
+	if visible:
+		# Через _select_slot, а не просто _refresh_grid: если предмет кончился и
+		# выпал из сумки, карточка справа обязана перестроиться под новый список
+		_select_slot(_selected_index, false)
+
+
+# ─────────────────────────────────────────────
+# РАЗДЕЛЫ: НАСТРОЙКИ / НАВЫКИ
+# ─────────────────────────────────────────────
+
+func _open_settings() -> void:
+	_play_ui_sound(SOUND_ACCEPT)
+	if not is_instance_valid(_settings_panel):
+		# Панель из главного меню создаётся скриптом, без .tscn — поэтому new()
+		# по самому скрипту, а не instantiate() по сцене
+		_settings_panel = SettingsPanelScript.new()
+		_settings_panel.set_anchors_preset(Control.PRESET_FULL_RECT)
+		# Добавляем в _root последним — значит, рисуется поверх всей вёрстки
+		# инвентаря и перехватывает клики по ней
+		_root.add_child(_settings_panel)
+	_settings_panel.open()
+
+
+func _open_skills() -> void:
+	_play_ui_sound(SOUND_ACCEPT)
+	if not is_instance_valid(_skills_panel):
+		_skills_panel = _build_skills_panel()
+		_root.add_child(_skills_panel)
+	_skills_panel.visible = true
+	_skills_panel.modulate = Color(1, 1, 1, 0)
+	var tw := create_tween()
+	tw.tween_property(_skills_panel, "modulate", Color.WHITE, 0.18)
+
+
+func _close_skills() -> void:
+	if not is_instance_valid(_skills_panel):
+		return
+	_play_ui_sound(SOUND_OPEN)
+	_skills_panel.visible = false
+
+
+# Пока это только каркас раздела: сетки навыков и прокачки ещё нет, но место под
+# неё уже занято — чтобы кнопка в шапке вела в настоящий экран, а не в пустоту
+func _build_skills_panel() -> Control:
+	var root := Control.new()
+	root.set_anchors_preset(Control.PRESET_FULL_RECT)
+	root.mouse_filter = Control.MOUSE_FILTER_STOP
+
+	var dim := ColorRect.new()
+	dim.set_anchors_preset(Control.PRESET_FULL_RECT)
+	dim.color = Color(0.02, 0.02, 0.02, 0.72)
+	root.add_child(dim)
+
+	var pw := _panel_w * 0.7
+	var ph := _panel_h * 0.7
+	var panel := _make_panel(
+		Vector2((_screen.x - pw) / 2.0, (_screen.y - ph) / 2.0), Vector2(pw, ph))
+	root.add_child(panel)
+
+	var title := _make_label("НАВЫКИ", 30)
+	title.position = Vector2(32, 22)
+	title.add_theme_color_override("font_color", COLOR_BORDER_HI)
+	panel.add_child(title)
+
+	_add_divider(panel, Vector2(20, 68), pw - 40.0)
+
+	var stub := _make_label("Раздел в разработке", 18)
+	stub.position = Vector2(0, ph / 2.0 - 20.0)
+	stub.size = Vector2(pw, 26)
+	stub.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	stub.add_theme_color_override("font_color", COLOR_TEXT_DIM)
+	panel.add_child(stub)
+
+	var hint := _make_label("Здесь появится древо навыков", 13)
+	hint.position = Vector2(0, ph / 2.0 + 12.0)
+	hint.size = Vector2(pw, 20)
+	hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	hint.add_theme_color_override("font_color", COLOR_TEXT_DIM)
+	panel.add_child(hint)
+
+	var back := _make_button("[ ESC ]  НАЗАД", Vector2((pw - 220.0) / 2.0, ph - 76.0), Vector2(220, 44))
+	back.pressed.connect(_close_skills)
+	panel.add_child(back)
+
+	return root
 
 
 # ─────────────────────────────────────────────
