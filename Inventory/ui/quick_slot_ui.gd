@@ -40,6 +40,11 @@ void fragment() {
 const CHARGES_COLOR := Color(0.98, 0.82, 0.35)
 const CHARGES_LOW_COLOR := Color(0.92, 0.42, 0.25)
 
+# Показывается вместо иконки, когда быстрый слот пуст (способности/аптечки
+# кончились или не назначены) — раньше в этом случае текстура была null, и
+# на месте иконки оставалась пустота, неотличимая от "ничего не грузится"
+const EMPTY_SLOT_ICON := preload("res://Shop/icons/empty_slot_256x256.png")
+
 # Окантовка круглой иконки. Панель-фон игрок просил убрать (см. комментарий в
 # _build_single_slot), но обводка — не коробка, а тонкая линия по контуру уже
 # существующего круга: даёт слоту чёткую границу на пёстром фоне уровня, не
@@ -284,13 +289,18 @@ func _refresh() -> void:
 
 	if ability:
 		_icon.texture = ability.icon
+		_cooldown_bar.visible = true
 		_cooldown_bar.value = ability.get_cooldown_progress()
 		var charges = _ability_system.get_charges(ability)
 		_charges_label.text = "x%d" % charges
 		_charges_label.add_theme_color_override(
 			"font_color", CHARGES_LOW_COLOR if charges <= 1 else CHARGES_COLOR)
 	else:
-		_icon.texture = null
+		_icon.texture = EMPTY_SLOT_ICON
+		# Пустому слоту нечего показывать полосой — кулдаун считается только у
+		# реальной способности. Полностью заполненная (value=1.0) полоса тут
+		# выглядела бы как "готово к использованию", хотя использовать нечего
+		_cooldown_bar.visible = false
 		_cooldown_bar.value = 1.0
 		_charges_label.text = ""
 

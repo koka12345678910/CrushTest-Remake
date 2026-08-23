@@ -231,7 +231,7 @@ var _footstep_distance := 0.0
 const BLOCK_HIT_SOUND := preload("res://Sound/melee_sound/block.wav")
 var _footstep_left_next := true
 # Звук парирования — играется при успешном парировании удара врага
-const PARRY_SOUND := preload("res://Sound/melee_sound/parry.wav")
+const PARRY_SOUND := preload("res://Sound/melee_sound/parry.mp3")
 # Звук идеального уворота — играется через parry_audio (тот же узел, что и
 # парирование: оба defensive-действия, звучат в разные моменты, конфликта
 # нет). pulse.mp3 ранее нигде не использовался — свободный ассет в проекте
@@ -252,6 +252,10 @@ const HURT_SOUNDS: Array[AudioStream] = [
 # Подбор монеты — сам звук уже звонкий, шина CoinEcho добавляет лёгкий
 # металлический хвост, а не меняет тембр заново
 const COIN_SOUND := preload("res://Sound/coin_picking.mp3")
+# Брызг крови на получении урона — та же сцена, что и у врагов
+# (enemy.gd, play_blood_vfx), сама выбирает случайный вариант анимации
+# из своего SpriteFrames
+const BLOOD_VFX := preload("res://VFX/VFX_scene/blood_vfx.tscn")
 
 var max_posture := 100.0
 var current_posture := 0.0
@@ -329,21 +333,33 @@ var roll_timer := 1.5
 var roll_dir := Vector2.ZERO
 var roll_control := 0.0
 
-# --- PARRY SYSTEM ---
+# --- BLOCK / PARRY ---
+# Держать ПКМ — всегда блок (Block_). Парирование не отдельное действие по
+# кнопке: пока держишь блок, стойка сама переключается на Parry_, когда
+# враг спереди вот-вот ударит (читаем его настоящий замах через
+# Enemy.is_about_to_strike — тот же таймер, что двигает мид-свинг попадание,
+# см. enemy.gd _state_attack). Если удар приходится в это окно — идеальное
+# парирование; если просто держал блок без такого совпадения — обычный блок
+# (см. receive_attack). Вся отрисовка стойки идёт через ЕДИНУЮ функцию
+# _update_block_parry_pose — раньше анимацию дёргали из пяти разных мест
+# (start_parry/оба перехода в блок/whiff/check_for_turn), и они друг друга
+# перебивали: то блок не проигрывался, то зависал на idle
 var is_parrying := false
-# Раньше 0.2 — при вспышке-предупреждении этого хватало, чтобы парировать
-# "на глаз", не глядя на реальный замах врага. Теперь тайминг удара берётся
-# из настоящей анимации замаха (enemy.gd, _state_attack), и окно сужено —
-# нужно целиться в конкретный момент свинга, а не иметь запас на угадать
-var parry_window := 0.12     # секунды активного окна
-var parry_timer := 0.0
-var parry_cooldown := 0.6       # кулдаун между парированиями
-var parry_cd_timer := 0.0
+var is_blocking := false
+# За сколько секунд ДО реального попадания враг считается "вот-вот ударит" —
+# ровно на это время стойка успевает показать Parry_ прежде, чем прилетит удар
+@export var parry_react_lead := 0.15
 var can_counter := false         # флаг — был perfect parry?
 var counter_window := 0.5       # сколько времени есть на контратаку
 var counter_timer := 0.0
+
+# Сколько держим позу Parry_ после удачного парирования, пока не отпустят
+# блок — отдельно от can_counter/counter_timer (та пара про доступность
+# контратаки, эта — чисто про то, что показывать на экране). Совпадает с
+# длиной самого клипа Parry_* (0.5с) — даём ему доиграть, не обрывая раньше
+const PARRY_POSE_HOLD := 0.5
+var _parry_pose_timer := 0.0
 var is_staggered := false       # враг застаггерен — доп. визуал/логика
-var is_blocking := false
 # --------------------
 
 # VFX
@@ -829,6 +845,12 @@ func check_for_turn():
 	# перекрывает Dodge/Rolling, и застревают флаги (игрок замерзает)
 	if is_dodging or is_rolling:
 		return
+	# ...и во время блока/парирования — иначе Turn_ перебивает Block_/Parry_
+	# ровно тем же способом, что раньше ломало стойку: игрок держит щит и
+	# зажимает направление, противоположное взгляду, Turn доигрывает и роняет
+	# в нейтральную позу, а is_blocking при этом остаётся true
+	if is_blocking or is_parrying:
+		return
 	if input_vector == Vector2.ZERO:
 		return
 	if turn_lock:
@@ -1066,82 +1088,91 @@ func play_move_start_vfx():
 func handle_parry_input(delta):
 	if is_dodging or is_rolling or is_attacking:
 		is_blocking = false
+		is_parrying = false
 		return
-	# Кулдаун считаем ОТДЕЛЬНО от остального — раньше ранний return на все
-	# 0.6с кулдауна глушил весь остаток функции, включая отсчёт parry_timer
-	# ниже. Из-за этого переход в блок (когда parry_timer истекает, см. ниже)
-	# физически не мог сработать раньше, чем закончится кулдаун — поза блока
-	# появлялась с задержкой ~0.6-0.7с после нажатия вместо почти мгновенной.
-	# Кулдаун должен запрещать только НОВУЮ попытку идеального парирования,
-	# а не тормозить уже идущий переход в блок
-	if parry_cd_timer > 0:
-		parry_cd_timer -= delta
-	# just_pressed ПЕРВЫМ — иначе pressed перехватывает. Новую попытку
-	# парирования можно начать только вне кулдауна
-	if parry_cd_timer <= 0 and Input.is_action_just_pressed("parry"):
-		is_blocking = false
-		start_parry()
-	elif Input.is_action_pressed("parry"):
-		if not is_blocking and not is_parrying:
-			is_blocking = true
-			anim.play("Parry_" + last_direction)  # та же анимация
-			anim.pause()  # останавливаем на первом кадре — стойка)
+
+	# just_pressed берём ДО is_action_pressed — второй остаётся true и в тот
+	# же кадр, когда сработал just_pressed, но нам нужен именно момент
+	# свежего нажатия — см. _update_block_parry_pose
+	var just_pressed := Input.is_action_just_pressed("parry")
+	if Input.is_action_pressed("parry"):
+		is_blocking = true
+		velocity = Vector2.ZERO
 	else:
 		is_blocking = false
-	if is_parrying:
-		parry_timer -= delta
-		if parry_timer <= 0:
-			# Кнопка всё ещё зажата — игрок не пытался поймать тайминг заново,
-			# а просто продолжает держать щит. Штрафовать станом за промах
-			# нечестно в этом случае: это осознанный переход в блок, а не
-			# сорвавшееся парирование. Стан-наказание остаётся только для
-			# случая, когда кнопку уже отпустили до конца окна (см. else)
-			if Input.is_action_pressed("parry"):
-				is_parrying = false
-				is_blocking = true
-				anim.play("Parry_" + last_direction)
-				anim.pause()
-			else:
-				end_parry(false)
+		is_parrying = false
+
+	# Единая точка, которая решает, что сейчас должно быть на экране —
+	# остальной код только меняет is_blocking/is_parrying, саму анимацию
+	# трогает только эта функция
+	_update_block_parry_pose(just_pressed)
+
+	if _parry_pose_timer > 0.0:
+		_parry_pose_timer = max(_parry_pose_timer - delta, 0.0)
+
 	if can_counter:
 		counter_timer -= delta
 		if counter_timer <= 0:
 			can_counter = false
 
-func start_parry():
-	print("start_parry вызван, last_direction=", last_direction)
-	is_parrying = true
-	parry_timer = parry_window
-	parry_cd_timer = parry_cooldown
-	velocity = Vector2.ZERO
 
-	var anim_name = "Parry_" + last_direction
-	print("ищем анимацию: ", anim_name)
-	if anim.has_animation(anim_name):
-		print("анимация найдена, играем")
-		anim.play(anim_name)
-	else:
-		print("⚠ Нет анимации: ", anim_name)
+# Единственное место, которое проигрывает Block_/Parry_. Сравниваем с
+# anim.current_animation, а не с внутренним флагом "поменялось ли
+# is_parrying" — тот подход был у прошлой версии и ломался на самом первом
+# кадре блока (is_parrying оставался false→false, "ничего не поменялось",
+# и Block_ просто никогда не проигрывался). Сверяясь с реальной текущей
+# анимацией, функция всегда знает, стоит ли уже нужная поза, независимо от
+# истории — и корректно перерисовывает при смене направления (last_direction).
+#
+# ВАЖНО: держим позу через play(name, -1, 0.0) — custom_speed=0, — а НЕ через
+# anim.pause(). Проверено напрямую: AnimationPlayer.pause() в Godot 4 не
+# "замирает на текущем кадре", а фактически ведёт себя как stop() — сбрасывает
+# current_animation в пустую строку и is_playing() в false. Именно это и было
+# причиной "ни одна анимация не играет": играли позу и тут же сами её гасили.
+# custom_speed=0 держит current_animation и is_playing()=true, кадр просто не
+# продвигается — ровно то самое "замерла в стойке", которое нужно
+#
+# ПАРИРОВАНИЕ ТРЕБУЕТ СВЕЖЕГО НАЖАТИЯ, А НЕ ПРОСТО УДЕРЖАНИЯ: раньше
+# is_parrying включался автоматически, стоило врагу оказаться в окне замаха —
+# и получалось, что можно было держать блок бесконечно заранее и парировать
+# бесплатно, без всякой реакции. Теперь is_parrying становится true ТОЛЬКО в
+# тот кадр, когда игрок ЗАНОВО нажал ПКМ (just_pressed) ровно во время
+# открытого окна — то есть нужно осознанно отпустить и нажать снова именно
+# сейчас, а не просто стоять зажатым. Держится true до конца окна (вдруг
+# попадание засчитается на кадр позже), сбрасывается, как только окно
+# закрывается — не переживает до следующей, никак не связанной атаки
+func _update_block_parry_pose(just_pressed: bool) -> void:
+	if not is_blocking:
+		return
+	var window_open := _find_incoming_attacker() != null
+	if not window_open:
+		is_parrying = false
+	elif just_pressed:
+		is_parrying = true
+	# receive_attack() гасит is_parrying в тот же момент, когда засчитывает
+	# перфект-парирование (чтобы не сработать дважды на один удар) — без
+	# _parry_pose_timer поза тут же откатывалась бы в Block_. Сам таймер
+	# форсируется синхронно в on_perfect_parry(), а не ждёт следующего кадра
+	var show_parry := is_parrying or _parry_pose_timer > 0.0
+	var desired := ("Parry_" if show_parry else "Block_") + last_direction
+	if anim.current_animation == desired:
+		return
+	if not anim.has_animation(desired):
+		return
+	anim.play(desired, -1, 0.0)
 
-func end_parry(was_hit: bool):
-	is_parrying = false
-	parry_timer = 0.0
-	if not was_hit:
-		_parry_whiff()
-	else:
-		play_idle_animation()
 
-func _parry_whiff() -> void:
-	# штраф за промах — 0.5 сек нельзя атаковать и двигаться
-	is_stunned = true
-	velocity = Vector2.ZERO
-	# анимация промаха — используем существующую или idle
-	var anim_name = "Parry_" + last_direction
-	if anim.has_animation(anim_name):
-		anim.play(anim_name)
-	await get_tree().create_timer(0.5).timeout
-	is_stunned = false
-	play_idle_animation()
+func _find_incoming_attacker() -> Node:
+	for e in get_tree().get_nodes_in_group("enemy"):
+		if not is_instance_valid(e) or ("is_dead" in e and e.is_dead):
+			continue
+		if not e.has_method("is_about_to_strike"):
+			continue
+		if not e.is_about_to_strike(parry_react_lead):
+			continue
+		if _is_facing_attacker(e):
+			return e
+	return null
 
 # Вызывается врагом (или hitbox-ом) когда его атака задела игрока
 func receive_attack(attack_data: Dictionary) -> bool:
@@ -1160,8 +1191,13 @@ func receive_attack(attack_data: Dictionary) -> bool:
 		return false
 
 	# --- PERFECT PARRY ---
+	# is_parrying тут истинно, только если стойка успела прочитать реальный
+	# замах атакующего (см. _update_block_parry_pose/is_about_to_strike) —
+	# то есть держал блок, и удар пришёлся ровно на прочитанный тайминг.
+	# Следующий кадр _update_block_parry_pose сам решит, остаться в Parry_
+	# или вернуться в обычный Block_ — отдельно дёргать анимацию тут не нужно
 	if is_parrying:
-		end_parry(true)
+		is_parrying = false
 		on_perfect_parry(attack_data)
 		return true
 
@@ -1208,9 +1244,12 @@ func _on_blocked_attack(_attack_data: Dictionary) -> void:
 		_posture_break()
 
 func play_parry_vfx() -> void:
-	# На самом игроке, а не на MeleeHit — тот маркер смещается вперёд по
-	# направлению атаки (для обычных ударов) и не всегда подходит под анимацию парирования
-	parry_vfx.global_position = global_position
+	# Не на MeleeHit (тот маркер под обычные удары, парированию не подходит) и
+	# не привязано к хитбоксу — просто сдвиг вперёд по направлению взгляда,
+	# туда, где скрещиваются клинки, а не в центр игрока
+	var dir = direction_to_vector(last_direction)
+	var offset = 32  # чуть в сторону от центра игрока — здесь встречаются клинки
+	parry_vfx.global_position = global_position + dir * offset
 	parry_vfx.play("parry_vfx")
 	await parry_vfx.animation_finished
 	parry_vfx.stop()
@@ -1237,6 +1276,18 @@ func _on_perfect_dodge(_attack_data: Dictionary) -> void:
 func on_perfect_parry(attack_data: Dictionary):
 	can_counter = true
 	counter_timer = counter_window
+	# Форсируем позу Parry_ прямо сейчас, а не ждём следующего кадра
+	# _update_block_parry_pose — is_parrying receive_attack() уже погасил
+	# (см. выше по стеку), и без явного форса поза откатилась бы в Block_,
+	# толком не показавшись.
+	# В отличие от Block_ (статичная стойка — держим кадр 0 через
+	# custom_speed=0) Parry_ — это раскадровка самого отбива клинка, и на
+	# 0-м кадре она визуально почти не отличается от готовности к блоку.
+	# Поэтому здесь НЕ замораживаем, а даём клипу доиграть целиком
+	_parry_pose_timer = PARRY_POSE_HOLD
+	var parry_anim := "Parry_" + last_direction
+	if anim.has_animation(parry_anim):
+		anim.play(parry_anim)
 	play_parry_vfx()
 	parry_audio.stream = PARRY_SOUND
 	# парирование — особый момент, разброс меньше, чтобы звук оставался
@@ -1275,6 +1326,10 @@ func take_damage(amount: int, source: Node = null) -> void:
 	damage_vignette.flash()
 	hit_flash.flash()
 	shake_camera(damage_shake_strength)
+
+	var blood := BLOOD_VFX.instantiate()
+	blood.global_position = global_position
+	get_tree().current_scene.add_child(blood)
 	
 	current_posture += 10.0
 	current_posture = min(current_posture, max_posture)

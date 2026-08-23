@@ -477,7 +477,12 @@ func play_parry_vfx() -> void:
 	if parry_vfx_scene == null:
 		return
 	var vfx = parry_vfx_scene.instantiate()
-	vfx.global_position = global_position
+	# Не привязано к хитбоксу — сдвиг в сторону игрока, туда, где встречаются
+	# клинки, а не в центр врага
+	var dir := Vector2.RIGHT
+	if is_instance_valid(player):
+		dir = global_position.direction_to(player.global_position)
+	vfx.global_position = global_position + dir * 32.0
 	get_tree().current_scene.add_child(vfx)
 
 func play_blood_vfx() -> void:
@@ -741,6 +746,29 @@ func _state_chase(delta: float) -> void:
 	else:
 		move_velocity = Vector2.ZERO
 		_play_animation("idle")
+
+# Публичный признак "вот-вот ударю" — читает его блок игрока (player.gd,
+# _find_incoming_attacker), чтобы понять, когда переключаться на анимацию
+# парирования вместо обычного блока. Не заглядывает в приватные таймеры
+# врага напрямую — отдаёт готовый bool через один явный вызов.
+# Истинно от (impact - lead_time) и ДО КОНЦА замаха включительно, а не
+# гаснет ровно в момент удара: порядок обработки _physics_process у разных
+# нод не гарантирован, и если закрыть окно точно на _attack_impact_time,
+# на кадре самого попадания оно могло бы уже читаться как false в
+# зависимости от того, кто раньше отработал в этом кадре — игрок или враг
+func is_about_to_strike(lead_time: float) -> bool:
+	if current_state != State.ATTACK or is_dead:
+		return false
+	# Окно держится от (impact - lead_time) до КОРОТКОГО фиксированного
+	# запаса ПОСЛЕ удара (не до конца замаха!). Раньше верхней границы не
+	# было вообще — окно оставалось открытым всю добивочную часть анимации
+	# после попадания, из-за чего ЛЮБОЙ блокированный удар засчитывался как
+	# идеальное парирование. 0.08с — это только страховка на случай, если
+	# player.gd успел обновить is_parrying на кадр позже, чем враг долетел
+	# ударом в этот же кадр, а не намеренное окно для парирования
+	var since_impact := state_time - _attack_impact_time
+	return since_impact >= -lead_time and since_impact <= 0.08
+
 
 var attack_direction_name := ""  # добавь в переменные
 func _state_attack(_delta: float) -> void:

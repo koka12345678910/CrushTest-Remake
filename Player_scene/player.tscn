@@ -39,6 +39,7 @@
 [ext_resource type="Texture2D" uid="uid://bflgr4077a6i0" path="res://VFX/Effect_BigHit/30fps/Frames/Effect_BigHit_1/Effect_BigHit_1_016.png" id="32_7xef0"]
 [ext_resource type="Texture2D" uid="uid://bfb1he85o45qp" path="res://VFX/Effect_BigHit/30fps/Frames/Effect_BigHit_1/Effect_BigHit_1_017.png" id="33_km7bv"]
 [ext_resource type="Texture2D" uid="uid://cujmmeygrpcr2" path="res://VFX/Effect_BigHit/30fps/Frames/Effect_BigHit_1/Effect_BigHit_1_018.png" id="34_leiv4"]
+[ext_resource type="AudioStream" uid="uid://beottx1obabhg" path="res://Sound/melee_sound/parry.mp3" id="34_r3tdr"]
 [ext_resource type="Texture2D" uid="uid://c1gy6sfklp0il" path="res://VFX/Effect_BigHit/30fps/Frames/Effect_BigHit_1/Effect_BigHit_1_019.png" id="35_6r4ru"]
 [ext_resource type="Texture2D" uid="uid://rpqkxu7hdkpq" path="res://VFX/Effect_BigHit/30fps/Frames/Effect_BigHit_1/Effect_BigHit_1_020.png" id="36_r3tdr"]
 [ext_resource type="Texture2D" uid="uid://b5m8q1dqd5ls7" path="res://VFX/Effect_BigHit/30fps/Frames/Effect_BigHit_1/Effect_BigHit_1_021.png" id="37_f5obl"]
@@ -5619,7 +5620,7 @@ modulate = Color(0.7722583, 0.7722583, 0.7722583, 1)
 texture_filter = 1
 scale = Vector2(0.640625, 0.78125006)
 sprite_frames = ExtResource("2_tgf2g")
-animation = &"Attack_2_Down"
+animation = &"Parry_Up_Right"
 
 [node name="Collision" type="CollisionShape2D" parent="." unique_id=706763296]
 shape = SubResource("CapsuleShape2D_m414l")
@@ -5856,6 +5857,7 @@ volume_db = -9.5
 bus = &"Combat"
 
 [node name="ParryAudio" type="AudioStreamPlayer2D" parent="." unique_id=1772501580]
+stream = ExtResource("34_r3tdr")
 volume_db = -9.5
 bus = &"ParryRing"
 

@@ -1,11 +1,6 @@
 [gd_scene format=3 uid="uid://bprdcflmqn66g"]
 
-[ext_resource type="Texture2D" uid="uid://ci32yhu826l26" path="res://VFX/Effect_BigHit/30fps/Frames/Effect_BigHit_1/Effect_BigHit_1_000.png" id="1_frame"]
 [ext_resource type="Script" uid="uid://b73mumfjvbsdq" path="res://VFX/VFX_scene/parry_vfx.gd" id="1_script"]
-[ext_resource type="Texture2D" uid="uid://s6gypbamk87h" path="res://VFX/Effect_BigHit/30fps/Frames/Effect_BigHit_1/Effect_BigHit_1_001.png" id="2_frame"]
-[ext_resource type="Texture2D" uid="uid://cb3j37k4pprq1" path="res://VFX/Effect_BigHit/30fps/Frames/Effect_BigHit_1/Effect_BigHit_1_002.png" id="3_frame"]
-[ext_resource type="Texture2D" uid="uid://o8dyw0sxd5kt" path="res://VFX/Effect_BigHit/30fps/Frames/Effect_BigHit_1/Effect_BigHit_1_003.png" id="4_frame"]
-[ext_resource type="Texture2D" uid="uid://v81042wxytgg" path="res://VFX/Effect_BigHit/30fps/Frames/Effect_BigHit_1/Effect_BigHit_1_004.png" id="5_frame"]
 [ext_resource type="Texture2D" uid="uid://bkcs77vqs4lo3" path="res://VFX/Effect_BigHit/30fps/Frames/Effect_BigHit_1/Effect_BigHit_1_005.png" id="6_frame"]
 [ext_resource type="Texture2D" uid="uid://dloftaqg276xb" path="res://VFX/Effect_BigHit/30fps/Frames/Effect_BigHit_1/Effect_BigHit_1_006.png" id="7_frame"]
 [ext_resource type="Texture2D" uid="uid://colwwd5y3niqn" path="res://VFX/Effect_BigHit/30fps/Frames/Effect_BigHit_1/Effect_BigHit_1_007.png" id="8_frame"]
@@ -24,21 +19,6 @@ particles_anim_loop = false
 [sub_resource type="SpriteFrames" id="SpriteFrames_parry"]
 animations = [{
 "frames": [{
-"duration": 1.0,
-"texture": ExtResource("1_frame")
-}, {
-"duration": 1.0,
-"texture": ExtResource("2_frame")
-}, {
-"duration": 1.0,
-"texture": ExtResource("3_frame")
-}, {
-"duration": 1.0,
-"texture": ExtResource("4_frame")
-}, {
-"duration": 1.0,
-"texture": ExtResource("5_frame")
-}, {
 "duration": 1.0,
 "texture": ExtResource("6_frame")
 }, {
@@ -74,7 +54,7 @@ material = SubResource("CanvasItemMaterial_parry")
 scale = Vector2(0.18671454, 0.19168174)
 sprite_frames = SubResource("SpriteFrames_parry")
 animation = &"parry_vfx"
-frame = 11
+frame = 6
 frame_progress = 1.0
 
 [connection signal="animation_finished" from="AnimatedSprite2D" to="." method="_on_animated_sprite_2d_animation_finished"]

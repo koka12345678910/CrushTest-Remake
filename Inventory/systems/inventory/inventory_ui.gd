@@ -20,6 +20,10 @@ const COLOR_WARN        = Color(0.85, 0.35, 0.20, 1.0)
 const GRID_COLS := 3
 const GRID_ROWS := 4
 
+const TAB_INVENTORY := 0
+const TAB_SKILLS    := 1
+const TAB_SETTINGS  := 2
+
 # Настройки — та же панель, что и в главном меню, а не её копия: значения живут
 # в автозагрузке GameSettings, и второй реализации взяться неоткуда
 const SettingsPanelScript := preload("res://Main_Menu/scripts/SettingsPanel.gd")
@@ -47,6 +51,9 @@ var _selected_index: int = -1
 var _settings_panel: Control
 var _skills_panel: Control
 var _is_closing := false
+
+var _tab_buttons: Array[Button] = []
+var _current_tab := TAB_INVENTORY
 
 var _detail_icon: TextureRect
 var _detail_name: Label
@@ -210,12 +217,7 @@ func _build_ui() -> void:
 	var panel := _make_panel(Vector2(margin, margin), Vector2(_panel_w, _panel_h))
 	_root.add_child(panel)
 
-	var title := _make_label("СНАРЯЖЕНИЕ", 28)
-	title.position = Vector2(36, 18)
-	title.add_theme_color_override("font_color", COLOR_BORDER_HI)
-	panel.add_child(title)
-
-	_build_top_bar(panel)
+	_build_tabs(panel)
 	_add_divider(panel, Vector2(20, 62), _panel_w - 40.0)
 
 	var vdiv := ColorRect.new()
@@ -230,25 +232,95 @@ func _build_ui() -> void:
 	_build_hints(panel)
 
 
-# Кнопки разделов в шапке инвентаря — справа от заголовка, над разделителем.
-# Порядок справа налево: сначала "Настройки" (край панели), левее "Навыки"
-func _build_top_bar(parent: Control) -> void:
-	var btn_w := 150.0
-	var btn_h := 34.0
-	var gap := 10.0
-	var y := 16.0
-	var x := _panel_w - 36.0 - btn_w
+# Вкладки разделов — крупно, по центру самого верха панели. Порядок слева
+# направо: Инвентарь (открыт по умолчанию), Навыки, Настройки. Активная
+# вкладка подсвечена золотым текстом и полоской снизу
+func _build_tabs(parent: Control) -> void:
+	var tab_defs := [
+		["ИНВЕНТАРЬ", TAB_INVENTORY],
+		["НАВЫКИ",    TAB_SKILLS],
+		["НАСТРОЙКИ", TAB_SETTINGS],
+	]
+	var tab_w   := 220.0
+	var tab_h   := 42.0
+	var tab_gap := 28.0
+	var total_w := tab_defs.size() * tab_w + (tab_defs.size() - 1) * tab_gap
+	var x := (_panel_w - total_w) / 2.0
+	var y := 12.0
 
-	var btn_settings := _make_button("НАСТРОЙКИ", Vector2(x, y), Vector2(btn_w, btn_h))
-	btn_settings.add_theme_font_size_override("font_size", 13)
-	btn_settings.pressed.connect(_open_settings)
-	parent.add_child(btn_settings)
+	_tab_buttons.clear()
+	for def in tab_defs:
+		var tab_id: int = def[1]
+		var btn := _make_tab_button(def[0], Vector2(x, y), Vector2(tab_w, tab_h))
+		btn.pressed.connect(func(): _on_tab_pressed(tab_id))
+		parent.add_child(btn)
+		_tab_buttons.append(btn)
+		x += tab_w + tab_gap
 
-	x -= btn_w + gap
-	var btn_skills := _make_button("НАВЫКИ", Vector2(x, y), Vector2(btn_w, btn_h))
-	btn_skills.add_theme_font_size_override("font_size", 13)
-	btn_skills.pressed.connect(_open_skills)
-	parent.add_child(btn_skills)
+	_update_tab_visuals()
+
+
+func _make_tab_button(text: String, pos: Vector2, sz: Vector2) -> Button:
+	var btn := Button.new()
+	btn.text = text
+	btn.position = pos
+	btn.size = sz
+	btn.focus_mode = Control.FOCUS_NONE
+	btn.add_theme_font_size_override("font_size", 20)
+
+	var empty := StyleBoxEmpty.new()
+	btn.add_theme_stylebox_override("normal", empty)
+	btn.add_theme_stylebox_override("hover", empty)
+	btn.add_theme_stylebox_override("pressed", empty)
+	btn.add_theme_stylebox_override("focus", empty)
+
+	btn.add_theme_color_override("font_color", COLOR_TEXT_DIM)
+	btn.add_theme_color_override("font_hover_color", COLOR_TEXT_GOLD)
+	btn.add_theme_color_override("font_pressed_color", COLOR_TEXT_GOLD)
+
+	var underline := ColorRect.new()
+	underline.name = "Underline"
+	underline.position = Vector2(0, sz.y - 3)
+	underline.size = Vector2(sz.x, 3)
+	underline.color = Color(0, 0, 0, 0)
+	btn.add_child(underline)
+
+	return btn
+
+
+func _update_tab_visuals() -> void:
+	for i in _tab_buttons.size():
+		var btn := _tab_buttons[i]
+		var underline := btn.get_node("Underline") as ColorRect
+		var active := i == _current_tab
+		btn.add_theme_color_override("font_color", COLOR_TEXT_GOLD if active else COLOR_TEXT_DIM)
+		underline.color = COLOR_BORDER_HI if active else Color(0, 0, 0, 0)
+
+
+func _set_current_tab(tab: int) -> void:
+	_current_tab = tab
+	_update_tab_visuals()
+
+
+func _on_tab_pressed(id: int) -> void:
+	if id == _current_tab:
+		return
+	match id:
+		TAB_INVENTORY:
+			_play_ui_sound(SOUND_CHOICE)
+			if is_instance_valid(_skills_panel) and _skills_panel.visible:
+				_skills_panel.visible = false
+			if is_instance_valid(_settings_panel) and _settings_panel.visible:
+				_settings_panel.close()
+			_set_current_tab(TAB_INVENTORY)
+		TAB_SKILLS:
+			if is_instance_valid(_settings_panel) and _settings_panel.visible:
+				_settings_panel.close()
+			_open_skills()
+		TAB_SETTINGS:
+			if is_instance_valid(_skills_panel) and _skills_panel.visible:
+				_skills_panel.visible = false
+			_open_settings()
 
 
 func _build_grid(parent: Control) -> void:
@@ -701,10 +773,14 @@ func _open_settings() -> void:
 		# по самому скрипту, а не instantiate() по сцене
 		_settings_panel = SettingsPanelScript.new()
 		_settings_panel.set_anchors_preset(Control.PRESET_FULL_RECT)
+		# Закрыта могла быть и через Esc внутри самой панели — в этом случае
+		# вкладку "Настройки" тоже нужно снять, иначе она останется подсвеченной
+		_settings_panel.closed.connect(func(): _set_current_tab(TAB_INVENTORY))
 		# Добавляем в _root последним — значит, рисуется поверх всей вёрстки
 		# инвентаря и перехватывает клики по ней
 		_root.add_child(_settings_panel)
 	_settings_panel.open()
+	_set_current_tab(TAB_SETTINGS)
 
 
 func _open_skills() -> void:
@@ -716,6 +792,7 @@ func _open_skills() -> void:
 	_skills_panel.modulate = Color(1, 1, 1, 0)
 	var tw := create_tween()
 	tw.tween_property(_skills_panel, "modulate", Color.WHITE, 0.18)
+	_set_current_tab(TAB_SKILLS)
 
 
 func _close_skills() -> void:
@@ -723,6 +800,7 @@ func _close_skills() -> void:
 		return
 	_play_ui_sound(SOUND_OPEN)
 	_skills_panel.visible = false
+	_set_current_tab(TAB_INVENTORY)
 
 
 # Пока это только каркас раздела: сетки навыков и прокачки ещё нет, но место под

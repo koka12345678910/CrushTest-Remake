@@ -25,11 +25,19 @@ var _particles: CPUParticles2D
 
 func _ready() -> void:
 	_particles = CPUParticles2D.new()
-	_particles.texture = _make_dot_texture()
+	# У мёда своя текстура — мягкое дымчатое пятно без чёткого края (см.
+	# _make_smoke_texture). _make_dot_texture специально сделана с плотным
+	# ядром и резкой границей — это годится для искр/перьев, но не для пара:
+	# с ней частицы читались бы как капли, а не как дымка
+	_particles.texture = _make_smoke_texture() if variant == Variant.HONEY else _make_dot_texture()
 	# Аддитивный бленд — тот же приём, что у вспышек Фенрира/Одина/Руны: на
 	# тёмной ночной сцене частицы начинают именно СВЕТИТЬСЯ, а не лежать
-	# полупрозрачным серым пятном поверх фона
-	_particles.material = _make_additive_material()
+	# полупрозрачным серым пятном поверх фона.
+	# Мёд — исключение: это пар над кружкой, а не магическая искра, светиться
+	# он не должен. Обычное альфа-смешивание вместо аддитивного, цвета в
+	# _setup_honey() уже не HDR-переяркие (не глушить бленд-режимом нечего)
+	if variant != Variant.HONEY:
+		_particles.material = _make_additive_material()
 	add_child(_particles)
 
 	match variant:
@@ -55,27 +63,35 @@ func _ready() -> void:
 	queue_free()
 
 
-# --- Мёд Поэзии: тёплые искры медленно поднимаются, как пар над кружкой ---
+# --- Мёд Поэзии: лёгкий пар над кружкой, а не магическое свечение ---
 func _setup_honey() -> void:
 	var p := _particles
-	p.amount = 26
-	p.lifetime = 1.1
+	# Дымка — это МНОГО МЕЛКИХ мягких пятен, перекрывающих друг друга, а не
+	# горстка крупных чётких капель. Область спавна при этом маленькая (как
+	# у шлейфа монет) — плотное, компактное облачко, а не крупный эффект
+	p.amount = 24
+	p.lifetime = 1.6
 	p.emission_shape = CPUParticles2D.EMISSION_SHAPE_RECTANGLE
-	p.emission_rect_extents = Vector2(11, 14)
+	p.emission_rect_extents = Vector2(7, 9)
 	p.direction = Vector2(0, -1)
-	p.spread = 22.0
-	p.gravity = Vector2(0, -32)          # тянет ВВЕРХ — искры всплывают
-	p.initial_velocity_min = 16.0
-	p.initial_velocity_max = 34.0
-	p.scale_amount_min = 0.35
-	p.scale_amount_max = 0.7
-	# Умеренный пересвет. Выше ~1.6 аддитивный бленд выжигает всё в белый, и
-	# янтарь перестаёт отличаться от золота Валькирии — держим красный канал
-	# заметно выше синего, чтобы цвет читался
+	p.spread = 35.0                      # шире искрового — пар не летит по прямой, а колышется
+	p.gravity = Vector2(0, -14)          # тянет вверх медленно и вальяжно
+	p.initial_velocity_min = 4.0
+	p.initial_velocity_max = 12.0
+	p.damping_min = 2.0                  # гасим разгон — пар не ускоряется, а плывёт
+	p.damping_max = 5.0
+	p.scale_amount_min = 0.1
+	p.scale_amount_max = 0.22
+	# Пар расширяется и тает по мере подъёма — растущий масштаб продаёт это
+	# нагляднее, чем частицы неизменного размера
+	p.scale_amount_curve = _make_growth_curve()
+	# Обычные (не HDR) цвета — без аддитивного бленда (см. _ready) переяркие
+	# значения просто выглядели бы плоским пересвеченным пятном. Тёплый
+	# бледный оттенок пара, не искра
 	p.color_ramp = _make_ramp(
-		Color(1.6, 1.05, 0.3, 0.0),
-		Color(1.5, 0.95, 0.25, 1.0),
-		Color(0.9, 0.4, 0.08, 0.0)
+		Color(0.85, 0.78, 0.6, 0.0),
+		Color(0.8, 0.73, 0.56, 0.4),
+		Color(0.68, 0.63, 0.5, 0.0)
 	)
 
 
@@ -144,6 +160,28 @@ func _spawn_cleanse_ring() -> void:
 
 
 # --- Процедурные текстуры ---
+
+func _make_smoke_texture() -> GradientTexture2D:
+	## Мягкое дымчатое пятно — в отличие от _make_dot_texture (чёткое ядро,
+	## резкий обрез) тут затухание растянуто почти на весь радиус: ни одной
+	## точки с чётким краем, только плавный туман. Так частицы сливаются в
+	## общее облачко, а не читаются как отдельные капли
+	var grad := Gradient.new()
+	grad.offsets = PackedFloat32Array([0.0, 0.35, 1.0])
+	grad.colors = PackedColorArray([
+		Color(1, 1, 1, 0.85), Color(1, 1, 1, 0.35), Color(1, 1, 1, 0)
+	])
+	return _radial(grad, 40)
+
+
+## Кривая роста для scale_amount_curve — частица рождается мелкой и
+## увеличивается к концу жизни, как расширяющийся и оседающий пар
+func _make_growth_curve() -> Curve:
+	var c := Curve.new()
+	c.add_point(Vector2(0.0, 0.45))
+	c.add_point(Vector2(1.0, 1.7))
+	return c
+
 
 func _make_dot_texture() -> GradientTexture2D:
 	## Искра с ЧЁТКИМ краем. Раньше затухание начиналось почти от центра
