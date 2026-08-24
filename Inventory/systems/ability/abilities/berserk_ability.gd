@@ -25,7 +25,8 @@ func _execute(player: Node) -> void:
 			"speed_bonus": speed_bonus,
 			"duration": duration,
 			"name": "berserk",
-			"ranged_attacks": true
+			"ranged_attacks": true,
+			"free_stamina": true
 		})
 
 	# Подмена VFX ударов

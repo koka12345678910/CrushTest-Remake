@@ -9,6 +9,10 @@ extends CharacterBody2D
 @export var melee_hit_2_vfx_scene: PackedScene
 @export var turn_around_vfx_scene: PackedScene
 @export var snap_radius := 80.0  # радиус поиска врагов
+@export var focus_break_range := 260.0  # дальше — фокус слетает сам
+@export var focus_marker_offset := Vector2(0, -24)  # приподнять метку к центру врага, а не к его ногам
+
+const FocusMarkerScript := preload("res://VFX/VFX_scene/focus_marker.gd")
 @export var posture_regen_rate := 10.0
 @export var posture_regen_delay := 2.5
 # --- БЛОК (зажатое ПКМ, is_blocking) ---
@@ -274,6 +278,8 @@ var input_vector := Vector2.ZERO
 # friction здесь — коэффициент lerp-затухания (больше = быстрее гаснет).
 @export var knockback_force := 180.0
 @export var knockback_friction := 9.0
+# Тот же толчок, но слабее — щит гасит урон, но не всю инерцию удара
+@export var block_knockback_force := 70.0
 var knockback_velocity := Vector2.ZERO
 
 # Хитстоп — короткая заморозка в момент попадания (даёт «мясистость» удара)
@@ -325,6 +331,12 @@ var dodge_tap_window := 0.18
 var dodge_tap_count := 0
 var facing_dir: Vector2 = Vector2.DOWN
 var turn_lock := false
+
+# Фокус на враге — включается/выключается вручную (см. handle_focus_input).
+# Пока враг в фокусе, взгляд каждый кадр держится на нём независимо от
+# ввода движения — ходьба (WASD) при этом свободная, не привязана к взгляду
+var focused_enemy: Node2D = null
+var _focus_marker: Node2D = null
 
 var is_rolling := false
 var roll_speed := 225.0
@@ -474,6 +486,7 @@ func _process(delta: float) -> void:
 	# _shake_strength, и так тряска применится уже в этом же кадре
 	_update_condition_fx(delta)
 	_update_immunity_visual(delta)
+	_update_focus_target()
 
 	# Итоговое смещение камеры = тряска от урона + плавное покачивание на беге.
 	# Считаем их по отдельности и складываем, а не перезаписываем camera.offset
@@ -695,6 +708,7 @@ func _physics_process(delta):
 		return
 
 	prev_velocity = velocity
+	handle_focus_input()
 	handle_attack_input()
 	handle_kick_input()
 	handle_parry_input(delta)
@@ -762,9 +776,7 @@ func _physics_process(delta):
 		velocity = velocity.lerp(Vector2.ZERO, friction_run * delta)
 
 	move_and_slide()
-	if input_vector != Vector2.ZERO and not turn_lock:
-		facing_dir = input_vector.normalized()
-		last_direction = get_direction(facing_dir)
+	_update_facing()
 	play_movement_animation()
 	handle_movement_vfx(delta)
 	handle_footsteps(delta)
@@ -824,8 +836,100 @@ func get_nearest_enemy() -> Node2D:
 	
 	return nearest
 
+# Переключатель фокуса: нет цели — берём ближайшего врага в snap_radius;
+# уже держим кого-то в фокусе — отпускаем (повторное нажатие снимает фокус)
+func handle_focus_input() -> void:
+	if not Input.is_action_just_pressed("focus_target"):
+		return
+	if is_instance_valid(focused_enemy) and not focused_enemy.is_dead:
+		_set_focused_enemy(null)
+		return
+	_set_focused_enemy(get_nearest_enemy())
+
+
+# Единственное место, которое создаёт/убирает FocusMarker — чтобы метка на
+# экране не могла разъехаться с реальным focused_enemy ни в одном из мест,
+# где фокус снимается (переключение, смерть цели, выход за focus_break_range)
+func _set_focused_enemy(enemy: Node2D) -> void:
+	focused_enemy = enemy
+	if is_instance_valid(_focus_marker):
+		_focus_marker.queue_free()
+		_focus_marker = null
+	if enemy != null:
+		_focus_marker = FocusMarkerScript.new()
+		get_tree().current_scene.add_child(_focus_marker)
+		_focus_marker.global_position = enemy.global_position + focus_marker_offset
+
+
+# Слежение маркера и авто-снятие фокуса (смерть цели / выход за
+# focus_break_range) — отдельно от _update_facing и вызывается из _process,
+# а не из ветки обычного движения в _physics_process. Та ветка пропускается
+# ранними return во время атаки/доджа/блока — а именно тогда враг чаще всего
+# и отлетает от удара, так что точка замирала бы ровно в нужный момент
+func _update_focus_target() -> void:
+	if is_instance_valid(focused_enemy) and focused_enemy.is_dead:
+		# Игрок сам фокус не снимал — раз держал его на этом враге, скорее
+		# всего бой продолжается, поэтому цель перескакивает на ближайшего
+		# живого рядом (snap_radius), а не просто гаснет
+		_set_focused_enemy(get_nearest_enemy())
+	if not is_instance_valid(focused_enemy):
+		return
+	var to_target: Vector2 = focused_enemy.global_position - global_position
+	if to_target.length() > focus_break_range:
+		_set_focused_enemy(null)
+		return
+	if is_instance_valid(_focus_marker):
+		_focus_marker.global_position = focused_enemy.global_position + focus_marker_offset
+
+
+# Бег НАПРЯМУЮ от цели в фокусе — отдельный случай: убегать со намертво
+# повёрнутой на врага головой выглядит нелепо, а не как побег, поэтому на
+# этот кадр лок снимается и взгляд ведёт себя как обычно (см. _update_facing/
+# check_for_turn). Ходьбу назад (не бег) это не трогает — там взгляд держит
+# фокус, а корпус идёт спиной вперёд через Backwards_ (play_movement_animation)
+func _is_fleeing_focus() -> bool:
+	if not is_instance_valid(focused_enemy) or not is_running or input_vector == Vector2.ZERO:
+		return false
+	var to_target: Vector2 = focused_enemy.global_position - global_position
+	if to_target.length() < 0.01:
+		return false
+	return input_vector.normalized().dot(to_target.normalized()) < -0.5
+
+
+# Единая точка, решающая, куда смотрит игрок в обычном движении (вне атак/
+# доджей/блока — у тех свой снап). Пока враг в фокусе, взгляд держится на нём
+# каждый кадр вместо направления ввода — WASD при этом продолжает свободно
+# управлять движением, не завися от того, куда смотрит персонаж
+func _update_facing() -> void:
+	if is_instance_valid(focused_enemy) and not _is_fleeing_focus():
+		var to_target: Vector2 = focused_enemy.global_position - global_position
+		if to_target.length() > 0.01:
+			var new_dir := get_direction(to_target.normalized())
+			if new_dir != "":
+				facing_dir = to_target.normalized()
+				last_direction = new_dir
+			return
+
+	if input_vector != Vector2.ZERO and not turn_lock:
+		facing_dir = input_vector.normalized()
+		last_direction = get_direction(facing_dir)
+
+
+# Ходьба (не бег) при развёрнутом на фокус взгляде и движении назад — своя
+# раскадровка Backwards_, а не Walk_. Во время бега сюда не попадаем: прямой
+# побег от цели уже снял лок в _update_facing, и facing_dir там смотрит по
+# движению — dot почти всегда положительный
+func _is_moving_backward() -> bool:
+	if input_vector == Vector2.ZERO:
+		return false
+	return input_vector.normalized().dot(facing_dir) < -0.5
+
+
 func try_snap_to_enemy() -> void:
-	var enemy = get_nearest_enemy()
+	# Враг в ручном фокусе — приоритетная цель для атаки, а не просто
+	# ближайший из толпы. Без этого удары при зажатом фокусе всё равно
+	# наводились на ближайшего врага, а не на выбранного
+	var enemy = focused_enemy if is_instance_valid(focused_enemy) else get_nearest_enemy()
 	if enemy == null:
 		return
 	
@@ -850,6 +954,13 @@ func check_for_turn():
 	# зажимает направление, противоположное взгляду, Turn доигрывает и роняет
 	# в нейтральную позу, а is_blocking при этом остаётся true
 	if is_blocking or is_parrying:
+		return
+	# ...и пока враг в фокусе — взгляд держит _update_facing, а не эта резкая
+	# анимация разворота. Без этой проверки любой бег в сторону от цели с
+	# зафиксированным взглядом читался бы как рывок Turn_ каждый кадр.
+	# Исключение — прямой побег бегом: там _update_facing уже сам снял лок,
+	# и разворот должен работать как обычно
+	if is_instance_valid(focused_enemy) and not _is_fleeing_focus():
 		return
 	if input_vector == Vector2.ZERO:
 		return
@@ -927,7 +1038,22 @@ func play_movement_animation():
 		return
 	elif speed < 120:
 		anim.speed_scale = 1.0
-		anim_name = "Walk_" + last_direction
+		# Ходьба спиной вперёд (взгляд держит фокус на враге) — своя
+		# раскадровка Backwards_, а не Walk_. Суффикс здесь — направление
+		# ДВИЖЕНИЯ (куда шагает нога), а не взгляда: Backwards_Right — шаг
+		# спиной вправо, а не "лицом вправо" (см. правку по фидбэку).
+		# На бег не распространяется: прямой побег от цели снимает лок в
+		# _update_facing, и там facing_dir уже смотрит по движению — сюда
+		# мы просто не попадаем (см. _is_moving_backward)
+		if _is_moving_backward():
+			var move_dir := get_direction(input_vector.normalized())
+			var backwards_name := "Backwards_" + move_dir
+			if move_dir != "" and anim.has_animation(backwards_name):
+				anim_name = backwards_name
+			else:
+				anim_name = "Walk_" + last_direction
+		else:
+			anim_name = "Walk_" + last_direction
 	else:
 		anim_name = "Run_" + last_direction
 		# Клипы Run_* сняты на 25 fps (шаг кадра 0.04с = speed_scale 1.0) — это и
@@ -998,9 +1124,16 @@ func interrupt_all_actions():
 	is_turning = false
 	turn_lock = false
 	dodge_velocity = Vector2.ZERO
-	
+
 	combo_step = 0
 	combo_queued = false
+
+	# Двойной тап уворота обрывает атаку на полпути тем же способом, что и
+	# стан в receive_parry() — анимация удара не доигрывает, её method-track
+	# с disable_attack_hitbox() не вызывается, и хитбокс залипает включённым
+	# (именно поэтому баг с "хитбокс сам не выключается" выглядел случайным:
+	# он ловится только если додж пришёлся ровно на окно между enable/disable)
+	disable_attack_hitbox()
 
 	attack_velocity = Vector2.ZERO
 	turn_velocity = Vector2.ZERO
@@ -1224,14 +1357,28 @@ func _is_facing_attacker(attacker: Node) -> bool:
 	return facing_dir.dot(to_attacker.normalized()) > block_frontal_dot_threshold
 
 
+# Общая точка для нокбэка — источник урона может не передать source (тогда
+# берём ближайшего врага, как и раньше в take_damage), а сила настраивается
+# отдельно под обычный удар и под блок (щит гасит часть инерции, не всю)
+func _apply_knockback_from(source: Node, force: float) -> void:
+	var attacker = source if source else get_nearest_enemy()
+	if attacker and is_instance_valid(attacker):
+		var knockback_dir = (global_position - attacker.global_position).normalized()
+		knockback_velocity = knockback_dir * force
+
+
 # Удар остановлен щитом: урон не проходит, но держать блок не бесплатно —
 # концентрация заполняется так же, как от обычного попадания (см. take_damage),
 # и при полной шкале срабатывает тот же _posture_break()
-func _on_blocked_attack(_attack_data: Dictionary) -> void:
+func _on_blocked_attack(attack_data: Dictionary) -> void:
 	current_posture += block_posture_gain
 	current_posture = min(current_posture, max_posture)
 	health_bar.set_posture(current_posture)
 	posture_regen_timer = posture_regen_delay
+
+	# Щит гасит урон, но не всю инерцию удара — раньше игрок просто стоял на
+	# месте, будто удара и не было
+	_apply_knockback_from(attack_data.get("source", null), block_knockback_force)
 
 	play_block_hit_sound()
 	shake_camera(block_shake_strength)
@@ -1314,11 +1461,8 @@ func take_damage(amount: int, source: Node = null) -> void:
 		return
 
 	# нокбэк от источника урона — игрок отлетает от врага
-	var attacker = source if source else get_nearest_enemy()
-	if attacker and is_instance_valid(attacker):
-		var knockback_dir = (global_position - attacker.global_position).normalized()
-		knockback_velocity = knockback_dir * knockback_force
-	
+	_apply_knockback_from(source, knockback_force)
+
 	is_taking_damage = true
 	gfx.play("Take_Damage_" + last_direction)
 	_trigger_damage_flash()
@@ -1347,7 +1491,19 @@ func heal(amount: float) -> void:
 	health = health_bar.current_hp
 
 func use_stamina(amount: float) -> bool:
+	if _has_free_stamina():
+		return true
 	return health_bar.use_stamina(amount)
+
+# Пока активен бафф с флагом free_stamina (Кровь Фенрира, Безумие Берсерка) —
+# бег/додж/атаки ничего не стоят. Тот же паттерн, что get_damage_multiplier/
+# get_damage_reduction_factor: перебор active_buffs по ключу, а не завязка на
+# конкретное имя баффа — новая способность подключается без правок здесь
+func _has_free_stamina() -> bool:
+	for buff in active_buffs.values():
+		if buff.get("free_stamina", false):
+			return true
+	return false
 
 func _posture_break() -> void:
 	current_posture = max_posture
@@ -1404,10 +1560,13 @@ func play_attack(step: int):
 	update_weapon_tip()
 	melee_weapon_tip()
 	player_hitbox.monitoring = true
+	# Своя анимация под 2/3/4-й удар серии есть не всегда — раньше это молча
+	# обрывало ВСЮ атаку через reset_all_states() (урон, звук, VFX 4-го удара
+	# включительно), а не просто оставляло картинку прежней. Пока для шага нет
+	# своей анимации, переигрываем Attack_ — как только появится своя
+	# Attack_2_/3_/4_, has_animation найдёт её сама, без правок кода
 	if not anim.has_animation(anim_name):
-		print("⚠ Нет анимации: ", anim_name)
-		reset_all_states()
-		return
+		anim_name = "Attack_" + last_direction
 
 	anim.play(anim_name)
 
@@ -1634,9 +1793,7 @@ func _on_anim_finished(finished_anim: StringName) -> void:
 	# --- COMBO ---
 	if not finished_anim.begins_with("Attack"):
 		return
-	
-	player_hitbox.monitoring = true
-	
+
 	# Урезано до 3 шагов серии — 4-й удар (вихрь/spin finisher) временно
 	# вынут из обычной цепочки, станет отдельным навыком. Код 4-го удара не
 	# удалён (play_attack умеет step==4, _spin_finisher/play_fire_ring_vfx на
@@ -1653,7 +1810,10 @@ func reset_combo():
 	is_attacking = false
 	combo_step = 0
 	combo_queued = false
-	player_hitbox.monitoring = false  # ← добавь
+	# disable_attack_hitbox(), а не прямое monitoring=false — та же причина,
+	# что и в interrupt_all_actions()/receive_parry(): гасить нужно и
+	# monitoring, и disabled коллизии, иначе они могут разъехаться
+	disable_attack_hitbox()
 	play_idle_animation()
 
 func reset_all_states():
@@ -1663,6 +1823,8 @@ func reset_all_states():
 	turn_lock = false
 	combo_step = 0
 	combo_queued = false
+	# На всякий случай — та же страховка, что в reset_combo()/interrupt_all_actions()
+	disable_attack_hitbox()
 	play_idle_animation()
 
 func dash(force: float, _duration: float) -> void:

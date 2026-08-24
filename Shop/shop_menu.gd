@@ -133,6 +133,7 @@ const SOUND_ACCEPT := preload("res://Sound/UI_button/accept.wav")
 const SOUND_DENIED := preload("res://Sound/UI_button/denied.wav")
 const SOUND_CHOICE := preload("res://Sound/UI_button/choice.wav")
 const SOUND_OPEN := preload("res://Sound/openUI_sound.mp3")
+const SOUND_BUY := preload("res://Sound/shop_sound/sound_buy.mp3")
 var _ui_audio: AudioStreamPlayer
 
 func _play_ui_sound(stream: AudioStream) -> void:
@@ -295,7 +296,7 @@ func _handle_confirm_click(mouse_pos: Vector2) -> void:
 	var no_rect  := Rect2(no_x, btn_y, btn_w, btn_h)
 	
 	if yes_rect.has_point(mouse_pos):
-		_play_ui_sound(SOUND_ACCEPT)
+		_play_ui_sound(SOUND_BUY)
 		_try_buy(pending_buy_index)
 		pending_buy_index = -1
 	elif no_rect.has_point(mouse_pos):

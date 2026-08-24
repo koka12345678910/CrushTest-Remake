@@ -29,7 +29,8 @@ func _execute(player: Node) -> void:
 		"damage_multiplier": damage_multiplier_start,
 		"duration": duration,
 		"name": "fenrir_blood",
-		"invulnerable": true
+		"invulnerable": true,
+		"free_stamina": true
 	}
 	if player.has_method("apply_buff"):
 		player.apply_buff(buff_data)
