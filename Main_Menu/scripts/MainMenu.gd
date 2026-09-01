@@ -13,13 +13,26 @@ extends Control
 @onready var ui_audio: AudioStreamPlayer = $UIAudio
 @onready var settings_panel := $UILayer/SettingsPanel
 
-## Первый уровень — он же main_scene в project.godot. Раньше здесь стоял
-## несуществующий res://scenes/Game.tscn, поэтому "NEW JOURNEY" молча ничего
-## не делала. Настройки теперь не отдельная сцена, а панель-оверлей
+## Первый уровень. main_scene в project.godot — это само меню, поэтому игра
+## всегда стартует отсюда, а на уровень уходит только через выбор героя или
+## загрузку сейва: иначе SaveManager остался бы пустым и персонаж выбирался бы
+## сам собой (Characters.FALLBACK). Настройки — не отдельная сцена, а оверлей
 const SCENE_GAME := "res://Levels/level_01.tscn"
 
 const SOUND_ACCEPT := preload("res://Sound/UI_button/accept.wav")
 const SOUND_DENIED := preload("res://Sound/UI_button/denied.wav")
+
+# Панель создаётся кодом и по требованию — как настройки внутри инвентаря
+# (inventory_ui.gd). Отдельного .tscn у неё нет, вся вёрстка в скрипте
+const CharacterSelectScript := preload("res://Main_Menu/scripts/CharacterSelectPanel.gd")
+
+var _character_panel: Control
+
+# ВРЕМЕННО: экран выбора слотов (SaveSlotsPanel) убран, пока не нужен для
+# тестов — играем всегда в один и тот же слот 0, "Новая игра" затирает его.
+# SaveManager по-прежнему умеет несколько слотов (SLOT_COUNT), их вернёт сама
+# панель, когда понадобится — здесь достаточно перестать хардкодить 0
+const SINGLE_SLOT := 0
 
 func _play_ui_sound(stream: AudioStream) -> void:
 	ui_audio.stream = stream
@@ -123,21 +136,60 @@ func _transition_to(scene_path: String) -> void:
 
 func _on_new_game() -> void:
 	_play_ui_sound(SOUND_ACCEPT)
-	_transition_to(SCENE_GAME)
+	_get_character_panel().open()
 
+
+## Игрок выбрал героя. Слот заводим здесь — это единственное место в проекте,
+## где character_id попадает в сейв, дальше он только читается. Слот всегда
+## один и тот же (SINGLE_SLOT) — без панели выбора спросить "куда писать"
+## всё равно негде, так что новая игра просто затирает прошлое прохождение
+func _on_character_chosen(id: String) -> void:
+	SaveManager.create_slot(SINGLE_SLOT, id)
+	_start_game()
+
+
+## "Продолжить" и "Загрузить" сейчас делают одно и то же — слот один, выбирать
+## нечего. Разделены на две кнопки на случай, если панель слотов вернётся:
+## тогда "Загрузить" снова начнёт открывать список, а "Продолжить" — как
+## сейчас, сразу грузить последний
 func _on_continue() -> void:
-	# Здесь можно проверить наличие сейва
-	if _has_save():
-		_play_ui_sound(SOUND_ACCEPT)
-		_transition_to(SCENE_GAME)
-	else:
-		_play_ui_sound(SOUND_DENIED)
-		_flash_button($UILayer/LeftPanel/MenuButtons/BtnContinue)
+	_try_resume($UILayer/LeftPanel/MenuButtons/BtnContinue)
+
 
 func _on_load() -> void:
-	# TODO: открыть LoadGame диалог — пока функция недоступна
-	_play_ui_sound(SOUND_DENIED)
-	_flash_button($UILayer/LeftPanel/MenuButtons/BtnLoad)
+	_try_resume($UILayer/LeftPanel/MenuButtons/BtnLoad)
+
+
+func _try_resume(source_btn: Button) -> void:
+	if not SaveManager.slot_exists(SINGLE_SLOT):
+		_play_ui_sound(SOUND_DENIED)
+		_flash_button(source_btn)
+		return
+	_play_ui_sound(SOUND_ACCEPT)
+	SaveManager.load_slot(SINGLE_SLOT)
+	_start_game()
+
+
+## Гасим открытую панель перед уходом в игру. modulate самой сцены её не
+## затемняет: она лежит под CanvasLayer, а он не CanvasItem и прозрачность
+## родителя не наследует — без этого панель висела бы поверх экрана всю
+## анимацию перехода
+func _start_game() -> void:
+	if is_instance_valid(_character_panel):
+		_character_panel.close()
+	_transition_to(SCENE_GAME)
+
+
+# ── Ленивое создание панели ───────────────────────────────────────────────────
+# Кладём туда же, где лежит панель настроек — чтобы порядок отрисовки и слой
+# были те же самые, без догадок про структуру MainMenu.tscn
+
+func _get_character_panel() -> Control:
+	if not is_instance_valid(_character_panel):
+		_character_panel = CharacterSelectScript.new()
+		_character_panel.character_chosen.connect(_on_character_chosen)
+		settings_panel.get_parent().add_child(_character_panel)
+	return _character_panel
 
 func _on_settings() -> void:
 	_play_ui_sound(SOUND_ACCEPT)
@@ -152,9 +204,6 @@ func _on_quit() -> void:
 
 
 # ── Утилиты ───────────────────────────────────────────────────────────────────
-func _has_save() -> bool:
-	return FileAccess.file_exists("user://savegame.sav")
-
 func _flash_button(btn: Button) -> void:
 	## Мигает кнопкой если действие недоступно
 	var t := create_tween()

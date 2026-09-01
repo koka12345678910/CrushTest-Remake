@@ -14443,6 +14443,7 @@ collision_layer = 4
 collision_mask = 3
 motion_mode = 1
 script = ExtResource("1_5i3uv")
+block_chance = 0.6
 coin_scene = ExtResource("2_e57od")
 blood_vfx_scene = ExtResource("3_d6xl1")
 parry_vfx_scene = ExtResource("4_parryvfx")

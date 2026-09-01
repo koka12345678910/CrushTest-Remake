@@ -1,6 +1,12 @@
 extends DirectionalLight2D
 
-@onready var lightning_flash: ColorRect = get_tree().get_root().get_node("Level01/Player2/Camera2D/CanvasLayer/LightningFlash")
+# Вспышка молнии живёт внутри персонажа (Camera2D/CanvasLayer/LightningFlash).
+# Раньше сюда был вписан путь целиком — "Level01/Player2/..." — и он ломался,
+# как только игрок перестал стоять в сцене готовой нодой Player2 и начал
+# спавниться из сейва (см. Levels/player_spawner.gd). Ищем лениво через группу
+# "player": персонажа на момент _ready может ещё не быть, а у лучника и мага
+# этого оверлея нет вовсе — тогда молния просто сверкнёт без засветки экрана
+var lightning_flash: ColorRect = null
 
 @onready var thunder_audio: AudioStreamPlayer = get_node_or_null("ThunderAudio")
 
@@ -55,14 +61,25 @@ func _play_thunder(distance: float) -> void:
 	)
 	thunder_audio.play()
 
+func _resolve_lightning_flash() -> ColorRect:
+	if is_instance_valid(lightning_flash):
+		return lightning_flash
+	var player := get_tree().get_first_node_in_group("player")
+	if player == null:
+		return null
+	lightning_flash = player.get_node_or_null("Camera2D/CanvasLayer/LightningFlash") as ColorRect
+	return lightning_flash
+
+
 func _flash() -> void:
 	var tween = create_tween()
 	tween.tween_property(self, "energy", 3.0, 0.02)
 	tween.tween_property(self, "energy", night_energy, 0.08)
 
-	if lightning_flash:
+	var flash := _resolve_lightning_flash()
+	if flash:
 		var flash_tween = create_tween()
-		flash_tween.tween_property(lightning_flash, "color:a", 0.5, 0.02)
-		flash_tween.tween_property(lightning_flash, "color:a", 0.0, 0.08)
+		flash_tween.tween_property(flash, "color:a", 0.5, 0.02)
+		flash_tween.tween_property(flash, "color:a", 0.0, 0.08)
 
 	await tween.finished

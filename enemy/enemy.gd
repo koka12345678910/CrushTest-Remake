@@ -13,7 +13,9 @@ extends CharacterBody2D
 @export var attack_hitbox_offset := 24.0
 
 # Здоровье
-@export var max_health := 3
+# Было 3 (ровно комбо рыцаря из 3 ударов) — поднято, чтобы лук с уроном 1 за
+# стрелу (меньше уже некуда, int) не убивал так же быстро, как раньше
+@export var max_health := 5
 @export var damage_flash_time := 0.3
 # Боевые параметры
 @export var attack_range := 45
@@ -75,6 +77,15 @@ var _telegraph_tween: Tween
 @export var posture_regen_delay := 2.0
 @export var block_posture_damage := 25.0
 @export var block_chance := 0.4
+# Реакция на дальний удар (стрела лучника): обычный vision_range/attack_range
+# рассчитан на ближний бой с рыцарем, а лучник бьёт с гораздо большей
+# дистанции — без этого враг просто не замечает, что в него стреляют издалека
+@export var ranged_alert_range := 700.0
+@export var ranged_block_chance := 0.5
+# Радиус, в котором заметивший лучника враг поднимает тревогу остальным —
+# без этого на лучника реагирует только тот, кого он реально задел, и враги
+# сходятся по одному, а не толпой
+@export var pack_alert_radius := 300.0
 @export var coin_scene: PackedScene
 @export var coin_drop_min := 1
 @export var coin_drop_max := 3
@@ -108,6 +119,11 @@ var state_time := 0.0
 
 var player: Node2D = null
 var see_player := false
+# true пока враг "помнит" дальний выстрел — на это время игнорируем обычный
+# vision_range, иначе _decide_state()/_state_chase() тут же вернут в WANDER,
+# ведь стрелявший физически всё ещё далеко за пределами обычной видимости
+var is_ranged_alert := false
+var _pending_ranged_block := false
 
 var direction := Vector2.DOWN
 var move_velocity := Vector2.ZERO
@@ -424,6 +440,43 @@ func _separate_from_enemies(delta: float) -> void:
 
 # ============== AI ==============
 
+func _effective_vision_range() -> float:
+	return max(vision_range, ranged_alert_range) if is_ranged_alert else vision_range
+
+# Проактивно замечаем лучника на дистанции ranged_alert_range, даже если по
+# врагу ещё ни разу не попали — физическая VisionArea рассчитана на ближний
+# бой (~150px) и лук с гораздо большей дистанции для неё попросту невидим
+func _scan_for_ranged_threat() -> void:
+	for p in get_tree().get_nodes_in_group("ranged_player"):
+		if not is_instance_valid(p):
+			continue
+		if p.has_method("is_dead") and p.is_dead():
+			continue
+		if global_position.distance_to(p.global_position) <= ranged_alert_range:
+			player = p
+			see_player = true
+			is_ranged_alert = true
+			_alert_nearby_allies(p)
+			return
+
+# Поднимает тревогу соседним врагам — иначе на лучника реагирует только тот,
+# кого он реально подстрелил, и толпа сходится по одному вместо разом
+func _alert_nearby_allies(source: Node2D) -> void:
+	for e in get_tree().get_nodes_in_group("enemy"):
+		if e == self or not is_instance_valid(e) or e.is_dead or e.is_ranged_alert:
+			continue
+		if e.current_state in [
+			State.DEAD, State.HIT_STUN, State.ATTACK,
+			State.PARRY, State.COUNTER, State.BLOCK
+		]:
+			continue
+		if global_position.distance_to(e.global_position) > pack_alert_radius:
+			continue
+		e.player = source
+		e.see_player = true
+		e.is_ranged_alert = true
+		e._change_state(State.CHASE)
+
 func _decide_state() -> void:
 	if current_state in [
 		State.DEAD,
@@ -433,10 +486,13 @@ func _decide_state() -> void:
 		State.COUNTER   # ← добавь
 	]:
 		return
-	
+
 	if current_state == State.BLOCK:
 		return
-	
+
+	if not is_ranged_alert:
+		_scan_for_ranged_threat()
+
 	# пробуем заблокировать если игрок атакует рядом
 	if player and is_instance_valid(player):
 		if _is_player_in_range(attack_range * 1.5):
@@ -446,7 +502,7 @@ func _decide_state() -> void:
 	
 	if player and is_instance_valid(player):
 
-		if _is_player_in_range(vision_range):
+		if _is_player_in_range(_effective_vision_range()):
 
 			var dist = global_position.distance_to(
 				player.global_position
@@ -455,13 +511,14 @@ func _decide_state() -> void:
 			if dist <= attack_range and can_attack:
 				_change_state(State.ATTACK)
 
-			elif dist <= chase_range:
+			elif dist <= chase_range or is_ranged_alert:
 				_change_state(State.CHASE)
 
 			else:
 				_change_state(State.WANDER)
 
 		else:
+			is_ranged_alert = false
 			_change_state(State.WANDER)
 
 	else:
@@ -702,7 +759,8 @@ func _state_chase(delta: float) -> void:
 		_change_state(State.WANDER)
 		return
 
-	if not _is_player_in_range(vision_range):
+	if not _is_player_in_range(_effective_vision_range()):
+		is_ranged_alert = false
 		_change_state(State.WANDER)
 		return
 
@@ -731,18 +789,26 @@ func _state_chase(delta: float) -> void:
 		var move_dir := dir if error > 0.0 else -dir
 		direction = direction.lerp(move_dir, direction_smoothness * delta).normalized()
 
-		# Смотрим как быстро игрок убегает ОТ нас
-		# dot > 0 означает что игрок движется в сторону от врага
-		var player_flee_speed :float = player.velocity.dot(dir)
-
-		if player_flee_speed > walk_speed * 0.4:
-			# Игрок убегает достаточно быстро — бежим
+		if is_ranged_alert:
+			# Погоня за лучником — тут важна скорость закрытия дистанции, а
+			# не "убегает ли он". Если решать по флаг-скорости игрока, как
+			# ниже, враг трусцой идёт на стоящего лучника, и тот безнаказанно
+			# отстреливается на месте
 			move_velocity = direction * run_speed
 			_play_animation("run")
 		else:
-			# Игрок стоит или идёт — просто идём
-			move_velocity = direction * walk_speed
-			_play_animation("walk")
+			# Смотрим как быстро игрок убегает ОТ нас
+			# dot > 0 означает что игрок движется в сторону от врага
+			var player_flee_speed :float = player.velocity.dot(dir)
+
+			if player_flee_speed > walk_speed * 0.4:
+				# Игрок убегает достаточно быстро — бежим
+				move_velocity = direction * run_speed
+				_play_animation("run")
+			else:
+				# Игрок стоит или идёт — просто идём
+				move_velocity = direction * walk_speed
+				_play_animation("walk")
 	else:
 		move_velocity = Vector2.ZERO
 		_play_animation("idle")
@@ -943,6 +1009,16 @@ func take_damage(amount: int, source: Node2D = null) -> void:
 	if is_dead:
 		return
 
+	# Любой попавший удар выдаёт позицию атакующего — даже если это стрела
+	# лучника, прилетевшая издалека, задолго до того, как враг физически
+	# зашёл бы в VisionArea. Обычный ближний vision_range на это не рассчитан
+	if source and is_instance_valid(source) and source.is_in_group("player"):
+		player = source
+		see_player = true
+		if not is_ranged_alert and global_position.distance_to(source.global_position) > attack_range * 2.0:
+			is_ranged_alert = true
+			_alert_nearby_allies(source)
+
 	# Безумие Берсерка — ломает защиту врага с первого удара: без блока, парирования и контратаки
 	if is_player_berserk:
 		is_parrying = false
@@ -1017,8 +1093,13 @@ func take_damage(amount: int, source: Node2D = null) -> void:
 		is_dead = true
 		_change_state(State.DEAD)
 	else:
+		# Стрела прилетела издалека — вместо того чтобы дальше стоять истуканом,
+		# враг либо после стагера кидается на лучника (обычный переход
+		# stagger → CHASE), либо, по шансу, вместо этого поднимает блок
+		if is_ranged_alert:
+			_pending_ranged_block = randf() < ranged_block_chance
 		_change_state(State.HIT_STUN)
-	
+
 	if source and not is_dead:
 		var knockback_dir := _safe_direction(global_position - source.global_position)
 		knockback_velocity = knockback_dir * 150.0
@@ -1044,8 +1125,13 @@ func _state_block(delta: float) -> void:
 	if anim.current_animation != anim_name:
 		anim.play(anim_name)
 
-	# игрок ушёл из зоны — сразу выходим из блока
-	if not player or not _is_player_in_range(attack_range * 2.0):
+	# игрок ушёл из зоны — сразу выходим из блока. Для лучника зона — как у
+	# погони (ranged_alert_range), иначе блок ломался тут же: враг вставал
+	# в стойку блока, но лучник почти всегда дальше attack_range*2 (90px),
+	# и следующим же кадром блок сбрасывался обратно в CHASE, так и не
+	# успев ни разу заблокировать долетевшую стрелу
+	var block_range := ranged_alert_range if is_ranged_alert else attack_range * 2.0
+	if not player or not _is_player_in_range(block_range):
 		_exit_block()
 		return
 
@@ -1258,7 +1344,13 @@ func _on_animation_finished(anim_name: StringName) -> void:
 		is_countering = false
 		_change_state(State.CHASE)
 	elif anim_name.begins_with("stagger"):
-		_change_state(State.CHASE)
+		if _pending_ranged_block and not is_posture_broken and not is_player_berserk:
+			_pending_ranged_block = false
+			is_blocking = true
+			_change_state(State.BLOCK)
+		else:
+			_pending_ranged_block = false
+			_change_state(State.CHASE)
 	elif anim_name.begins_with("attack") or anim_name.begins_with("attack2") or anim_name.begins_with("attack3"):
 		if current_state == State.ATTACK:
 			_exit_attack()

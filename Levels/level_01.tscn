@@ -17,7 +17,7 @@
 [ext_resource type="Texture2D" uid="uid://cv7w30oevgk8u" path="res://TileMap/Props/shrine or fountain 160x128-on grass.png" id="12_fmgos"]
 [ext_resource type="Texture2D" uid="uid://nxl6tvs3uy7u" path="res://circle.png" id="12_odngn"]
 [ext_resource type="Texture2D" uid="uid://jmj0527ncs2p" path="res://TileMap/Pixel 16 v2 village free.png" id="13_qq6xg"]
-[ext_resource type="PackedScene" uid="uid://bv1v4h1gmt6dr" path="res://Player_scene/player.tscn" id="15_5ty2h"]
+[ext_resource type="Script" path="res://Levels/player_spawner.gd" id="15_5ty2h"]
 [ext_resource type="Script" uid="uid://b1djojfj3kxsi" path="res://Levels/point_light_pulse.gd" id="17_gpk31"]
 [ext_resource type="Texture2D" uid="uid://qd0cuh1v670d" path="res://TileMap/toppng.com-light-beam-png-530x185.png" id="17_jkbap"]
 [ext_resource type="AudioStream" uid="uid://bh0x85so1hd2s" path="res://Sound/weather_sound/atmospheric_rain.wav" id="18_5qegs"]
@@ -14314,20 +14314,6 @@ anchor_right = 1.0
 anchor_bottom = 1.0
 mouse_filter = 2
 
-[node name="Player2" parent="." unique_id=493723598 instance=ExtResource("15_5ty2h")]
-z_index = 1
+[node name="PlayerSpawn" type="Marker2D" parent="." unique_id=493723598]
 position = Vector2(1212, -259)
-
-[node name="ColorRect" parent="Player2/DamageVignette" parent_id_path=PackedInt32Array(493723598, 1900000010) index="0" unique_id=1900000011]
-grow_horizontal = 2
-grow_vertical = 2
-
-[node name="ColorRect" parent="Player2/ExhaustVignette" parent_id_path=PackedInt32Array(493723598, 1900000012) index="0" unique_id=1900000013]
-grow_horizontal = 2
-grow_vertical = 2
-
-[node name="ColorRect" parent="Player2/HitFlash" parent_id_path=PackedInt32Array(493723598, 1900000015) index="0" unique_id=1900000016]
-grow_horizontal = 2
-grow_vertical = 2
-
-[editable path="Player2"]
+script = ExtResource("15_5ty2h")

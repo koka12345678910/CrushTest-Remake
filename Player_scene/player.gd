@@ -8,11 +8,12 @@ extends CharacterBody2D
 @export var melee_hit_vfx_scene: PackedScene
 @export var melee_hit_2_vfx_scene: PackedScene
 @export var turn_around_vfx_scene: PackedScene
+const DirectionUtil := preload("res://Player_scene/direction_util.gd")
+const FocusSystemScript := preload("res://Player_scene/focus_system.gd")
+
 @export var snap_radius := 80.0  # радиус поиска врагов
 @export var focus_break_range := 260.0  # дальше — фокус слетает сам
 @export var focus_marker_offset := Vector2(0, -24)  # приподнять метку к центру врага, а не к его ногам
-
-const FocusMarkerScript := preload("res://VFX/VFX_scene/focus_marker.gd")
 @export var posture_regen_rate := 10.0
 @export var posture_regen_delay := 2.5
 # --- БЛОК (зажатое ПКМ, is_blocking) ---
@@ -334,9 +335,19 @@ var turn_lock := false
 
 # Фокус на враге — включается/выключается вручную (см. handle_focus_input).
 # Пока враг в фокусе, взгляд каждый кадр держится на нём независимо от
-# ввода движения — ходьба (WASD) при этом свободная, не привязана к взгляду
-var focused_enemy: Node2D = null
-var _focus_marker: Node2D = null
+# ввода движения — ходьба (WASD) при этом свободная, не привязана к взгляду.
+# Сама цель, метка на экране и авто-переключение после убийства живут в
+# общем компоненте FocusSystem (Player_scene/focus_system.gd) — тем же
+# пользуются лучник и маг. Здесь остаётся только то, что завязано на
+# анимации рыцаря: взгляд, развороты и наведение удара
+var _focus: Node = null
+
+## Только чтение. Пишется через _set_focused_enemy(), как и раньше — так все
+## существующие проверки вида is_instance_valid(focused_enemy) продолжают
+## работать без единой правки
+var focused_enemy: Node2D:
+	get:
+		return _focus.target if is_instance_valid(_focus) else null
 
 var is_rolling := false
 var roll_speed := 225.0
@@ -413,6 +424,7 @@ var gold := 0
 var is_in_shop := false
 
 func _ready() -> void:
+	_setup_focus()
 	player_hitbox.area_entered.connect(_on_player_hitbox_area_entered)
 	player_hitbox.monitoring = false  # выключен по умолчанию, включается при атаке
 	if not anim.animation_finished.is_connected(_on_anim_finished):
@@ -486,7 +498,8 @@ func _process(delta: float) -> void:
 	# _shake_strength, и так тряска применится уже в этом же кадре
 	_update_condition_fx(delta)
 	_update_immunity_visual(delta)
-	_update_focus_target()
+	# слежение за целью и авто-переключение после убийства ведёт сам FocusSystem
+	# в своём _process — отдельно дёргать его отсюда больше не нужно
 
 	# Итоговое смещение камеры = тряска от урона + плавное покачивание на беге.
 	# Считаем их по отдельности и складываем, а не перезаписываем camera.offset
@@ -786,114 +799,51 @@ func _physics_process(delta):
 # НАПРАВЛЕНИЯ
 # ----------------------------------------------------------
 
+# Сами таблицы направлений переехали в DirectionUtil — они задают суффиксы
+# имён анимаций и обязаны быть одинаковыми у всех персонажей. Обёртки здесь
+# оставлены намеренно: get_direction/direction_to_vector зовутся из этого файла
+# несколько десятков раз, и переписывать все вызовы ради переезда — лишний
+# повод что-нибудь сломать
 func get_direction(vec: Vector2) -> String:
-	var dir = ""
-
-	if vec.y < -0.3:
-		dir = "Up"
-	elif vec.y > 0.3:
-		dir = "Down"
-
-	if vec.x < -0.3:
-		if dir == "":
-			dir = "Left"
-		else:
-			dir += "_Left"
-	elif vec.x > 0.3:
-		if dir == "":
-			dir = "Right"
-		else:
-			dir += "_Right"
-
-	return dir
+	return DirectionUtil.from_vector(vec)
 
 func direction_to_vector(dir: String) -> Vector2:
-	match dir:
-		"Up": return Vector2.UP
-		"Down": return Vector2.DOWN
-		"Left": return Vector2.LEFT
-		"Right": return Vector2.RIGHT
-		"Up_Left": return Vector2(-1, -1).normalized()
-		"Up_Right": return Vector2(1, -1).normalized()
-		"Down_Left": return Vector2(-1, 1).normalized()
-		"Down_Right": return Vector2(1, 1).normalized()
-	return Vector2.ZERO
+	return DirectionUtil.to_vector(dir)
 
+# Компонент фокуса создаётся кодом, а не лежит нодой в player.tscn: так его
+# подключение новому персонажу — две строки в _ready(), без правки сцены.
+# Настройки прокидываем из @export-полей игрока, чтобы крутить их по-прежнему
+# в инспекторе самого персонажа, а не искать вложенную ноду
+func _setup_focus() -> void:
+	_focus = FocusSystemScript.new()
+	_focus.name = "FocusSystem"
+	_focus.snap_radius = snap_radius
+	_focus.break_range = focus_break_range
+	_focus.marker_offset = focus_marker_offset
+	add_child(_focus)
+
+
+# Поиск ближайшего врага нужен не только фокусу: сюда же ходят нокбэк от
+# урона (_apply_knockback_from) и наведение удара, когда цель не выбрана
 func get_nearest_enemy() -> Node2D:
-	var nearest: Node2D = null
-	var nearest_dist := snap_radius
-	
-	for enemy in get_tree().get_nodes_in_group("enemy"):
-		# враг доигрывает fade ещё death_fade_time секунд после смерти, всё
-		# ещё числясь в группе — без этой проверки таргет/снап цепляется за
-		# труп вместо переключения на живого врага
-		if not is_instance_valid(enemy) or enemy.is_dead:
-			continue
-		var dist = global_position.distance_to(enemy.global_position)
-		if dist < nearest_dist:
-			nearest_dist = dist
-			nearest = enemy
-	
-	return nearest
+	return _focus.get_nearest_enemy() if is_instance_valid(_focus) else null
 
-# Переключатель фокуса: нет цели — берём ближайшего врага в snap_radius;
-# уже держим кого-то в фокусе — отпускаем (повторное нажатие снимает фокус)
+
+# Переключатель фокуса. Зовётся из _physics_process ПОСЛЕ проверок на магазин,
+# стан и открытый инвентарь — поэтому опрос ввода остался на стороне игрока,
+# а не уехал внутрь компонента
 func handle_focus_input() -> void:
-	if not Input.is_action_just_pressed("focus_target"):
-		return
-	if is_instance_valid(focused_enemy) and not focused_enemy.is_dead:
-		_set_focused_enemy(null)
-		return
-	_set_focused_enemy(get_nearest_enemy())
+	if is_instance_valid(_focus):
+		_focus.poll_input()
 
 
-# Единственное место, которое создаёт/убирает FocusMarker — чтобы метка на
-# экране не могла разъехаться с реальным focused_enemy ни в одном из мест,
-# где фокус снимается (переключение, смерть цели, выход за focus_break_range)
 func _set_focused_enemy(enemy: Node2D) -> void:
-	focused_enemy = enemy
-	if is_instance_valid(_focus_marker):
-		_focus_marker.queue_free()
-		_focus_marker = null
-	if enemy != null:
-		_focus_marker = FocusMarkerScript.new()
-		get_tree().current_scene.add_child(_focus_marker)
-		_focus_marker.global_position = enemy.global_position + focus_marker_offset
+	if is_instance_valid(_focus):
+		_focus.set_target(enemy)
 
 
-# Слежение маркера и авто-снятие фокуса (смерть цели / выход за
-# focus_break_range) — отдельно от _update_facing и вызывается из _process,
-# а не из ветки обычного движения в _physics_process. Та ветка пропускается
-# ранними return во время атаки/доджа/блока — а именно тогда враг чаще всего
-# и отлетает от удара, так что точка замирала бы ровно в нужный момент
-func _update_focus_target() -> void:
-	if is_instance_valid(focused_enemy) and focused_enemy.is_dead:
-		# Игрок сам фокус не снимал — раз держал его на этом враге, скорее
-		# всего бой продолжается, поэтому цель перескакивает на ближайшего
-		# живого рядом (snap_radius), а не просто гаснет
-		_set_focused_enemy(get_nearest_enemy())
-	if not is_instance_valid(focused_enemy):
-		return
-	var to_target: Vector2 = focused_enemy.global_position - global_position
-	if to_target.length() > focus_break_range:
-		_set_focused_enemy(null)
-		return
-	if is_instance_valid(_focus_marker):
-		_focus_marker.global_position = focused_enemy.global_position + focus_marker_offset
-
-
-# Бег НАПРЯМУЮ от цели в фокусе — отдельный случай: убегать со намертво
-# повёрнутой на врага головой выглядит нелепо, а не как побег, поэтому на
-# этот кадр лок снимается и взгляд ведёт себя как обычно (см. _update_facing/
-# check_for_turn). Ходьбу назад (не бег) это не трогает — там взгляд держит
-# фокус, а корпус идёт спиной вперёд через Backwards_ (play_movement_animation)
 func _is_fleeing_focus() -> bool:
-	if not is_instance_valid(focused_enemy) or not is_running or input_vector == Vector2.ZERO:
-		return false
-	var to_target: Vector2 = focused_enemy.global_position - global_position
-	if to_target.length() < 0.01:
-		return false
-	return input_vector.normalized().dot(to_target.normalized()) < -0.5
+	return _focus.is_fleeing(input_vector, is_running) if is_instance_valid(_focus) else false
 
 
 # Единая точка, решающая, куда смотрит игрок в обычном движении (вне атак/
@@ -902,11 +852,13 @@ func _is_fleeing_focus() -> bool:
 # управлять движением, не завися от того, куда смотрит персонаж
 func _update_facing() -> void:
 	if is_instance_valid(focused_enemy) and not _is_fleeing_focus():
-		var to_target: Vector2 = focused_enemy.global_position - global_position
-		if to_target.length() > 0.01:
-			var new_dir := get_direction(to_target.normalized())
+		# Тип указан явно: _focus объявлен как Node (динамический preload-скрипт),
+		# и вывести Vector2 из его метода парсер не может
+		var to_target: Vector2 = _focus.direction_to_target()
+		if to_target != Vector2.ZERO:
+			var new_dir := get_direction(to_target)
 			if new_dir != "":
-				facing_dir = to_target.normalized()
+				facing_dir = to_target
 				last_direction = new_dir
 			return
 

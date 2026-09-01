@@ -15,7 +15,7 @@ compatibility/default_parent_skeleton_in_mesh_instance_3d=true
 [application]
 
 config/name="CrushTest (Update)"
-run/main_scene="uid://bq1fu11o7xgf3"
+run/main_scene="uid://gbimy5tfcnp6"
 config/features=PackedStringArray("4.7", "Forward Plus")
 boot_splash/show_image=false
 config/icon="res://icon.svg"
@@ -27,6 +27,8 @@ buses/default_bus_layout="uid://dk64smh8bjytp"
 [autoload]
 
 GameSettings="*res://Main_Menu/scripts/GameSettings.gd"
+Characters="*res://Save/characters.gd"
+SaveManager="*res://Save/save_manager.gd"
 
 [display]
 
