@@ -29,6 +29,7 @@ buses/default_bus_layout="uid://dk64smh8bjytp"
 GameSettings="*res://Main_Menu/scripts/GameSettings.gd"
 Characters="*res://Save/characters.gd"
 SaveManager="*res://Save/save_manager.gd"
+SkillTrees="*res://Save/skill_trees.gd"
 
 [display]
 

@@ -4,6 +4,12 @@
 #   HealthStaminaBar (CanvasLayer)  ← этот скрипт
 extends CanvasLayer
 
+const TEX_ICON := preload("res://UI/healthbar/healthbar_icon.png")
+
+# Иконка портрета — переопределяется в сцене персонажа (см. archer.tscn),
+# чтобы у каждого класса был свой медальон вместо общего рыцарского
+@export var icon_texture: Texture2D = TEX_ICON
+
 # --- HP ---
 var max_hp: float = 100.0
 var current_hp: float = 100.0
@@ -20,26 +26,32 @@ var stamina_regen_delay: float = 1.0
 var stamina_regen_timer: float = 0.0
 var _displayed_posture: float = 0.0  # то что видит игрок
 
+# --- Иконка портрета слева от баров (UI/healthbar/healthbar_icon.png) ---
+# PNG — круглый медальон с прозрачными углами (проверил по альфа-каналу), не
+# сплошной квадрат — поэтому бары могут заходить ПОД неё и всё равно видно,
+# как они "выходят" из-под круглого края, а не тупо обрезаются прямоугольником
+@export var icon_position: Vector2 = Vector2(16, 16)
+@export var icon_size: Vector2 = Vector2(126, 126)
+
 # --- Размеры (подгонишь в редакторе через export) ---
 @export var posture_fill_speed: float = 8.0   # скорость заполнения
 @export var posture_drain_speed: float = 40.0  # скорость опустошения (быстрее)
-@export var hp_bar_size: Vector2 = Vector2(460, 26)
-@export var stamina_bar_size: Vector2 = Vector2(380, 18)
-# hp_position теперь отсчитывается от НИЖНЕГО левого угла экрана (контейнер
-# висит на якоре BOTTOM_LEFT) — отрицательный Y поднимает полоску над нижним
-# краем, а не опускает от верхнего, как было раньше
-@export var hp_position: Vector2 = Vector2(16, -124)
-@export var stamina_offset_x: float = 16.0  # смещение от левого края
-@export var stamina_position_y: float = -76.0  # отступ от нижнего края, стамина теперь ПОД HP
-@export var posture_bar_size: Vector2 = Vector2(440, 16)
-@export var posture_offset_x: float = -220.0  # половина ширины — центрирует полоску
-@export var posture_position_y: float = 16.0    # теперь отступ от ВЕРХНЕГО края
-
-# --- Презентабельный вид HP/стамины без готовых текстур: строгая плоская
-# заливка + рамка со скосом + сегменты-насечки. Всё считается кодом, ни
-# одного файла с диска ---
-@export var hp_segment_count := 10
-@export var stamina_segment_count := 10
+# Тоньше и компактнее прежних (было 460×26 / 380×18) — под иконку, а не
+# отдельно стоящая длинная полоса
+@export var hp_bar_size: Vector2 = Vector2(320, 18)
+@export var stamina_bar_size: Vector2 = Vector2(275, 14)
+# hp_position отсчитывается от ВЕРХНЕГО левого угла экрана (контейнер висит
+# на якоре TOP_LEFT). x — специально ЗАХОДИТ под иконку примерно до её
+# середины (не сразу после правого края) — эффект "бар выходит из медальона",
+# а не просто "бар рядом с иконкой". Иконка рисуется поверх баров (см.
+# порядок вызовов в _build_ui), поэтому перекрытие смотрится правильно
+@export var hp_position: Vector2 = Vector2(79, 59)
+@export var stamina_offset_x: float = 79.0
+@export var stamina_position_y: float = 79.0
+@export var posture_bar_size: Vector2 = Vector2(380, 14)
+@export var posture_offset_x: float = -190.0  # половина ширины — центрирует полоску
+# Отрицательный — отступ от НИЖНЕГО края экрана (якорь CENTER_BOTTOM)
+@export var posture_position_y: float = -64.0
 
 # --- Концентрация (Posture) ---
 var max_posture: float = 100.0
@@ -143,7 +155,7 @@ func _update_visuals() -> void:
 	_hp_fill.size.x = hp_bar_size.x * hp_ratio
 	_hp_delayed.size.x = hp_bar_size.x * delayed_ratio
 	_stam_fill.size.x = stamina_bar_size.x * stam_ratio
-	
+
 	if _posture_fill and _posture_fill_right:
 		var ratio = current_posture / max_posture
 		var half = posture_bar_size.x / 2.0
@@ -187,19 +199,38 @@ func _build_ui() -> void:
 	_root.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(_root)
 
+	# Бары СНАЧАЛА, иконка ПОСЛЕДНЕЙ — сиблинги рисуются в порядке добавления,
+	# иконка должна лечь поверх баров, чтобы был виден эффект "бар выходит
+	# из-под медальона", а не наоборот (бар поверх иконки, перекрывая её)
 	_build_hp_bar()
 	_build_stamina_bar()
+	_build_icon()
 	_build_posture_bar()  # ← добавь
+
+
+func _build_icon() -> void:
+	var icon := TextureRect.new()
+	icon.texture = icon_texture
+	icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	icon.set_anchors_preset(Control.PRESET_TOP_LEFT)
+	icon.position = icon_position
+	icon.size = icon_size
+	icon.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_root.add_child(icon)
 
 
 func _build_hp_bar() -> void:
 	var container := Control.new()
-	container.set_anchors_preset(Control.PRESET_BOTTOM_LEFT)
+	container.set_anchors_preset(Control.PRESET_TOP_LEFT)
 	container.position = hp_position
-	container.size = hp_bar_size + Vector2(0, 30)
+	# Раньше было +Vector2(0, 30) — запас под старый крупный бар; сейчас бар
+	# тоньше и вплотную к иконке, снизу нужен только небольшой отступ под
+	# рамку со скосом
+	container.size = hp_bar_size + Vector2(0, 8)
 	_root.add_child(container)
 
-	var bar_y: float = 18.0
+	var bar_y: float = 4.0
 
 	# Фон полоски
 	_hp_bg = ColorRect.new()
@@ -226,18 +257,15 @@ func _build_hp_bar() -> void:
 	var border := _make_bevel_border(Vector2(0, bar_y), hp_bar_size)
 	container.add_child(border)
 
-	# Сегменты-насечки поверх всего — режут полоску на равные деления
-	_build_segments(container, Vector2(0, bar_y), hp_bar_size, hp_segment_count)
-
 func _build_stamina_bar() -> void:
 	var container := Control.new()
-	# левый нижний угол, ПОД hp баром
-	container.set_anchors_preset(Control.PRESET_BOTTOM_LEFT)
+	# левый верхний угол, ПОД hp баром
+	container.set_anchors_preset(Control.PRESET_TOP_LEFT)
 	container.position = Vector2(stamina_offset_x, stamina_position_y)
-	container.size = stamina_bar_size + Vector2(0, 20)
+	container.size = stamina_bar_size + Vector2(0, 8)
 	_root.add_child(container)
 
-	var bar_y: float = 16.0
+	var bar_y: float = 4.0
 
 	_stam_bg = ColorRect.new()
 	_stam_bg.position = Vector2(0, bar_y)
@@ -253,8 +281,6 @@ func _build_stamina_bar() -> void:
 
 	var border := _make_bevel_border(Vector2(0, bar_y), stamina_bar_size)
 	container.add_child(border)
-
-	_build_segments(container, Vector2(0, bar_y), stamina_bar_size, stamina_segment_count)
 
 
 func _make_border(pos: Vector2, bar_size: Vector2) -> Control:
@@ -333,28 +359,9 @@ func _make_bevel_border(pos: Vector2, bar_size: Vector2) -> Control:
 	return c
 
 
-# Тонкие вертикальные насечки на ФИКСИРОВАННОЙ полной ширине полоски (не на
-# заливке — та меняет size.x при изменении ресурса, и насечки на ней сами бы
-# "плыли" вместе с усыханием ширины). Добавляются последними, поэтому лежат
-# поверх заливки — режут её на равные визуальные деления, как пипсы в Dark Souls
-func _build_segments(container: Control, pos: Vector2, bar_size: Vector2, count: int) -> void:
-	if count <= 1:
-		return
-	var line_color := Color(0, 0, 0, 0.45)
-	var line_width := 1.0
-	for i in range(1, count):
-		var line := ColorRect.new()
-		line.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		var x := bar_size.x * float(i) / float(count)
-		line.position = pos + Vector2(x - line_width / 2.0, 0)
-		line.size = Vector2(line_width, bar_size.y)
-		line.color = line_color
-		container.add_child(line)
-
-
 func _build_posture_bar() -> void:
 	var container := Control.new()
-	container.set_anchors_preset(Control.PRESET_CENTER_TOP)
+	container.set_anchors_preset(Control.PRESET_CENTER_BOTTOM)
 	container.position = Vector2(posture_offset_x, posture_position_y)
 	container.size = posture_bar_size + Vector2(0, 20)
 	_root.add_child(container)

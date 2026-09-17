@@ -21,6 +21,12 @@ var current_slot := -1
 
 var character_id := ""
 var gold := 0
+var skill_points := 0
+var skill_progress := 0
+## id открытых узлов дерева навыков (см. Save/skill_trees.gd,
+## Player_scene/player.gd::unlocked_skills) — те же id, что использует
+## персонаж, копия хранится тут для сейва, тот же контракт, что у gold
+var unlocked_skills: Array = []
 var playtime := 0.0
 var created_at := 0
 ## Милли, а не целые секунды: по этой метке кнопка "ПРОДОЛЖИТЬ" выбирает
@@ -86,6 +92,9 @@ func peek_slot(slot: int) -> Dictionary:
 	return {
 		"character_id": cfg.get_value("save", "character_id", Characters.FALLBACK),
 		"gold": cfg.get_value("progress", "gold", 0),
+		"skill_points": cfg.get_value("progress", "skill_points", 0),
+		"skill_progress": cfg.get_value("progress", "skill_progress", 0),
+		"unlocked_skills": cfg.get_value("progress", "unlocked_skills", []),
 		"playtime": cfg.get_value("progress", "playtime", 0.0),
 		"created_at": cfg.get_value("save", "created_at", 0),
 		"last_played_ms": cfg.get_value("save", "last_played_ms", 0),
@@ -108,6 +117,9 @@ func create_slot(slot: int, new_character_id: String) -> bool:
 	current_slot = slot
 	character_id = new_character_id
 	gold = 0
+	skill_points = 0
+	skill_progress = 0
+	unlocked_skills = []
 	playtime = 0.0
 	created_at = int(Time.get_unix_time_from_system())
 	last_played_ms = int(Time.get_unix_time_from_system() * 1000.0)
@@ -123,6 +135,9 @@ func load_slot(slot: int) -> bool:
 	current_slot = slot
 	character_id = info["character_id"]
 	gold = info["gold"]
+	skill_points = info["skill_points"]
+	skill_progress = info["skill_progress"]
+	unlocked_skills = info["unlocked_skills"]
 	playtime = info["playtime"]
 	created_at = info["created_at"]
 	last_played_ms = info["last_played_ms"]
@@ -140,6 +155,9 @@ func save() -> void:
 	cfg.set_value("save", "created_at", created_at)
 	cfg.set_value("save", "last_played_ms", last_played_ms)
 	cfg.set_value("progress", "gold", gold)
+	cfg.set_value("progress", "skill_points", skill_points)
+	cfg.set_value("progress", "skill_progress", skill_progress)
+	cfg.set_value("progress", "unlocked_skills", unlocked_skills)
 	cfg.set_value("progress", "playtime", playtime)
 	cfg.save(slot_path(current_slot))
 
@@ -160,6 +178,9 @@ func unload() -> void:
 	current_slot = -1
 	character_id = ""
 	gold = 0
+	skill_points = 0
+	skill_progress = 0
+	unlocked_skills = []
 	playtime = 0.0
 	last_played_ms = 0
 
@@ -184,6 +205,24 @@ func apply_to(character: Node) -> void:
 		return
 	if "gold" in character:
 		character.gold = gold
+	if "skill_points" in character:
+		character.skill_points = skill_points
+	if "skill_progress" in character:
+		character.skill_progress = skill_progress
+	if "unlocked_skills" in character:
+		# unlocked_skills на персонаже — typed Array[String]; присваивание
+		# обычного (нетипизированного) Array через динамическое свойство
+		# (character типизирован как Node, а не как player.gd) НЕ делает
+		# неявную конвертацию и падает с "Invalid assignment... type Array" —
+		# assign() внутрь уже типизированного массива конвертирует по-честному
+		var typed_ids: Array[String] = []
+		typed_ids.assign(unlocked_skills)
+		character.unlocked_skills = typed_ids
+		# _ready() уже отработал к этому моменту (apply_to зовётся отложенно
+		# из player_spawner.gd) и успел пересчитать бонусы на пустом
+		# unlocked_skills — пересчитываем ещё раз, теперь по-настоящему
+		if character.has_method("recompute_skill_modifiers"):
+			character.recompute_skill_modifiers()
 
 
 ## Забрать прогресс из персонажа и записать на диск
@@ -192,4 +231,10 @@ func capture_from(character: Node) -> void:
 		return
 	if "gold" in character:
 		gold = character.gold
+	if "skill_points" in character:
+		skill_points = character.skill_points
+	if "skill_progress" in character:
+		skill_progress = character.skill_progress
+	if "unlocked_skills" in character:
+		unlocked_skills = character.unlocked_skills.duplicate()
 	save()

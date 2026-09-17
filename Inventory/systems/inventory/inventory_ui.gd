@@ -33,6 +33,8 @@ const SOUND_ACCEPT := preload("res://Sound/UI_button/accept.wav")
 const SOUND_DENIED := preload("res://Sound/UI_button/denied.wav")
 const SOUND_CHOICE := preload("res://Sound/UI_button/choice.wav")
 const SOUND_OPEN := preload("res://Sound/openUI_sound.mp3")
+
+const SkillTreePanelScript := preload("res://Inventory/ui/skill_tree_panel.gd")
 var _ui_audio: AudioStreamPlayer
 
 func _play_ui_sound(stream: AudioStream) -> void:
@@ -41,6 +43,10 @@ func _play_ui_sound(stream: AudioStream) -> void:
 
 var _ability_system: AbilitySystem
 var _inventory_system: InventorySystem
+## Сам персонаж (сейчас всегда рыцарь — InventoryUI есть только в player.tscn).
+## Нужен деревьям навыков: skill_points/unlocked_skills/try_unlock_skill живут
+## на нём, не здесь (см. Inventory/ui/skill_tree_panel.gd)
+var _player: Node
 
 var _root: Control
 var _grid_slots: Array[Control] = []
@@ -51,6 +57,31 @@ var _selected_index: int = -1
 var _settings_panel: Control
 var _skills_panel: Control
 var _is_closing := false
+
+# Экран выбора дерева навыков (три панели) и экран самого дерева — второй
+# пока заглушка (см. _build_skills_panel), сами деревья отдельной задачей
+const SKILL_TREE_NAMES := [
+	"РУНЫ СТОЙКОСТИ",
+	"КЛЫК БЕРСЕРКА",
+	"ВОЛЯ ЭЙНХЕРИЯ",
+]
+## Параллельно SKILL_TREE_NAMES — путь к иконке или "", если своей ещё нет
+## (тогда карточка остаётся текстовой, как раньше)
+const SKILL_TREE_ICONS := [
+	"res://UI/icons/runes_of_endurance.png",
+	"",
+	"",
+]
+var _skill_tree_selector: Control
+var _skill_tree_detail: Control
+var _skills_pw := 0.0
+var _skills_ph := 0.0
+# Рамка окна "НАВЫКИ" — меняет размер между экраном выбора дерева (обычный
+# размер, карточки-деревья трогать не просили) и экраном самого дерева
+# (крупнее — под сетку узлов), см. _resize_skills_frame/_on_tree_selected
+var _skills_frame: Control
+var _skills_divider: Control
+var _skills_back_btn: Button
 
 var _tab_buttons: Array[Button] = []
 var _current_tab := TAB_INVENTORY
@@ -86,9 +117,10 @@ func _ready() -> void:
 	add_child(_ui_audio)
 
 
-func init(ability_system: AbilitySystem, inventory_system: InventorySystem) -> void:
+func init(ability_system: AbilitySystem, inventory_system: InventorySystem, player: Node = null) -> void:
 	_ability_system = ability_system
 	_inventory_system = inventory_system
+	_player = player
 	# Заряды списывает быстрый слот, а лежат они в сумке — связываем одно с другим
 	_ability_system.inventory = inventory_system
 	_inventory_system.count_changed.connect(_on_count_changed)
@@ -788,6 +820,16 @@ func _open_skills() -> void:
 	if not is_instance_valid(_skills_panel):
 		_skills_panel = _build_skills_panel()
 		_root.add_child(_skills_panel)
+	# Каждый заход — заново с выбора дерева, а не там, где бросили в прошлый раз
+	if is_instance_valid(_skill_tree_detail):
+		_skill_tree_detail.visible = false
+	if is_instance_valid(_skill_tree_selector):
+		_skill_tree_selector.visible = true
+	if is_instance_valid(_skills_back_btn):
+		_skills_back_btn.visible = true
+	if is_instance_valid(_skills_frame):
+		var sz := _selector_frame_size()
+		_resize_skills_frame(sz.x, sz.y)
 	_skills_panel.visible = true
 	_skills_panel.modulate = Color(1, 1, 1, 0)
 	var tw := create_tween()
@@ -815,50 +857,177 @@ func _build_skills_panel() -> Control:
 	dim.color = Color(0.02, 0.02, 0.02, 0.72)
 	root.add_child(dim)
 
-	var pw := _panel_w * 0.7
-	var ph := _panel_h * 0.7
-	var panel := _make_panel(
+	# Шире прежней заглушки (0.7) — три дерева в ряд нужны панели пошире.
+	# Экран самого дерева (сетка узлов) крупнее — см. _detail_frame_size()
+	var sel_size := _selector_frame_size()
+	var pw := sel_size.x
+	var ph := sel_size.y
+	_skills_pw = pw
+	_skills_ph = ph
+	_skills_frame = _make_panel(
 		Vector2((_screen.x - pw) / 2.0, (_screen.y - ph) / 2.0), Vector2(pw, ph))
-	root.add_child(panel)
+	root.add_child(_skills_frame)
 
 	var title := _make_label("НАВЫКИ", 30)
 	title.position = Vector2(32, 22)
 	title.add_theme_color_override("font_color", COLOR_BORDER_HI)
-	panel.add_child(title)
+	_skills_frame.add_child(title)
 
-	_add_divider(panel, Vector2(20, 68), pw - 40.0)
+	_skills_divider = _add_divider(_skills_frame, Vector2(20, 68), pw - 40.0)
 
-	var stub := _make_label("Раздел в разработке", 18)
-	stub.position = Vector2(0, ph / 2.0 - 20.0)
-	stub.size = Vector2(pw, 26)
-	stub.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	stub.add_theme_color_override("font_color", COLOR_TEXT_DIM)
-	panel.add_child(stub)
+	_skill_tree_selector = _build_tree_selector(pw, ph)
+	_skills_frame.add_child(_skill_tree_selector)
 
-	var hint := _make_label("Здесь появится древо навыков", 13)
-	hint.position = Vector2(0, ph / 2.0 + 12.0)
-	hint.size = Vector2(pw, 20)
-	hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	hint.add_theme_color_override("font_color", COLOR_TEXT_DIM)
-	panel.add_child(hint)
+	_skill_tree_detail = Control.new()
+	_skill_tree_detail.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_skill_tree_detail.visible = false
+	_skills_frame.add_child(_skill_tree_detail)
 
-	var back := _make_button("[ ESC ]  НАЗАД", Vector2((pw - 220.0) / 2.0, ph - 76.0), Vector2(220, 44))
-	back.pressed.connect(_close_skills)
-	panel.add_child(back)
+	_skills_back_btn = _make_button("[ ESC ]  НАЗАД", Vector2((pw - 220.0) / 2.0, ph - 76.0), Vector2(220, 44))
+	_skills_back_btn.pressed.connect(_close_skills)
+	_skills_frame.add_child(_skills_back_btn)
 
 	return root
+
+
+## Обычный размер — экран выбора дерева (три карточки). Их самих трогать не
+## просили, поэтому этот размер остаётся как был
+func _selector_frame_size() -> Vector2:
+	return Vector2(_panel_w * 0.9, _panel_h * 0.8)
+
+
+## Крупнее — экран самого дерева (сетка узлов), под неё нужно больше места
+func _detail_frame_size() -> Vector2:
+	return Vector2(_panel_w * 0.97, _panel_h * 0.92)
+
+
+## Меняет размер/позицию рамки окна "НАВЫКИ" и всего, что зависит от pw/ph
+## напрямую (разделитель, постоянная кнопка "[ESC] НАЗАД") — вызывается при
+## переходе между экраном выбора дерева и экраном самого дерева
+func _resize_skills_frame(pw: float, ph: float) -> void:
+	_skills_frame.position = Vector2((_screen.x - pw) / 2.0, (_screen.y - ph) / 2.0)
+	_skills_frame.size = Vector2(pw, ph)
+	_skills_divider.size.x = pw - 40.0
+	_skills_back_btn.position = Vector2((pw - 220.0) / 2.0, ph - 76.0)
+	_skills_pw = pw
+	_skills_ph = ph
+
+
+## Три большие кликабельные панели в ряд — одна на каждое дерево
+## (SKILL_TREE_NAMES). Клик открывает _skill_tree_detail (пока заглушка,
+## сами деревья — отдельная задача, см. договорённость в чате)
+func _build_tree_selector(pw: float, ph: float) -> Control:
+	var container := Control.new()
+	container.set_anchors_preset(Control.PRESET_FULL_RECT)
+
+	var top_margin := 100.0
+	var bottom_margin := 100.0
+	var side_margin := 40.0
+	var gap := 24.0
+	var tree_w := (pw - side_margin * 2.0 - gap * (SKILL_TREE_NAMES.size() - 1)) / SKILL_TREE_NAMES.size()
+	var tree_h := ph - top_margin - bottom_margin
+
+	for i in SKILL_TREE_NAMES.size():
+		var x := side_margin + i * (tree_w + gap)
+		# Текст пустой — название теперь отдельным Label внизу карточки, а не
+		# встроенным текстом кнопки (см. label ниже)
+		var card := _make_button("", Vector2(x, top_margin), Vector2(tree_w, tree_h))
+		card.pressed.connect(_on_tree_selected.bind(i))
+		container.add_child(card)
+
+		var icon_path: String = SKILL_TREE_ICONS[i]
+		var label_y := tree_h - 56.0
+		if icon_path != "" and ResourceLoader.exists(icon_path):
+			var icon := TextureRect.new()
+			icon.texture = load(icon_path)
+			# На всю карточку, вплоть до искажения пропорций — просили
+			# растянуть, а не вписать с сохранением пропорций
+			icon.stretch_mode = TextureRect.STRETCH_SCALE
+			# Без этого TextureRect держит минимальным размером натуральный
+			# размер текстуры (512×512) и Control.size молча подтягивает
+			# запрошенный размер обратно до него
+			icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+			icon.mouse_filter = Control.MOUSE_FILTER_IGNORE
+			icon.position = Vector2.ZERO
+			icon.size = Vector2(tree_w, tree_h)
+			# Полупрозрачная — фон под подписью, а не самостоятельная картинка
+			icon.modulate = Color(1, 1, 1, 0.3)
+			card.add_child(icon)
+
+		var label := _make_label(SKILL_TREE_NAMES[i], 20)
+		label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		label.position = Vector2(0, label_y)
+		label.size = Vector2(tree_w, 32)
+		label.add_theme_color_override("font_color", COLOR_TEXT_GOLD)
+		label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		card.add_child(label)
+
+	return container
+
+
+func _on_tree_selected(index: int) -> void:
+	_play_ui_sound(SOUND_CHOICE)
+	_skill_tree_selector.visible = false
+	_skills_back_btn.visible = false  # свой "← К ДЕРЕВЬЯМ" ниже вместо него
+
+	var sz := _detail_frame_size()
+	_resize_skills_frame(sz.x, sz.y)
+
+	for c in _skill_tree_detail.get_children():
+		c.queue_free()
+
+	# Только Руны Стойкости (index 0) реально реализованы — у остальных
+	# в SkillTrees.gd пустой nodes[], им и положена заглушка, как раньше
+	if index == 0 and is_instance_valid(_player):
+		var tree_panel := SkillTreePanelScript.new()
+		tree_panel.position = Vector2(0, 44)
+		tree_panel.size = Vector2(_skills_pw, _skills_ph - 130.0)
+		_skill_tree_detail.add_child(tree_panel)
+		tree_panel.init(SkillTrees.RUNES_OF_ENDURANCE, _player)
+	else:
+		var tree_name: String = SKILL_TREE_NAMES[index]
+
+		var title := _make_label(tree_name, 24)
+		title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		title.position = Vector2(0, _skills_ph / 2.0 - 40.0)
+		title.size = Vector2(_skills_pw, 32)
+		title.add_theme_color_override("font_color", COLOR_TEXT_GOLD)
+		_skill_tree_detail.add_child(title)
+
+		var hint := _make_label("Древо навыков в разработке", 15)
+		hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		hint.position = Vector2(0, _skills_ph / 2.0)
+		hint.size = Vector2(_skills_pw, 22)
+		hint.add_theme_color_override("font_color", COLOR_TEXT_DIM)
+		_skill_tree_detail.add_child(hint)
+
+	var back := _make_button("←  К ДЕРЕВЬЯМ", Vector2((_skills_pw - 220.0) / 2.0, _skills_ph - 76.0), Vector2(220, 44))
+	back.pressed.connect(_on_tree_detail_back)
+	_skill_tree_detail.add_child(back)
+
+	_skill_tree_detail.visible = true
+
+
+func _on_tree_detail_back() -> void:
+	_play_ui_sound(SOUND_CHOICE)
+	_skill_tree_detail.visible = false
+	_skill_tree_selector.visible = true
+	_skills_back_btn.visible = true
+	var sz := _selector_frame_size()
+	_resize_skills_frame(sz.x, sz.y)
 
 
 # ─────────────────────────────────────────────
 # HELPERS
 # ─────────────────────────────────────────────
 
-func _add_divider(parent: Control, pos: Vector2, width: float) -> void:
+func _add_divider(parent: Control, pos: Vector2, width: float) -> ColorRect:
 	var d := ColorRect.new()
 	d.position = pos
 	d.size = Vector2(width, 1)
 	d.color = COLOR_DIVIDER
 	parent.add_child(d)
+	return d
 
 
 func _make_panel(pos: Vector2, sz: Vector2) -> Control:

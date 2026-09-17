@@ -17,6 +17,7 @@
 [ext_resource type="Texture2D" uid="uid://3l2d3k0lwuuv" path="res://rain_drop_1.png" id="12_6r4ru"]
 [ext_resource type="Script" uid="uid://8nvpv44w8art" path="res://Inventory/ui/quick_slot_ui.gd" id="12_wfmf0"]
 [ext_resource type="Script" uid="uid://j0djrjdp0hsh" path="res://UI/health_stamina_bar.gd" id="13_ung07"]
+[ext_resource type="Script" path="res://UI/skill_points_bar.gd" id="13_skillbar"]
 [ext_resource type="Script" uid="uid://boe05f5ffn3mn" path="res://Inventory/systems/inventory/inventory_ui.gd" id="14_2ys5t"]
 [ext_resource type="Texture2D" uid="uid://ci32yhu826l26" path="res://VFX/Effect_BigHit/30fps/Frames/Effect_BigHit_1/Effect_BigHit_1_000.png" id="16_wc173"]
 [ext_resource type="Texture2D" uid="uid://s6gypbamk87h" path="res://VFX/Effect_BigHit/30fps/Frames/Effect_BigHit_1/Effect_BigHit_1_001.png" id="17_8gugs"]
@@ -6018,6 +6019,9 @@ script = ExtResource("12_wfmf0")
 
 [node name="HealthStaminaBar" type="CanvasLayer" parent="." unique_id=630230056]
 script = ExtResource("13_ung07")
+
+[node name="SkillPointsBar" type="CanvasLayer" parent="." unique_id=384756217]
+script = ExtResource("13_skillbar")
 
 [node name="DamageVignette" type="CanvasLayer" parent="." unique_id=1900000010]
 script = ExtResource("58_dmgv2")

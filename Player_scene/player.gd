@@ -320,16 +320,17 @@ var combo_window := 0.4
 var combo_queued := false
 # --------------------
 
+## Доджа (короткого уворота) больше нет — остаётся только как всегда-false
+## поле: по всему файлу разбросаны проверки вида "is_dodging or is_rolling"
+## (неуязвимость, блокировка движения и т.д.), трогать каждую по отдельности
+## рискованнее, чем просто держать это условие вечно ложным
 var is_dodging := false
+## Несущая скорость переката — общее имя с бывшим доджем, используется и
+## dash() (см. ability dash_ability.gd), поэтому не переименовано
 var dodge_velocity := Vector2.ZERO
-var dodge_speed := 300.0
-var dodge_friction := 4.0
 var is_invulnerable := false
 var baldur_revive_ready := false  # Благословение Бальдра: одноразовое воскрешение
 var i_frame_time := 0.2
-var dodge_tap_timer := 0.0
-var dodge_tap_window := 0.18
-var dodge_tap_count := 0
 var facing_dir: Vector2 = Vector2.DOWN
 var turn_lock := false
 
@@ -350,7 +351,11 @@ var focused_enemy: Node2D:
 		return _focus.target if is_instance_valid(_focus) else null
 
 var is_rolling := false
-var roll_speed := 225.0
+## Было 225 — дистанция переката = roll_speed * roll_duration * ~0.64
+## (площадь под синусоидой скорости), поэтому вдвое короче именно через
+## скорость, а не длительность: сам перекат по времени/анимации не меняется,
+## меняется только то, насколько далеко за это же время уезжает игрок
+var roll_speed := 112.5
 var roll_duration := 0.9
 var roll_timer := 1.5
 var roll_dir := Vector2.ZERO
@@ -392,9 +397,33 @@ var health: float = 100.0
 var max_health: float = 100.0
 var stamina: float = 100.0
 var max_stamina: float = 100.0
+## Базовые значения ДО бонусов дерева навыков — max_health/max_stamina выше
+## пересчитываются от этих констант заново при каждом recompute_skill_modifiers(),
+## а не домножаются сами на себя, иначе повторная загрузка сейва задваивала бы бонус
+const BASE_MAX_HEALTH := 100.0
+const BASE_MAX_STAMINA := 100.0
+
+# --- Дерево навыков (Руны Стойкости и другие — см. Save/skill_trees.gd) ---
+## id открытых узлов дерева навыков. Персистится через SaveManager так же, как
+## gold/skill_points (см. apply_to/capture_from), содержимое читается ТОЛЬКО
+## этим персонажем — сам список ничего не применяет, это делает recompute_skill_modifiers()
+var unlocked_skills: Array[String] = []
+# Накопленные бонусы — пересчитываются целиком в recompute_skill_modifiers(),
+# никогда не изменяются напрямую нигде больше
+var _skill_max_hp_percent := 0.0
+var _skill_max_stamina_percent := 0.0
+var _skill_physical_defense_percent := 0.0
+var _skill_posture_resist_percent := 0.0
+var _skill_stagger_resist_percent := 0.0
+## Пока инертны при текущей боевой системе — блок уже гасит 100% урона и не
+## тратит стамину вовсе, снижать там нечего. Учтены и применяются в нужных
+## местах на случай, если бой изменится — см. get_damage_reduction_factor()/
+## get_posture_damage_reduction_factor() и комментарий в try_unlock_skill()
+var _skill_block_damage_reduction_percent := 0.0
+var _skill_block_stamina_cost_reduction_percent := 0.0
+var _skill_capstone_conditional_posture_resist := false
 
 # --- Стамина: расход по действиям (снижено относительно старых значений) ---
-@export var dodge_stamina_cost := 15.0     # было 20
 @export var roll_stamina_cost := 22.0      # было 30
 @export var attack_stamina_cost := 7.0     # было 10, за каждый удар серии
 @export var run_stamina_drain := 10.0      # было 15, в секунду
@@ -421,6 +450,15 @@ var is_taking_damage := false
 var hit_targets: Array = []
 var _nan_reported := false
 var gold := 0
+## Копится на прокачку выбранного класса (см. UI/skill_points_bar.gd и
+## SaveManager.gd), тот же контракт, что у gold. Растёт НЕ за каждое убийство —
+## только когда skill_progress долился до skill_progress_per_point (см. ниже)
+var skill_points := 0
+## Сырой прогресс убийств к следующему очку — заливка полоски в
+## UI/skill_points_bar.gd. По достижении skill_progress_per_point обнуляется
+## (с переносом остатка) и конвертируется в +1 skill_points
+var skill_progress := 0
+@export var skill_progress_per_point := 10
 var is_in_shop := false
 
 func _ready() -> void:
@@ -461,7 +499,12 @@ func _ready() -> void:
 	health_bar.set_max_hp(max_health)
 	health_bar.set_max_stamina(max_stamina)
 	health_bar.set_max_posture(max_posture)
-	inventory_ui.init(ability_system, inventory_system)
+	# unlocked_skills сейчас пуст (SaveManager.apply_to зальёт его чуть позже,
+	# отложенным вызовом из player_spawner.gd — оно и повторит этот пересчёт).
+	# Вызываем и здесь тоже: без сейва (F6 из редактора) apply_to не вызовется
+	# вовсе, а recompute должен отработать хотя бы раз и на голых значениях
+	recompute_skill_modifiers()
+	inventory_ui.init(ability_system, inventory_system, self)
 	hud.init(ability_system)
 	
 	# Только потом загружаем предметы
@@ -680,34 +723,18 @@ func _physics_process(delta):
 		handle_roll(delta)
 		return
 
-	# --- ДОДЖ / ПЕРЕКАТ «ВНЕ ОЧЕРЕДИ» ------------------------------------------
-	# Ввод и запуск уворота/переката обрабатываем ДО стана получения урона и
-	# нокбэка, чтобы зажатого игрока нельзя было залочить: он всегда может
-	# вырваться уворотом/перекатом (оба дают неуязвимость в _on_hurtbox).
+	# --- ПЕРЕКАТ «ВНЕ ОЧЕРЕДИ» --------------------------------------------------
+	# Ввод и запуск переката обрабатываем ДО стана получения урона и нокбэка,
+	# чтобы зажатого игрока нельзя было залочить: он всегда может вырваться
+	# перекатом (даёт неуязвимость в _on_hurtbox). Доджа (короткого уворота по
+	# двойному тапу) больше нет — одно нажатие пробела сразу запускает перекат
 	if not is_rolling:
 		input_vector = Input.get_vector("move_left", "move_right", "move_up", "move_down")
 	is_running = Input.is_action_pressed("run")
-	handle_dodge_input()
-	if dodge_tap_timer > 0:
-		dodge_tap_timer -= delta
-		if dodge_tap_timer <= 0:
-			# 🔥 РЕШАЕМ: dodge или roll
-			if dodge_tap_count >= 2:
-				interrupt_all_actions()
-				start_roll()
-			else:
-				interrupt_all_actions()
-				start_dodge()
-			dodge_tap_count = 0
+	handle_roll_input()
 	# Перекат, запущенный этим же кадром, отрабатываем сразу
 	if is_rolling:
 		handle_roll(delta)
-		return
-	# Активный уворот двигается здесь — до блоков стана/нокбэка
-	if is_dodging:
-		dodge_velocity = dodge_velocity.lerp(Vector2.ZERO, dodge_friction * delta)
-		velocity = dodge_velocity
-		move_and_slide()
 		return
 
 	# Нокбэк от удара врага — короткая потеря контроля, игрок отлетает.
@@ -1021,43 +1048,14 @@ func play_movement_animation():
 func play_idle_animation():
 	anim.play("Idle_" + last_direction)
 
-func handle_dodge_input():
-	if is_dodging or is_rolling:
+## Один тап пробела — сразу перекат, без доджа и без окна двойного тапа
+## (та же идея, что у лучника в character_base.gd::handle_roll_input)
+func handle_roll_input() -> void:
+	if is_rolling:
 		return
 	if Input.is_action_just_pressed("ui_accept"):
-		dodge_tap_count += 1
-		dodge_tap_timer = dodge_tap_window
-
-func start_dodge():
-	if not use_stamina(dodge_stamina_cost):
-		return
-	if is_dodging or is_rolling:
-		return
-	is_dodging = true
-	set_collision_mask_value(3, false) 
-	# 🔥 ВКЛЮЧАЕМ НЕУЯЗВИМОСТЬ
-	is_invulnerable = true
-	start_i_frames()
-
-	var dir = input_vector
-	
-	if dir == Vector2.ZERO:
-		dir = direction_to_vector(last_direction)
-	else:
-		dir = dir.normalized()
-	
-	last_direction = get_direction(dir)
-	
-	var anim_name = "Dodge_" + last_direction
-	
-	if anim.has_animation(anim_name):
-		anim.play(anim_name)
-	else:
-		print("⚠ Нет анимации dodge:", anim_name)
-		is_dodging = false
-		return
-	
-	dodge_velocity = dir * dodge_speed
+		interrupt_all_actions()
+		start_roll()
 
 func add_coins(amount: int):
 	coins += amount
@@ -1323,7 +1321,11 @@ func _apply_knockback_from(source: Node, force: float) -> void:
 # концентрация заполняется так же, как от обычного попадания (см. take_damage),
 # и при полной шкале срабатывает тот же _posture_break()
 func _on_blocked_attack(attack_data: Dictionary) -> void:
-	current_posture += block_posture_gain
+	# Блок сейчас гасит 100% HP-урона и не тратит стамину — поэтому
+	# _skill_block_damage_reduction_percent/_skill_block_stamina_cost_reduction_percent
+	# (Руна Щита, Железный Обет) здесь применить не к чему; сопротивление
+	# стойкости от блока — реальный, работающий эффект
+	current_posture += block_posture_gain * get_posture_damage_reduction_factor()
 	current_posture = min(current_posture, max_posture)
 	health_bar.set_posture(current_posture)
 	posture_regen_timer = posture_regen_delay
@@ -1427,7 +1429,7 @@ func take_damage(amount: int, source: Node = null) -> void:
 	blood.global_position = global_position
 	get_tree().current_scene.add_child(blood)
 	
-	current_posture += 10.0
+	current_posture += 10.0 * get_posture_damage_reduction_factor()
 	current_posture = min(current_posture, max_posture)
 	posture_regen_timer = posture_regen_delay
 	health_bar.set_posture(current_posture)
@@ -1712,13 +1714,6 @@ func _on_anim_finished(finished_anim: StringName) -> void:
 		is_starting = false
 		play_idle_animation()
 		return
-	# --- DODGE SYSTEM ---
-	if finished_anim.begins_with("Dodge_"):
-		is_dodging = false
-		set_collision_mask_value(3, true) 
-		dodge_velocity = Vector2.ZERO
-		velocity = velocity.lerp(input_vector * walk_speed, 0.2)
-		return
 	if finished_anim.begins_with("Rolling_"):
 		is_rolling = false
 		set_collision_mask_value(3, true) 
@@ -1780,13 +1775,15 @@ func reset_all_states():
 	play_idle_animation()
 
 func dash(force: float, _duration: float) -> void:
-	# Использует твою существующую систему dodge_velocity
-	# Не конфликтует — это отдельный импульс поверх движения
+	# ПРЕДСУЩЕСТВУЮЩАЯ ЗАМЕТКА: это уже не применяется нигде — раньше
+	# dodge_velocity двигал игрока только внутри ветки "if is_dodging" в
+	# _physics_process, а сюда is_dodging никогда не выставлялся. То есть
+	# dash() не двигал персонажа ещё до удаления доджа; сейчас — тем более.
+	# Не чинил: не входит в задачу "убрать додж", отдельный баг способности
 	if is_dodging or is_rolling or is_attacking:
 		return
 	var dir := facing_dir if facing_dir != Vector2.ZERO else direction_to_vector(last_direction)
 	dodge_velocity = dir * force
-	# Гаситься будет через твой существующий dodge_friction в _physics_process
 
 func _load_starting_abilities() -> void:
 	ability_system.add_ability(HoneyMeadAbility.new())
@@ -1866,6 +1863,20 @@ func add_gold(amount: int) -> void:
 	gold += amount
 	if hud:
 		hud.update_gold(gold)
+
+
+## Награда за убийство (enemy.gd::_on_dead) — без физического подбора, в
+## отличие от золота. Копит skill_progress (заливку полоски в
+## UI/skill_points_bar.gd, которая сама опрашивает оба поля каждый кадр);
+## skill_points растёт только когда полоска долилась целиком — while, а не if,
+## на случай если amount за раз больше одного деления (перенос остатка).
+## Блеск/звук — на каждый удар, независимо от того, набралось ли целое очко:
+## это обратная связь "получил награду", а не "получил именно очко"
+func add_skill_points(amount: int) -> void:
+	skill_progress += amount
+	while skill_progress >= skill_progress_per_point:
+		skill_progress -= skill_progress_per_point
+		skill_points += 1
 	_trigger_coin_glow()
 	coin_audio.stream = COIN_SOUND
 	_play_varied(coin_audio, 0.08)
@@ -2085,7 +2096,109 @@ func get_damage_reduction_factor() -> float:
 	for buff in active_buffs.values():
 		if buff.has("damage_reduction"):
 			factor *= (1.0 - buff["damage_reduction"])
+	# Постоянный бонус дерева навыков (physical_defense_percent) — тем же
+	# множителем, что и временные баффы выше, а не отдельной системой
+	factor *= (1.0 - _skill_physical_defense_percent / 100.0)
 	return factor
+
+
+## Множитель входящего урона СТОЙКОСТИ (posture/concentration) — тот же
+## принцип, что у get_damage_reduction_factor(), только для стойкости. Копит
+## posture_resist_percent + stagger_resist_percent (у существующей боевой
+## системы это один и тот же рычаг — накопление current_posture, отдельного
+## "оглушения" как самостоятельного стата в игре нет), плюс пассив Сердца
+## Йотуна (доп. -15%, пока HP > 70%)
+func get_posture_damage_reduction_factor() -> float:
+	var factor := 1.0 - (_skill_posture_resist_percent + _skill_stagger_resist_percent) / 100.0
+	if _skill_capstone_conditional_posture_resist and max_health > 0.0 and health / max_health > 0.7:
+		factor *= 0.85
+	return max(factor, 0.0)
+
+
+# ─────────────────────────────────────────────
+# ДЕРЕВО НАВЫКОВ
+# ─────────────────────────────────────────────
+
+## Полностью пересчитывает все производные бонусы дерева навыков с нуля из
+## unlocked_skills — а не домножает текущие значения на очередной эффект.
+## Идемпотентно: можно звать сколько угодно раз (при покупке узла, при
+## загрузке сейва) без риска задвоить бонус
+func recompute_skill_modifiers() -> void:
+	_skill_max_hp_percent = 0.0
+	_skill_max_stamina_percent = 0.0
+	_skill_physical_defense_percent = 0.0
+	_skill_posture_resist_percent = 0.0
+	_skill_stagger_resist_percent = 0.0
+	_skill_block_damage_reduction_percent = 0.0
+	_skill_block_stamina_cost_reduction_percent = 0.0
+	_skill_capstone_conditional_posture_resist = false
+
+	for node_id in unlocked_skills:
+		var node := SkillTrees.get_node_data(SkillTrees.RUNES_OF_ENDURANCE, node_id)
+		if node.is_empty():
+			continue
+		var effects: Dictionary = node.get("effects", {})
+		_skill_max_hp_percent += effects.get("max_hp_percent", 0.0)
+		_skill_max_stamina_percent += effects.get("max_stamina_percent", 0.0)
+		_skill_physical_defense_percent += effects.get("physical_defense_percent", 0.0)
+		_skill_posture_resist_percent += effects.get("posture_resist_percent", 0.0)
+		_skill_stagger_resist_percent += effects.get("stagger_resist_percent", 0.0)
+		_skill_block_damage_reduction_percent += effects.get("block_damage_reduction_percent", 0.0)
+		_skill_block_stamina_cost_reduction_percent += effects.get("block_stamina_cost_reduction_percent", 0.0)
+		if effects.get("capstone_conditional_posture_resist", false):
+			_skill_capstone_conditional_posture_resist = true
+
+	max_health = BASE_MAX_HEALTH * (1.0 + _skill_max_hp_percent / 100.0)
+	max_stamina = BASE_MAX_STAMINA * (1.0 + _skill_max_stamina_percent / 100.0)
+	if is_instance_valid(health_bar):
+		# set_max_hp/set_max_stamina тоже полностью восполняют HP/стамину —
+		# ожидаемо здесь: пересчёт дерева навыков это по сути "level up",
+		# как и в большинстве игр с деревьями умений
+		health_bar.set_max_hp(max_health)
+		health_bar.set_max_stamina(max_stamina)
+		health = health_bar.current_hp
+
+
+## true, если узел ещё не куплен и все его prerequisites уже открыты (и, для
+## capstone, набрано min_unlocked_in_tree узлов дерева)
+func can_unlock_skill(tree_id: String, node_id: String) -> bool:
+	if node_id in unlocked_skills:
+		return false
+	var node := SkillTrees.get_node_data(tree_id, node_id)
+	if node.is_empty():
+		return false
+	for req in node.get("prerequisites", []):
+		if not (req in unlocked_skills):
+			return false
+	var min_count: int = node.get("min_unlocked_in_tree", 0)
+	if min_count > 0:
+		var tree_node_ids := {}
+		for n in SkillTrees.get_nodes(tree_id):
+			tree_node_ids[n["id"]] = true
+		var unlocked_in_tree := 0
+		for id in unlocked_skills:
+			if id in tree_node_ids:
+				unlocked_in_tree += 1
+		if unlocked_in_tree < min_count:
+			return false
+	return true
+
+
+## Покупка узла — тратит skill_points, отмечает узел открытым, пересчитывает
+## все бонусы и сохраняет прогресс. false = отказ (уже куплен/не выполнены
+## требования/не хватает очков), UI не должен ничего менять в этом случае
+func try_unlock_skill(tree_id: String, node_id: String) -> bool:
+	if not can_unlock_skill(tree_id, node_id):
+		return false
+	var node := SkillTrees.get_node_data(tree_id, node_id)
+	var cost: int = node.get("cost", 1)
+	if skill_points < cost:
+		return false
+	skill_points -= cost
+	unlocked_skills.append(node_id)
+	recompute_skill_modifiers()
+	SaveManager.capture_from(self)
+	return true
 
 func _baldur_revive() -> void:
 	baldur_revive_ready = false
@@ -2100,14 +2213,21 @@ func _baldur_revive() -> void:
 	print("[БлагословениеБальдра] Воскрешение! HP восстановлено")
 
 func receive_parry(posture_damage: float) -> void:
-	# Неуязвимость (дэш/Кровь Фенрира) снимает и урон, и стан от контратак
-	if is_invulnerable:
+	# Неуязвимость (дэш/Кровь Фенрира) снимает и урон, и стан от контратак.
+	# is_rolling/is_dodging — туда же: обычную атаку (receive_attack) перекат
+	# уже не пробивает, а этот канал (контратака/pummel врага) той же проверки
+	# не имел. Баг: anim.play("Stunned_...") обрывал анимацию "Rolling_" на
+	# середине, а is_rolling сбрасывается ТОЛЬКО в animation_finished для
+	# "Rolling_" — она так и не доигрывала, и игрок навсегда застревал в
+	# handle_roll() с нулевой скоростью (и заодно неуязвимым, раз is_rolling
+	# держит защиту и от обычных атак тоже)
+	if is_invulnerable or is_dodging or is_rolling:
 		return
-	current_posture += posture_damage
+	current_posture += posture_damage * get_posture_damage_reduction_factor()
 	current_posture = min(current_posture, max_posture)
 	health_bar.set_posture(current_posture)
 	posture_regen_timer = posture_regen_delay
-	
+
 	reset_combo()
 	# Стан обрывает атаку на полпути: анимация удара не доигрывает, поэтому её
 	# method-track с disable_attack_hitbox() не вызовется, а reset_combo()

@@ -84,6 +84,16 @@ var dodge_velocity := Vector2.ZERO
 var roll_dir := Vector2.ZERO
 var roll_control := 0.0
 var gold := 0
+## Копится на прокачку выбранного класса (см. UI/skill_points_bar.gd и
+## SaveManager.gd), тот же контракт, что у gold. Растёт НЕ за каждое убийство —
+## только когда skill_progress долился до skill_progress_per_point (см. ниже)
+var skill_points := 0
+## Сырой прогресс убийств к следующему очку — это и есть заливка полоски в
+## UI/skill_points_bar.gd. Копится за убийство (add_skill_points), а по
+## достижении skill_progress_per_point обнуляется (с переносом остатка) и
+## конвертируется в +1 skill_points
+var skill_progress := 0
+@export var skill_progress_per_point := 10
 
 var knockback_velocity := Vector2.ZERO
 var is_invulnerable := false
@@ -529,6 +539,17 @@ func receive_parry(_posture_damage: float) -> void:
 ## уметь любой персонаж, даже пока у него нет HUD, чтобы это показать
 func add_gold(amount: int) -> void:
 	gold += amount
+
+
+## Награда за убийство (enemy.gd::_on_dead) — без физического подбора, в
+## отличие от золота. Копит именно skill_progress (заливку полоски); реальный
+## skill_points растёт только когда полоска долилась целиком — while, а не if,
+## на случай если amount за раз больше одного деления (перенос остатка)
+func add_skill_points(amount: int) -> void:
+	skill_progress += amount
+	while skill_progress >= skill_progress_per_point:
+		skill_progress -= skill_progress_per_point
+		skill_points += 1
 
 
 func play_take_damage() -> void:

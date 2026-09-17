@@ -89,6 +89,11 @@ var _telegraph_tween: Tween
 @export var coin_scene: PackedScene
 @export var coin_drop_min := 1
 @export var coin_drop_max := 3
+## Очки навыков — мгновенно убийце, без физического подбора (в отличие от
+## монет). Убийца — это player: он переприсваивается на КАЖДЫЙ удар, дошедший
+## до take_damage (см. там же), так что к моменту State.DEAD это гарантированно
+## тот, кто нанёс добивающий удар, даже если он сменился на середине драки
+@export var skill_points_reward := 1
 @export var blood_vfx_scene: PackedScene
 @export var parry_vfx_scene: PackedScene
 
@@ -169,7 +174,11 @@ var block_hit_count := 0          # сколько ударов заблокир
 # Парирование решается рандомно на каждый заблокированный удар — не по
 # фиксированному счётчику, чтобы не было предсказуемого паттерна
 # "блок-блок-всегда парирует"
-@export var parry_chance := 0.35
+# Временно отключено (0.0) — для начальных врагов контра после парирования
+# била слишком больно. Блок (block_chance выше) не трогал, работает как
+# раньше. Единственная точка входа во всю цепочку parry/COUNTER — верни
+# ненулевое значение, чтобы включить обратно, остальной код трогать не надо
+@export var parry_chance := 0.0
 # Блок держится, пока игрок атакует; после того как перестал — ещё столько секунд,
 # затем враг выходит из блока (иначе застревал в блоке и таскался за игроком)
 @export var block_hold_time := 0.45
@@ -183,6 +192,7 @@ var is_player_berserk := false
 @export var counter_duration := 0.75
 @export var pummel_posture_damage := 20.0  # урон по концентрации игрока
 @onready var anim: AnimationPlayer = $EnemyAnim
+@onready var nav_agent: NavigationAgent2D = $NavigationAgent2D
 @onready var vision_area: Area2D = $VisionArea
 @onready var hitbox: Area2D = $Hitbox
 @onready var hp_bar: ProgressBar = $EnemyUI/HPBar
@@ -246,6 +256,14 @@ func _ready() -> void:
 	if hitbox:
 		hitbox.area_entered.connect(_on_hitbox_area_entered)
 		hitbox.body_entered.connect(_on_hitbox_hit)
+
+	# Дистанции малы (preferred_distance/attack_range — десятки пикселей),
+	# дефолтный target_desired_distance=10 у NavigationAgent2D для такого
+	# масштаба слишком грубый — враг может считать путь пройденным, ещё не
+	# дойдя вплотную
+	nav_agent.path_desired_distance = 6.0
+	nav_agent.target_desired_distance = 6.0
+	nav_agent.avoidance_enabled = false
 
 	_rest_scale = $AnimatedSprite2D.scale
 
@@ -768,25 +786,39 @@ func _state_chase(delta: float) -> void:
 	if target_refresh_timer <= 0.0:
 		target_position = player.global_position + player.velocity * prediction_strength
 		target_refresh_timer = target_refresh_interval
+		nav_agent.target_position = target_position
 
 	var to_player := target_position - global_position
 	var dist := to_player.length()
-	
+
 	if dist == 0:
 		move_velocity = Vector2.ZERO
 		return
 
 	var dir := to_player / dist
 	var error := dist - preferred_distance
-	
+
 	# если слишком близко — останавливаемся полностью
 	if dist < preferred_distance * 0.5:
 		move_velocity = Vector2.ZERO
 		_play_animation("idle")
 		return
-	
+
 	if abs(error) > 5.0:
-		var move_dir := dir if error > 0.0 else -dir
+		var move_dir: Vector2
+		if error > 0.0:
+			# Идём К цели — по пути навигации (NavigationAgent2D), а не
+			# напролом по прямой: иначе враг застревает, упираясь в стену
+			# между собой и игроком/лучником. Отступление ниже (error < 0,
+			# слишком близко) остаётся прямой линией: это всегда дистанция
+			# внутри preferred_distance, там стен между врагом и целью не
+			# бывает — пятиться назад по "чужому" пути некуда и незачем
+			var nav_next: Vector2 = nav_agent.get_next_path_position()
+			move_dir = (nav_next - global_position).normalized()
+			if move_dir == Vector2.ZERO:
+				move_dir = dir
+		else:
+			move_dir = -dir
 		direction = direction.lerp(move_dir, direction_smoothness * delta).normalized()
 
 		if is_ranged_alert:
@@ -1307,6 +1339,7 @@ func _on_dead() -> void:
 		vision_area.set_deferred("monitoring", false)
 
 	_drop_coins()  # ← добавь
+	_award_skill_points()
 
 	await get_tree().create_timer(death_fade_time).timeout
 
@@ -1334,6 +1367,12 @@ func _drop_coins() -> void:
 			coin.is_big_coin = false
 		
 		get_tree().current_scene.call_deferred("add_child", coin)
+
+
+func _award_skill_points() -> void:
+	if is_instance_valid(player) and player.has_method("add_skill_points"):
+		player.add_skill_points(skill_points_reward)
+
 
 # ============== СИГНАЛЫ ==============
 func _on_animation_finished(anim_name: StringName) -> void:

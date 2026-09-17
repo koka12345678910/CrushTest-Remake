@@ -2,6 +2,8 @@
 
 [ext_resource type="Script" uid="uid://c1ya3gqoi0wv7" path="res://Player_scene/archer.gd" id="0_archer_script"]
 [ext_resource type="Script" uid="uid://j0djrjdp0hsh" path="res://UI/health_stamina_bar.gd" id="0_hpbar"]
+[ext_resource type="Texture2D" uid="uid://bnwhvl5braa6o" path="res://UI/healthbar/sigrid_healthbar_icon.png" id="0_archer_icon"]
+[ext_resource type="Script" path="res://UI/skill_points_bar.gd" id="0_skillbar"]
 [ext_resource type="Texture2D" uid="uid://bo7jw7d5fj1er" path="res://Character/Archer/Attack2.png" id="1_pf6j6"]
 [ext_resource type="Texture2D" uid="uid://beecocyjbsbt0" path="res://Character/Archer/Attack1.png" id="2_7qsc3"]
 [ext_resource type="Texture2D" uid="uid://c1gbidp2l6w8a" path="res://Character/Archer/Idle.png" id="3_tj01d"]
@@ -11121,6 +11123,10 @@ position_smoothing_enabled = true
 
 [node name="HealthStaminaBar" type="CanvasLayer" parent="." unique_id=19321756]
 script = ExtResource("0_hpbar")
+icon_texture = ExtResource("0_archer_icon")
+
+[node name="SkillPointsBar" type="CanvasLayer" parent="." unique_id=384756215]
+script = ExtResource("0_skillbar")
 
 [node name="ShootAudio" type="AudioStreamPlayer2D" parent="." unique_id=671613305]
 
