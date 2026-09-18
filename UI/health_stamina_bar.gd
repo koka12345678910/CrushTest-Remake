@@ -32,6 +32,12 @@ var _displayed_posture: float = 0.0  # то что видит игрок
 # как они "выходят" из-под круглого края, а не тупо обрезаются прямоугольником
 @export var icon_position: Vector2 = Vector2(16, 16)
 @export var icon_size: Vector2 = Vector2(126, 126)
+# Чуть затемняем иконку (модулейт умножает RGB, альфу не трогаем — иконка
+# остаётся непрозрачной, просто темнее)
+@export var icon_darken: float = 0.7
+# Полупрозрачность баров HP/стамины — модулейт на контейнере, чтобы разом
+# затронуть фон, заливку, белую полоску отставания и рамку
+@export var bar_alpha: float = 0.75
 
 # --- Размеры (подгонишь в редакторе через export) ---
 @export var posture_fill_speed: float = 8.0   # скорость заполнения
@@ -217,6 +223,7 @@ func _build_icon() -> void:
 	icon.position = icon_position
 	icon.size = icon_size
 	icon.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	icon.modulate = Color(icon_darken, icon_darken, icon_darken)
 	_root.add_child(icon)
 
 
@@ -228,6 +235,7 @@ func _build_hp_bar() -> void:
 	# тоньше и вплотную к иконке, снизу нужен только небольшой отступ под
 	# рамку со скосом
 	container.size = hp_bar_size + Vector2(0, 8)
+	container.modulate.a = bar_alpha
 	_root.add_child(container)
 
 	var bar_y: float = 4.0
@@ -263,6 +271,7 @@ func _build_stamina_bar() -> void:
 	container.set_anchors_preset(Control.PRESET_TOP_LEFT)
 	container.position = Vector2(stamina_offset_x, stamina_position_y)
 	container.size = stamina_bar_size + Vector2(0, 8)
+	container.modulate.a = bar_alpha
 	_root.add_child(container)
 
 	var bar_y: float = 4.0

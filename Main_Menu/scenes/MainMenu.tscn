@@ -2,15 +2,16 @@
 
 [ext_resource type="Script" uid="uid://dcfm2q4ouuedv" path="res://Main_Menu/scripts/MainMenu.gd" id="1_mainmenu"]
 [ext_resource type="Script" uid="uid://uj11ia2lmi3q" path="res://Main_Menu/scripts/RainEffect.gd" id="2_rain"]
-[ext_resource type="Texture2D" uid="uid://bib3kwr771v5q" path="res://Main_Menu/IMG_main_menu (2).png" id="3_nacxu"]
+[ext_resource type="Texture2D" uid="uid://dduxekluth3u8" path="res://Main_Menu/IMG_mainMenu.png" id="3_bg"]
 [ext_resource type="Script" uid="uid://b4klukdv3id2k" path="res://Main_Menu/scripts/MenuButton.gd" id="5_btn"]
 [ext_resource type="Theme" uid="uid://b7jwdfw7kv5fn" path="res://Main_Menu/theme/MenuTheme.tres" id="6_theme"]
 [ext_resource type="Shader" uid="uid://bx6jobhc2yyal" path="res://Shaders/wallpaper_flow.gdshader" id="7_wallpaper"]
 [ext_resource type="AudioStream" uid="uid://dbjtefscy7yc0" path="res://Soundtrack/Main_Menu/mainMenu_soundtrack.mp3" id="8_music"]
 [ext_resource type="AudioStream" uid="uid://bh0x85so1hd2s" path="res://Sound/weather_sound/atmospheric_rain.wav" id="9_rain_amb"]
-[ext_resource type="FontFile" uid="uid://bdmqljkpucpi3" path="res://Font/sikandinarie.ttf" id="10_font"]
 [ext_resource type="Texture2D" uid="uid://nxl6tvs3uy7u" path="res://circle.png" id="10_qqakd"]
+[ext_resource type="Texture2D" uid="uid://cb7cay6fn6urx" path="res://Main_Menu/TLO.png" id="12_title_logo"]
 [ext_resource type="Script" path="res://Main_Menu/scripts/SettingsPanel.gd" id="11_settings"]
+[ext_resource type="Script" path="res://Main_Menu/scripts/OrnamentSeparator.gd" id="13_sep"]
 
 [sub_resource type="ParticleProcessMaterial" id="ParticleProcessMaterial_tqkod"]
 particle_flag_disable_z = true
@@ -60,7 +61,7 @@ offset_right = 29.0
 offset_bottom = 9.0
 grow_horizontal = 2
 grow_vertical = 2
-texture = ExtResource("3_nacxu")
+texture = ExtResource("3_bg")
 expand_mode = 3
 stretch_mode = 6
 
@@ -72,8 +73,8 @@ layer = 2
 [node name="LeftPanel" type="VBoxContainer" parent="UILayer" unique_id=1197256295]
 anchors_preset = 9
 anchor_bottom = 1.0
-offset_left = 289.0
-offset_right = 589.0
+offset_left = 24.0
+offset_right = 584.0
 grow_vertical = 2
 alignment = 1
 
@@ -87,41 +88,47 @@ theme = ExtResource("6_theme")
 
 [node name="BtnNewGame" type="Button" parent="UILayer/LeftPanel/MenuButtons" unique_id=2062564159]
 layout_mode = 2
+size_flags_horizontal = 4
 text = "NEW JOURNEY"
 script = ExtResource("5_btn")
 
 [node name="BtnContinue" type="Button" parent="UILayer/LeftPanel/MenuButtons" unique_id=796371256]
 layout_mode = 2
+size_flags_horizontal = 4
 text = "CONTINUE"
 script = ExtResource("5_btn")
 
 [node name="BtnLoad" type="Button" parent="UILayer/LeftPanel/MenuButtons" unique_id=1681102973]
 layout_mode = 2
+size_flags_horizontal = 4
 text = "LOAD GAME"
 script = ExtResource("5_btn")
 
+[node name="NavSeparator" type="Control" parent="UILayer/LeftPanel/MenuButtons" unique_id=700000301]
+custom_minimum_size = Vector2(0, 26)
+layout_mode = 2
+script = ExtResource("13_sep")
+
 [node name="BtnSettings" type="Button" parent="UILayer/LeftPanel/MenuButtons" unique_id=632916370]
 layout_mode = 2
+size_flags_horizontal = 4
 text = "SETTINGS"
 script = ExtResource("5_btn")
 
 [node name="BtnQuit" type="Button" parent="UILayer/LeftPanel/MenuButtons" unique_id=2145485157]
 layout_mode = 2
+size_flags_horizontal = 4
 text = "QUIT"
 script = ExtResource("5_btn")
 
-[node name="GameTitle" type="VBoxContainer" parent="UILayer" unique_id=244491220]
-offset_left = 48.0
-offset_top = 32.0
-offset_right = 700.0
-offset_bottom = 150.0
-
-[node name="TitleLabel" type="Label" parent="UILayer/GameTitle" unique_id=1708821285]
-layout_mode = 2
-theme_override_colors/font_color = Color(1, 1, 1, 0.55)
-theme_override_fonts/font = ExtResource("10_font")
-theme_override_font_sizes/font_size = 56
-text = "CrushTest"
+[node name="GameTitle" type="TextureRect" parent="UILayer" unique_id=244491220]
+offset_left = 24.0
+offset_top = 16.0
+offset_right = 584.0
+offset_bottom = 296.0
+texture = ExtResource("12_title_logo")
+expand_mode = 1
+stretch_mode = 5
 
 [node name="BottomBar" type="HBoxContainer" parent="UILayer" unique_id=317497745]
 anchors_preset = 12
