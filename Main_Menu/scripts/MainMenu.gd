@@ -45,12 +45,26 @@ var _tween: Tween
 @export var parallax_smoothing := 4.0
 var _parallax_current := Vector2.ZERO
 
+# ── Логотип: приглушённый, слегка мерцающий (как тлеющая гравировка), а не
+# ── ровный яркий текст, бьющий в глаза на фоне тёмного меню ────────────────────
+@export var title_rgb_dim := Color(0.85, 0.85, 0.85)
+@export var title_alpha_max := 0.78
+@export var title_alpha_min := 0.55
+@export var title_flicker_duration_min := 0.5
+@export var title_flicker_duration_max := 1.6
+var _title_flicker_tween: Tween
+# Пока открыты настройки, логотип погашен — мерцание надо ставить на паузу,
+# иначе его твин перебивал бы затухание и дёргал альфу обратно вверх
+var _title_flicker_paused := false
+var _menu_fade_tween: Tween
+
 
 func _ready() -> void:
 	_setup_audio_loops()
 	_setup_fog_pulse()
 	_animate_intro()
 	_connect_buttons()
+	settings_panel.closed.connect(_on_overlay_closed)
 
 
 # ── Звук: музыка на переднем плане + тихий фоновый дождь, оба зациклены ────────
@@ -94,18 +108,19 @@ func _setup_fog_pulse() -> void:
 
 # ── Интро: всё появляется плавно ──────────────────────────────────────────────
 func _animate_intro() -> void:
-	# Начальные состояния
+	# Начальные состояния. RGB логотипа приглушаем сразу — анимируем только
+	# альфу, сам цвет остаётся тусклее оригинала на всё время жизни меню
 	left_panel.modulate.a = 0.0
 	left_panel.position.x -= 30.0
-	title_label.modulate.a = 0.0
+	title_label.modulate = Color(title_rgb_dim.r, title_rgb_dim.g, title_rgb_dim.b, 0.0)
 
 	_tween = create_tween().set_parallel(false)
 
 	# Небольшая пауза перед началом
 	_tween.tween_interval(0.6)
 
-	# Заголовок появляется первым
-	_tween.tween_property(title_label, "modulate:a", 1.0, 1.2)\
+	# Заголовок появляется первым — не в полную яркость, а до title_alpha_max
+	_tween.tween_property(title_label, "modulate:a", title_alpha_max, 1.2)\
 		.set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_CUBIC)
 
 	# Потом весь левый панель
@@ -115,6 +130,25 @@ func _animate_intro() -> void:
 		.set_ease(Tween.EASE_OUT)
 	_tween.tween_property(left_panel, "position:x", 0.0, 1.2)\
 		.set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_CUBIC)
+
+	_tween.finished.connect(_start_title_flicker)
+
+
+# ── Логотип тлеет неровным светом — каждый цикл новая случайная длительность
+# ── и целевая яркость, поэтому мерцание не выглядит механическим метрономом ────
+func _start_title_flicker() -> void:
+	_flicker_title_step()
+
+
+func _flicker_title_step() -> void:
+	if _title_flicker_paused or not is_instance_valid(title_label):
+		return
+	var target := randf_range(title_alpha_min, title_alpha_max)
+	var duration := randf_range(title_flicker_duration_min, title_flicker_duration_max)
+	_title_flicker_tween = create_tween()
+	_title_flicker_tween.tween_property(title_label, "modulate:a", target, duration)\
+		.set_ease(Tween.EASE_IN_OUT)
+	_title_flicker_tween.tween_callback(_flicker_title_step)
 
 
 # ── Подключение кнопок к действиям ────────────────────────────────────────────
@@ -137,6 +171,8 @@ func _transition_to(scene_path: String) -> void:
 func _on_new_game() -> void:
 	_play_ui_sound(SOUND_ACCEPT)
 	_get_character_panel().open()
+	# Выбор героя теперь полноэкранный — логотип и навигация под ним лишние
+	_set_menu_shown(false)
 
 
 ## Игрок выбрал героя. Слот заводим здесь — это единственное место в проекте,
@@ -188,12 +224,40 @@ func _get_character_panel() -> Control:
 	if not is_instance_valid(_character_panel):
 		_character_panel = CharacterSelectScript.new()
 		_character_panel.character_chosen.connect(_on_character_chosen)
+		_character_panel.closed.connect(_on_overlay_closed)
 		settings_panel.get_parent().add_child(_character_panel)
 	return _character_panel
 
 func _on_settings() -> void:
 	_play_ui_sound(SOUND_ACCEPT)
 	settings_panel.open()
+	# Панель настроек полупрозрачная и накрывает левую часть экрана — без
+	# этого сквозь неё просвечивали бы логотип и кнопки навигации
+	_set_menu_shown(false)
+
+
+## Любой полноэкранный оверлей (настройки, выбор героя) закрылся — возвращаем
+## логотип и навигацию
+func _on_overlay_closed() -> void:
+	_set_menu_shown(true)
+
+
+func _set_menu_shown(shown: bool) -> void:
+	if _menu_fade_tween:
+		_menu_fade_tween.kill()
+	if _title_flicker_tween:
+		_title_flicker_tween.kill()
+	_title_flicker_paused = not shown
+
+	_menu_fade_tween = create_tween().set_parallel(true)
+	_menu_fade_tween.tween_property(left_panel, "modulate:a", 1.0 if shown else 0.0, 0.25)\
+		.set_ease(Tween.EASE_OUT)
+	_menu_fade_tween.tween_property(title_label, "modulate:a",
+		title_alpha_max if shown else 0.0, 0.25).set_ease(Tween.EASE_OUT)
+
+	if shown:
+		await _menu_fade_tween.finished
+		_flicker_title_step()
 
 func _on_quit() -> void:
 	_play_ui_sound(SOUND_ACCEPT)
