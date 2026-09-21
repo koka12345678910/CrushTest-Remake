@@ -4,9 +4,10 @@ extends Control
 ## зумом фона и переходами между сценами.
 
 @onready var background: TextureRect = $Background
+@onready var background_near: TextureRect = $BackgroundNear
 @onready var fog: ColorRect = $EffectsLayer/FogOverlay
 @onready var left_panel: VBoxContainer = $UILayer/LeftPanel
-@onready var title_label: TextureRect = $UILayer/GameTitle
+@onready var title_label: TextureRect = $GameTitle
 @onready var menu_buttons: VBoxContainer = $UILayer/LeftPanel/MenuButtons
 @onready var ambient_music: AudioStreamPlayer = $AmbientMusic
 @onready var rain_ambience: AudioStreamPlayer = $RainAmbience
@@ -21,6 +22,15 @@ const SCENE_GAME := "res://Levels/level_01.tscn"
 
 const SOUND_ACCEPT := preload("res://Sound/UI_button/accept.wav")
 const SOUND_DENIED := preload("res://Sound/UI_button/denied.wav")
+
+# Лого — не картинка, а мерцающий спрайт-лист (сетка 6×6 = 36 кадров тлеющих
+# углей на гравировке). GameTitle несёт SpriteSheetAnimation.gd (см. .tscn),
+# сам лист прокручивается через .call(), т.к. переменная типизирована как
+# TextureRect — статическая типизация GDScript не знает про setup_grid()
+const LOGO_ANIM_SHEET := preload("res://Main_Menu/TLO_anim.png")
+const LOGO_ANIM_COLUMNS := 6
+const LOGO_ANIM_ROWS := 6
+const LOGO_ANIM_FPS := 15.0
 
 # Панель создаётся кодом и по требованию — как настройки внутри инвентаря
 # (inventory_ui.gd). Отдельного .tscn у неё нет, вся вёрстка в скрипте
@@ -41,15 +51,21 @@ func _play_ui_sound(stream: AudioStream) -> void:
 var _tween: Tween
 
 # ── Параллакс фона от мыши (эффект "живых обоев") ──────────────────────────────
-@export var parallax_strength := 0.025
+# Два слоя двигаются с разной силой — так и получается ощущение глубины:
+# дальний план (руины/небо) почти неподвижен, ближний (рыцарь) заметно ведёт
+# за курсором, будто стоит ощутимо ближе к камере
+@export var parallax_strength_far := 0.025
+@export var parallax_strength_near := 0.06
 @export var parallax_smoothing := 4.0
-var _parallax_current := Vector2.ZERO
+var _parallax_far := Vector2.ZERO
+var _parallax_near := Vector2.ZERO
 
-# ── Логотип: приглушённый, слегка мерцающий (как тлеющая гравировка), а не
-# ── ровный яркий текст, бьющий в глаза на фоне тёмного меню ────────────────────
-@export var title_rgb_dim := Color(0.85, 0.85, 0.85)
-@export var title_alpha_max := 0.78
-@export var title_alpha_min := 0.55
+# ── Логотип: тлеющий и мерцающий, но теперь заметно ярче — раньше сильное
+# ── приглушение имело смысл для мелкого лого в углу, а для крупного нового
+# ── по центру экрана оно просто выглядело тускло ───────────────────────────────
+@export var title_rgb_dim := Color(1.1, 1.08, 1.0)
+@export var title_alpha_max := 0.97
+@export var title_alpha_min := 0.8
 @export var title_flicker_duration_min := 0.5
 @export var title_flicker_duration_max := 1.6
 var _title_flicker_tween: Tween
@@ -60,6 +76,8 @@ var _menu_fade_tween: Tween
 
 
 func _ready() -> void:
+	title_label.call("setup_grid", LOGO_ANIM_SHEET, LOGO_ANIM_COLUMNS, LOGO_ANIM_ROWS,
+		1.0 / LOGO_ANIM_FPS)
 	_setup_audio_loops()
 	_setup_fog_pulse()
 	_animate_intro()
@@ -89,13 +107,18 @@ func _replay_rain() -> void:
 
 
 func _process(delta: float) -> void:
-	if not background.material:
-		return
 	var viewport_size := get_viewport_rect().size
 	var mouse_norm := (get_viewport().get_mouse_position() / viewport_size) - Vector2(0.5, 0.5)
-	var target := mouse_norm * parallax_strength
-	_parallax_current = _parallax_current.lerp(target, min(1.0, parallax_smoothing * delta))
-	background.material.set_shader_parameter("parallax_offset", _parallax_current)
+
+	if background.material:
+		var target_far := mouse_norm * parallax_strength_far
+		_parallax_far = _parallax_far.lerp(target_far, min(1.0, parallax_smoothing * delta))
+		background.material.set_shader_parameter("parallax_offset", _parallax_far)
+
+	if background_near.material:
+		var target_near := mouse_norm * parallax_strength_near
+		_parallax_near = _parallax_near.lerp(target_near, min(1.0, parallax_smoothing * delta))
+		background_near.material.set_shader_parameter("parallax_offset", _parallax_near)
 
 
 # ── Туман: пульсирующая прозрачность ──────────────────────────────────────────

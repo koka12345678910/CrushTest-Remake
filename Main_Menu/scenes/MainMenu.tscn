@@ -2,16 +2,17 @@
 
 [ext_resource type="Script" uid="uid://dcfm2q4ouuedv" path="res://Main_Menu/scripts/MainMenu.gd" id="1_mainmenu"]
 [ext_resource type="Script" uid="uid://uj11ia2lmi3q" path="res://Main_Menu/scripts/RainEffect.gd" id="2_rain"]
-[ext_resource type="Texture2D" uid="uid://dduxekluth3u8" path="res://Main_Menu/IMG_mainMenu.png" id="3_bg"]
+[ext_resource type="Texture2D" uid="uid://dwjktecvfdqf" path="res://Main_Menu/layers/MainMenu_Layer_1.png" id="3_bg"]
+[ext_resource type="Texture2D" uid="uid://hktgyiib5ggr" path="res://Main_Menu/layers/MainMenu_Layer_2.png" id="4_bg_near"]
 [ext_resource type="Script" uid="uid://b4klukdv3id2k" path="res://Main_Menu/scripts/MenuButton.gd" id="5_btn"]
 [ext_resource type="Theme" uid="uid://b7jwdfw7kv5fn" path="res://Main_Menu/theme/MenuTheme.tres" id="6_theme"]
 [ext_resource type="Shader" uid="uid://bx6jobhc2yyal" path="res://Shaders/wallpaper_flow.gdshader" id="7_wallpaper"]
 [ext_resource type="AudioStream" uid="uid://dbjtefscy7yc0" path="res://Soundtrack/Main_Menu/mainMenu_soundtrack.mp3" id="8_music"]
 [ext_resource type="AudioStream" uid="uid://bh0x85so1hd2s" path="res://Sound/weather_sound/atmospheric_rain.wav" id="9_rain_amb"]
 [ext_resource type="Texture2D" uid="uid://nxl6tvs3uy7u" path="res://circle.png" id="10_qqakd"]
-[ext_resource type="Texture2D" uid="uid://cb7cay6fn6urx" path="res://Main_Menu/TLO.png" id="12_title_logo"]
-[ext_resource type="Script" path="res://Main_Menu/scripts/SettingsPanel.gd" id="11_settings"]
-[ext_resource type="Script" path="res://Main_Menu/scripts/OrnamentSeparator.gd" id="13_sep"]
+[ext_resource type="Script" uid="uid://c5kyru2gl33pm" path="res://Main_Menu/scripts/SettingsPanel.gd" id="11_settings"]
+[ext_resource type="Script" uid="uid://bd5sodwjabnkv" path="res://Main_Menu/scripts/OrnamentSeparator.gd" id="13_sep"]
+[ext_resource type="Script" uid="uid://6oidn4igy8cu" path="res://Main_Menu/scripts/SpriteSheetAnimation.gd" id="14_logo_anim"]
 
 [sub_resource type="ParticleProcessMaterial" id="ParticleProcessMaterial_tqkod"]
 particle_flag_disable_z = true
@@ -21,6 +22,12 @@ gravity = Vector3(0, 98, 0)
 shader = ExtResource("7_wallpaper")
 shader_parameter/warp_strength = 0.006
 shader_parameter/warp_speed = 0.35
+shader_parameter/parallax_offset = Vector2(0, 0)
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_wallpaper_near"]
+shader = ExtResource("7_wallpaper")
+shader_parameter/warp_strength = 0.0
+shader_parameter/warp_speed = 0.0
 shader_parameter/parallax_offset = Vector2(0, 0)
 
 [node name="MainMenu" type="Control" unique_id=1294809207]
@@ -67,6 +74,37 @@ stretch_mode = 6
 
 [node name="CameraAnim" type="AnimationPlayer" parent="Background" unique_id=716639152]
 
+[node name="GameTitle" type="TextureRect" parent="." unique_id=244491220]
+layout_mode = 1
+anchor_left = 0.5
+anchor_right = 0.5
+offset_left = -630.0
+offset_top = -140.0
+offset_right = 630.0
+offset_bottom = 490.0
+grow_horizontal = 2
+mouse_filter = 2
+expand_mode = 1
+stretch_mode = 5
+script = ExtResource("14_logo_anim")
+
+[node name="BackgroundNear" type="TextureRect" parent="." unique_id=971412129]
+material = SubResource("ShaderMaterial_wallpaper_near")
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = -0.5487671
+offset_top = -63.0
+offset_right = 14.422607
+offset_bottom = 72.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+texture = ExtResource("4_bg_near")
+expand_mode = 3
+stretch_mode = 6
+
 [node name="UILayer" type="CanvasLayer" parent="." unique_id=1985279804]
 layer = 2
 
@@ -74,7 +112,7 @@ layer = 2
 anchors_preset = 9
 anchor_bottom = 1.0
 offset_left = 24.0
-offset_right = 584.0
+offset_right = 460.0
 grow_vertical = 2
 alignment = 1
 
@@ -121,15 +159,6 @@ size_flags_horizontal = 4
 text = "QUIT"
 script = ExtResource("5_btn")
 
-[node name="GameTitle" type="TextureRect" parent="UILayer" unique_id=244491220]
-offset_left = 24.0
-offset_top = 16.0
-offset_right = 584.0
-offset_bottom = 296.0
-texture = ExtResource("12_title_logo")
-expand_mode = 1
-stretch_mode = 5
-
 [node name="BottomBar" type="HBoxContainer" parent="UILayer" unique_id=317497745]
 anchors_preset = 12
 anchor_top = 1.0
@@ -144,6 +173,7 @@ layout_mode = 2
 text = "v0.1.0  —  Early Access"
 
 [node name="SettingsPanel" type="Control" parent="UILayer" unique_id=1900000040]
+layout_mode = 3
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
