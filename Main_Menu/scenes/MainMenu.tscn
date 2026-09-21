@@ -50,13 +50,6 @@ anchor_right = 1.0
 anchor_bottom = 1.0
 color = Color(0.04, 0.05, 0.07, 0)
 
-[node name="Rain" type="GPUParticles2D" parent="EffectsLayer" unique_id=1485973941]
-position = Vector2(576, 0)
-amount = 5000
-lifetime = 1.8
-process_material = SubResource("ParticleProcessMaterial_tqkod")
-script = ExtResource("2_rain")
-
 [node name="Background" type="TextureRect" parent="." unique_id=971412128]
 material = SubResource("ShaderMaterial_wallpaper")
 layout_mode = 1
@@ -87,6 +80,13 @@ mouse_filter = 2
 expand_mode = 1
 stretch_mode = 5
 script = ExtResource("14_logo_anim")
+
+[node name="Rain" type="GPUParticles2D" parent="." unique_id=1485973941]
+position = Vector2(576, 0)
+amount = 5000
+lifetime = 1.8
+process_material = SubResource("ParticleProcessMaterial_tqkod")
+script = ExtResource("2_rain")
 
 [node name="BackgroundNear" type="TextureRect" parent="." unique_id=971412129]
 material = SubResource("ShaderMaterial_wallpaper_near")
