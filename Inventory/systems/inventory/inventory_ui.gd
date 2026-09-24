@@ -3,17 +3,17 @@ extends CanvasLayer
 
 signal closed
 
-const COLOR_BG          = Color(0.04, 0.03, 0.02, 0.97)
-const COLOR_PANEL       = Color(0.08, 0.06, 0.04, 1.0)
-const COLOR_SLOT_EMPTY  = Color(0.11, 0.09, 0.06, 1.0)
-const COLOR_SLOT_HOVER  = Color(0.20, 0.15, 0.09, 1.0)
-const COLOR_SLOT_SEL    = Color(0.22, 0.16, 0.08, 1.0)
+# Палитра — в тон главному меню и экрану выбора героя: тёплое тёмное золото
+# на почти чёрном
+const COLOR_FRAME_FILL  = Color(0.062, 0.054, 0.046, 0.97)
+# Ячейки темнее окна — читаются как утопленные гнёзда, а не как плашки поверх
+const COLOR_CELL_FILL   = Color(0.03, 0.027, 0.024, 0.95)
 const COLOR_BORDER      = Color(0.45, 0.35, 0.15, 1.0)
 const COLOR_BORDER_HI   = Color(0.80, 0.62, 0.22, 1.0)
-const COLOR_TEXT        = Color(0.92, 0.84, 0.66, 1.0)
-const COLOR_TEXT_DIM    = Color(0.52, 0.47, 0.36, 1.0)
-const COLOR_TEXT_GOLD   = Color(0.98, 0.78, 0.28, 1.0)
-const COLOR_DIVIDER     = Color(0.40, 0.30, 0.12, 0.7)
+const COLOR_TEXT        = Color(0.88, 0.81, 0.68, 1.0)
+const COLOR_TEXT_DIM    = Color(0.56, 0.50, 0.40, 1.0)
+const COLOR_TEXT_GOLD   = Color(0.96, 0.76, 0.34, 1.0)
+const COLOR_DIVIDER     = Color(0.52, 0.42, 0.24, 0.55)
 
 const COLOR_WARN        = Color(0.85, 0.35, 0.20, 1.0)
 
@@ -27,6 +27,14 @@ const TAB_SETTINGS  := 2
 # Настройки — та же панель, что и в главном меню, а не её копия: значения живут
 # в автозагрузке GameSettings, и второй реализации взяться неоткуда
 const SettingsPanelScript := preload("res://Main_Menu/scripts/SettingsPanel.gd")
+
+# Орнаменты — те же скрипты, что у главного меню и экрана выбора героя, чтобы
+# весь интерфейс говорил на одном визуальном языке. Через set_script, а не
+# class_name: глобальный кэш классов в этом проекте уже подводил
+const OrnateFrameScript := preload("res://Main_Menu/scripts/OrnateFrame.gd")
+const DiamondMarkerScript := preload("res://Main_Menu/scripts/DiamondMarker.gd")
+const OrnamentSeparatorScript := preload("res://Main_Menu/scripts/OrnamentSeparator.gd")
+const GlyphIconScript := preload("res://Main_Menu/scripts/GlyphIcon.gd")
 
 # ─── UI-ЗВУКИ ──────────────────────────────────────────────────────────────────
 const SOUND_ACCEPT := preload("res://Sound/UI_button/accept.wav")
@@ -48,9 +56,14 @@ var _inventory_system: InventorySystem
 ## на нём, не здесь (см. Inventory/ui/skill_tree_panel.gd)
 var _player: Node
 
+## Фон отдельно от _root: _root при открытии "наплывает" из масштаба 0.96, и
+## если бы фон масштабировался вместе с ним, по краям экрана на эти доли
+## секунды проглядывал бы мир
+var _backdrop: Control
 var _root: Control
 var _grid_slots: Array[Control] = []
 var _selected_index: int = -1
+var _hover_index: int = -1
 
 # Оверлеи поверх инвентаря (настройки / навыки). Пока хоть один открыт, Esc
 # закрывает его, а не весь инвентарь
@@ -87,26 +100,39 @@ var _tab_buttons: Array[Button] = []
 var _current_tab := TAB_INVENTORY
 
 var _detail_icon: TextureRect
+var _detail_icon_frame: Control
 var _detail_name: Label
 var _detail_type: Label
 var _detail_count: Label
 var _detail_max_count: Label
-var _detail_desc: Label
 var _detail_effect: Label
 var _btn_equip: Button
-var _quick_slot_preview: Control
+var _btn_equip_deco: Control
 var _quick_slot_header: Label
 var _quick_slot_status: Label
+# Быстрые слоты рисуются дважды: крупно в правой колонке "БЫСТРЫЙ СЛОТ" и
+# мини-строкой "Быстрый доступ N/3" внизу слева — как на референсе
+var _big_slots: Array[Control] = []
+var _mini_slots: Array[Control] = []
 
 var _screen: Vector2
+# _panel_w/_panel_h — габариты, от которых считаются размеры окна "НАВЫКИ"
+# (_selector_frame_size/_detail_frame_size). Остаются прежними, чтобы
+# переделка вёрстки инвентаря не сдвинула уже настроенное дерево навыков
 var _panel_w: float
 var _panel_h: float
+var _frame_pos: Vector2
+var _frame_size: Vector2
+var _pad: float
+var _left_w: float
+var _right_x: float
+var _mid_x: float
+var _mid_w: float
+var _btn_y: float
 var _slot_size: Vector2
 var _slot_gap: float
 var _grid_x: float
 var _grid_y: float
-var _detail_x: float
-var _detail_w: float
 
 
 func _ready() -> void:
@@ -133,13 +159,16 @@ func open() -> void:
 	# ставим игру на паузу — враги останавливаются и не бьют игрока
 	get_tree().paused = true
 	_is_closing = false
+	_hover_index = -1
 	_play_ui_sound(SOUND_OPEN)
 	visible = true
 	_refresh_grid()
+	_backdrop.modulate.a = 0.0
 	_root.modulate = Color(1, 1, 1, 0)
 	_root.scale = Vector2(0.96, 0.96)
 	_root.pivot_offset = _screen / 2.0
 	var tw = create_tween().set_parallel()
+	tw.tween_property(_backdrop, "modulate:a", 1.0, 0.22)
 	tw.tween_property(_root, "modulate", Color.WHITE, 0.18)
 	tw.tween_property(_root, "scale", Vector2.ONE, 0.18).set_ease(Tween.EASE_OUT)
 
@@ -153,6 +182,7 @@ func close() -> void:
 	_play_ui_sound(SOUND_OPEN)
 	_root.pivot_offset = _screen / 2.0
 	var tw = create_tween().set_parallel()
+	tw.tween_property(_backdrop, "modulate:a", 0.0, 0.16)
 	tw.tween_property(_root, "modulate", Color(1, 1, 1, 0), 0.14)
 	tw.tween_property(_root, "scale", Vector2(0.96, 0.96), 0.14)
 	await tw.finished
@@ -214,80 +244,220 @@ func _unhandled_input(event: InputEvent) -> void:
 
 func _build_ui() -> void:
 	_screen = get_viewport().get_visible_rect().size
+	_panel_w = _screen.x - 60.0
+	_panel_h = _screen.y - 60.0
 
-	var margin  := 30.0
-	_panel_w    = _screen.x - margin * 2.0
-	_panel_h    = _screen.y - margin * 2.0
+	# Главное окно — по центру, с запасом сверху под полосу вкладок и снизу
+	# под подсказки клавиш
+	_frame_pos = Vector2(round(_screen.x * 0.047), round(_screen.y * 0.112))
+	_frame_size = Vector2(
+		_screen.x - _frame_pos.x * 2.0,
+		_screen.y - _frame_pos.y - round(_screen.y * 0.07))
 
-	var grid_area_w := _panel_w * 0.36
+	# Три колонки внутри окна: сетка предметов | описание | быстрые слоты.
+	# Доли сняты с референса
+	_pad = 30.0
+	_left_w = round(_frame_size.x * 0.405)
+	_right_x = round(_frame_size.x * 0.815)
+	_mid_x = _left_w + 40.0
+	_mid_w = _right_x - 34.0 - _mid_x
+	_btn_y = _frame_size.y - 104.0
+
+	_slot_gap = 16.0
+	_grid_x = _pad
+	_grid_y = 84.0
+	# справа от сетки место под декоративную полосу прокрутки, снизу — под
+	# строку "Быстрый доступ"
+	var grid_w := _left_w - _pad - 58.0
+	var grid_h := _frame_size.y - 110.0 - _grid_y
 	_slot_size = Vector2(
-		(grid_area_w - 60.0) / GRID_COLS,
-		(grid_area_w - 60.0) / GRID_COLS
-	)
-	_slot_gap  = 12.0
-	_grid_x    = 36.0
-	_grid_y    = 90.0
+		floor((grid_w - _slot_gap * (GRID_COLS - 1)) / GRID_COLS),
+		floor((grid_h - _slot_gap * (GRID_ROWS - 1)) / GRID_ROWS))
 
-	_detail_x  = _grid_x + GRID_COLS * (_slot_size.x + _slot_gap) + 36.0
-	_detail_w  = _panel_w - _detail_x - 36.0
+	_build_backdrop()
 
 	_root = Control.new()
-	_root.set_anchors_preset(Control.PRESET_FULL_RECT)
-	var custom_font := load("res://Font/sikandinarie.ttf") as Font
-	if custom_font:
-		var font_theme := Theme.new()
-		font_theme.default_font = custom_font
-		_root.theme = font_theme
+	_root.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	_root.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	# Шрифт меню (sikandinarie.ttf) здесь не годится: в нём нет кириллицы, и
+	# весь русский текст всё равно падал в запасной гротеск Godot, а шрифт меню
+	# доставался только цифрам — где его единица неотличима от "l" ("x1"
+	# читалось как "xl"). Системная антиква с кириллицей даёт засечки, как на
+	# референсе, и нормальные цифры. Нет ни одного шрифта из списка —
+	# SystemFont сам откатывается к стандартному, ничего не ломается
+	var serif := SystemFont.new()
+	serif.font_names = PackedStringArray(
+		["Palatino Linotype", "Book Antiqua", "Cambria", "Georgia"])
+	var font_theme := Theme.new()
+	font_theme.default_font = serif
+	_root.theme = font_theme
 	add_child(_root)
 
-	var bg := ColorRect.new()
-	bg.set_anchors_preset(Control.PRESET_FULL_RECT)
-	bg.color = COLOR_BG
-	_root.add_child(bg)
-	_root.add_child(_make_rune_pattern())
+	var frame := _make_panel(_frame_pos, _frame_size)
+	frame.set("corner_length", 38.0)
+	frame.set("corner_width", 2.0)
+	_root.add_child(frame)
 
-	var panel := _make_panel(Vector2(margin, margin), Vector2(_panel_w, _panel_h))
-	_root.add_child(panel)
+	# Вкладки — после окна: полоса заходит на его верхнюю кайму и должна её
+	# перекрыть, как язычок, а не прятаться под ней
+	_build_tabs()
 
-	_build_tabs(panel)
-	_add_divider(panel, Vector2(20, 62), _panel_w - 40.0)
+	_build_column_dividers(frame)
+	_build_grid(frame)
+	_build_detail_panel(frame)
+	_build_quick_column(frame)
+	_build_quick_slot_bar(frame)
+	_build_equip_button(frame)
+	_build_hints()
 
-	var vdiv := ColorRect.new()
-	vdiv.position = Vector2(_detail_x - 20.0, 70.0)
-	vdiv.size = Vector2(1, _panel_h - 140.0)
-	vdiv.color = COLOR_DIVIDER
-	panel.add_child(vdiv)
-
-	_build_grid(panel)
-	_build_detail_panel(panel)
-	_build_quick_slot_bar(panel)
-	_build_hints(panel)
+	# Стартовое состояние правой части — подсказка "Выберите предмет" вместо
+	# пустоты, и заодно первая отрисовка сетки и быстрых слотов
+	_select_slot(-1, false)
 
 
-# Вкладки разделов — крупно, по центру самого верха панели. Порядок слева
-# направо: Инвентарь (открыт по умолчанию), Навыки, Настройки. Активная
-# вкладка подсвечена золотым текстом и полоской снизу
-func _build_tabs(parent: Control) -> void:
+# Фон под инвентарём: мир не просвечивает совсем (игра всё равно на паузе),
+# но и не плоская чернота — тёплое свечение по центру, отсвет над вкладками,
+# зарево снизу и редкие угли, поднимающиеся от него, как от тлеющих руин из
+# главного меню. Всё процедурное, без картинок
+func _build_backdrop() -> void:
+	_backdrop = Control.new()
+	_backdrop.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	_backdrop.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	add_child(_backdrop)
+
+	var base := ColorRect.new()
+	base.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	base.color = Color(0.012, 0.010, 0.009, 1.0)
+	# ColorRect по умолчанию MOUSE_FILTER_STOP — ловит клики мимо интерфейса,
+	# чтобы они не уходили в мир под инвентарём
+	_backdrop.add_child(base)
+
+	# Мягкое тёплое свечение по центру — окну есть на чём "стоять"
+	_backdrop.add_child(_make_radial(Rect2(Vector2.ZERO, _screen),
+		PackedFloat32Array([0.0, 0.5, 1.0]),
+		PackedColorArray([
+			Color(0.12, 0.09, 0.06, 0.9),
+			Color(0.055, 0.042, 0.03, 0.5),
+			Color(0.0, 0.0, 0.0, 0.0)])))
+
+	# Отсвет над полосой вкладок
+	_backdrop.add_child(_make_radial(
+		Rect2(Vector2(_screen.x * 0.25, -_screen.y * 0.14), Vector2(_screen.x * 0.5, _screen.y * 0.38)),
+		PackedFloat32Array([0.0, 1.0]),
+		PackedColorArray([Color(0.42, 0.28, 0.13, 0.2), Color(0.0, 0.0, 0.0, 0.0)])))
+
+	# Зарево снизу — откуда поднимаются угли
+	var ember_glow := _make_linear(
+		Rect2(Vector2(0.0, _screen.y * 0.6), Vector2(_screen.x, _screen.y * 0.4)),
+		Color(0.0, 0.0, 0.0, 0.0), Color(0.26, 0.09, 0.025, 0.24), true)
+	_backdrop.add_child(ember_glow)
+
+	_backdrop.add_child(_make_embers())
+
+	# Виньетка поверх всего — края экрана уходят в полную черноту
+	_backdrop.add_child(_make_radial(Rect2(Vector2.ZERO, _screen),
+		PackedFloat32Array([0.0, 0.5, 1.0]),
+		PackedColorArray([
+			Color(0.0, 0.0, 0.0, 0.0),
+			Color(0.0, 0.0, 0.0, 0.0),
+			Color(0.0, 0.0, 0.0, 0.82)])))
+
+
+func _make_embers() -> GPUParticles2D:
+	var p := GPUParticles2D.new()
+	p.position = Vector2(_screen.x / 2.0, _screen.y + 12.0)
+	p.amount = 64
+	p.lifetime = 9.0
+	# Предпрогрев — при первом открытии угли уже висят в воздухе, а не
+	# начинают вылетать с пустого экрана
+	p.preprocess = 9.0
+	p.randomness = 0.6
+
+	var mat := ParticleProcessMaterial.new()
+	mat.particle_flag_disable_z = true
+	mat.emission_shape = ParticleProcessMaterial.EMISSION_SHAPE_BOX
+	mat.emission_box_extents = Vector3(_screen.x * 0.55, 8.0, 1.0)
+	mat.direction = Vector3(0.0, -1.0, 0.0)
+	mat.spread = 18.0
+	mat.initial_velocity_min = 35.0
+	mat.initial_velocity_max = 90.0
+	mat.gravity = Vector3(0.0, -6.0, 0.0)
+	mat.turbulence_enabled = true
+	mat.turbulence_noise_strength = 0.8
+	mat.turbulence_noise_scale = 3.0
+	mat.turbulence_influence_min = 0.03
+	mat.turbulence_influence_max = 0.08
+	mat.scale_min = 0.12
+	mat.scale_max = 0.32
+
+	var ramp := Gradient.new()
+	ramp.offsets = PackedFloat32Array([0.0, 0.12, 0.65, 1.0])
+	ramp.colors = PackedColorArray([
+		Color(1.0, 0.62, 0.22, 0.0),
+		Color(1.0, 0.58, 0.18, 0.75),
+		Color(0.95, 0.35, 0.08, 0.45),
+		Color(0.5, 0.12, 0.02, 0.0),
+	])
+	var ramp_tex := GradientTexture1D.new()
+	ramp_tex.gradient = ramp
+	mat.color_ramp = ramp_tex
+	p.process_material = mat
+
+	# Мягкая круглая точка вместо квадратного пикселя
+	var dot := Gradient.new()
+	dot.offsets = PackedFloat32Array([0.0, 0.35, 1.0])
+	dot.colors = PackedColorArray([Color(1, 1, 1, 1), Color(1, 1, 1, 0.55), Color(1, 1, 1, 0)])
+	var dot_tex := GradientTexture2D.new()
+	dot_tex.gradient = dot
+	dot_tex.fill = GradientTexture2D.FILL_RADIAL
+	dot_tex.fill_from = Vector2(0.5, 0.5)
+	dot_tex.fill_to = Vector2(1.0, 0.5)
+	dot_tex.width = 32
+	dot_tex.height = 32
+	p.texture = dot_tex
+
+	# Аддитивное смешивание — угли светятся, а не лежат плоскими кружками
+	var glow := CanvasItemMaterial.new()
+	glow.blend_mode = CanvasItemMaterial.BLEND_MODE_ADD
+	p.material = glow
+	return p
+
+
+# Вкладки разделов — полосой над окном, по центру. Порядок слева направо:
+# Инвентарь (открыт по умолчанию), Навыки, Настройки. Активная — золотой текст,
+# ромбик над ней и золотая черта с ромбиком снизу
+func _build_tabs() -> void:
 	var tab_defs := [
 		["ИНВЕНТАРЬ", TAB_INVENTORY],
 		["НАВЫКИ",    TAB_SKILLS],
 		["НАСТРОЙКИ", TAB_SETTINGS],
 	]
-	var tab_w   := 220.0
-	var tab_h   := 42.0
-	var tab_gap := 28.0
-	var total_w := tab_defs.size() * tab_w + (tab_defs.size() - 1) * tab_gap
-	var x := (_panel_w - total_w) / 2.0
-	var y := 12.0
+	var tab_w := 300.0
+	var strip_h := 66.0
+	var strip_w := tab_w * tab_defs.size()
+	var strip_pos := Vector2((_screen.x - strip_w) / 2.0, _frame_pos.y - strip_h + 10.0)
+
+	var strip := _make_frame()
+	strip.position = strip_pos - Vector2(26.0, 0.0)
+	strip.size = Vector2(strip_w + 52.0, strip_h)
+	strip.set("fill_color", Color(0.034, 0.03, 0.027, 0.98))
+	strip.set("corner_length", 18.0)
+	_root.add_child(strip)
+
+	for i in range(1, tab_defs.size()):
+		var sep := _make_fade_line(strip_h - 22.0, true, COLOR_DIVIDER)
+		sep.position = strip_pos + Vector2(i * tab_w, 11.0)
+		_root.add_child(sep)
 
 	_tab_buttons.clear()
-	for def in tab_defs:
+	for i in tab_defs.size():
+		var def: Array = tab_defs[i]
 		var tab_id: int = def[1]
-		var btn := _make_tab_button(def[0], Vector2(x, y), Vector2(tab_w, tab_h))
+		var btn := _make_tab_button(def[0], strip_pos + Vector2(i * tab_w, 0.0),
+			Vector2(tab_w, strip_h))
 		btn.pressed.connect(func(): _on_tab_pressed(tab_id))
-		parent.add_child(btn)
+		_root.add_child(btn)
 		_tab_buttons.append(btn)
-		x += tab_w + tab_gap
 
 	_update_tab_visuals()
 
@@ -298,7 +468,7 @@ func _make_tab_button(text: String, pos: Vector2, sz: Vector2) -> Button:
 	btn.position = pos
 	btn.size = sz
 	btn.focus_mode = Control.FOCUS_NONE
-	btn.add_theme_font_size_override("font_size", 20)
+	btn.add_theme_font_size_override("font_size", 24)
 
 	var empty := StyleBoxEmpty.new()
 	btn.add_theme_stylebox_override("normal", empty)
@@ -310,12 +480,25 @@ func _make_tab_button(text: String, pos: Vector2, sz: Vector2) -> Button:
 	btn.add_theme_color_override("font_hover_color", COLOR_TEXT_GOLD)
 	btn.add_theme_color_override("font_pressed_color", COLOR_TEXT_GOLD)
 
-	var underline := ColorRect.new()
-	underline.name = "Underline"
-	underline.position = Vector2(0, sz.y - 3)
-	underline.size = Vector2(sz.x, 3)
-	underline.color = Color(0, 0, 0, 0)
-	btn.add_child(underline)
+	# Индикатор активной вкладки: ромбик на верхней кромке полосы и золотая
+	# черта с ромбиком под текстом. Показывается только у текущей вкладки
+	var ind := Control.new()
+	ind.name = "Indicator"
+	ind.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	ind.size = sz
+	btn.add_child(ind)
+
+	var top := _make_diamond(14.0)
+	top.position = Vector2(sz.x / 2.0 - 7.0, -7.0)
+	ind.add_child(top)
+
+	var line := _make_fade_line(sz.x * 0.72, false, COLOR_BORDER_HI, 2.0)
+	line.position = Vector2(sz.x * 0.14, sz.y - 14.0)
+	ind.add_child(line)
+
+	var bottom := _make_diamond(12.0)
+	bottom.position = Vector2(sz.x / 2.0 - 6.0, sz.y - 19.0)
+	ind.add_child(bottom)
 
 	return btn
 
@@ -323,10 +506,9 @@ func _make_tab_button(text: String, pos: Vector2, sz: Vector2) -> Button:
 func _update_tab_visuals() -> void:
 	for i in _tab_buttons.size():
 		var btn := _tab_buttons[i]
-		var underline := btn.get_node("Underline") as ColorRect
 		var active := i == _current_tab
 		btn.add_theme_color_override("font_color", COLOR_TEXT_GOLD if active else COLOR_TEXT_DIM)
-		underline.color = COLOR_BORDER_HI if active else Color(0, 0, 0, 0)
+		(btn.get_node("Indicator") as Control).visible = active
 
 
 func _set_current_tab(tab: int) -> void:
@@ -355,11 +537,38 @@ func _on_tab_pressed(id: int) -> void:
 			_open_settings()
 
 
+# Вертикальные разделители колонок — гаснущие к концам линии с ромбиком
+func _build_column_dividers(parent: Control) -> void:
+	var left := _make_fade_line(_frame_size.y - 44.0, true, COLOR_DIVIDER)
+	left.position = Vector2(_left_w, 22.0)
+	parent.add_child(left)
+	var ld := _make_diamond(12.0)
+	ld.position = Vector2(_left_w - 6.0, _frame_size.y / 2.0 - 6.0)
+	parent.add_child(ld)
+
+	# Правый — только вдоль колонки быстрых слотов: под ней широкая кнопка
+	# действия тянется через обе колонки
+	var right_len := _btn_y - 70.0
+	var right := _make_fade_line(right_len, true, COLOR_DIVIDER)
+	right.position = Vector2(_right_x, 22.0)
+	parent.add_child(right)
+	var rd := _make_diamond(10.0)
+	rd.position = Vector2(_right_x - 5.0, 22.0 + right_len * 0.12)
+	parent.add_child(rd)
+
+
 func _build_grid(parent: Control) -> void:
-	var hdr := _make_label("ИНВЕНТАРЬ", 13)
-	hdr.position = Vector2(_grid_x, 68.0)
-	hdr.add_theme_color_override("font_color", COLOR_TEXT_DIM)
+	var emblem := _make_glyph("medallion", COLOR_BORDER_HI, 40.0)
+	emblem.position = Vector2(_pad, 20.0)
+	parent.add_child(emblem)
+
+	var hdr := _make_label("ИНВЕНТАРЬ", 22)
+	hdr.position = Vector2(_pad + 52.0, 24.0)
 	parent.add_child(hdr)
+
+	var hdr_line := _make_fade_line(_left_w - _pad * 2.0 - 30.0, false, COLOR_DIVIDER)
+	hdr_line.position = Vector2(_pad + 30.0, 66.0)
+	parent.add_child(hdr_line)
 
 	for row in GRID_ROWS:
 		for col in GRID_COLS:
@@ -372,71 +581,59 @@ func _build_grid(parent: Control) -> void:
 			parent.add_child(slot)
 			_grid_slots.append(slot)
 
+	# Декоративная "полоса прокрутки" справа от сетки — как на референсе.
+	# Настоящей прокрутки нет: ячеек ровно столько, сколько видно
+	var grid_h := GRID_ROWS * _slot_size.y + (GRID_ROWS - 1) * _slot_gap
+	var rail_x := _grid_x + GRID_COLS * (_slot_size.x + _slot_gap) + 10.0
+	var rail := _make_fade_line(grid_h, true, COLOR_DIVIDER)
+	rail.position = Vector2(rail_x, _grid_y)
+	parent.add_child(rail)
+	for y in [_grid_y - 4.0, _grid_y + grid_h - 4.0]:
+		var d := _make_diamond(8.0)
+		d.position = Vector2(rail_x - 4.0, y)
+		parent.add_child(d)
+
 
 func _build_slot(idx: int, pos: Vector2) -> Control:
 	var c := Control.new()
 	c.position = pos
 	c.size = _slot_size
+	c.mouse_filter = Control.MOUSE_FILTER_IGNORE
 
-	var bg := ColorRect.new()
-	bg.size = _slot_size
-	bg.color = COLOR_SLOT_EMPTY
-	c.add_child(bg)
-
-	for side in ["t", "b", "l", "r"]:
-		var line := ColorRect.new()
-		line.color = COLOR_BORDER
-		match side:
-			"t": line.position = Vector2(0, 0);                    line.size = Vector2(_slot_size.x, 1)
-			"b": line.position = Vector2(0, _slot_size.y - 1);     line.size = Vector2(_slot_size.x, 1)
-			"l": line.position = Vector2(0, 0);                    line.size = Vector2(1, _slot_size.y)
-			"r": line.position = Vector2(_slot_size.x - 1, 0);     line.size = Vector2(1, _slot_size.y)
-		c.add_child(line)
+	var frame := _make_frame()
+	frame.name = "Frame"
+	frame.size = _slot_size
+	frame.set("fill_color", COLOR_CELL_FILL)
+	frame.set("corner_length", 16.0)
+	frame.set("show_cross", true)
+	c.add_child(frame)
 
 	var icon := TextureRect.new()
 	icon.name = "Icon"
-	icon.position = Vector2(8, 8)
-	icon.size = Vector2(_slot_size.x - 16, _slot_size.y - 28)
-	icon.expand_mode = TextureRect.EXPAND_FIT_WIDTH_PROPORTIONAL
+	icon.position = Vector2(_slot_size.x * 0.18, 10.0)
+	icon.size = Vector2(_slot_size.x * 0.64, _slot_size.y - 52.0)
+	icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	icon.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	c.add_child(icon)
 
-	var lbl := Label.new()
+	var lbl := _make_label("", 17)
 	lbl.name = "Name"
-	lbl.position = Vector2(4, _slot_size.y - 22)
-	lbl.size = Vector2(_slot_size.x - 30, 20)
-	lbl.add_theme_font_size_override("font_size", 10)
-	lbl.add_theme_color_override("font_color", COLOR_TEXT_DIM)
+	lbl.position = Vector2(12.0, _slot_size.y - 36.0)
+	lbl.size = Vector2(_slot_size.x - 24.0, 26.0)
 	lbl.clip_text = true
 	c.add_child(lbl)
 
-	var cnt := Label.new()
+	var cnt := _make_label("", 17)
 	cnt.name = "Count"
-	cnt.position = Vector2(_slot_size.x - 28, _slot_size.y - 22)
-	cnt.size = Vector2(26, 20)
+	cnt.position = Vector2(_slot_size.x - 64.0, 6.0)
+	cnt.size = Vector2(54.0, 24.0)
 	cnt.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
-	cnt.add_theme_font_size_override("font_size", 13)
 	cnt.add_theme_color_override("font_color", COLOR_TEXT_GOLD)
 	c.add_child(cnt)
 
-	var sel := Control.new()
-	sel.name = "SelectionBorder"
-	sel.position = Vector2(-2, -2)
-	sel.size = _slot_size + Vector2(4, 4)
-	sel.visible = false
-	for side in ["t", "b", "l", "r"]:
-		var line := ColorRect.new()
-		line.color = COLOR_BORDER_HI
-		match side:
-			"t": line.position = Vector2(0, 0);                          line.size = Vector2(_slot_size.x + 4, 2)
-			"b": line.position = Vector2(0, _slot_size.y + 2);           line.size = Vector2(_slot_size.x + 4, 2)
-			"l": line.position = Vector2(0, 0);                          line.size = Vector2(2, _slot_size.y + 4)
-			"r": line.position = Vector2(_slot_size.x + 2, 0);           line.size = Vector2(2, _slot_size.y + 4)
-		sel.add_child(line)
-	c.add_child(sel)
-
 	var area := Control.new()
-	area.set_anchors_preset(Control.PRESET_FULL_RECT)
+	area.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	area.mouse_filter = Control.MOUSE_FILTER_STOP
 	area.gui_input.connect(func(ev): _on_slot_input(ev, idx))
 	area.mouse_entered.connect(func(): _on_slot_hover(idx, true))
@@ -447,152 +644,272 @@ func _build_slot(idx: int, pos: Vector2) -> Control:
 
 
 func _build_detail_panel(parent: Control) -> void:
-	var x  := _detail_x
-	var w  := _detail_w
-	var y  := 70.0
+	var x := _mid_x
+	var w := _mid_w
+	var icon_size := 168.0
+	var text_w := w - icon_size - 24.0
 
-	var icon_size := minf(w * 0.42, _panel_h * 0.38)
-	var icon_x    := x + w - icon_size
-
-	var iborder := ColorRect.new()
-	iborder.position = Vector2(icon_x - 3, y - 3)
-	iborder.size = Vector2(icon_size + 6, icon_size + 6)
-	iborder.color = COLOR_BORDER_HI
-	parent.add_child(iborder)
-
-	var ibg := ColorRect.new()
-	ibg.position = Vector2(icon_x, y)
-	ibg.size = Vector2(icon_size, icon_size)
-	ibg.color = Color(0.06, 0.05, 0.03, 1.0)
-	parent.add_child(ibg)
+	# Крупная иконка выбранного предмета — справа вверху колонки. Без выбора
+	# прячется, и колонка выглядит как на референсе
+	_detail_icon_frame = _make_frame()
+	_detail_icon_frame.position = Vector2(x + w - icon_size, 30.0)
+	_detail_icon_frame.size = Vector2(icon_size, icon_size)
+	_detail_icon_frame.set("fill_color", COLOR_CELL_FILL)
+	_detail_icon_frame.set("corner_length", 20.0)
+	_detail_icon_frame.set("double_border", true)
+	parent.add_child(_detail_icon_frame)
 
 	_detail_icon = TextureRect.new()
-	_detail_icon.position = Vector2(icon_x + 10, y + 10)
-	_detail_icon.size = Vector2(icon_size - 20, icon_size - 20)
-	_detail_icon.expand_mode = TextureRect.EXPAND_FIT_WIDTH_PROPORTIONAL
-	_detail_icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	_detail_icon.position = Vector2(14.0, 14.0)
+	_detail_icon.size = Vector2(icon_size - 28.0, icon_size - 28.0)
 	_detail_icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	_detail_icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
-	_detail_icon.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST 
-	parent.add_child(_detail_icon)
+	_detail_icon.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	_detail_icon.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_detail_icon_frame.add_child(_detail_icon)
 
-	var tw := w - icon_size - 28.0
-
-	_detail_name = _make_label("", 26)
-	_detail_name.position = Vector2(x, y)
-	_detail_name.size = Vector2(tw, 38)
-	_detail_name.add_theme_color_override("font_color", COLOR_TEXT)
+	_detail_name = _make_label("", 34)
+	_detail_name.position = Vector2(x, 34.0)
+	_detail_name.size = Vector2(text_w, 46.0)
+	_detail_name.clip_text = true
 	parent.add_child(_detail_name)
-	y += 42.0
 
-	_detail_type = _make_label("", 14)
-	_detail_type.position = Vector2(x, y)
-	_detail_type.size = Vector2(tw, 22)
+	_detail_type = _make_label("", 19)
+	_detail_type.position = Vector2(x, 86.0)
+	_detail_type.size = Vector2(text_w, 26.0)
 	_detail_type.add_theme_color_override("font_color", COLOR_TEXT_DIM)
 	parent.add_child(_detail_type)
-	y += 30.0
 
-	_add_divider(parent, Vector2(x, y), tw)
-	y += 14.0
+	var y := 30.0 + icon_size + 22.0
+	var sep := Control.new()
+	sep.set_script(OrnamentSeparatorScript)
+	sep.position = Vector2(x, y)
+	sep.size = Vector2(w, 18.0)
+	parent.add_child(sep)
+	y += 36.0
 
-	var lbl_carried := _make_label("При себе", 14)
-	lbl_carried.position = Vector2(x, y)
-	parent.add_child(lbl_carried)
+	_detail_count = _add_stat_row(parent, "При себе", y)
+	y += 36.0
+	_detail_max_count = _add_stat_row(parent, "Макс. за сессию", y)
+	y += 48.0
 
-	_detail_count = _make_label("", 14)
-	_detail_count.position = Vector2(x, y)
-	_detail_count.size = Vector2(tw, 22)
-	_detail_count.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
-	_detail_count.add_theme_color_override("font_color", COLOR_TEXT)
-	parent.add_child(_detail_count)
-	y += 26.0
+	_add_divider(parent, Vector2(x, y), w)
+	y += 18.0
 
-	var lbl_max := _make_label("Макс. за сессию", 14)
-	lbl_max.position = Vector2(x, y)
-	parent.add_child(lbl_max)
-
-	_detail_max_count = _make_label("", 14)
-	_detail_max_count.position = Vector2(x, y)
-	_detail_max_count.size = Vector2(tw, 22)
-	_detail_max_count.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
-	_detail_max_count.add_theme_color_override("font_color", COLOR_TEXT_GOLD)
-	parent.add_child(_detail_max_count)
-	y += 32.0
-
-	_add_divider(parent, Vector2(x, y), tw)
-	y += 16.0
-
-	_detail_desc = _make_label("", 14)
-	_detail_desc.position = Vector2(x, y)
-	_detail_desc.size = Vector2(tw, 120)
-	_detail_desc.add_theme_color_override("font_color", COLOR_TEXT_DIM)
-	_detail_desc.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	parent.add_child(_detail_desc)
-	y += 130.0
-
-	_add_divider(parent, Vector2(x, y), tw)
-	y += 14.0
-
-	var eff_hdr := _make_label("Эффект", 13)
+	var eff_hdr := _make_label("Эффект", 20)
 	eff_hdr.position = Vector2(x, y)
 	eff_hdr.add_theme_color_override("font_color", COLOR_TEXT_DIM)
 	parent.add_child(eff_hdr)
-	y += 22.0
+	y += 34.0
 
-	_detail_effect = _make_label("", 15)
+	_detail_effect = _make_label("", 20)
 	_detail_effect.position = Vector2(x, y)
-	_detail_effect.size = Vector2(tw, 60)
-	_detail_effect.add_theme_color_override("font_color", COLOR_TEXT)
+	_detail_effect.size = Vector2(w, _btn_y - 56.0 - y)
 	_detail_effect.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	parent.add_child(_detail_effect)
 
-	_btn_equip = _make_button(
-		"[ E ]  В БЫСТРЫЙ ДОСТУП",
-		Vector2(x, _panel_h - 100.0),
-		Vector2(w, 48.0)
-	)
+
+func _add_stat_row(parent: Control, caption: String, y: float) -> Label:
+	var cap := _make_label(caption, 20)
+	cap.position = Vector2(_mid_x, y)
+	cap.add_theme_color_override("font_color", COLOR_TEXT_DIM)
+	parent.add_child(cap)
+
+	var val := _make_label("", 20)
+	val.position = Vector2(_mid_x, y)
+	val.size = Vector2(_mid_w, 28.0)
+	val.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	val.add_theme_color_override("font_color", COLOR_TEXT_GOLD)
+	parent.add_child(val)
+	return val
+
+
+# Правая колонка "БЫСТРЫЙ СЛОТ" — три крупные ячейки столбиком. Клик по
+# занятой ячейке выбирает этот предмет в сетке слева
+func _build_quick_column(parent: Control) -> void:
+	var x := _right_x + 30.0
+	var col_w := _frame_size.x - _right_x - 60.0
+
+	var hdr := _make_label("БЫСТРЫЙ СЛОТ", 22)
+	hdr.position = Vector2(x, 26.0)
+	parent.add_child(hdr)
+
+	var line := _make_fade_line(col_w, false, COLOR_DIVIDER)
+	line.position = Vector2(x, 64.0)
+	parent.add_child(line)
+
+	var ss := minf(146.0, col_w)
+	var y := 86.0
+	_big_slots.clear()
+	for i in AbilitySystem.MAX_SLOTS:
+		var s := _build_quick_slot(Vector2(x, y), Vector2(ss, ss), true, i)
+		parent.add_child(s)
+		_big_slots.append(s)
+		y += ss + 22.0
+
+
+# Мини-строка внизу слева: сумка, "Быстрый доступ N/3" и три крошечные ячейки
+func _build_quick_slot_bar(parent: Control) -> void:
+	var y := _frame_size.y - 84.0
+
+	var bag := _make_glyph("bag", COLOR_TEXT_DIM, 44.0)
+	bag.position = Vector2(_pad, y + 10.0)
+	parent.add_child(bag)
+
+	_quick_slot_header = _make_label("", 17)
+	_quick_slot_header.position = Vector2(_pad + 58.0, y)
+	_quick_slot_header.add_theme_color_override("font_color", COLOR_TEXT_DIM)
+	parent.add_child(_quick_slot_header)
+
+	_mini_slots.clear()
+	for i in AbilitySystem.MAX_SLOTS:
+		var s := _build_quick_slot(Vector2(_pad + 58.0 + i * 42.0, y + 30.0),
+			Vector2(36.0, 36.0), false, i)
+		parent.add_child(s)
+		_mini_slots.append(s)
+
+	# Строка обратной связи над кнопкой действия: "слоты заняты", "предмет
+	# кончился" и т.п. Без неё отказ добавить четвёртый предмет был бы слышен
+	# (звук denied), но не виден
+	_quick_slot_status = _make_label("", 17)
+	_quick_slot_status.position = Vector2(_mid_x, _btn_y - 38.0)
+	_quick_slot_status.size = Vector2(_frame_size.x - 50.0 - _mid_x, 24.0)
+	_quick_slot_status.add_theme_color_override("font_color", COLOR_TEXT_DIM)
+	parent.add_child(_quick_slot_status)
+
+
+func _build_quick_slot(pos: Vector2, sz: Vector2, big: bool, index: int) -> Control:
+	var c := Control.new()
+	c.position = pos
+	c.size = sz
+	c.mouse_filter = Control.MOUSE_FILTER_IGNORE
+
+	var frame := _make_frame()
+	frame.name = "Frame"
+	frame.size = sz
+	frame.set("fill_color", COLOR_CELL_FILL)
+	frame.set("corner_length", 16.0 if big else 6.0)
+	frame.set("corner_width", 1.5 if big else 1.0)
+	c.add_child(frame)
+
+	var inset := 16.0 if big else 4.0
+	var icon := TextureRect.new()
+	icon.name = "Icon"
+	icon.position = Vector2(inset, inset)
+	icon.size = sz - Vector2(inset * 2.0, inset * 2.0)
+	icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	icon.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	c.add_child(icon)
+
+	if big:
+		var area := Control.new()
+		area.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+		area.mouse_filter = Control.MOUSE_FILTER_STOP
+		area.gui_input.connect(func(ev: InputEvent):
+			if ev is InputEventMouseButton and ev.pressed and ev.button_index == MOUSE_BUTTON_LEFT:
+				_on_quick_slot_clicked(index)
+		)
+		c.add_child(area)
+
+	return c
+
+
+# Широкая кнопка действия под колонками описания и быстрых слотов: двойная
+# рамка, ромбики по краям и по центру сверху/снизу — как на референсе
+func _build_equip_button(parent: Control) -> void:
+	var w := _frame_size.x - 50.0 - _mid_x
+	var h := 64.0
+
+	_btn_equip = Button.new()
+	_btn_equip.position = Vector2(_mid_x, _btn_y)
+	_btn_equip.size = Vector2(w, h)
+	_btn_equip.focus_mode = Control.FOCUS_NONE
+	_btn_equip.add_theme_font_size_override("font_size", 20)
+	_btn_equip.add_theme_color_override("font_color", COLOR_TEXT)
+	_btn_equip.add_theme_color_override("font_hover_color", COLOR_TEXT_GOLD)
+	_btn_equip.add_theme_color_override("font_pressed_color", COLOR_TEXT_GOLD)
+	_btn_equip.add_theme_color_override("font_disabled_color", COLOR_TEXT_DIM)
+	_btn_equip.add_theme_stylebox_override("normal",
+		_flat_box(Color(0.06, 0.052, 0.045, 0.95), Color(0.55, 0.44, 0.26, 0.7)))
+	_btn_equip.add_theme_stylebox_override("hover",
+		_flat_box(Color(0.13, 0.1, 0.065, 0.97), COLOR_BORDER_HI))
+	_btn_equip.add_theme_stylebox_override("pressed",
+		_flat_box(Color(0.04, 0.035, 0.03, 0.97), Color(0.55, 0.44, 0.26, 0.7)))
+	_btn_equip.add_theme_stylebox_override("disabled",
+		_flat_box(Color(0.05, 0.045, 0.04, 0.85), Color(0.35, 0.3, 0.22, 0.5)))
+	_btn_equip.add_theme_stylebox_override("focus", StyleBoxEmpty.new())
 	_btn_equip.pressed.connect(_on_equip_pressed)
 	_btn_equip.disabled = true
 	parent.add_child(_btn_equip)
 
+	# Орнамент отдельной нодой поверх кнопки — чтобы у неактивной кнопки его
+	# можно было приглушить целиком (_update_equip_deco)
+	_btn_equip_deco = Control.new()
+	_btn_equip_deco.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_btn_equip_deco.size = Vector2(w, h)
+	_btn_equip.add_child(_btn_equip_deco)
 
-func _build_quick_slot_bar(parent: Control) -> void:
-	var y := _panel_h - 52.0
-	_quick_slot_header = _make_label("БЫСТРЫЙ ДОСТУП", 12)
-	_quick_slot_header.position = Vector2(_grid_x, y)
-	_quick_slot_header.add_theme_color_override("font_color", COLOR_TEXT_DIM)
-	parent.add_child(_quick_slot_header)
+	var inner := _make_frame()
+	inner.position = Vector2(6.0, 6.0)
+	inner.size = Vector2(w - 12.0, h - 12.0)
+	inner.set("fill_color", Color(0.0, 0.0, 0.0, 0.0))
+	inner.set("border_color", Color(0.55, 0.44, 0.26, 0.28))
+	inner.set("corner_length", 10.0)
+	_btn_equip_deco.add_child(inner)
 
-	_quick_slot_preview = Control.new()
-	_quick_slot_preview.position = Vector2(_grid_x, y + 18.0)
-	_quick_slot_preview.size = Vector2(GRID_COLS * (_slot_size.x + _slot_gap), 30.0)
-	parent.add_child(_quick_slot_preview)
-
-	# Строка обратной связи под кнопкой экипировки: "слоты заняты", "предмет
-	# кончился" и т.п. Без неё отказ добавить четвёртый предмет был бы слышен
-	# (звук denied), но не виден
-	_quick_slot_status = _make_label("", 13)
-	_quick_slot_status.position = Vector2(_detail_x, _panel_h - 46.0)
-	_quick_slot_status.size = Vector2(_detail_w, 20)
-	_quick_slot_status.add_theme_color_override("font_color", COLOR_TEXT_DIM)
-	parent.add_child(_quick_slot_status)
-
-	_refresh_quick_slot_preview()
+	for p in [Vector2(-9.0, h / 2.0 - 9.0), Vector2(w - 9.0, h / 2.0 - 9.0)]:
+		var d := _make_diamond(18.0)
+		d.position = p
+		_btn_equip_deco.add_child(d)
+	for p in [Vector2(w / 2.0 - 6.0, -6.0), Vector2(w / 2.0 - 6.0, h - 6.0)]:
+		var d := _make_diamond(12.0)
+		d.position = p
+		_btn_equip_deco.add_child(d)
 
 
-func _build_hints(parent: Control) -> void:
-	var hints := [["ESC", "Закрыть"], ["ЛКМ", "Выбрать"], ["E", "В слот / из слота"]]
-	var x := _panel_w - 20.0
-	var y := _panel_h - 16.0
-	for h in hints:
-		var txt := "[%s]  %s" % [h[0], h[1]]
-		var lbl := _make_label(txt, 11)
-		lbl.add_theme_color_override("font_color", COLOR_TEXT_DIM)
-		lbl.size = Vector2(200, 16)
-		lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
-		x -= 210.0
-		lbl.position = Vector2(x, y)
-		parent.add_child(lbl)
+func _update_equip_deco() -> void:
+	if is_instance_valid(_btn_equip_deco):
+		_btn_equip_deco.modulate.a = 0.4 if _btn_equip.disabled else 1.0
+
+
+# Подсказки клавиш под окном справа — тот же вид "клавиша в рамке + подпись",
+# что у экрана выбора героя. [E] не дублируем: он написан на самой кнопке
+func _build_hints() -> void:
+	var row := HBoxContainer.new()
+	row.alignment = BoxContainer.ALIGNMENT_END
+	row.add_theme_constant_override("separation", 26)
+	row.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	row.position = Vector2(_frame_pos.x + _frame_size.x - 520.0, _frame_pos.y + _frame_size.y + 14.0)
+	row.size = Vector2(520.0, 38.0)
+	_root.add_child(row)
+
+	for h in [["ЛКМ", "ВЫБРАТЬ"], ["ESC", "ЗАКРЫТЬ"]]:
+		var pair := HBoxContainer.new()
+		pair.add_theme_constant_override("separation", 10)
+		pair.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		row.add_child(pair)
+
+		var chip := PanelContainer.new()
+		chip.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		chip.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+		var style := _flat_box(Color(0.08, 0.07, 0.06, 0.95), Color(COLOR_BORDER_HI, 0.7))
+		style.set_corner_radius_all(3)
+		style.content_margin_left = 10
+		style.content_margin_right = 10
+		style.content_margin_top = 2
+		style.content_margin_bottom = 2
+		chip.add_theme_stylebox_override("panel", style)
+		pair.add_child(chip)
+
+		var key := _make_label(h[0], 16)
+		key.add_theme_color_override("font_color", COLOR_TEXT)
+		chip.add_child(key)
+
+		var txt := _make_label(h[1], 17)
+		txt.add_theme_color_override("font_color", COLOR_TEXT_DIM)
+		txt.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+		pair.add_child(txt)
 
 
 # ─────────────────────────────────────────────
@@ -603,11 +920,10 @@ func _refresh_grid() -> void:
 	var items := _inventory_system.get_all()
 	for i in _grid_slots.size():
 		var slot    := _grid_slots[i]
+		var frame   := slot.get_node("Frame")
 		var icon    := slot.get_node("Icon") as TextureRect
 		var name_l  := slot.get_node("Name") as Label
 		var count_l := slot.get_node("Count") as Label
-		var sel     := slot.get_node("SelectionBorder") as Control
-		var bg      := slot.get_child(0) as ColorRect
 
 		if i < items.size():
 			var ab      := items[i] as Ability
@@ -619,63 +935,55 @@ func _refresh_grid() -> void:
 			# сумки, и это должно быть видно ещё до того, как игрок его потратит
 			count_l.add_theme_color_override(
 				"font_color", COLOR_WARN if cnt <= 1 else COLOR_TEXT_GOLD)
+			frame.set("show_cross", false)
 		else:
 			icon.texture  = null
 			name_l.text   = ""
 			count_l.text  = ""
+			frame.set("show_cross", true)
 
-		sel.visible = i == _selected_index
-		bg.color    = COLOR_SLOT_SEL if i == _selected_index else COLOR_SLOT_EMPTY
+		frame.set("highlight", _slot_highlight(i, items.size()))
 
 	_refresh_quick_slot_preview()
 
 
+## Выбранная ячейка — полное золото, наведённая — наполовину. Пустые ячейки
+## не подсвечиваются: выбирать в них нечего
+func _slot_highlight(i: int, item_count: int) -> float:
+	if i >= item_count:
+		return 0.0
+	if i == _selected_index:
+		return 1.0
+	if i == _hover_index:
+		return 0.45
+	return 0.0
+
+
 func _refresh_quick_slot_preview() -> void:
-	if not is_instance_valid(_quick_slot_preview):
-		return
-	for ch in _quick_slot_preview.get_children():
-		ch.queue_free()
 	if _ability_system == null:
 		return
 
 	var used := _ability_system.abilities.size()
 	if is_instance_valid(_quick_slot_header):
-		_quick_slot_header.text = "БЫСТРЫЙ ДОСТУП   %d / %d" % [used, AbilitySystem.MAX_SLOTS]
+		_quick_slot_header.text = "Быстрый доступ  %d/%d" % [used, AbilitySystem.MAX_SLOTS]
 
-	var ss := Vector2(28, 28)
-	# Рисуем ВСЕ три ячейки, включая пустые — так видно, сколько места осталось,
+	# Рисуем ВСЕ ячейки, включая пустые — так видно, сколько места осталось,
 	# а не только то, что уже занято
 	for i in AbilitySystem.MAX_SLOTS:
-		var bx := i * (ss.x + 4.0)
-		var bg := ColorRect.new()
-		bg.position = Vector2(bx, 0)
-		bg.size = ss
-		bg.color = COLOR_SLOT_EMPTY
-		_quick_slot_preview.add_child(bg)
+		var ab: Ability = _ability_system.abilities[i] if i < used else null
+		var active := ab != null and i == _ability_system.current_index
+		if i < _big_slots.size():
+			_apply_quick_slot(_big_slots[i], ab, active, true)
+		if i < _mini_slots.size():
+			_apply_quick_slot(_mini_slots[i], ab, active, false)
 
-	for i in used:
-		var ab := _ability_system.abilities[i]
-		var bx := i * (ss.x + 4.0)
 
-		if ab.icon:
-			var ic := TextureRect.new()
-			ic.position = Vector2(bx + 3, 3)
-			ic.size = Vector2(ss.x - 6, ss.y - 6)
-			ic.expand_mode = TextureRect.EXPAND_FIT_WIDTH_PROPORTIONAL
-			ic.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
-			ic.texture = ab.icon
-			_quick_slot_preview.add_child(ic)
-
-		if i == _ability_system.current_index:
-			for side in ["t", "b", "l", "r"]:
-				var line := ColorRect.new()
-				line.color = COLOR_BORDER_HI
-				match side:
-					"t": line.position = Vector2(bx - 1, -1);        line.size = Vector2(ss.x + 2, 2)
-					"b": line.position = Vector2(bx - 1, ss.y - 1);  line.size = Vector2(ss.x + 2, 2)
-					"l": line.position = Vector2(bx - 1, -1);        line.size = Vector2(2, ss.y + 2)
-					"r": line.position = Vector2(bx + ss.x - 1, -1); line.size = Vector2(2, ss.y + 2)
-				_quick_slot_preview.add_child(line)
+func _apply_quick_slot(slot: Control, ab: Ability, active: bool, cross_when_empty: bool) -> void:
+	var frame := slot.get_node("Frame")
+	var icon := slot.get_node("Icon") as TextureRect
+	icon.texture = ab.icon if ab != null else null
+	frame.set("show_cross", ab == null and cross_when_empty)
+	frame.set("highlight", 1.0 if active else 0.0)
 
 
 # play_sound=false — для перерисовки после действия (экипировка, трата заряда):
@@ -692,30 +1000,34 @@ func _select_slot(idx: int, play_sound := true) -> void:
 		var max_cnt  := _get_max_count(ab.ability_name)
 		var equipped := _ability_system.has_ability(ab.ability_name)
 
-		_detail_icon.texture   = ab.icon
-		_detail_name.text      = ab.ability_name
-		_detail_type.text      = "Расходуемое  •  в слоте" if equipped else "Расходуемое"
-		_detail_desc.text      = ab.description
-		_detail_effect.text    = ab.description
-		_detail_count.text     = "%d / %d" % [cnt, max_cnt]
-		_detail_max_count.text = "%d" % max_cnt
+		_detail_icon.texture     = ab.icon
+		_detail_icon_frame.visible = true
+		_detail_name.text        = ab.ability_name
+		_detail_name.add_theme_color_override("font_color", COLOR_TEXT)
+		_detail_type.text        = "Расходуемое  •  в слоте" if equipped else "Расходуемое"
+		_detail_effect.text      = ab.description
+		_detail_count.text       = "%d / %d" % [cnt, max_cnt]
+		_detail_max_count.text   = "%d" % max_cnt
 		# Кнопка работает как переключатель: повторное нажатие на предмет,
 		# который уже в быстром доступе, освобождает слот. Без этого при трёх
 		# занятых ячейках поменять набор было бы нечем
-		_btn_equip.text     = "[ E ]  УБРАТЬ ИЗ СЛОТА" if equipped else "[ E ]  В БЫСТРЫЙ ДОСТУП"
+		_btn_equip.text     = "[E]   УБРАТЬ ИЗ СЛОТА" if equipped else "[E]   В БЫСТРЫЙ СЛОТ"
 		_btn_equip.disabled = false
 		_set_status("")
 	else:
-		_detail_icon.texture   = null
-		_detail_name.text      = ""
-		_detail_type.text      = ""
-		_detail_desc.text      = ""
-		_detail_effect.text    = ""
-		_detail_count.text     = ""
-		_detail_max_count.text = ""
-		_btn_equip.text        = "[ E ]  В БЫСТРЫЙ ДОСТУП"
-		_btn_equip.disabled    = true
+		# Ничего не выбрано — вместо пустой колонки подсказка, что делать
+		_detail_icon.texture     = null
+		_detail_icon_frame.visible = false
+		_detail_name.text        = "Выберите предмет"
+		_detail_name.add_theme_color_override("font_color", COLOR_TEXT_DIM)
+		_detail_type.text        = "Нажмите на ячейку инвентаря"
+		_detail_effect.text      = ""
+		_detail_count.text       = "—"
+		_detail_max_count.text   = "—"
+		_btn_equip.text          = "[E]   В БЫСТРЫЙ СЛОТ"
+		_btn_equip.disabled      = true
 
+	_update_equip_deco()
 	_refresh_grid()
 
 
@@ -735,13 +1047,23 @@ func _on_slot_input(event: InputEvent, idx: int) -> void:
 
 
 func _on_slot_hover(idx: int, entered: bool) -> void:
-	if idx == _selected_index:
+	if entered:
+		_hover_index = idx
+	elif _hover_index == idx:
+		_hover_index = -1
+	var frame := _grid_slots[idx].get_node("Frame")
+	frame.set("highlight", _slot_highlight(idx, _inventory_system.get_all().size()))
+
+
+func _on_quick_slot_clicked(slot_index: int) -> void:
+	if _ability_system == null or slot_index >= _ability_system.abilities.size():
 		return
+	var ab := _ability_system.abilities[slot_index]
 	var items := _inventory_system.get_all()
-	if idx >= items.size():
-		return
-	var bg := _grid_slots[idx].get_child(0) as ColorRect
-	bg.color = COLOR_SLOT_HOVER if entered else COLOR_SLOT_EMPTY
+	for i in items.size():
+		if (items[i] as Ability).ability_name == ab.ability_name:
+			_select_slot(i)
+			return
 
 
 func _on_equip_pressed() -> void:
@@ -1021,39 +1343,121 @@ func _on_tree_detail_back() -> void:
 # HELPERS
 # ─────────────────────────────────────────────
 
-func _add_divider(parent: Control, pos: Vector2, width: float) -> ColorRect:
-	var d := ColorRect.new()
+## Разделитель — линия, гаснущая к обоим концам, а не сплошная полоса
+func _add_divider(parent: Control, pos: Vector2, width: float) -> Control:
+	var d := _make_fade_line(width, false, COLOR_DIVIDER)
 	d.position = pos
-	d.size = Vector2(width, 1)
-	d.color = COLOR_DIVIDER
 	parent.add_child(d)
 	return d
 
 
+## Окно с орнаментной рамкой. Им же рисуется окно "НАВЫКИ" — чтобы все
+## разделы инвентаря выглядели одинаково
 func _make_panel(pos: Vector2, sz: Vector2) -> Control:
-	var c := Control.new()
+	var c := _make_frame()
 	c.position = pos
 	c.size = sz
-
-	var style := StyleBoxFlat.new()
-	style.bg_color            = COLOR_PANEL
-	style.border_width_left   = 2
-	style.border_width_right  = 2
-	style.border_width_top    = 2
-	style.border_width_bottom = 2
-	style.border_color        = COLOR_BORDER
-	style.corner_radius_top_left     = 6
-	style.corner_radius_top_right    = 6
-	style.corner_radius_bottom_left  = 6
-	style.corner_radius_bottom_right = 6
-	style.shadow_color = Color(0, 0, 0, 0.5)
-	style.shadow_size  = 20
-
-	var rect := PanelContainer.new()
-	rect.set_anchors_preset(Control.PRESET_FULL_RECT)
-	rect.add_theme_stylebox_override("panel", style)
-	c.add_child(rect)
+	c.set("fill_color", COLOR_FRAME_FILL)
+	c.set("double_border", true)
+	c.set("corner_length", 30.0)
+	c.set("corner_width", 2.0)
 	return c
+
+
+func _make_frame() -> Control:
+	var f := Control.new()
+	f.set_script(OrnateFrameScript)
+	f.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	return f
+
+
+func _make_diamond(d: float) -> Control:
+	var m := Control.new()
+	m.set_script(DiamondMarkerScript)
+	m.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	m.size = Vector2(d, d)
+	return m
+
+
+func _make_glyph(glyph: String, color: Color, d: float) -> Control:
+	var g := Control.new()
+	g.set_script(GlyphIconScript)
+	g.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	g.size = Vector2(d, d)
+	g.call("set_glyph", glyph, color)
+	return g
+
+
+## Линия, гаснущая к обоим концам (прозрачный → цвет → цвет → прозрачный)
+func _make_fade_line(length: float, vertical: bool, color: Color, thickness := 1.0) -> TextureRect:
+	var g := Gradient.new()
+	g.offsets = PackedFloat32Array([0.0, 0.18, 0.82, 1.0])
+	g.colors = PackedColorArray([Color(color, 0.0), color, color, Color(color, 0.0)])
+	var tex := GradientTexture2D.new()
+	tex.gradient = g
+	tex.width = 4 if vertical else 64
+	tex.height = 64 if vertical else 4
+	tex.fill_from = Vector2(0.5, 0.0) if vertical else Vector2(0.0, 0.5)
+	tex.fill_to = Vector2(0.5, 1.0) if vertical else Vector2(1.0, 0.5)
+
+	var line := TextureRect.new()
+	line.texture = tex
+	line.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	line.stretch_mode = TextureRect.STRETCH_SCALE
+	line.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	line.size = Vector2(thickness, length) if vertical else Vector2(length, thickness)
+	return line
+
+
+## Радиальное пятно-градиент, растянутое на rect (в прямоугольнике — эллипс)
+func _make_radial(rect: Rect2, offsets: PackedFloat32Array, colors: PackedColorArray) -> TextureRect:
+	var g := Gradient.new()
+	g.offsets = offsets
+	g.colors = colors
+	var tex := GradientTexture2D.new()
+	tex.gradient = g
+	tex.fill = GradientTexture2D.FILL_RADIAL
+	tex.fill_from = Vector2(0.5, 0.5)
+	tex.fill_to = Vector2(1.0, 0.5)
+	tex.width = 128
+	tex.height = 128
+	return _texture_rect(tex, rect)
+
+
+func _make_linear(rect: Rect2, from: Color, to: Color, vertical: bool) -> TextureRect:
+	var g := Gradient.new()
+	g.offsets = PackedFloat32Array([0.0, 1.0])
+	g.colors = PackedColorArray([from, to])
+	var tex := GradientTexture2D.new()
+	tex.gradient = g
+	tex.width = 4 if vertical else 64
+	tex.height = 64 if vertical else 4
+	tex.fill_from = Vector2(0.5, 0.0) if vertical else Vector2(0.0, 0.5)
+	tex.fill_to = Vector2(0.5, 1.0) if vertical else Vector2(1.0, 0.5)
+	return _texture_rect(tex, rect)
+
+
+func _texture_rect(tex: Texture2D, rect: Rect2) -> TextureRect:
+	var t := TextureRect.new()
+	t.texture = tex
+	t.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	t.stretch_mode = TextureRect.STRETCH_SCALE
+	t.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	t.position = rect.position
+	t.size = rect.size
+	return t
+
+
+func _flat_box(bg: Color, border: Color) -> StyleBoxFlat:
+	var s := StyleBoxFlat.new()
+	s.bg_color = bg
+	s.border_color = border
+	s.set_border_width_all(1)
+	s.content_margin_left = 12
+	s.content_margin_right = 12
+	s.content_margin_top = 6
+	s.content_margin_bottom = 6
+	return s
 
 
 func _make_label(text: String, font_size: int) -> Label:
@@ -1070,45 +1474,13 @@ func _make_button(text: String, pos: Vector2, sz: Vector2) -> Button:
 	btn.position = pos
 	btn.size = sz
 
-	var make_style := func(bg_col: Color, border_col: Color) -> StyleBoxFlat:
-		var s := StyleBoxFlat.new()
-		s.bg_color            = bg_col
-		s.border_width_left   = 1
-		s.border_width_right  = 1
-		s.border_width_top    = 1
-		s.border_width_bottom = 1
-		s.border_color        = border_col
-		s.corner_radius_top_left     = 4
-		s.corner_radius_top_right    = 4
-		s.corner_radius_bottom_left  = 4
-		s.corner_radius_bottom_right = 4
-		return s
-
-	btn.add_theme_stylebox_override("normal",   make_style.call(Color(0.14, 0.10, 0.04), COLOR_BORDER))
-	btn.add_theme_stylebox_override("hover",    make_style.call(Color(0.26, 0.18, 0.07), COLOR_BORDER_HI))
-	btn.add_theme_stylebox_override("pressed",  make_style.call(Color(0.10, 0.07, 0.02), COLOR_BORDER))
-	btn.add_theme_stylebox_override("disabled", make_style.call(Color(0.10, 0.09, 0.08), COLOR_TEXT_DIM))
+	# Прямые углы и тонкая золотая кайма — в тон орнаментным рамкам
+	btn.add_theme_stylebox_override("normal",   _flat_box(Color(0.07, 0.06, 0.05, 0.92), COLOR_BORDER))
+	btn.add_theme_stylebox_override("hover",    _flat_box(Color(0.14, 0.105, 0.065, 0.95), COLOR_BORDER_HI))
+	btn.add_theme_stylebox_override("pressed",  _flat_box(Color(0.05, 0.04, 0.03, 0.95), COLOR_BORDER))
+	btn.add_theme_stylebox_override("disabled", _flat_box(Color(0.06, 0.055, 0.05, 0.8), Color(0.3, 0.27, 0.22, 0.6)))
 	btn.add_theme_color_override("font_color",          COLOR_TEXT)
 	btn.add_theme_color_override("font_hover_color",    COLOR_TEXT_GOLD)
 	btn.add_theme_color_override("font_disabled_color", COLOR_TEXT_DIM)
 	btn.add_theme_font_size_override("font_size", 15)
 	return btn
-
-
-func _make_rune_pattern() -> Control:
-	var c := Control.new()
-	c.set_anchors_preset(Control.PRESET_FULL_RECT)
-	c.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	for i in 10:
-		var line := ColorRect.new()
-		line.color    = Color(0.45, 0.35, 0.15, 0.03)
-		line.position = Vector2(0, i * (_screen.y / 10.0))
-		line.size     = Vector2(_screen.x, 1)
-		c.add_child(line)
-	for i in 14:
-		var line := ColorRect.new()
-		line.color    = Color(0.45, 0.35, 0.15, 0.025)
-		line.position = Vector2(i * (_screen.x / 14.0), 0)
-		line.size     = Vector2(1, _screen.y)
-		c.add_child(line)
-	return c

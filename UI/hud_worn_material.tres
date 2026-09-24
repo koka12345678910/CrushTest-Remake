@@ -1,0 +1,13 @@
+[gd_resource type="ShaderMaterial" load_steps=2 format=3]
+
+[ext_resource type="Shader" path="res://UI/hud_worn.gdshader" id="1_worn"]
+
+[resource]
+shader = ExtResource("1_worn")
+shader_parameter/pattern_scale = 1.0
+shader_parameter/grime_strength = 0.42
+shader_parameter/tarnish_strength = 0.3
+shader_parameter/scratch_strength = 0.4
+shader_parameter/chip_amount = 0.08
+shader_parameter/chip_color = Color(0.1, 0.075, 0.06, 1)
+shader_parameter/grain_strength = 0.07

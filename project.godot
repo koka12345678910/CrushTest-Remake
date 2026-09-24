@@ -30,6 +30,7 @@ GameSettings="*res://Main_Menu/scripts/GameSettings.gd"
 Characters="*res://Save/characters.gd"
 SaveManager="*res://Save/save_manager.gd"
 SkillTrees="*res://Save/skill_trees.gd"
+SceneLoader="*res://Main_Menu/scripts/SceneLoader.gd"
 
 [display]
 

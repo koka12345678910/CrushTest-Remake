@@ -184,11 +184,10 @@ func _connect_buttons() -> void:
 
 
 # ── Переходы ──────────────────────────────────────────────────────────────────
+# Затемнение, звук и фоновую загрузку уровня делает автозагрузка SceneLoader
+# (экран загрузки поверх всего) — здесь только передаём ей путь
 func _transition_to(scene_path: String) -> void:
-	var t := create_tween()
-	t.tween_property(self, "modulate:a", 0.0, 0.8).set_ease(Tween.EASE_IN)
-	await t.finished
-	get_tree().change_scene_to_file(scene_path)
+	SceneLoader.change_scene(scene_path)
 
 
 func _on_new_game() -> void:

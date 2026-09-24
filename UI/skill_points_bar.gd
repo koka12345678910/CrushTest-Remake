@@ -2,26 +2,29 @@
 # Прикрепи к CanvasLayer ноде "SkillPointsBar", ребёнку персонажа
 # (та же схема, что у health_stamina_bar.gd)
 extends CanvasLayer
-## Полоска очков навыков в правом верхнем углу, "как в Секиро": число слева,
-## полоска справа от него, той же породы, что HP-бар (пустая — чёрная,
-## заполняется синим).
+## Опыт навыков в правом верхнем углу: ромб с числом накопленных очков слева,
+## полоска прогресса до следующего очка и подпись "N / M" внутри неё.
 ##
 ## Число (skill_points) и полоска (skill_progress) — РАЗНЫЕ поля персонажа:
 ## полоска копит сырой прогресс убийств, а число растёт только когда полоска
 ## долилась целиком (см. add_skill_points в character_base.gd/player.gd —
 ## именно там происходит конвертация progress → point, этот файл её не делает,
-## только опрашивает оба поля каждый кадр и рисует — тот же приём, что и у
-## health_stamina_bar с его _update_visuals()
+## только опрашивает оба поля каждый кадр и рисует)
 
-@export var bar_size := Vector2(400, 20)
-## Ширина под число слева от полоски, и зазор между числом и полоской
-@export var label_width := 46.0
-@export var label_gap := 10.0
+const HudBarScript := preload("res://UI/HudBar.gd")
+const DiamondMarkerScript := preload("res://Main_Menu/scripts/DiamondMarker.gd")
+
+const FILL_COLOR := Color(0.78, 0.56, 0.22)
+const TEXT_COLOR := Color(0.9, 0.84, 0.72)
+
+@export var bar_size := Vector2(420, 22)
 ## Отступ всего блока от правого верхнего угла экрана
-@export var margin := Vector2(20.0, 16.0)
+@export var margin := Vector2(34.0, 26.0)
+@export var badge_size := 46.0
 
 var _label: Label
-var _bar_fill: ColorRect
+var _progress_label: Label
+var _bar: Control
 var _last_points := -1
 var _last_progress := -1
 
@@ -46,97 +49,87 @@ func _process(_delta: float) -> void:
 	if progress != _last_progress:
 		_last_progress = progress
 		var per_point: int = owner_char.skill_progress_per_point if ("skill_progress_per_point" in owner_char) else 10
-		var ratio: float = clamp(float(progress) / float(per_point), 0.0, 1.0)
-		_bar_fill.size.x = bar_size.x * ratio
+		_bar.set("ratio", clamp(float(progress) / float(per_point), 0.0, 1.0))
+		_progress_label.text = "%d / %d" % [progress, per_point]
 
 
 func _build_ui() -> void:
 	var root := Control.new()
-	root.set_anchors_preset(Control.PRESET_FULL_RECT)
+	root.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	root.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	# Шрифт с засечками и нормальными цифрами — тот же, что у инвентаря
+	var serif := SystemFont.new()
+	serif.font_names = PackedStringArray(["Palatino Linotype", "Book Antiqua", "Cambria", "Georgia"])
+	var t := Theme.new()
+	t.default_font = serif
+	root.theme = t
 	add_child(root)
 
-	var total_width := label_width + label_gap + bar_size.x
+	# Точка-якорь в правом верхнем углу — от неё отсчитывается весь блок
+	var corner := Control.new()
+	corner.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	corner.anchor_left = 1.0
+	corner.anchor_right = 1.0
+	root.add_child(corner)
 
-	var container := Control.new()
-	container.set_anchors_preset(Control.PRESET_TOP_RIGHT)
-	container.position = Vector2(-margin.x - total_width, margin.y)
-	container.size = Vector2(total_width, bar_size.y)
-	container.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	root.add_child(container)
+	var bar_x := -margin.x - bar_size.x
+	var cy := margin.y + badge_size / 2.0
 
-	# Число — слева от полоски (не над ней), прижато к её левому краю
-	_label = Label.new()
-	_label.text = "0"
-	_label.add_theme_font_size_override("font_size", 20)
-	_label.add_theme_color_override("font_color", Color(0.7, 0.85, 1.0))
-	_label.add_theme_color_override("font_shadow_color", Color(0, 0, 0, 0.6))
-	_label.add_theme_constant_override("shadow_offset_x", 1)
-	_label.add_theme_constant_override("shadow_offset_y", 1)
-	_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	_bar = Control.new()
+	_bar.set_script(HudBarScript)
+	_bar.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_bar.position = Vector2(bar_x, cy - bar_size.y / 2.0)
+	_bar.size = bar_size
+	_bar.set("fill_color", FILL_COLOR)
+	_bar.set("ratio", 0.0)
+	corner.add_child(_bar)
+
+	_progress_label = _make_label("0 / 10", 17)
+	_progress_label.position = Vector2(bar_x, cy - bar_size.y / 2.0 - 1.0)
+	_progress_label.size = Vector2(bar_size.x - bar_size.y - 8.0, bar_size.y)
+	_progress_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	_progress_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	corner.add_child(_progress_label)
+
+	# Ромб-значок с числом очков — поверх левого края полоски
+	var badge := Control.new()
+	badge.set_script(DiamondMarkerScript)
+	badge.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	badge.position = Vector2(bar_x - badge_size * 0.55, cy - badge_size / 2.0)
+	badge.size = Vector2(badge_size, badge_size)
+	badge.set("outline_color", Color(0.72, 0.57, 0.33))
+	badge.set("outline_width", 2.0)
+	# Тёмное тело ромба — иначе число ложится прямо на мир
+	badge.set("body_color", Color(0.04, 0.035, 0.03, 0.95))
+	badge.set("fill_color", Color(0.0, 0.0, 0.0, 0.0))
+	badge.material = HudBarScript.WORN_MATERIAL
+	corner.add_child(badge)
+
+	# Вторая, бледная кайма внутри — "кованый" значок, как на референсе
+	var inner := Control.new()
+	inner.set_script(DiamondMarkerScript)
+	inner.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	inner.position = badge.position + Vector2(5.0, 5.0)
+	inner.size = Vector2(badge_size - 10.0, badge_size - 10.0)
+	inner.set("outline_color", Color(0.72, 0.57, 0.33, 0.4))
+	inner.set("fill_color", Color(0.0, 0.0, 0.0, 0.0))
+	inner.material = HudBarScript.WORN_MATERIAL
+	corner.add_child(inner)
+
+	_label = _make_label("0", 21)
+	_label.position = badge.position
+	_label.size = badge.size
+	_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	_label.position = Vector2(0, 0)
-	_label.size = Vector2(label_width, bar_size.y)
-	container.add_child(_label)
-
-	var bar_x := label_width + label_gap
-
-	# Фон — почти чёрный. Полностью пустая полоска (progress=0) показывает
-	# ровно его, заливки поверх ещё нет
-	var bar_bg := ColorRect.new()
-	bar_bg.position = Vector2(bar_x, 0)
-	bar_bg.size = bar_size
-	bar_bg.color = Color(0.02, 0.02, 0.03, 0.95)
-	container.add_child(bar_bg)
-
-	# Заливка — растёт от 0 до bar_size.x по мере накопления skill_progress
-	# (см. _process), обнуляется вместе с ним каждый раз, как долилась целиком
-	_bar_fill = ColorRect.new()
-	_bar_fill.position = Vector2(bar_x, 0)
-	_bar_fill.size = Vector2(0, bar_size.y)
-	_bar_fill.color = Color(0.25, 0.5, 1.0)
-	container.add_child(_bar_fill)
-
-	var border := _make_bevel_border(Vector2(bar_x, 0), bar_size)
-	container.add_child(border)
+	corner.add_child(_label)
 
 
-## Рамка со скосом — та же идея, что у health_stamina_bar.gd::_make_bevel_border
-## (светлый верх/тёмный низ — читается как объём, а не плоская линия).
-## Продублирована, а не вынесена в общий файл — этот скрипт не пересекается
-## ни с чем чужим, тот же приём, что у arrow.gd/focus_marker.gd
-func _make_bevel_border(pos: Vector2, size: Vector2) -> Control:
-	var c := Control.new()
-	c.position = pos
-	c.mouse_filter = Control.MOUSE_FILTER_IGNORE
-
-	var thickness := 1.5
-	var top_col := Color(0.5, 0.65, 0.95, 0.9)
-	var side_col := Color(0.2, 0.28, 0.42, 0.85)
-	var bottom_col := Color(0.02, 0.02, 0.03, 0.95)
-
-	var top := ColorRect.new()
-	top.position = Vector2(-thickness, -thickness)
-	top.size = Vector2(size.x + thickness * 2, thickness)
-	top.color = top_col
-	c.add_child(top)
-
-	var bot := ColorRect.new()
-	bot.position = Vector2(-thickness, size.y)
-	bot.size = Vector2(size.x + thickness * 2, thickness)
-	bot.color = bottom_col
-	c.add_child(bot)
-
-	var left := ColorRect.new()
-	left.position = Vector2(-thickness, 0)
-	left.size = Vector2(thickness, size.y)
-	left.color = side_col
-	c.add_child(left)
-
-	var right := ColorRect.new()
-	right.position = Vector2(size.x, 0)
-	right.size = Vector2(thickness, size.y)
-	right.color = side_col
-	c.add_child(right)
-
-	return c
+func _make_label(text: String, font_size: int) -> Label:
+	var l := Label.new()
+	l.text = text
+	l.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	l.add_theme_font_size_override("font_size", font_size)
+	l.add_theme_color_override("font_color", TEXT_COLOR)
+	l.add_theme_color_override("font_outline_color", Color(0, 0, 0, 0.9))
+	l.add_theme_constant_override("outline_size", 4)
+	return l

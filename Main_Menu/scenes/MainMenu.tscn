@@ -88,6 +88,19 @@ lifetime = 1.8
 process_material = SubResource("ParticleProcessMaterial_tqkod")
 script = ExtResource("2_rain")
 
+[node name="RainFine" type="GPUParticles2D" parent="." unique_id=700000401]
+position = Vector2(576, 0)
+process_material = SubResource("ParticleProcessMaterial_tqkod")
+script = ExtResource("2_rain")
+rain_color = Color(0.75, 0.81, 0.9, 0.3)
+drop_speed_min = 550.0
+drop_speed_max = 850.0
+lifetime_seconds = 1.6
+density_per_second = 1300.0
+drop_scale_min = 0.4
+drop_scale_max = 0.6
+drop_alpha_mult = 0.65
+
 [node name="BackgroundNear" type="TextureRect" parent="." unique_id=971412129]
 material = SubResource("ShaderMaterial_wallpaper_near")
 layout_mode = 1

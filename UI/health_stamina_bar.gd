@@ -3,8 +3,13 @@
 # Структура сцены:
 #   HealthStaminaBar (CanvasLayer)  ← этот скрипт
 extends CanvasLayer
+## Здоровье, стамина (левый верхний угол, выходят из медальона-портрета) и
+## концентрация (по центру внизу). Логика значений — здесь же, player.gd и
+## character_base.gd только зовут take_damage/use_stamina/set_posture и т.п.
+## Отрисовка — через UI/HudBar.gd: заострённые полоски с золотой каймой.
 
 const TEX_ICON := preload("res://UI/healthbar/healthbar_icon.png")
+const HudBarScript := preload("res://UI/HudBar.gd")
 
 # Иконка портрета — переопределяется в сцене персонажа (см. archer.tscn),
 # чтобы у каждого класса был свой медальон вместо общего рыцарского
@@ -24,57 +29,46 @@ var current_stamina: float = 100.0
 var stamina_regen: float = 20.0     # регенерация в секунду
 var stamina_regen_delay: float = 1.0
 var stamina_regen_timer: float = 0.0
-var _displayed_posture: float = 0.0  # то что видит игрок
 
-# --- Иконка портрета слева от баров (UI/healthbar/healthbar_icon.png) ---
-# PNG — круглый медальон с прозрачными углами (проверил по альфа-каналу), не
-# сплошной квадрат — поэтому бары могут заходить ПОД неё и всё равно видно,
-# как они "выходят" из-под круглого края, а не тупо обрезаются прямоугольником
-@export var icon_position: Vector2 = Vector2(16, 16)
-@export var icon_size: Vector2 = Vector2(126, 126)
-# Чуть затемняем иконку (модулейт умножает RGB, альфу не трогаем — иконка
-# остаётся непрозрачной, просто темнее)
-@export var icon_darken: float = 0.7
-# Полупрозрачность баров HP/стамины — модулейт на контейнере, чтобы разом
-# затронуть фон, заливку, белую полоску отставания и рамку
-@export var bar_alpha: float = 0.75
+# --- Медальон-портрет слева от баров (круглый PNG с прозрачными углами) ---
+# Бары начинаются ПОД ним, примерно от центра — эффект "полоски выходят из
+# медальона". Медальон рисуется поверх баров (см. порядок в _build_ui)
+@export var icon_position: Vector2 = Vector2(16, 14)
+@export var icon_size: Vector2 = Vector2(128, 128)
+@export var icon_darken: float = 0.92
+# Прозрачность полосок целиком (фон, заливка, кайма)
+@export var bar_alpha: float = 0.96
 
-# --- Размеры (подгонишь в редакторе через export) ---
+@export var hp_bar_size: Vector2 = Vector2(350, 17)
+@export var stamina_bar_size: Vector2 = Vector2(300, 15)
+@export var hp_position: Vector2 = Vector2(82, 50)
+@export var stamina_offset_x: float = 82.0
+@export var stamina_position_y: float = 77.0
+
 @export var posture_fill_speed: float = 8.0   # скорость заполнения
 @export var posture_drain_speed: float = 40.0  # скорость опустошения (быстрее)
-# Тоньше и компактнее прежних (было 460×26 / 380×18) — под иконку, а не
-# отдельно стоящая длинная полоса
-@export var hp_bar_size: Vector2 = Vector2(320, 18)
-@export var stamina_bar_size: Vector2 = Vector2(275, 14)
-# hp_position отсчитывается от ВЕРХНЕГО левого угла экрана (контейнер висит
-# на якоре TOP_LEFT). x — специально ЗАХОДИТ под иконку примерно до её
-# середины (не сразу после правого края) — эффект "бар выходит из медальона",
-# а не просто "бар рядом с иконкой". Иконка рисуется поверх баров (см.
-# порядок вызовов в _build_ui), поэтому перекрытие смотрится правильно
-@export var hp_position: Vector2 = Vector2(79, 59)
-@export var stamina_offset_x: float = 79.0
-@export var stamina_position_y: float = 79.0
-@export var posture_bar_size: Vector2 = Vector2(380, 14)
-@export var posture_offset_x: float = -190.0  # половина ширины — центрирует полоску
-# Отрицательный — отступ от НИЖНЕГО края экрана (якорь CENTER_BOTTOM)
-@export var posture_position_y: float = -64.0
+@export var posture_bar_size: Vector2 = Vector2(440, 16)
+# Отрицательный — отступ центра полоски от НИЖНЕГО края экрана
+@export var posture_position_y: float = -84.0
+
+# Цвета здоровья: чем меньше осталось, тем ярче и тревожнее красный
+const HP_COLOR_HIGH := Color(0.6, 0.06, 0.05)
+const HP_COLOR_MID := Color(0.7, 0.1, 0.04)
+const HP_COLOR_LOW := Color(0.82, 0.09, 0.03)
+const STAMINA_COLOR := Color(0.36, 0.6, 0.22)
+# Концентрация: золото → оранжевый → красный по мере приближения к срыву
+const POSTURE_COLOR_LOW := Color(0.86, 0.62, 0.24)
+const POSTURE_COLOR_MID := Color(0.93, 0.45, 0.12)
+const POSTURE_COLOR_HIGH := Color(0.95, 0.16, 0.08)
 
 # --- Концентрация (Posture) ---
 var max_posture: float = 100.0
 var current_posture: float = 0.0
-var _posture_bg: ColorRect
-var _posture_fill: ColorRect
-var _posture_fill_right: ColorRect
-
-# --- Узлы ---
-var _hp_bg: ColorRect
-var _hp_delayed: ColorRect
-var _hp_fill: ColorRect
-
-var _stam_bg: ColorRect
-var _stam_fill: ColorRect
 
 var _root: Control
+var _hp_bar: Control
+var _stam_bar: Control
+var _posture_bar: Control
 
 
 func _ready() -> void:
@@ -150,49 +144,32 @@ func _update_stamina_regen(delta: float) -> void:
 	current_stamina = min(current_stamina + stamina_regen * delta, max_stamina)
 
 
+# Полоски сами перерисовываются только при реальной смене значения (сеттеры
+# в HudBar.gd), так что дёргать их каждый кадр дёшево
 func _update_visuals() -> void:
-	if not is_instance_valid(_hp_fill):
+	if not is_instance_valid(_hp_bar):
 		return
 
-	var hp_ratio := current_hp / max_hp
-	var delayed_ratio := delayed_hp / max_hp
-	var stam_ratio := current_stamina / max_stamina
+	var hp_ratio := current_hp / max_hp if max_hp > 0.0 else 0.0
+	_hp_bar.set("ratio", hp_ratio)
+	_hp_bar.set("delayed_ratio", delayed_hp / max_hp if max_hp > 0.0 else 0.0)
+	var hp_col := HP_COLOR_HIGH
+	if hp_ratio <= 0.25:
+		hp_col = HP_COLOR_LOW
+	elif hp_ratio <= 0.5:
+		hp_col = HP_COLOR_MID
+	_hp_bar.set("fill_color", hp_col)
 
-	_hp_fill.size.x = hp_bar_size.x * hp_ratio
-	_hp_delayed.size.x = hp_bar_size.x * delayed_ratio
-	_stam_fill.size.x = stamina_bar_size.x * stam_ratio
+	_stam_bar.set("ratio", current_stamina / max_stamina if max_stamina > 0.0 else 0.0)
 
-	if _posture_fill and _posture_fill_right:
-		var ratio = current_posture / max_posture
-		var half = posture_bar_size.x / 2.0
-		var fill_width = half * ratio  # ширина каждой половины
-
-		# Левая — позиция сдвигается влево, растёт влево от центра
-		_posture_fill.size.x = fill_width
-		_posture_fill.position.x = half - fill_width
-
-		# Правая — просто растёт вправо от центра
-		_posture_fill_right.size.x = fill_width
-
-		# Цвет обеих половин
-		var color: Color
-		if ratio < 0.5:
-			color = Color(0.9, 0.8, 0.2)   # жёлтый
-		elif ratio < 0.8:
-			color = Color(0.95, 0.5, 0.1)  # оранжевый
-		else:
-			color = Color(1.0, 0.15, 0.1)  # красный
-		_posture_fill.color = color
-		_posture_fill_right.color = color
-
-	# Цвет HP меняется при низком здоровье — тёмная, "кровавая" гамма вместо
-	# яркого пожарного красного: приглушённый бордовый вместо алого
-	if hp_ratio > 0.5:
-		_hp_fill.color = Color(0.5, 0.03, 0.03)
-	elif hp_ratio > 0.25:
-		_hp_fill.color = Color(0.58, 0.08, 0.02)
-	else:
-		_hp_fill.color = Color(0.7, 0.06, 0.02)
+	var p_ratio := current_posture / max_posture if max_posture > 0.0 else 0.0
+	_posture_bar.set("ratio", p_ratio)
+	var p_col := POSTURE_COLOR_LOW
+	if p_ratio >= 0.8:
+		p_col = POSTURE_COLOR_HIGH
+	elif p_ratio >= 0.5:
+		p_col = POSTURE_COLOR_MID
+	_posture_bar.set("fill_color", p_col)
 
 
 # ----------------------------------------------------------
@@ -201,17 +178,22 @@ func _update_visuals() -> void:
 
 func _build_ui() -> void:
 	_root = Control.new()
-	_root.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_root.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	_root.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(_root)
 
-	# Бары СНАЧАЛА, иконка ПОСЛЕДНЕЙ — сиблинги рисуются в порядке добавления,
-	# иконка должна лечь поверх баров, чтобы был виден эффект "бар выходит
-	# из-под медальона", а не наоборот (бар поверх иконки, перекрывая её)
-	_build_hp_bar()
-	_build_stamina_bar()
+	# Бары СНАЧАЛА, медальон ПОСЛЕДНИМ — сиблинги рисуются в порядке
+	# добавления, медальон должен лечь поверх начала полосок
+	_hp_bar = _make_bar(hp_position, hp_bar_size, HP_COLOR_HIGH)
+	_hp_bar.modulate.a = bar_alpha
+	_root.add_child(_hp_bar)
+
+	_stam_bar = _make_bar(Vector2(stamina_offset_x, stamina_position_y), stamina_bar_size, STAMINA_COLOR)
+	_stam_bar.modulate.a = bar_alpha
+	_root.add_child(_stam_bar)
+
 	_build_icon()
-	_build_posture_bar()  # ← добавь
+	_build_posture_bar()
 
 
 func _build_icon() -> void:
@@ -219,193 +201,41 @@ func _build_icon() -> void:
 	icon.texture = icon_texture
 	icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
-	icon.set_anchors_preset(Control.PRESET_TOP_LEFT)
 	icon.position = icon_position
 	icon.size = icon_size
 	icon.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	icon.modulate = Color(icon_darken, icon_darken, icon_darken)
+	# Медальон тоже потёртый, в тон полоскам (UI/hud_worn.gdshader)
+	icon.material = HudBarScript.WORN_MATERIAL
 	_root.add_child(icon)
 
 
-func _build_hp_bar() -> void:
-	var container := Control.new()
-	container.set_anchors_preset(Control.PRESET_TOP_LEFT)
-	container.position = hp_position
-	# Раньше было +Vector2(0, 30) — запас под старый крупный бар; сейчас бар
-	# тоньше и вплотную к иконке, снизу нужен только небольшой отступ под
-	# рамку со скосом
-	container.size = hp_bar_size + Vector2(0, 8)
-	container.modulate.a = bar_alpha
-	_root.add_child(container)
-
-	var bar_y: float = 4.0
-
-	# Фон полоски
-	_hp_bg = ColorRect.new()
-	_hp_bg.position = Vector2(0, bar_y)
-	_hp_bg.size = hp_bar_size
-	_hp_bg.color = Color(0.08, 0.08, 0.08, 0.9)
-	container.add_child(_hp_bg)
-
-	# Белая полоска отставания
-	_hp_delayed = ColorRect.new()
-	_hp_delayed.position = Vector2(0, bar_y)
-	_hp_delayed.size = hp_bar_size
-	_hp_delayed.color = Color(0.85, 0.85, 0.85, 0.75)
-	container.add_child(_hp_delayed)
-
-	# Красная полоска текущего HP
-	_hp_fill = ColorRect.new()
-	_hp_fill.position = Vector2(0, bar_y)
-	_hp_fill.size = hp_bar_size
-	_hp_fill.color = Color(0.85, 0.15, 0.15)
-	container.add_child(_hp_fill)
-
-	# Рамка со скосом (светлый верх / тёмный низ — эффект объёма)
-	var border := _make_bevel_border(Vector2(0, bar_y), hp_bar_size)
-	container.add_child(border)
-
-func _build_stamina_bar() -> void:
-	var container := Control.new()
-	# левый верхний угол, ПОД hp баром
-	container.set_anchors_preset(Control.PRESET_TOP_LEFT)
-	container.position = Vector2(stamina_offset_x, stamina_position_y)
-	container.size = stamina_bar_size + Vector2(0, 8)
-	container.modulate.a = bar_alpha
-	_root.add_child(container)
-
-	var bar_y: float = 4.0
-
-	_stam_bg = ColorRect.new()
-	_stam_bg.position = Vector2(0, bar_y)
-	_stam_bg.size = stamina_bar_size
-	_stam_bg.color = Color(0.08, 0.08, 0.08, 0.85)
-	container.add_child(_stam_bg)
-
-	_stam_fill = ColorRect.new()
-	_stam_fill.position = Vector2(0, bar_y)
-	_stam_fill.size = stamina_bar_size
-	_stam_fill.color = Color(0.25, 0.75, 0.3)
-	container.add_child(_stam_fill)
-
-	var border := _make_bevel_border(Vector2(0, bar_y), stamina_bar_size)
-	container.add_child(border)
-
-
-func _make_border(pos: Vector2, bar_size: Vector2) -> Control:
-	# Рисуем 4 тонкие линии вокруг полоски
-	var c := Control.new()
-	c.position = pos
-
-	var thickness := 1.5
-	var col := Color(0.5, 0.45, 0.3, 0.8)
-
-	var top := ColorRect.new()
-	top.position = Vector2(-thickness, -thickness)
-	top.size = Vector2(bar_size.x + thickness * 2, thickness)
-	top.color = col
-	c.add_child(top)
-
-	var bot := ColorRect.new()
-	bot.position = Vector2(-thickness, bar_size.y)
-	bot.size = Vector2(bar_size.x + thickness * 2, thickness)
-	bot.color = col
-	c.add_child(bot)
-
-	var left := ColorRect.new()
-	left.position = Vector2(-thickness, 0)
-	left.size = Vector2(thickness, bar_size.y)
-	left.color = col
-	c.add_child(left)
-
-	var right := ColorRect.new()
-	right.position = Vector2(bar_size.x, 0)
-	right.size = Vector2(thickness, bar_size.y)
-	right.color = col
-	c.add_child(right)
-
-	return c
-
-
-# Рамка со скосом — та же идея, что у обычного _make_border, но грани
-# отличаются по цвету: светлая сверху (блик), тёмная снизу (тень). Именно
-# этот приём заставляет плоский прямоугольник читаться как объёмная деталь,
-# а не просто линия по контуру
-func _make_bevel_border(pos: Vector2, bar_size: Vector2) -> Control:
-	var c := Control.new()
-	c.position = pos
-	c.mouse_filter = Control.MOUSE_FILTER_IGNORE
-
-	var thickness := 1.5
-	var top_col := Color(0.8, 0.75, 0.55, 0.9)
-	var side_col := Color(0.35, 0.32, 0.22, 0.85)
-	var bottom_col := Color(0.03, 0.03, 0.03, 0.95)
-
-	var top := ColorRect.new()
-	top.position = Vector2(-thickness, -thickness)
-	top.size = Vector2(bar_size.x + thickness * 2, thickness)
-	top.color = top_col
-	c.add_child(top)
-
-	var bot := ColorRect.new()
-	bot.position = Vector2(-thickness, bar_size.y)
-	bot.size = Vector2(bar_size.x + thickness * 2, thickness)
-	bot.color = bottom_col
-	c.add_child(bot)
-
-	var left := ColorRect.new()
-	left.position = Vector2(-thickness, 0)
-	left.size = Vector2(thickness, bar_size.y)
-	left.color = side_col
-	c.add_child(left)
-
-	var right := ColorRect.new()
-	right.position = Vector2(bar_size.x, 0)
-	right.size = Vector2(thickness, bar_size.y)
-	right.color = side_col
-	c.add_child(right)
-
-	return c
-
-
 func _build_posture_bar() -> void:
-	var container := Control.new()
-	container.set_anchors_preset(Control.PRESET_CENTER_BOTTOM)
-	container.position = Vector2(posture_offset_x, posture_position_y)
-	container.size = posture_bar_size + Vector2(0, 20)
-	_root.add_child(container)
+	# Контейнер на якоре "низ-центр": полоска остаётся по центру при любом
+	# разрешении окна
+	var anchor := Control.new()
+	anchor.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	anchor.anchor_left = 0.5
+	anchor.anchor_right = 0.5
+	anchor.anchor_top = 1.0
+	anchor.anchor_bottom = 1.0
+	_root.add_child(anchor)
 
-	var lbl := Label.new()
-	lbl.position = Vector2(0, 0)
-	lbl.add_theme_font_size_override("font_size", 9)
-	lbl.add_theme_color_override("font_color", Color(0.9, 0.8, 0.3))
-	lbl.text = "POSTURE"
-	lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	lbl.size.x = posture_bar_size.x
-	container.add_child(lbl)
+	_posture_bar = _make_bar(
+		Vector2(-posture_bar_size.x / 2.0, posture_position_y - posture_bar_size.y / 2.0),
+		posture_bar_size, POSTURE_COLOR_LOW)
+	_posture_bar.set("tip_left", true)
+	_posture_bar.set("centered", true)
+	_posture_bar.set("center_emblem", true)
+	_posture_bar.set("ratio", 0.0)
+	anchor.add_child(_posture_bar)
 
-	var bar_y: float = 13.0
 
-	# Фон
-	_posture_bg = ColorRect.new()
-	_posture_bg.position = Vector2(0, bar_y)
-	_posture_bg.size = posture_bar_size
-	_posture_bg.color = Color(0.08, 0.08, 0.08, 0.85)
-	container.add_child(_posture_bg)
-
-	# Левая половина — растёт влево от центра
-	_posture_fill = ColorRect.new()
-	_posture_fill.position = Vector2(posture_bar_size.x / 2.0, bar_y)
-	_posture_fill.size = Vector2(0, posture_bar_size.y)
-	_posture_fill.color = Color(0.9, 0.8, 0.2)
-	container.add_child(_posture_fill)
-
-	# Правая половина — растёт вправо от центра
-	_posture_fill_right = ColorRect.new()
-	_posture_fill_right.position = Vector2(posture_bar_size.x / 2.0, bar_y)
-	_posture_fill_right.size = Vector2(0, posture_bar_size.y)
-	_posture_fill_right.color = Color(0.9, 0.8, 0.2)
-	container.add_child(_posture_fill_right)
-
-	var border := _make_border(Vector2(0, bar_y), posture_bar_size)
-	container.add_child(border)
+func _make_bar(pos: Vector2, sz: Vector2, col: Color) -> Control:
+	var bar := Control.new()
+	bar.set_script(HudBarScript)
+	bar.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	bar.position = pos
+	bar.size = sz
+	bar.set("fill_color", col)
+	return bar
