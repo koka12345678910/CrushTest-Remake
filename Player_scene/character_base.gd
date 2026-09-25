@@ -95,6 +95,10 @@ var skill_points := 0
 var skill_progress := 0
 @export var skill_progress_per_point := 10
 
+## Открыт магазин (Shop/shop_menu.gd ставит/снимает) — персонаж стоит и не
+## реагирует на ввод, как рыцарь (player.gd::is_in_shop)
+var is_in_shop := false
+
 var knockback_velocity := Vector2.ZERO
 var is_invulnerable := false
 var _invuln_timer := 0.0
@@ -176,6 +180,11 @@ func _physics_process(delta: float) -> void:
 
 	if is_rolling:
 		_handle_roll(delta)
+		return
+
+	if is_in_shop:
+		velocity = Vector2.ZERO
+		play_movement_animation()
 		return
 
 	# Перекат обрабатываем ДО нокбэка — та же идея, что у рыцаря
@@ -324,6 +333,12 @@ func start_roll() -> void:
 	dodge_velocity = roll_dir * roll_speed
 
 
+## Перекат доигран до конца. Для наследников — Танец Валькирии у лучницы
+## заряжает здесь следующий выстрел
+func _on_roll_finished() -> void:
+	pass
+
+
 ## Синусоидальный разгон-торможение — та же кривая, что у рыцаря
 ## (player.gd::handle_roll): плавный старт и плавное гашение к концу клипа,
 ## а не рывок на постоянной скорости
@@ -375,7 +390,7 @@ func start_run_attack() -> void:
 	is_run_attacking = true
 	_run_dash_velocity = facing_dir * run_attack_dash_speed
 
-	var aim: Node2D = _focus.target if _focus.has_target() else _focus.get_nearest_enemy()
+	var aim: Node2D = _pick_aim()
 	_on_attack_started(0, aim)
 
 
@@ -390,7 +405,7 @@ func start_attack(step: int) -> void:
 	# ввода. Тот же порядок, что у рыцаря (player.gd::try_snap_to_enemy):
 	# если игрок явно выбрал врага, бить надо именно его, а не того, кто
 	# случайно оказался ближе в толпе
-	var aim: Node2D = _focus.target if _focus.has_target() else _focus.get_nearest_enemy()
+	var aim: Node2D = _pick_aim()
 	if is_instance_valid(aim):
 		var to_aim := (aim.global_position - global_position).normalized()
 		var aim_dir := get_direction(to_aim)
@@ -413,6 +428,13 @@ func start_attack(step: int) -> void:
 	_on_attack_started(step, aim)
 
 
+## Кого бить/в кого стрелять. Приоритет: взятая в фокус цель > ближайший
+## враг. Наследник может переопределить — лучница с Пером Хугина сначала
+## ищет помеченных врагов (archer.gd)
+func _pick_aim() -> Node2D:
+	return _focus.target if _focus.has_target() else _focus.get_nearest_enemy()
+
+
 ## Переопределяют наследники — сюда вешается конкретный эффект удара: выстрел
 ## стрелой у лучника, заклинание у мага. В базе пусто: сама анимация уже
 ## отыграна к этому моменту, aim — та же цель, на которую только что
@@ -429,6 +451,7 @@ func _on_animation_finished(finished_anim: String) -> void:
 		roll_control = 0.0
 		velocity = Vector2.ZERO
 		play_movement_animation()
+		_on_roll_finished()
 		return
 	if finished_anim.begins_with("Run_Attack"):
 		is_attacking = false

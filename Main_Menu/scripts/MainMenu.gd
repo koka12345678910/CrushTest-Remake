@@ -35,6 +35,7 @@ const LOGO_ANIM_FPS := 15.0
 # Панель создаётся кодом и по требованию — как настройки внутри инвентаря
 # (inventory_ui.gd). Отдельного .tscn у неё нет, вся вёрстка в скрипте
 const CharacterSelectScript := preload("res://Main_Menu/scripts/CharacterSelectPanel.gd")
+const InDevelopmentScript := preload("res://Main_Menu/scripts/InDevelopmentPanel.gd")
 
 var _character_panel: Control
 
@@ -202,8 +203,20 @@ func _on_new_game() -> void:
 ## один и тот же (SINGLE_SLOT) — без панели выбора спросить "куда писать"
 ## всё равно негде, так что новая игра просто затирает прошлое прохождение
 func _on_character_chosen(id: String) -> void:
+	# Класс ещё не готов (Characters.AVAILABLE) — не стартуем и сейв не
+	# трогаем, а показываем окно "в разработке" поверх экрана выбора
+	if not Characters.is_available(id):
+		_show_in_development(id)
+		return
 	SaveManager.create_slot(SINGLE_SLOT, id)
 	_start_game()
+
+
+func _show_in_development(id: String) -> void:
+	var p: Control = InDevelopmentScript.new()
+	p.hero_id = id
+	# Туда же, где панели выбора и настроек, — и последним, чтобы лечь поверх
+	settings_panel.get_parent().add_child(p)
 
 
 ## "Продолжить" и "Загрузить" сейчас делают одно и то же — слот один, выбирать
@@ -222,6 +235,11 @@ func _try_resume(source_btn: Button) -> void:
 	if not SaveManager.slot_exists(SINGLE_SLOT):
 		_play_ui_sound(SOUND_DENIED)
 		_flash_button(source_btn)
+		return
+	# Старый сейв за класс, который сейчас закрыт, — тоже не пускаем
+	var saved_id: String = SaveManager.peek_slot(SINGLE_SLOT).get("character_id", Characters.FALLBACK)
+	if not Characters.is_available(saved_id):
+		_show_in_development(saved_id)
 		return
 	_play_ui_sound(SOUND_ACCEPT)
 	SaveManager.load_slot(SINGLE_SLOT)

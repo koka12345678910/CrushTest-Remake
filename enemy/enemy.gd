@@ -1136,6 +1136,24 @@ func take_damage(amount: int, source: Node2D = null) -> void:
 		var knockback_dir := _safe_direction(global_position - source.global_position)
 		knockback_velocity = knockback_dir * 150.0
 
+## Урон от кровотечения (Кровавое Перо лучницы, Player_scene/archer_fx.gd).
+## Чистая потеря здоровья: мимо блока/парирования, без стана и нокбэка —
+## иначе каждый тик раз в секунду сбивал бы врага в HIT_STUN
+func take_bleed_damage(amount: int, source: Node2D = null) -> void:
+	if is_dead:
+		return
+	if source and is_instance_valid(source) and source.is_in_group("player"):
+		player = source
+	health -= amount
+	hp_bar.visible = true
+	hp_bar.value = health
+	_trigger_damage_flash()
+	play_blood_vfx()
+	if health <= 0:
+		health = 0
+		is_dead = true
+		_change_state(State.DEAD)
+
 func _try_block() -> void:
 	if is_posture_broken or is_player_berserk:
 		return

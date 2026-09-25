@@ -6,6 +6,15 @@ extends Resource
 @export var icon: Texture2D
 @export var cooldown_duration: float = 1.0
 @export var description: String = ""
+## Строка типа в карточке инвентаря ("Боевой навык", "Талисман" ...). Пусто —
+## по-старому "Расходуемое" (все предметы рыцаря)
+@export var item_type: String = ""
+## Сколько штук можно держать в сумке. 0 — берётся из старой таблицы
+## inventory_ui._get_max_count (предметы рыцаря)
+@export var max_count: int = 0
+## Пассивный предмет (талисманы лучницы): действует, пока лежит в сумке, в
+## быстрый слот не кладётся и не тратится
+@export var is_passive: bool = false
 
 var _cooldown_timer: float = 0.0
 
