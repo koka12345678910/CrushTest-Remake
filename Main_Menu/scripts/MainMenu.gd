@@ -36,6 +36,7 @@ const LOGO_ANIM_FPS := 15.0
 # (inventory_ui.gd). Отдельного .tscn у неё нет, вся вёрстка в скрипте
 const CharacterSelectScript := preload("res://Main_Menu/scripts/CharacterSelectPanel.gd")
 const InDevelopmentScript := preload("res://Main_Menu/scripts/InDevelopmentPanel.gd")
+const ControlsScript := preload("res://Main_Menu/scripts/ControlsPanel.gd")
 
 var _character_panel: Control
 
@@ -208,8 +209,27 @@ func _on_character_chosen(id: String) -> void:
 	if not Characters.is_available(id):
 		_show_in_development(id)
 		return
-	SaveManager.create_slot(SINGLE_SLOT, id)
-	_start_game()
+	# Сейв заводим только после "BEGIN JOURNEY" — если с памятки вернулись
+	# назад, прошлое прохождение не должно быть уже затёрто
+	_show_controls(func():
+		SaveManager.create_slot(SINGLE_SLOT, id)
+		_start_game())
+
+
+## Памятка по управлению перед стартом (ControlsPanel.gd). on_begin — что
+## сделать по "BEGIN JOURNEY": создать/загрузить сейв и уйти на уровень
+func _show_controls(on_begin: Callable) -> void:
+	var p: Control = ControlsScript.new()
+	# Из главного меню (Continue) прячем логотип и кнопки под окном; с экрана
+	# выбора героя — он и так полноэкранный
+	var from_menu := not (is_instance_valid(_character_panel) and _character_panel.visible)
+	if from_menu:
+		_set_menu_shown(false)
+	p.confirmed.connect(on_begin)
+	p.cancelled.connect(func():
+		if from_menu:
+			_set_menu_shown(true))
+	settings_panel.get_parent().add_child(p)
 
 
 func _show_in_development(id: String) -> void:
@@ -242,8 +262,9 @@ func _try_resume(source_btn: Button) -> void:
 		_show_in_development(saved_id)
 		return
 	_play_ui_sound(SOUND_ACCEPT)
-	SaveManager.load_slot(SINGLE_SLOT)
-	_start_game()
+	_show_controls(func():
+		SaveManager.load_slot(SINGLE_SLOT)
+		_start_game())
 
 
 ## Гасим открытую панель перед уходом в игру. modulate самой сцены её не
