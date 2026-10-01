@@ -10,6 +10,7 @@ extends CharacterBody2D
 @export var turn_around_vfx_scene: PackedScene
 const DirectionUtil := preload("res://Player_scene/direction_util.gd")
 const FocusSystemScript := preload("res://Player_scene/focus_system.gd")
+const DepthComponentScript := preload("res://Player_scene/depth_component.gd")
 
 @export var snap_radius := 80.0  # радиус поиска врагов
 @export var focus_break_range := 260.0  # дальше — фокус слетает сам
@@ -37,6 +38,10 @@ const FocusSystemScript := preload("res://Player_scene/focus_system.gd")
 @onready var foot_point2 = $FootPoint2
 @onready var ability_system: AbilitySystem = $AbilitySystem
 @onready var inventory_system: InventorySystem = $InventorySystem
+## В отличие от ability_system/inventory_system — не узел в player.tscn, а
+## создаётся кодом в _ready(), как у лучницы (archer.gd::_setup_inventory):
+## нового поля в .tscn не требует, а плейлист узлов там и так длинный
+var talisman_system: TalismanSystem
 @onready var health_bar = $HealthStaminaBar
 @onready var inventory_ui = $InventoryUI
 @onready var hurtbox: Area2D = $HurtBox
@@ -441,8 +446,6 @@ var active_buffs: Dictionary = {}
 var active_ability_name := ""
 var coins: int = 0
 
-var normal_scale := Vector2(0.5, 0.5)
-var ladder_scale := Vector2(0.65, 0.65)
 var is_starting := true
 var is_stunned := false
 var is_taking_damage := false
@@ -463,6 +466,11 @@ var is_in_shop := false
 
 func _ready() -> void:
 	_setup_focus()
+	# Этажность карты: лестницы (Levels/stairs_zone.gd) меняют высоту героя,
+	# компонент масштабирует картинку и скорость (Player_scene/depth_component.gd)
+	var depth := DepthComponentScript.new()
+	depth.name = "DepthComponent"
+	add_child(depth)
 	player_hitbox.area_entered.connect(_on_player_hitbox_area_entered)
 	player_hitbox.monitoring = false  # выключен по умолчанию, включается при атаке
 	if not anim.animation_finished.is_connected(_on_anim_finished):
@@ -504,11 +512,36 @@ func _ready() -> void:
 	# Вызываем и здесь тоже: без сейва (F6 из редактора) apply_to не вызовется
 	# вовсе, а recompute должен отработать хотя бы раз и на голых значениях
 	recompute_skill_modifiers()
-	inventory_ui.init(ability_system, inventory_system, self)
+	talisman_system = TalismanSystem.new()
+	talisman_system.name = "TalismanSystem"
+	add_child(talisman_system)
+	inventory_ui.init(ability_system, inventory_system, self, talisman_system)
 	hud.init(ability_system)
 	
 	# Только потом загружаем предметы
 	_load_starting_abilities()
+
+## Страховка от "залипшего" бега — то же, что в character_base.gd::_input:
+## Windows иногда съедает отпускание Shift (Alt+Shift — смена раскладки и
+## т.п.), и рыцарь бежал сам после одного нажатия. Любое событие
+## клавиатуры/мыши несёт реальное состояние Shift — по нему и отпускаем
+func _input(event: InputEvent) -> void:
+	if not (event is InputEventWithModifiers) or event.shift_pressed:
+		return
+	# Событие самой клавиши Shift не в счёт — Godot на Windows отдаёт его
+	# с shift_pressed = false даже при нажатии
+	if event is InputEventKey and (event.physical_keycode == KEY_SHIFT or event.keycode == KEY_SHIFT):
+		return
+	if Input.is_action_pressed("run") and _run_bound_to_shift():
+		Input.action_release("run")
+
+
+func _run_bound_to_shift() -> bool:
+	for e in InputMap.action_get_events("run"):
+		if e is InputEventKey and (e.physical_keycode == KEY_SHIFT or e.keycode == KEY_SHIFT):
+			return true
+	return false
+
 
 func _unhandled_input(event: InputEvent) -> void:
 	if is_in_shop:

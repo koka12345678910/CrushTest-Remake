@@ -1,0 +1,96 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://Levels/stairs_zone.gd" id="1_stairs"]
+
+[sub_resource type="RectangleShape2D" id="Rect_Stairs_Shrine"]
+size = Vector2(60, 110)
+
+[sub_resource type="RectangleShape2D" id="Rect_Stairs_LeftTerrace"]
+size = Vector2(90, 190)
+
+[sub_resource type="RectangleShape2D" id="Rect_Stairs_BuildingTerrace"]
+size = Vector2(84, 90)
+
+[sub_resource type="RectangleShape2D" id="Rect_Stairs_SouthWall"]
+size = Vector2(70, 104)
+
+[sub_resource type="RectangleShape2D" id="Rect_Stairs_Monument"]
+size = Vector2(178, 104)
+
+[sub_resource type="RectangleShape2D" id="Rect_Stairs_EastTerrace"]
+size = Vector2(62, 100)
+
+[sub_resource type="RectangleShape2D" id="Rect_Stairs_WillowGarden"]
+size = Vector2(90, 285)
+
+[node name="StairsLevel01" type="Node2D"]
+
+[node name="Stairs_Shrine" type="Area2D" parent="."]
+position = Vector2(2399, -831)
+collision_layer = 0
+collision_mask = 2
+script = ExtResource("1_stairs")
+up_direction = Vector2(0, -1)
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Stairs_Shrine"]
+shape = SubResource("Rect_Stairs_Shrine")
+
+[node name="Stairs_LeftTerrace" type="Area2D" parent="."]
+position = Vector2(444, -214)
+collision_layer = 0
+collision_mask = 2
+script = ExtResource("1_stairs")
+up_direction = Vector2(1, 0)
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Stairs_LeftTerrace"]
+shape = SubResource("Rect_Stairs_LeftTerrace")
+
+[node name="Stairs_BuildingTerrace" type="Area2D" parent="."]
+position = Vector2(1520, -197)
+collision_layer = 0
+collision_mask = 2
+script = ExtResource("1_stairs")
+up_direction = Vector2(1, 0)
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Stairs_BuildingTerrace"]
+shape = SubResource("Rect_Stairs_BuildingTerrace")
+
+[node name="Stairs_SouthWall" type="Area2D" parent="."]
+position = Vector2(1743, 47)
+collision_layer = 0
+collision_mask = 2
+script = ExtResource("1_stairs")
+up_direction = Vector2(0, -1)
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Stairs_SouthWall"]
+shape = SubResource("Rect_Stairs_SouthWall")
+
+[node name="Stairs_Monument" type="Area2D" parent="."]
+position = Vector2(568, 413)
+collision_layer = 0
+collision_mask = 2
+script = ExtResource("1_stairs")
+up_direction = Vector2(0, -1)
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Stairs_Monument"]
+shape = SubResource("Rect_Stairs_Monument")
+
+[node name="Stairs_EastTerrace" type="Area2D" parent="."]
+position = Vector2(2460, -164)
+collision_layer = 0
+collision_mask = 2
+script = ExtResource("1_stairs")
+up_direction = Vector2(0, -1)
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Stairs_EastTerrace"]
+shape = SubResource("Rect_Stairs_EastTerrace")
+
+[node name="Stairs_WillowGarden" type="Area2D" parent="."]
+position = Vector2(2824, -262)
+collision_layer = 0
+collision_mask = 2
+script = ExtResource("1_stairs")
+up_direction = Vector2(1, 0)
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Stairs_WillowGarden"]
+shape = SubResource("Rect_Stairs_WillowGarden")

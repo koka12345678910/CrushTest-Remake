@@ -123,11 +123,14 @@ func _knight_items() -> Array:
 # Товары лучницы. "subtitle" — принадлежность и тип под названием, "max" —
 # сколько штук можно держать в сумке (талисман — один, второй не продаём)
 func _archer_items() -> Array:
+	# ВРЕМЕННО: все цены лучницы обнулены по просьбе пользователя — тестовый
+	# бесплатный магазин. Настоящая цена — в комментарии рядом с "price",
+	# верни её, когда магазин снова должен стать платным
 	return [
 		{
 			"name": "Выстрел Валькирии",
 			"subtitle": "Валькирии  •  Боевой навык",
-			"price": 60,
+			"price": 0,  # было 60
 			"max": 3,
 			"icon": "res://UI/icons_for_sigrid/valkyrie's_shot.png",
 			"description": "Следующий выстрел срывается с тетивы мгновенно,\nлетит почти вдвое быстрее и наносит +1 урона.",
@@ -138,7 +141,7 @@ func _archer_items() -> Array:
 		{
 			"name": "Коготь Фенрира",
 			"subtitle": "Фенрир  •  Боевой навык",
-			"price": 80,
+			"price": 0,  # было 80
 			"max": 3,
 			"icon": "res://UI/icons_for_sigrid/fenrir's_claw.png",
 			"description": "Следующие 3 стрелы пробивают первого врага\nи поражают того, кто стоит за ним.",
@@ -149,7 +152,7 @@ func _archer_items() -> Array:
 		{
 			"name": "Шёпот Одина",
 			"subtitle": "Один  •  Боевой навык",
-			"price": 80,
+			"price": 0,  # было 80
 			"max": 3,
 			"icon": "res://UI/icons_for_sigrid/odin's_whisper.png",
 			"description": "Следующие 3 стрелы проходят сквозь препятствия\nи поражают врага за ними.",
@@ -160,7 +163,7 @@ func _archer_items() -> Array:
 		{
 			"name": "Танец Валькирии",
 			"subtitle": "Валькирии  •  Боевой навык",
-			"price": 90,
+			"price": 0,  # было 90
 			"max": 3,
 			"icon": "res://UI/icons_for_sigrid/valkyrie_dance.png",
 			"description": "12 сек: после каждого переката следующий выстрел\nусилен — он всегда критический.",
@@ -171,7 +174,7 @@ func _archer_items() -> Array:
 		{
 			"name": "Кровавое Перо",
 			"subtitle": "Валькирии  •  Боевой навык",
-			"price": 100,
+			"price": 0,  # было 100
 			"max": 3,
 			"icon": "res://UI/icons_for_sigrid/bloody_feather.png",
 			"description": "20 сек: критическое попадание накладывает\nкровотечение — 3 урона за 3 секунды.",
@@ -182,7 +185,7 @@ func _archer_items() -> Array:
 		{
 			"name": "Последний взор",
 			"subtitle": "Один  •  Временная способность",
-			"price": 150,
+			"price": 0,  # было 150
 			"max": 2,
 			"icon": "res://UI/icons_for_sigrid/last_look.png",
 			"description": "8 сек: стрельба вдвое быстрее, стрелы доворачивают\nв цель, +1 урона и +15% шанса крита.",
@@ -193,7 +196,7 @@ func _archer_items() -> Array:
 		{
 			"name": "Путь охотницы",
 			"subtitle": "Скади, древние охотницы  •  Временная способность",
-			"price": 140,
+			"price": 0,  # было 140
 			"max": 2,
 			"icon": "res://UI/icons_for_sigrid/path_of_the_huntress.png",
 			"description": "12 сек: цель в фокусе (или первая поражённая)\nстановится добычей. Каждое попадание по ней\nусиливает следующее — до +2 урона.",
@@ -204,7 +207,7 @@ func _archer_items() -> Array:
 		{
 			"name": "Перо Хугина",
 			"subtitle": "Один  •  Талисман, пассивный",
-			"price": 250,
+			"price": 0,  # было 250
 			"max": 1,
 			"icon": "res://UI/icons_for_sigrid/odin's_raven.png",
 			"description": "Каждое попадание метит врага на 5 сек. Лук сам\nнаводится на помеченных, даже издалека.\nДобыча Пути охотницы под меткой копит силу вдвое быстрее.",
@@ -215,7 +218,7 @@ func _archer_items() -> Array:
 		{
 			"name": "Игла Норн",
 			"subtitle": "Норны  •  Талисман, пассивный",
-			"price": 250,
+			"price": 0,  # было 250
 			"max": 1,
 			"icon": "res://UI/icons_for_sigrid/norn's_needle.png",
 			"description": "+20% шанса критического попадания по врагам,\nкоторых лучница уже поражала.",

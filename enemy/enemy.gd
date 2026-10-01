@@ -82,10 +82,10 @@ var _telegraph_tween: Tween
 # дистанции — без этого враг просто не замечает, что в него стреляют издалека
 @export var ranged_alert_range := 700.0
 @export var ranged_block_chance := 0.5
-# Радиус, в котором заметивший лучника враг поднимает тревогу остальным —
-# без этого на лучника реагирует только тот, кого он реально задел, и враги
-# сходятся по одному, а не толпой
-@export var pack_alert_radius := 300.0
+# Зона (овал), в которой подстреленный враг поднимает соседей: x — радиус
+# в стороны, y — вверх/вниз. Небольшая нарочно: за лучницей бегут только
+# те, кто стоит рядом, а одиночка идёт один
+@export var pack_alert_radius := Vector2(150.0, 100.0)
 @export var coin_scene: PackedScene
 @export var coin_drop_min := 1
 @export var coin_drop_max := 3
@@ -395,6 +395,8 @@ func _safe_direction(vec: Vector2, fallback: Vector2 = Vector2.DOWN) -> Vector2:
 		return vec.normalized()
 	return fallback
 
+# Сдвиг делаем через move_and_collide, а не прямой записью global_position:
+# прямая запись игнорировала стены, и расталкивание вдавливало врага в них
 func _separate_from_player(delta: float) -> void:
 	if not player or not is_instance_valid(player):
 		return
@@ -417,9 +419,9 @@ func _separate_from_player(delta: float) -> void:
 		var dir := _safe_direction(offset)
 		var needed := min_separation - dist
 		if needed > separation_snap_distance:
-			global_position += dir * needed
+			move_and_collide(dir * needed)
 		else:
-			global_position += dir * min(needed, separation_push_speed * delta)
+			move_and_collide(dir * min(needed, separation_push_speed * delta))
 
 # Раздвигаем врагов друг от друга — без этого два врага могут оказаться
 # почти в одной точке (пачка спавна, нокбэк и т.п.), и тогда move_and_slide
@@ -450,32 +452,20 @@ func _separate_from_enemies(delta: float) -> void:
 	if push == Vector2.ZERO:
 		return
 	if deepest_needed > separation_snap_distance:
-		global_position += push
+		move_and_collide(push)
 	else:
 		var push_len := push.length()
 		var capped_len: float = min(push_len, separation_push_speed * delta)
-		global_position += push * (capped_len / push_len)
+		move_and_collide(push * (capped_len / push_len))
 
 # ============== AI ==============
 
 func _effective_vision_range() -> float:
 	return max(vision_range, ranged_alert_range) if is_ranged_alert else vision_range
 
-# Проактивно замечаем лучника на дистанции ranged_alert_range, даже если по
-# врагу ещё ни разу не попали — физическая VisionArea рассчитана на ближний
-# бой (~150px) и лук с гораздо большей дистанции для неё попросту невидим
-func _scan_for_ranged_threat() -> void:
-	for p in get_tree().get_nodes_in_group("ranged_player"):
-		if not is_instance_valid(p):
-			continue
-		if p.has_method("is_dead") and p.is_dead():
-			continue
-		if global_position.distance_to(p.global_position) <= ranged_alert_range:
-			player = p
-			see_player = true
-			is_ranged_alert = true
-			_alert_nearby_allies(p)
-			return
+# Лучника враг замечает так же, как рыцаря — только через обычную VisionArea.
+# Издалека он себя выдаёт лишь попавшей стрелой (см. take_damage): тогда
+# подстреленный и соседи в pack_alert_radius разом кидаются на него
 
 # Поднимает тревогу соседним врагам — иначе на лучника реагирует только тот,
 # кого он реально подстрелил, и толпа сходится по одному вместо разом
@@ -488,7 +478,8 @@ func _alert_nearby_allies(source: Node2D) -> void:
 			State.PARRY, State.COUNTER, State.BLOCK
 		]:
 			continue
-		if global_position.distance_to(e.global_position) > pack_alert_radius:
+		var off: Vector2 = (e.global_position - global_position) / pack_alert_radius
+		if off.length_squared() > 1.0:
 			continue
 		e.player = source
 		e.see_player = true
@@ -507,9 +498,6 @@ func _decide_state() -> void:
 
 	if current_state == State.BLOCK:
 		return
-
-	if not is_ranged_alert:
-		_scan_for_ranged_threat()
 
 	# пробуем заблокировать если игрок атакует рядом
 	if player and is_instance_valid(player):
@@ -746,8 +734,12 @@ func _state_wander(delta: float) -> void:
 	else:
 		_stuck_timer = 0.0
 
-	# Плавно поворачиваемся к цели и идём
-	var target_dir := to_target / dist
+	# Идём по пути навигации, а не по прямой: иначе враг упирается в стену
+	# или дерево между собой и точкой блуждания. Цель агента могла остаться
+	# от погони — возвращаем её на точку блуждания
+	if nav_agent.target_position != wander_target:
+		nav_agent.target_position = wander_target
+	var target_dir := _nav_direction_to(to_target / dist)
 	direction = direction.lerp(target_dir, 6.0 * delta).normalized()
 	move_velocity = direction * walk_speed * wander_speed_multiplier
 	_play_animation("walk")
@@ -769,7 +761,22 @@ func _pick_new_wander_direction() -> void:
 			back_dir = -Vector2(cos(angle), sin(angle))
 		candidate = global_position + back_dir * step
 
+	# Точка внутри стены/дерева недостижима — притягиваем её к ближайшему
+	# месту на навмеше (пока навмеш не запечён, карта пустая — оставляем как есть)
+	var nav_map := nav_agent.get_navigation_map()
+	if NavigationServer2D.map_get_iteration_id(nav_map) > 0:
+		var snapped := NavigationServer2D.map_get_closest_point(nav_map, candidate)
+		if snapped.is_finite() and snapped != Vector2.ZERO:
+			candidate = snapped
+
 	wander_target = candidate
+	nav_agent.target_position = wander_target
+
+## Направление к следующей точке пути навигации. Нет пути (навмеш ещё
+## печётся или цель вне его) — запасное направление по прямой
+func _nav_direction_to(fallback: Vector2) -> Vector2:
+	var next: Vector2 = nav_agent.get_next_path_position()
+	return _safe_direction(next - global_position, fallback)
 
 # ===================== CHASE =====================
 func _state_chase(delta: float) -> void:
@@ -813,10 +820,7 @@ func _state_chase(delta: float) -> void:
 			# слишком близко) остаётся прямой линией: это всегда дистанция
 			# внутри preferred_distance, там стен между врагом и целью не
 			# бывает — пятиться назад по "чужому" пути некуда и незачем
-			var nav_next: Vector2 = nav_agent.get_next_path_position()
-			move_dir = (nav_next - global_position).normalized()
-			if move_dir == Vector2.ZERO:
-				move_dir = dir
+			move_dir = _nav_direction_to(dir)
 		else:
 			move_dir = -dir
 		direction = direction.lerp(move_dir, direction_smoothness * delta).normalized()
@@ -1047,7 +1051,10 @@ func take_damage(amount: int, source: Node2D = null) -> void:
 	if source and is_instance_valid(source) and source.is_in_group("player"):
 		player = source
 		see_player = true
-		if not is_ranged_alert and global_position.distance_to(source.global_position) > attack_range * 2.0:
+		# Выстрел лучника поднимает стаю всегда, даже в упор — иначе стрела
+		# с близкой дистанции будила бы только того, в кого попала
+		var is_ranged_shot: bool = source.is_in_group("ranged_player")
+		if not is_ranged_alert and (is_ranged_shot or global_position.distance_to(source.global_position) > attack_range * 2.0):
 			is_ranged_alert = true
 			_alert_nearby_allies(source)
 
@@ -1424,7 +1431,11 @@ func _on_vision_body_entered(body: Node2D) -> void:
 
 func _on_vision_body_exited(body: Node2D) -> void:
 	if body.is_in_group("player"):
-
+		# Поднятый стрелой враг держит цель по ranged_alert_range, а не по
+		# VisionArea — иначе лучница отходила бы на шаг из зоны, и погоня
+		# тут же обрывалась
+		if is_ranged_alert:
+			return
 		player = null
 		see_player = false
 

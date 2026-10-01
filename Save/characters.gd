@@ -100,7 +100,7 @@ const FALLBACK := KNIGHT
 ## Можно ли уже начать игру за этого героя. Лучница и маг в разработке —
 ## в меню при выборе показывается окно "в разработке"
 ## (Main_Menu/scripts/InDevelopmentPanel.gd). Класс готов — добавь его сюда
-const AVAILABLE: Array[String] = [KNIGHT]
+const AVAILABLE: Array[String] = [KNIGHT, ARCHER]
 
 
 func is_available(id: String) -> bool:

@@ -8370,7 +8370,7 @@ animations = [{
 "duration": 1.0,
 "texture": SubResource("AtlasTexture_tci0x")
 }],
-"loop": 0,
+"loop": 1,
 "name": &"Attack_2_Down",
 "speed": 25.0
 }, {

@@ -23,14 +23,15 @@ var character_id := "archer"
 # чтобы не трогать archer.tscn
 var ability_system: AbilitySystem
 var inventory_system: InventorySystem
+var talisman_system: TalismanSystem
 var inventory_ui: CanvasLayer
 var hud: CanvasLayer
 var _skill_audio: AudioStreamPlayer
 var _status: Node2D
 var _last_gold := -1
 
-## Метка "стрелок" для enemy.gd — по ней враги замечают лучника издалека
-## (см. _scan_for_ranged_threat в enemy.gd), в обход обычной ближней VisionArea.
+## Метка "стрелок" для enemy.gd — попавшая стрела лучника поднимает на него
+## подстреленного врага и соседей (см. enemy.gd::take_damage).
 ## Тем же тут заводим хитбокс пинка — та же группа/meta, что у PlayerHitbox
 ## рыцаря (player.gd::_ready), это единственное, что даёт enemy.gd опознать
 ## удар как "атака игрока" (см. enemy.gd::_is_player_attack/_get_damage_from)
@@ -50,6 +51,9 @@ func _setup_inventory() -> void:
 	inventory_system = InventorySystem.new()
 	inventory_system.name = "InventorySystem"
 	add_child(inventory_system)
+	talisman_system = TalismanSystem.new()
+	talisman_system.name = "TalismanSystem"
+	add_child(talisman_system)
 
 	# HUD: hud.gd ищет $QuickSlotUI в своём _ready — ребёнка кладём ДО
 	# добавления в дерево. Координаты — как у рыцаря в player.tscn
@@ -71,7 +75,7 @@ func _setup_inventory() -> void:
 	inventory_ui.set_script(InventoryUIScript)
 	add_child(inventory_ui)
 
-	inventory_ui.init(ability_system, inventory_system, self)
+	inventory_ui.init(ability_system, inventory_system, self, talisman_system)
 	hud.init(ability_system)
 
 	_skill_audio = AudioStreamPlayer.new()
@@ -444,8 +448,11 @@ func _pick_aim() -> Node2D:
 	return _focus.get_nearest_enemy()
 
 
+## Эффект талисмана действует только пока тот экипирован в одну из четырёх
+## секций (вкладка "Талисманы", Inventory/ui/talisman_panel.gd) — лежать в
+## сумке недостаточно, в отличие от старой механики "просто владею"
 func _has_talisman(item_name: String) -> bool:
-	return inventory_system != null and inventory_system.get_count(item_name) > 0
+	return talisman_system != null and talisman_system.has_talisman(item_name)
 
 
 func _process(delta: float) -> void:

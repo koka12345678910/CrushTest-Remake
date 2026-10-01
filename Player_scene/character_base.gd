@@ -14,6 +14,10 @@ extends CharacterBody2D
 
 const DirectionUtil := preload("res://Player_scene/direction_util.gd")
 const FocusSystemScript := preload("res://Player_scene/focus_system.gd")
+const DepthComponentScript := preload("res://Player_scene/depth_component.gd")
+## Пыль из-под ног на резком развороте (Turn_) — тот же VFX, что у рыцаря
+## (player.gd::turn_around_vfx_scene), общий на все классы, не копия
+const TurnDustScene := preload("res://VFX/VFX_scene/turn_around_vfx_scene.tscn")
 
 @export var walk_speed := 100.0
 @export var run_speed := 200.0
@@ -83,6 +87,17 @@ var is_rolling := false
 var dodge_velocity := Vector2.ZERO
 var roll_dir := Vector2.ZERO
 var roll_control := 0.0
+
+## Резкий разворот на бегу (Turn_) — та же механика, что у рыцаря
+## (player.gd::check_for_turn/start_turn): вместо того чтобы скользить
+## корпусом назад, персонаж играет короткий рывок-разворот с пылью под
+## ногами. turn_lock держит взгляд зафиксированным на время анимации —
+## как turn_lock у рыцаря
+var is_turning := false
+var turn_lock := false
+var turn_velocity := Vector2.ZERO
+@export var turn_friction := 6.0
+
 var gold := 0
 ## Копится на прокачку выбранного класса (см. UI/skill_points_bar.gd и
 ## SaveManager.gd), тот же контракт, что у gold. Растёт НЕ за каждое убийство —
@@ -143,6 +158,12 @@ func _ready() -> void:
 	_focus.break_range = focus_break_range
 	_focus.marker_offset = focus_marker_offset
 	add_child(_focus)
+
+	# Этажность карты — тот же компонент, что у рыцаря (depth_component.gd):
+	# лестницы уменьшают героя при спуске и увеличивают при подъёме
+	var depth := DepthComponentScript.new()
+	depth.name = "DepthComponent"
+	add_child(depth)
 
 	sprite = _find_child_of_type(AnimatedSprite2D) as AnimatedSprite2D
 	camera = _find_child_of_type(Camera2D) as Camera2D
@@ -210,6 +231,14 @@ func _physics_process(delta: float) -> void:
 		return
 
 	_focus.poll_input()
+	check_for_turn()
+	if is_turning:
+		# Гасим рывок трением и держим движение только по нему — та же
+		# блокирующая ветка, что у рыцаря на время анимации разворота
+		turn_velocity = turn_velocity.lerp(Vector2.ZERO, turn_friction * delta)
+		velocity = turn_velocity
+		move_and_slide()
+		return
 	handle_attack_input()
 
 	if combo_timer > 0.0:
@@ -239,6 +268,29 @@ func _physics_process(delta: float) -> void:
 	move_and_slide()
 	_update_facing()
 	play_movement_animation()
+
+
+## Страховка от "залипшего" бега: Windows иногда съедает отпускание Shift
+## (Alt+Shift — смена раскладки, Ctrl+Shift и т.п.), и Godot считает клавишу
+## зажатой, пока её не нажмут снова — персонаж бежит сам. Любое событие
+## клавиатуры/мыши несёт реальное состояние Shift (shift_pressed): если
+## Shift отпущен, а действие "run" всё ещё висит — отпускаем его вручную
+func _input(event: InputEvent) -> void:
+	if not (event is InputEventWithModifiers) or event.shift_pressed:
+		return
+	# Событие самой клавиши Shift не в счёт — Godot на Windows отдаёт его
+	# с shift_pressed = false даже при нажатии
+	if event is InputEventKey and (event.physical_keycode == KEY_SHIFT or event.keycode == KEY_SHIFT):
+		return
+	if Input.is_action_pressed("run") and _run_bound_to_shift():
+		Input.action_release("run")
+
+
+func _run_bound_to_shift() -> bool:
+	for e in InputMap.action_get_events("run"):
+		if e is InputEventKey and (e.physical_keycode == KEY_SHIFT or e.keycode == KEY_SHIFT):
+			return true
+	return false
 
 
 ## Обычное свободное движение по input_vector — вынесено отдельно, чтобы тем
@@ -279,9 +331,98 @@ func play_movement_animation() -> void:
 	if speed >= 120.0:
 		anim_name = "Run_" + last_direction
 	elif speed >= 10.0:
-		anim_name = "Walk_" + last_direction
+		# Ходьба спиной вперёд (взгляд держит фокус на враге) — своя
+		# раскадровка Backward_, а не Walk_. Та же логика, что у рыцаря
+		# (player.gd::play_movement_animation, там Backwards_ с "s"):
+		# суффикс — направление ДВИЖЕНИЯ, а не взгляда. Нет клипа под класс
+		# (мага) — тихо остаёмся на Walk_
+		if _is_moving_backward():
+			var move_dir := get_direction(input_vector.normalized())
+			var backward_name := "Backward_" + move_dir
+			if move_dir != "" and anim.has_animation(backward_name):
+				anim_name = backward_name
+			else:
+				anim_name = "Walk_" + last_direction
+		else:
+			anim_name = "Walk_" + last_direction
 
 	_play(anim_name)
+
+
+## Взгляд держит фокус на враге, а WASD ведёт корпус в противоположную
+## сторону — тот же признак, что у рыцаря (player.gd::_is_moving_backward)
+func _is_moving_backward() -> bool:
+	if input_vector == Vector2.ZERO:
+		return false
+	return input_vector.normalized().dot(facing_dir) < -0.5
+
+
+# ─────────────────────────────────────────────
+# РАЗВОРОТ НА МЕСТЕ (Turn_)
+# ─────────────────────────────────────────────
+# Та же механика, что у рыцаря (player.gd::check_for_turn/start_turn): на
+# бегу резко зажали противоположное направление — вместо скольжения корпусом
+# назад проигрывается рывок-разворот. Направление в имени клипа
+# (Turn_Right/Turn_Left/...) — КУДА персонаж разворачивается, а не откуда,
+# ровно как у рыцаря (см. new_last_direction ниже)
+
+func check_for_turn() -> void:
+	if is_attacking or is_run_attacking or is_rolling:
+		return
+	# Пока враг в фокусе, взгляд держит _update_facing, а не этот рывок — то
+	# же исключение, что у рыцаря: прямой побег бегом уже сам снял лок там
+	if _focus.has_target() and not _focus.is_fleeing(input_vector, is_running):
+		return
+	if input_vector == Vector2.ZERO or turn_lock:
+		return
+	if velocity.length() < run_speed * 0.6:
+		return
+
+	var input_dir := input_vector.normalized()
+	# Почти противоположное текущему взгляду направление — разворот, а не
+	# обычный поворот на несколько градусов
+	if input_dir.dot(facing_dir) < -0.7:
+		start_turn(input_dir)
+
+
+func start_turn(new_dir: Vector2) -> void:
+	var new_facing := new_dir.normalized()
+	var new_last_direction := get_direction(new_facing)
+	var anim_name := "Turn_" + new_last_direction
+
+	# Клипа под это направление может не быть (пока не у всех классов
+	# нарисованы все 8) — тогда просто меняем взгляд без рывка и блокировки,
+	# как и везде в этом файле (has_animation-паттерн)
+	if not anim.has_animation(anim_name):
+		facing_dir = new_facing
+		last_direction = new_last_direction
+		return
+
+	turn_lock = true
+	is_turning = true
+	facing_dir = new_facing
+	last_direction = new_last_direction
+	# Гасим набранную скорость, а не обнуляем — рывок продолжает нести тело
+	# по инерции, как у рыцаря (turn_velocity = velocity * 0.4)
+	turn_velocity = velocity * 0.4
+
+	_play(anim_name)
+	_play_turn_dust()
+
+
+## Пыль под ногами на развороте — тот же приём, что у рыцаря
+## (player.gd::play_turn_vfx): направление и позиция берутся из текущей
+## скорости, а не из FootPoint-маркера — его нет ни у лучника, ни у мага, а
+## у CharacterBody2D этого проекта опорная точка и так у самых ног
+func _play_turn_dust() -> void:
+	var vfx: Node2D = TurnDustScene.instantiate()
+	var dir := velocity.normalized()
+	if dir == Vector2.ZERO:
+		dir = direction_to_vector(last_direction)
+	get_tree().current_scene.add_child(vfx)
+	vfx.global_position = global_position - dir * 5.0
+	vfx.set("move_direction", dir)
+	vfx.rotation = dir.angle()
 
 
 # ─────────────────────────────────────────────
@@ -444,6 +585,12 @@ func _on_attack_started(_step: int, _aim: Node2D) -> void:
 
 
 func _on_animation_finished(finished_anim: String) -> void:
+	if finished_anim.begins_with("Turn_"):
+		is_turning = false
+		turn_lock = false
+		velocity = Vector2.ZERO
+		play_movement_animation()
+		return
 	if finished_anim.begins_with("Rolling_"):
 		is_rolling = false
 		set_collision_mask_value(3, true)
@@ -547,6 +694,8 @@ func shake_camera(strength: float, duration := 0.18) -> void:
 func _die() -> void:
 	is_attacking = false
 	is_run_attacking = false
+	is_turning = false
+	turn_lock = false
 	velocity = Vector2.ZERO
 	knockback_velocity = Vector2.ZERO
 	died.emit()

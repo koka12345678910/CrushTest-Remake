@@ -18,7 +18,9 @@ extends Control
 ## всегда стартует отсюда, а на уровень уходит только через выбор героя или
 ## загрузку сейва: иначе SaveManager остался бы пустым и персонаж выбирался бы
 ## сам собой (Characters.FALLBACK). Настройки — не отдельная сцена, а оверлей
-const SCENE_GAME := "res://Levels/level_01.tscn"
+# Ночное кладбище по референсу. Старая карта цела — вернуть её можно,
+# поставив сюда "res://Levels/level_01.tscn"
+const SCENE_GAME := "res://Levels/level_graveyard.tscn"
 
 const SOUND_ACCEPT := preload("res://Sound/UI_button/accept.wav")
 const SOUND_DENIED := preload("res://Sound/UI_button/denied.wav")

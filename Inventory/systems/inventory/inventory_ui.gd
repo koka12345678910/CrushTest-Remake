@@ -22,7 +22,8 @@ const GRID_ROWS := 4
 
 const TAB_INVENTORY := 0
 const TAB_SKILLS    := 1
-const TAB_SETTINGS  := 2
+const TAB_TALISMANS := 2
+const TAB_SETTINGS  := 3
 
 # Настройки — та же панель, что и в главном меню, а не её копия: значения живут
 # в автозагрузке GameSettings, и второй реализации взяться неоткуда
@@ -43,6 +44,7 @@ const SOUND_CHOICE := preload("res://Sound/UI_button/choice.wav")
 const SOUND_OPEN := preload("res://Sound/openUI_sound.mp3")
 
 const SkillTreePanelScript := preload("res://Inventory/ui/skill_tree_panel.gd")
+const TalismanPanelScript := preload("res://Inventory/ui/talisman_panel.gd")
 var _ui_audio: AudioStreamPlayer
 
 func _play_ui_sound(stream: AudioStream) -> void:
@@ -65,11 +67,18 @@ var _grid_slots: Array[Control] = []
 var _selected_index: int = -1
 var _hover_index: int = -1
 
-# Оверлеи поверх инвентаря (настройки / навыки). Пока хоть один открыт, Esc
-# закрывает его, а не весь инвентарь
+# Оверлеи поверх инвентаря (настройки / навыки / талисманы). Пока хоть один
+# открыт, Esc закрывает его, а не весь инвентарь
 var _settings_panel: Control
 var _skills_panel: Control
+var _talismans_panel: Control
 var _is_closing := false
+
+## Экипированные талисманы — до 4 штук, эффект действует только пока
+## талисман в одной из секций (Inventory/ui/talisman_panel.gd), а не просто
+## лежит в сумке. Заводится в init(), пусто до этого — так что до init()
+## has_talisman() у владельца эффекта всегда честно возвращает false
+var _talisman_system: TalismanSystem
 
 # Экран выбора дерева навыков (три панели) и экран самого дерева — второй
 # пока заглушка (см. _build_skills_panel), сами деревья отдельной задачей
@@ -150,10 +159,22 @@ func _ready() -> void:
 	add_child(_ui_audio)
 
 
-func init(ability_system: AbilitySystem, inventory_system: InventorySystem, player: Node = null) -> void:
+## talisman_system — заводит и владеет им вызывающий (player.gd/archer.gd),
+## как и ability_system/inventory_system: эффект талисмана (archer.gd::
+## resolve_arrow_hit и т.п.) спрашивает has_talisman() независимо от того,
+## открыт ли вообще инвентарь, так что система не может жить только здесь.
+## null — на случай вызова без него (тесты, будущие владельцы) — тогда
+## создаём свой, чтобы UI не падал, но никакой боевой код его не увидит
+func init(ability_system: AbilitySystem, inventory_system: InventorySystem, player: Node = null,
+		talisman_system: TalismanSystem = null) -> void:
 	_ability_system = ability_system
 	_inventory_system = inventory_system
 	_player = player
+	if talisman_system != null:
+		_talisman_system = talisman_system
+	else:
+		_talisman_system = TalismanSystem.new()
+		add_child(_talisman_system)
 	# Заряды списывает быстрый слот, а лежат они в сумке — связываем одно с другим
 	_ability_system.inventory = inventory_system
 	_inventory_system.count_changed.connect(_on_count_changed)
@@ -215,6 +236,8 @@ func add_item(ability: Ability) -> void:
 func has_overlay_open() -> bool:
 	if is_instance_valid(_skills_panel) and _skills_panel.visible:
 		return true
+	if is_instance_valid(_talismans_panel) and _talismans_panel.visible:
+		return true
 	if is_instance_valid(_settings_panel) and _settings_panel.visible:
 		return true
 	return false
@@ -236,6 +259,9 @@ func _unhandled_input(event: InputEvent) -> void:
 				_on_tree_detail_back()
 			else:
 				_close_skills()
+			return
+		if is_instance_valid(_talismans_panel) and _talismans_panel.visible:
+			_close_talismans()
 			return
 		close()
 		return
@@ -454,11 +480,12 @@ func _make_embers() -> GPUParticles2D:
 # ромбик над ней и золотая черта с ромбиком снизу
 func _build_tabs() -> void:
 	var tab_defs := [
-		["ИНВЕНТАРЬ", TAB_INVENTORY],
-		["НАВЫКИ",    TAB_SKILLS],
-		["НАСТРОЙКИ", TAB_SETTINGS],
+		["ИНВЕНТАРЬ",  TAB_INVENTORY],
+		["НАВЫКИ",     TAB_SKILLS],
+		["ТАЛИСМАНЫ",  TAB_TALISMANS],
+		["НАСТРОЙКИ",  TAB_SETTINGS],
 	]
-	var tab_w := 300.0
+	var tab_w := 280.0
 	var strip_h := 66.0
 	var strip_w := tab_w * tab_defs.size()
 	var strip_pos := Vector2((_screen.x - strip_w) / 2.0, _frame_pos.y - strip_h + 10.0)
@@ -550,16 +577,28 @@ func _on_tab_pressed(id: int) -> void:
 			_play_ui_sound(SOUND_CHOICE)
 			if is_instance_valid(_skills_panel) and _skills_panel.visible:
 				_skills_panel.visible = false
+			if is_instance_valid(_talismans_panel) and _talismans_panel.visible:
+				_talismans_panel.visible = false
 			if is_instance_valid(_settings_panel) and _settings_panel.visible:
 				_settings_panel.close()
 			_set_current_tab(TAB_INVENTORY)
 		TAB_SKILLS:
+			if is_instance_valid(_talismans_panel) and _talismans_panel.visible:
+				_talismans_panel.visible = false
 			if is_instance_valid(_settings_panel) and _settings_panel.visible:
 				_settings_panel.close()
 			_open_skills()
+		TAB_TALISMANS:
+			if is_instance_valid(_skills_panel) and _skills_panel.visible:
+				_skills_panel.visible = false
+			if is_instance_valid(_settings_panel) and _settings_panel.visible:
+				_settings_panel.close()
+			_open_talismans()
 		TAB_SETTINGS:
 			if is_instance_valid(_skills_panel) and _skills_panel.visible:
 				_skills_panel.visible = false
+			if is_instance_valid(_talismans_panel) and _talismans_panel.visible:
+				_talismans_panel.visible = false
 			_open_settings()
 
 
@@ -1030,8 +1069,14 @@ func _select_slot(idx: int, play_sound := true) -> void:
 		_detail_icon_frame.visible = true
 		_detail_name.text        = ab.ability_name
 		_detail_name.add_theme_color_override("font_color", COLOR_TEXT)
+		var equipped_talisman := is_instance_valid(_talisman_system) \
+			and _talisman_system.has_talisman(ab.ability_name)
 		var type_name := ab.item_type if ab.item_type != "" else "Расходуемое"
-		_detail_type.text        = type_name + ("  •  в слоте" if equipped else "")
+		if ab.is_passive:
+			type_name += "  •  экипирован" if equipped_talisman else "  •  снят"
+		else:
+			type_name += "  •  в слоте" if equipped else ""
+		_detail_type.text        = type_name
 		_detail_effect.text      = ab.description
 		_detail_count.text       = "%d / %d" % [cnt, max_cnt]
 		_detail_max_count.text   = "%d" % max_cnt
@@ -1039,10 +1084,11 @@ func _select_slot(idx: int, play_sound := true) -> void:
 		# который уже в быстром доступе, освобождает слот. Без этого при трёх
 		# занятых ячейках поменять набор было бы нечем
 		_btn_equip.text     = "[E]   УБРАТЬ ИЗ СЛОТА" if equipped else "[E]   В БЫСТРЫЙ СЛОТ"
-		# Талисман действует прямо из сумки — в быстрый слот ему незачем
+		# Талисманы экипируются на своей вкладке (четыре секции-слота), не
+		# в быстрый доступ — здесь только подсказка, куда идти
 		_btn_equip.disabled = ab.is_passive
 		if ab.is_passive:
-			_btn_equip.text = "ДЕЙСТВУЕТ ИЗ СУМКИ"
+			_btn_equip.text = "СМ. ВКЛАДКУ «ТАЛИСМАНЫ»"
 		_set_status("")
 	else:
 		# Ничего не выбрано — вместо пустой колонки подсказка, что делать
@@ -1103,7 +1149,7 @@ func _on_equip_pressed() -> void:
 	var ab: Ability = items[_selected_index] as Ability
 	if ab.is_passive:
 		_play_ui_sound(SOUND_DENIED)
-		_set_status("Талисман действует, пока лежит в сумке", COLOR_TEXT_DIM)
+		_set_status("Экипируется на вкладке «Талисманы»", COLOR_TEXT_DIM)
 		return
 
 	# Уже в слоте — снимаем (переключатель), освобождая место под другой предмет
@@ -1200,6 +1246,69 @@ func _close_skills() -> void:
 	_play_ui_sound(SOUND_OPEN)
 	_skills_panel.visible = false
 	_set_current_tab(TAB_INVENTORY)
+
+
+func _open_talismans() -> void:
+	_play_ui_sound(SOUND_ACCEPT)
+	if not is_instance_valid(_talismans_panel):
+		_talismans_panel = _build_talismans_panel()
+		_root.add_child(_talismans_panel)
+	_talismans_panel.visible = true
+	_talismans_panel.modulate = Color(1, 1, 1, 0)
+	var tw := create_tween()
+	tw.tween_property(_talismans_panel, "modulate", Color.WHITE, 0.18)
+	_set_current_tab(TAB_TALISMANS)
+
+
+func _close_talismans() -> void:
+	if not is_instance_valid(_talismans_panel):
+		return
+	_play_ui_sound(SOUND_OPEN)
+	_talismans_panel.visible = false
+	_set_current_tab(TAB_INVENTORY)
+
+
+## Тот же каркас, что у окна навыков (_build_skills_panel): затемнение +
+## орнаментная рамка + заголовок с ромбом-эмблемой + "[ ESC ] НАЗАД".
+## Содержимое (сетка талисманов / карточка / четыре секции-слота) строит
+## TalismanPanelScript — там же вся игровая логика экипировки
+func _build_talismans_panel() -> Control:
+	var root := Control.new()
+	root.set_anchors_preset(Control.PRESET_FULL_RECT)
+	root.mouse_filter = Control.MOUSE_FILTER_STOP
+
+	var dim := ColorRect.new()
+	dim.set_anchors_preset(Control.PRESET_FULL_RECT)
+	dim.color = Color(0.02, 0.02, 0.02, 0.72)
+	root.add_child(dim)
+
+	var sz := _selector_frame_size()
+	var fpos := Vector2((_screen.x - sz.x) / 2.0, (_screen.y - sz.y) / 2.0)
+	var frame := _make_panel(fpos, sz)
+	root.add_child(frame)
+
+	var emblem := _make_glyph("rune", COLOR_BORDER_HI, 40.0)
+	emblem.position = Vector2(32.0, 20.0)
+	frame.add_child(emblem)
+
+	var title := _make_label("ТАЛИСМАНЫ", 30)
+	title.position = Vector2(86.0, 24.0)
+	title.add_theme_color_override("font_color", COLOR_BORDER_HI)
+	frame.add_child(title)
+
+	_add_divider(frame, Vector2(20.0, 74.0), sz.x - 40.0)
+
+	var content := TalismanPanelScript.new()
+	content.position = Vector2(20.0, 96.0)
+	content.size = Vector2(sz.x - 40.0, sz.y - 96.0 - 92.0)
+	frame.add_child(content)
+	content.init(_inventory_system, _talisman_system, _play_ui_sound)
+
+	var back := _make_ornate_button("[ ESC ]  НАЗАД", Vector2((sz.x - 260.0) / 2.0, sz.y - 76.0), Vector2(260, 46))
+	back.pressed.connect(_close_talismans)
+	frame.add_child(back)
+
+	return root
 
 
 # Пока это только каркас раздела: сетки навыков и прокачки ещё нет, но место под

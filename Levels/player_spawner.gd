@@ -12,6 +12,11 @@ extends Marker2D
 ## Тот же слой, что стоял у Player2 в сцене — иначе игрок уезжает под тайлы
 @export var character_z_index := 1
 
+## Границы камеры персонажа в мировых пикселях. Пустой прямоугольник —
+## не трогать (как в level_01); на картах с краем-туманом (level_graveyard)
+## не даёт камере уехать за пределы нарисованной карты
+@export var camera_limits := Rect2i()
+
 ## Как часто скидывать прогресс на диск. Пишем редко: сохранение — это запись
 ## файла, а дёргать её каждый кадр незачем
 @export var autosave_interval := 30.0
@@ -46,9 +51,26 @@ func _ready() -> void:
 
 func _apply_progress() -> void:
 	SaveManager.apply_to(character)
+	_apply_camera_limits()
+
+
+func _apply_camera_limits() -> void:
+	if camera_limits.size == Vector2i.ZERO or not is_instance_valid(character):
+		return
+	var cam := character.get_node_or_null("Camera2D") as Camera2D
+	if cam == null:
+		return
+	cam.limit_left = camera_limits.position.x
+	cam.limit_top = camera_limits.position.y
+	cam.limit_right = camera_limits.end.x
+	cam.limit_bottom = camera_limits.end.y
 
 
 func _process(delta: float) -> void:
+	# Центр "окна" прозрачности для всего, что перекрывает персонажа
+	# (Shaders/occlusion_fade.gdshaderinc) — до проверки сейва, окно нужно всегда
+	if is_instance_valid(character) and character.is_inside_tree():
+		RenderingServer.global_shader_parameter_set("occlusion_player_pos", character.global_position)
 	if not SaveManager.is_loaded():
 		return
 	SaveManager.playtime += delta
