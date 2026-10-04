@@ -5701,14 +5701,14 @@ _data = {
 shader = ExtResource("57_dmgv1")
 shader_parameter/strength = 0.0
 shader_parameter/vignette_color = Color(0.75, 0, 0, 1)
-shader_parameter/radius = 0.4
+shader_parameter/radius = 0.55
 shader_parameter/softness = 0.55
 
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_exhv"]
 shader = ExtResource("57_dmgv1")
 shader_parameter/strength = 0.0
 shader_parameter/vignette_color = Color(0.15, 0.45, 0.85, 1)
-shader_parameter/radius = 0.35
+shader_parameter/radius = 0.5
 shader_parameter/softness = 0.6
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_v6ddd"]

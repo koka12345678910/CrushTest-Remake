@@ -1,98 +1,98 @@
 [gd_scene load_steps=22 format=3]
 
-[ext_resource type="Script" path="res://Levels/props/fire_flicker.gd" id="1_meb62"]
-[ext_resource type="Texture2D" path="res://TileMap/Textures Of Light/32x32/animation/1.png" id="2_3e4se"]
+[ext_resource type="Script" path="res://Levels/props/fire_flicker.gd" id="1_3bxwv"]
+[ext_resource type="Texture2D" path="res://TileMap/Textures Of Light/32x32/animation/1.png" id="2_5i3gv"]
 
-[sub_resource type="CanvasItemMaterial" id="CanvasItemMaterial_enqxo"]
+[sub_resource type="CanvasItemMaterial" id="CanvasItemMaterial_3lp6c"]
 blend_mode = 1
 light_mode = 1
 
-[sub_resource type="AtlasTexture" id="AtlasTexture_3402d"]
-atlas = ExtResource("2_3e4se")
+[sub_resource type="AtlasTexture" id="AtlasTexture_ccgji"]
+atlas = ExtResource("2_5i3gv")
 region = Rect2(0, 0, 32, 32)
 
-[sub_resource type="AtlasTexture" id="AtlasTexture_8kru7"]
-atlas = ExtResource("2_3e4se")
+[sub_resource type="AtlasTexture" id="AtlasTexture_i61l8"]
+atlas = ExtResource("2_5i3gv")
 region = Rect2(32, 0, 32, 32)
 
-[sub_resource type="AtlasTexture" id="AtlasTexture_nrsbl"]
-atlas = ExtResource("2_3e4se")
+[sub_resource type="AtlasTexture" id="AtlasTexture_b6t48"]
+atlas = ExtResource("2_5i3gv")
 region = Rect2(64, 0, 32, 32)
 
-[sub_resource type="AtlasTexture" id="AtlasTexture_1s0xj"]
-atlas = ExtResource("2_3e4se")
+[sub_resource type="AtlasTexture" id="AtlasTexture_i4ga5"]
+atlas = ExtResource("2_5i3gv")
 region = Rect2(96, 0, 32, 32)
 
-[sub_resource type="AtlasTexture" id="AtlasTexture_afpso"]
-atlas = ExtResource("2_3e4se")
+[sub_resource type="AtlasTexture" id="AtlasTexture_or183"]
+atlas = ExtResource("2_5i3gv")
 region = Rect2(128, 0, 32, 32)
 
-[sub_resource type="AtlasTexture" id="AtlasTexture_f0b3n"]
-atlas = ExtResource("2_3e4se")
+[sub_resource type="AtlasTexture" id="AtlasTexture_064qd"]
+atlas = ExtResource("2_5i3gv")
 region = Rect2(160, 0, 32, 32)
 
-[sub_resource type="AtlasTexture" id="AtlasTexture_r3jqn"]
-atlas = ExtResource("2_3e4se")
+[sub_resource type="AtlasTexture" id="AtlasTexture_wpnlr"]
+atlas = ExtResource("2_5i3gv")
 region = Rect2(192, 0, 32, 32)
 
-[sub_resource type="AtlasTexture" id="AtlasTexture_temrq"]
-atlas = ExtResource("2_3e4se")
+[sub_resource type="AtlasTexture" id="AtlasTexture_a11jo"]
+atlas = ExtResource("2_5i3gv")
 region = Rect2(224, 0, 32, 32)
 
-[sub_resource type="AtlasTexture" id="AtlasTexture_2rntw"]
-atlas = ExtResource("2_3e4se")
+[sub_resource type="AtlasTexture" id="AtlasTexture_t73vo"]
+atlas = ExtResource("2_5i3gv")
 region = Rect2(256, 0, 32, 32)
 
-[sub_resource type="AtlasTexture" id="AtlasTexture_jg602"]
-atlas = ExtResource("2_3e4se")
+[sub_resource type="AtlasTexture" id="AtlasTexture_2ul2f"]
+atlas = ExtResource("2_5i3gv")
 region = Rect2(288, 0, 32, 32)
 
-[sub_resource type="SpriteFrames" id="SpriteFrames_nmpdo"]
+[sub_resource type="SpriteFrames" id="SpriteFrames_g5ksi"]
 animations = [{
 "frames": [{
 "duration": 1.0,
-"texture": SubResource("AtlasTexture_3402d")
+"texture": SubResource("AtlasTexture_ccgji")
 }, {
 "duration": 1.0,
-"texture": SubResource("AtlasTexture_8kru7")
+"texture": SubResource("AtlasTexture_i61l8")
 }, {
 "duration": 1.0,
-"texture": SubResource("AtlasTexture_nrsbl")
+"texture": SubResource("AtlasTexture_b6t48")
 }, {
 "duration": 1.0,
-"texture": SubResource("AtlasTexture_1s0xj")
+"texture": SubResource("AtlasTexture_i4ga5")
 }, {
 "duration": 1.0,
-"texture": SubResource("AtlasTexture_afpso")
+"texture": SubResource("AtlasTexture_or183")
 }, {
 "duration": 1.0,
-"texture": SubResource("AtlasTexture_f0b3n")
+"texture": SubResource("AtlasTexture_064qd")
 }, {
 "duration": 1.0,
-"texture": SubResource("AtlasTexture_r3jqn")
+"texture": SubResource("AtlasTexture_wpnlr")
 }, {
 "duration": 1.0,
-"texture": SubResource("AtlasTexture_temrq")
+"texture": SubResource("AtlasTexture_a11jo")
 }, {
 "duration": 1.0,
-"texture": SubResource("AtlasTexture_2rntw")
+"texture": SubResource("AtlasTexture_t73vo")
 }, {
 "duration": 1.0,
-"texture": SubResource("AtlasTexture_jg602")
+"texture": SubResource("AtlasTexture_2ul2f")
 }],
 "loop": true,
 "name": &"default",
 "speed": 12.0
 }]
 
-[sub_resource type="Gradient" id="Gradient_ap3g0"]
+[sub_resource type="Gradient" id="Gradient_cgevh"]
 offsets = PackedFloat32Array(0, 0.5, 1)
 colors = PackedColorArray(1, 0.75, 0.3, 1, 1, 0.35, 0.1, 0.8, 0.6, 0.1, 0.05, 0)
 
-[sub_resource type="GradientTexture1D" id="GradientTexture1D_lhkpu"]
-gradient = SubResource("Gradient_ap3g0")
+[sub_resource type="GradientTexture1D" id="GradientTexture1D_bqj44"]
+gradient = SubResource("Gradient_cgevh")
 
-[sub_resource type="ParticleProcessMaterial" id="ParticleProcessMaterial_3nwpe"]
+[sub_resource type="ParticleProcessMaterial" id="ParticleProcessMaterial_3g2jt"]
 particle_flag_disable_z = true
 emission_shape = 1
 emission_sphere_radius = 4.0
@@ -103,25 +103,25 @@ initial_velocity_max = 22.0
 gravity = Vector3(0, -12, 0)
 scale_min = 0.6
 scale_max = 1.3
-color_ramp = SubResource("GradientTexture1D_lhkpu")
+color_ramp = SubResource("GradientTexture1D_bqj44")
 
-[sub_resource type="Gradient" id="Gradient_0luy7"]
+[sub_resource type="Gradient" id="Gradient_ip5d1"]
 colors = PackedColorArray(1, 1, 1, 1, 1, 1, 1, 0)
 
-[sub_resource type="GradientTexture2D" id="GradientTexture2D_yl2gg"]
-gradient = SubResource("Gradient_0luy7")
+[sub_resource type="GradientTexture2D" id="GradientTexture2D_r7an0"]
+gradient = SubResource("Gradient_ip5d1")
 width = 4
 height = 4
 fill = 1
 fill_from = Vector2(0.5, 0.5)
 fill_to = Vector2(0.5, 0)
 
-[sub_resource type="Gradient" id="Gradient_46xme"]
+[sub_resource type="Gradient" id="Gradient_6jxsy"]
 offsets = PackedFloat32Array(0, 0.35, 1)
 colors = PackedColorArray(1, 1, 1, 1, 1, 1, 1, 0.45, 1, 1, 1, 0)
 
-[sub_resource type="GradientTexture2D" id="GradientTexture2D_1cfso"]
-gradient = SubResource("Gradient_46xme")
+[sub_resource type="GradientTexture2D" id="GradientTexture2D_e05rs"]
+gradient = SubResource("Gradient_6jxsy")
 width = 256
 height = 256
 fill = 1
@@ -129,7 +129,7 @@ fill_from = Vector2(0.5, 0.5)
 fill_to = Vector2(0.5, 0)
 
 [node name="Campfire" type="Node2D"]
-script = ExtResource("1_meb62")
+script = ExtResource("1_3bxwv")
 light_path = NodePath("Light")
 glow_path = NodePath("Glow")
 base_energy = 1.05
@@ -140,24 +140,24 @@ speed = 7.0
 [node name="Glow" type="AnimatedSprite2D" parent="."]
 modulate = Color(1.9, 0.85, 0.3, 0.95)
 z_index = 1
-material = SubResource("CanvasItemMaterial_enqxo")
+material = SubResource("CanvasItemMaterial_3lp6c")
 position = Vector2(0, -6)
 scale = Vector2(0.9, 0.9)
-sprite_frames = SubResource("SpriteFrames_nmpdo")
+sprite_frames = SubResource("SpriteFrames_g5ksi")
 autoplay = "default"
 
 [node name="Embers" type="GPUParticles2D" parent="."]
 z_index = 1
-material = SubResource("CanvasItemMaterial_enqxo")
+material = SubResource("CanvasItemMaterial_3lp6c")
 position = Vector2(0, -8)
 amount = 10
-process_material = SubResource("ParticleProcessMaterial_3nwpe")
-texture = SubResource("GradientTexture2D_yl2gg")
+process_material = SubResource("ParticleProcessMaterial_3g2jt")
+texture = SubResource("GradientTexture2D_r7an0")
 lifetime = 1.6
 
 [node name="Light" type="PointLight2D" parent="."]
 position = Vector2(0, -6)
 color = Color(1, 0.5, 0.2, 1)
 energy = 1.05
-texture = SubResource("GradientTexture2D_1cfso")
+texture = SubResource("GradientTexture2D_e05rs")
 texture_scale = 1.25

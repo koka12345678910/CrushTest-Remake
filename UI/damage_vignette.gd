@@ -4,8 +4,8 @@ extends CanvasLayer
 
 @export var flash_in_time := 0.05
 @export var hold_time := 0.05
-@export var fade_out_time := 0.45
-@export var max_strength := 1.0
+@export var fade_out_time := 0.3
+@export var max_strength := 0.4
 
 @onready var rect: ColorRect = $ColorRect
 

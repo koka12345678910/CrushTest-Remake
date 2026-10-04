@@ -4,8 +4,8 @@ extends CanvasLayer
 ## эта — резкая и почти мгновенная, добавляет "хруст" удару).
 
 @export var flash_in_time := 0.02
-@export var fade_out_time := 0.12
-@export var max_alpha := 0.55
+@export var fade_out_time := 0.08
+@export var max_alpha := 0.12
 
 @onready var rect: ColorRect = $ColorRect
 

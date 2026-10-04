@@ -17,6 +17,13 @@ extends Marker2D
 ## не даёт камере уехать за пределы нарисованной карты
 @export var camera_limits := Rect2i()
 
+## Мягкое свечение вокруг персонажа, чтобы его было видно на тёмных картах.
+## 0 — выключено (как в level_01)
+@export var player_glow_energy := 0.0
+@export var player_glow_color := Color(0.78, 0.84, 0.95)
+## Радиус свечения в пикселях мира
+@export var player_glow_radius := 95.0
+
 ## Как часто скидывать прогресс на диск. Пишем редко: сохранение — это запись
 ## файла, а дёргать её каждый кадр незачем
 @export var autosave_interval := 30.0
@@ -37,6 +44,7 @@ func _ready() -> void:
 	# ноде, зато камера персонажа сразу стартует в нужной точке, без рывка
 	character.position = position
 	character.z_index = character_z_index
+	_add_glow()
 
 	# ОБЯЗАТЕЛЬНО call_deferred: наш _ready() вызывается, пока уровень ещё
 	# расставляет своих детей, и обычный add_child в этот момент отваливается с
@@ -52,6 +60,29 @@ func _ready() -> void:
 func _apply_progress() -> void:
 	SaveManager.apply_to(character)
 	_apply_camera_limits()
+
+
+func _add_glow() -> void:
+	if player_glow_energy <= 0.0:
+		return
+	var g := Gradient.new()
+	g.offsets = PackedFloat32Array([0.0, 0.4, 1.0])
+	g.colors = PackedColorArray([Color(1, 1, 1, 1), Color(1, 1, 1, 0.4), Color(1, 1, 1, 0)])
+	var tex := GradientTexture2D.new()
+	tex.gradient = g
+	tex.fill = GradientTexture2D.FILL_RADIAL
+	tex.fill_from = Vector2(0.5, 0.5)
+	tex.fill_to = Vector2(0.5, 0.0)
+	tex.width = 128
+	tex.height = 128
+	var light := PointLight2D.new()
+	light.name = "PlayerGlow"
+	light.texture = tex
+	light.texture_scale = player_glow_radius * 2.0 / 128.0
+	light.color = player_glow_color
+	light.energy = player_glow_energy
+	light.blend_mode = Light2D.BLEND_MODE_ADD
+	character.add_child(light)
 
 
 func _apply_camera_limits() -> void:

@@ -56,7 +56,7 @@ var talisman_system: TalismanSystem
 @onready var camera: Camera2D = $Camera2D
 
 # Тряска камеры при получении урона
-@export var damage_shake_strength := 10.0
+@export var damage_shake_strength := 4.0
 # Тряска при ПОПАДАНИИ своего удара по врагу — слабее, чем от урона: атака
 # должна ощущаться весомо, но не путаться с "меня бьют"
 @export var hit_shake_strength := 3.0
@@ -130,7 +130,7 @@ var _shake_strength := 0.0
 # Дрожь истощения — НЕ через общую систему тряски от удара (та рассчитана на
 # одиночный импульс с затуханием). Здесь своя, отдельная и более мягкая логика:
 # см. _exhaust_shake_target/_exhaust_shake_current и _process
-@export var exhaust_shake_strength := 7.0
+@export var exhaust_shake_strength := 2.0
 @export var exhaust_shake_update_rate := 0.09  # как часто меняется цель дрожи
 @export var exhaust_shake_smoothing := 18.0    # скорость, с которой камера догоняет цель
 var _exhaust_shake_target := Vector2.ZERO

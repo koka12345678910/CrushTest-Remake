@@ -327,6 +327,11 @@ func stamp(name: String, base: Vector2i, check_reserved := false, extra_ysort :=
 func decal(kind: String, c: Vector2i) -> void:
 	var opts: Array = DECALS[kind]
 	var d: Array = opts[rng.randi() % opts.size()]
+	# Травинки и камешки старого атласа больше не ставим — их заменили декали
+	# из TileMap/ground (см. build_ground). rng выше всё равно тратится, чтобы
+	# не сдвинулась остальная случайная раскладка карты
+	if kind == "tuft" or kind == "pebble":
+		return
 	for r in 2:
 		for q in 2:
 			var ac := Vector2i(d[1] + q, d[2] + r)
@@ -387,6 +392,7 @@ func paint_path(points: Array, width: float) -> void:
 					if d > width + 0.5:
 						continue
 					reserved[c] = true
+					gmask[c] = maxi(int(gmask.get(c, 0)), 1)   # тропа — земля
 					# Край тропы — битая плитка вперемешку с травой, центр — целая
 					var edge: float = d / maxf(width, 0.01)
 					if edge > 0.7 and rng.randf() < 0.45:
@@ -398,12 +404,135 @@ func paint_path(points: Array, width: float) -> void:
 func paint_plaza(r: Rect2i, ragged := true) -> void:
 	for y in range(r.position.y, r.end.y):
 		for x in range(r.position.x, r.end.x):
+			gmask[Vector2i(x, y)] = 2   # площадка — булыжник
 			var edge := x == r.position.x or y == r.position.y or x == r.end.x - 1 or y == r.end.y - 1
 			if ragged and edge and rng.randf() < 0.5:
 				continue
 			var pool: Array = COBBLES if rng.randf() < 0.85 else COBBLES_BROKEN
 			set_ground(Vector2i(x, y), "grass", pool[rng.randi() % pool.size()])
 			reserved[Vector2i(x, y)] = true
+
+
+# ============================================================ GROUND 32px (TileMap/ground)
+#
+# Земля из TileMap/ground/groundtiles.png (сетка 32px). Три слоя:
+#   Ground       — земля под тропами / булыжник под площадками (сплошная заливка)
+#   GroundGrass  — трава поверх; по краям троп — автотайлы с прозрачной дыркой,
+#                  клетка выбирается по 4 углам (трава / не трава)
+#   GroundDecals — сухая трава, камешки, пятна земли, трещины
+# Маска троп/площадок (gmask, клетки 16px) копится в paint_path/paint_plaza.
+
+const GT := "res://TileMap/ground/groundtiles.png"
+const GT_DIRT := Vector2i(25, 0)      # 2x2 бесшовная земля
+const GT_COBBLE := Vector2i(23, 0)    # 2x2 бесшовный булыжник
+# Биты "не трава" в углах клетки: TL*8 + TR*4 + BL*2 + BR -> клетка накладки
+# (накладка травы с прозрачной дыркой лежит в атласе с 17-го ряда)
+const GT_EDGE := {
+	1: Vector2i(0, 17), 3: Vector2i(1, 17), 2: Vector2i(2, 17),
+	5: Vector2i(0, 18), 10: Vector2i(2, 18),
+	4: Vector2i(0, 19), 12: Vector2i(1, 19), 8: Vector2i(2, 19),
+	7: Vector2i(3, 17), 11: Vector2i(4, 17), 13: Vector2i(3, 18), 14: Vector2i(4, 18),
+}
+
+var gmask := {}
+var rng2 := RandomNumberGenerator.new()
+var ts32: TileSet
+
+
+func _gtile(layer: TileMapLayer, c: Vector2i, ac: Vector2i) -> void:
+	var s: TileSetAtlasSource = ts32.get_source(0)
+	if not s.has_tile(ac):
+		s.create_tile(ac)
+	layer.set_cell(c, 0, ac)
+
+
+## Тип земли в узле сетки 32px: 0 трава, 1 земля, 2 булыжник —
+## по большинству из 4 клеток 16px вокруг узла
+func _vkind(vx: int, vy: int) -> int:
+	var dirt := 0
+	var cob := 0
+	for c in [Vector2i(2 * vx - 1, 2 * vy - 1), Vector2i(2 * vx, 2 * vy - 1), Vector2i(2 * vx - 1, 2 * vy), Vector2i(2 * vx, 2 * vy)]:
+		var k: int = gmask.get(c, 0)
+		if k == 1:
+			dirt += 1
+		elif k == 2:
+			cob += 1
+	if dirt + cob >= 2:
+		return 2 if cob >= dirt else 1
+	return 0
+
+
+func build_ground() -> void:
+	rng2.seed = 4242
+	ts32 = TileSet.new()
+	ts32.tile_size = Vector2i(32, 32)
+	var src := TileSetAtlasSource.new()
+	src.texture = load(GT)
+	src.texture_region_size = Vector2i(32, 32)
+	ts32.add_source(src, 0)
+
+	var base := TileMapLayer.new()
+	base.name = "Ground"
+	base.tile_set = ts32
+	base.z_index = -22
+	var grass := TileMapLayer.new()
+	grass.name = "GroundGrass"
+	grass.tile_set = ts32
+	grass.z_index = -21
+	var decals := TileMapLayer.new()
+	decals.name = "GroundDecals"
+	decals.tile_set = ts32
+	decals.z_index = -20
+	for l in [base, grass, decals]:
+		l.modulate = Color(0.8, 0.84, 0.8)
+		add_node(l)
+
+	var tw := W / 2
+	var th := H / 2
+	var kinds := {}
+	for vy in th + 1:
+		for vx in tw + 1:
+			kinds[Vector2i(vx, vy)] = _vkind(vx, vy)
+
+	for ty in th:
+		for tx in tw:
+			var c := Vector2i(tx, ty)
+			var tl: int = kinds[Vector2i(tx, ty)]
+			var tr: int = kinds[Vector2i(tx + 1, ty)]
+			var bl: int = kinds[Vector2i(tx, ty + 1)]
+			var br: int = kinds[Vector2i(tx + 1, ty + 1)]
+			# Низ: булыжник, если площадка касается клетки, иначе земля
+			var under := GT_COBBLE if 2 in [tl, tr, bl, br] else GT_DIRT
+			_gtile(base, c, under + Vector2i(tx % 2, ty % 2))
+			var bits := (8 if tl > 0 else 0) + (4 if tr > 0 else 0) + (2 if bl > 0 else 0) + (1 if br > 0 else 0)
+			if bits == 0:
+				# Сплошная трава: в основном ровная, изредка с камнями/проплешинами
+				var roll := rng2.randf()
+				var ac := Vector2i(rng2.randi_range(21, 26), rng2.randi_range(4, 6))
+				if roll < 0.06:
+					ac = Vector2i(rng2.randi_range(27, 29), rng2.randi_range(4, 6))
+				elif roll < 0.11:
+					ac = Vector2i(rng2.randi_range(30, 32), rng2.randi_range(4, 6))
+				_gtile(grass, c, ac)
+				# Декали поверх травы
+				var d := rng2.randf()
+				if d < 0.16:
+					_gtile(decals, c, Vector2i(rng2.randi_range(21, 26), rng2.randi_range(16, 18)))
+				elif d < 0.26:
+					_gtile(decals, c, Vector2i(rng2.randi_range(21, 23), rng2.randi_range(20, 22)))
+				elif d < 0.29:
+					_gtile(decals, c, Vector2i(rng2.randi_range(27, 29), rng2.randi_range(16, 18)))
+				elif d < 0.32:
+					_gtile(decals, c, Vector2i(rng2.randi_range(30, 32), rng2.randi_range(16, 18)))
+			elif GT_EDGE.has(bits):
+				_gtile(grass, c, GT_EDGE[bits])
+			# bits == 15 или диагональ (6, 9) — травы нет, видна земля/булыжник
+			if bits != 0 and under == GT_DIRT and rng2.randf() < 0.3:
+				_gtile(decals, c, Vector2i(rng2.randi_range(21, 26), rng2.randi_range(24, 26)))
+
+	# Старая трава 16px больше не нужна
+	ground.get_parent().remove_child(ground)
+	ground.free()
 
 
 # ============================================================ WALLS
@@ -491,7 +620,7 @@ func wall_block(x0: int, x1: int, y: int, windows := true, cap := true) -> void:
 # ============================================================ OBJECTS
 
 func add_node(n: Node, parent: Node = null) -> Node:
-	(parent if parent else lvl).add_child(n)
+	(parent if parent else lvl).add_child(n, true)
 	n.owner = lvl
 	return n
 
@@ -551,6 +680,35 @@ func frames_from_strip(path: String, fw: int, fh: int, count: int, fps: float) -
 		at.region = Rect2(i * fw, 0, fw, fh)
 		sf.add_frame("default", at)
 	return sf
+
+
+var _ray_seed := 0.0
+## Косые лучи лунного света (Shaders/moon_rays.gdshader) поверх тумана.
+## Только визуал (аддитивное свечение), без PointLight — не "пятно" на земле.
+## Луч задаётся точкой касания земли (foot): его верх уходит ЗА верхний край
+## карты (источник света вне кадра), а таять он начинает только у земли
+func moon_rays(foot: Vector2, width: float, intensity: float) -> void:
+	var ang := deg_to_rad(-22.0)
+	var up := Vector2(sin(ang), -cos(ang))        # куда смотрит верх луча
+	var length := (foot.y + 300.0) / -up.y        # верх выше y = -300 (за картой)
+	var img := Image.create(4, 4, false, Image.FORMAT_RGBA8)
+	img.fill(Color.WHITE)
+	var s := Sprite2D.new()
+	s.name = "MoonRays"
+	s.texture = ImageTexture.create_from_image(img)
+	s.scale = Vector2(width, length) / 4.0
+	s.position = foot + up * (length * 0.5)
+	s.rotation = ang
+	s.z_index = 101
+	var m := ShaderMaterial.new()
+	m.shader = load("res://Shaders/moon_rays.gdshader")
+	m.set_shader_parameter("intensity", intensity)
+	m.set_shader_parameter("seed", _ray_seed)
+	m.set_shader_parameter("fade_start", clampf(1.0 - 520.0 / length, 0.0, 0.9))
+	m.set_shader_parameter("len_scale", length / 450.0)
+	_ray_seed += 7.3
+	s.material = m
+	add_node(s)
 
 
 func house_sprite(name: String, path: String, base: Vector2, sc: float, body: Rect2, base_y: float) -> void:
@@ -717,7 +875,9 @@ func _initialize() -> void:
 			ch.get_parent().remove_child(ch)
 			ch.free()
 
-	ground = make_layer("Ground", -20, false)
+	# Старая трава (16px) рисуется по-прежнему — ради неизменного потока rng —
+	# но в сцену не попадает: в конце её заменяет build_ground() (32px, TileMap/ground)
+	ground = make_layer("OldGround16", -30, false)
 	detail = make_layer("GroundDetail", -19, false)
 	var occl: ShaderMaterial = load("res://Shaders/occlusion_fade_material.tres").duplicate()
 	occl.set_shader_parameter("object_brightness", 1.15)
@@ -729,6 +889,7 @@ func _initialize() -> void:
 	paint_grass()
 	layout()
 	finish_scene()
+	build_ground()
 
 	var ps := PackedScene.new()
 	var err := ps.pack(lvl)
@@ -759,8 +920,9 @@ func layout() -> void:
 	house_sprite("RuinHouse", "res://TileMap/Houses/ruin_house.png", Vector2(RX(675) * T, 232), 0.21, Rect2(0.06, 0.25, 0.89, 0.51), 0.76)
 	house_sprite("Barn", "res://TileMap/Houses/barn.png", Vector2(2680, 464), 0.2, Rect2(0.12, 0.3, 0.68, 0.5), 0.8)
 
+	# Часовня убрана по просьбе. Место оставлено зарезервированным — иначе
+	# поменялся бы поток случайных чисел и сдвинулась бы вся остальная карта
 	var chapel_base := R(1155, 212)
-	stamp("chapel", chapel_base)
 	reserve_rect(Rect2i(chapel_base.x - 9, chapel_base.y - 18, 18, 20))
 
 	wall_block(RX(720), RX(885), RY(458))                         # дом в средней стене
@@ -793,8 +955,14 @@ func layout() -> void:
 	v_wall(RX(290), RY(680), RY(790), [[RY(720), RY(740)]])
 	h_wall(RX(290), RX(335), RY(680))
 
-	# ---------- пруд, фонтан, алтарь
-	pond(R(765, 400), 7.5, 3.6)
+	# ---------- фонтан, алтарь
+	# Пруд убран (не подошёл для игры). На его месте — поляна, а вызовы rng,
+	# которые раньше тратил пруд (камешки по берегу), сохранены вхолостую:
+	# иначе сдвинулся бы весь случайный поток и поменялась бы вся остальная карта
+	reserve_circle(R(765, 400), 9.0)
+	for i in 14:
+		rng.randf()
+		rng.randi()
 	var fountain := AnimatedSprite2D.new()
 	fountain.name = "Fountain"
 	fountain.sprite_frames = frames_from_strip("res://TileMap/Props/shrine or fountain 160x128-on grass.png", 160, 128, 8, 6.0)
@@ -806,22 +974,7 @@ func layout() -> void:
 	static_rect(fountain.position, Rect2(-62, -100, 124, 92))
 	reserve_rect(Rect2i(R(565, 612) - Vector2i(6, 8), Vector2i(12, 9)))
 
-	var altar := AnimatedSprite2D.new()
-	altar.name = "Altar"
-	altar.sprite_frames = frames_from_strip("res://TileMap/Props/altar 224x288 - standing on grass.png", 224, 288, 39, 9.0)
-	altar.autoplay = "default"
-	altar.centered = false
-	altar.offset = Vector2(-112, -282)
-	altar.position = world(R(808, 775))
-	altar.scale = Vector2(0.62, 0.62)
-	altar.modulate = Color(0.5, 0.52, 0.56)
-	add_node(altar)
-	static_rect(altar.position, Rect2(-62, -165, 124, 140))
-	light(altar.position + Vector2(0, -95), Color(1.0, 0.55, 0.25), 0.6, 1.6)
-	light(altar.position + Vector2(0, -110), Color(0.6, 0.75, 1.0), 0.22, 0.8)
-	# Огни по углам восьмиугольника — как на референсе
-	for off in [Vector2(-78, -150), Vector2(78, -150), Vector2(-78, -40), Vector2(78, -40)]:
-		torch(altar.position + off)
+	# Алтарь убран по просьбе — на его месте осталась мощёная площадка
 
 	# ---------- кладбищенские ряды
 	grave_rows(Rect2i(R(790, 120), R(990, 330) - R(790, 120)), 3, 4, 0.82)
@@ -847,7 +1000,12 @@ func layout() -> void:
 		stamp("stump2", p)
 	for p in [R(1470, 420), R(1525, 500), R(1420, 500), R(1545, 470)]:
 		stamp(["grave_cross", "grave_round", "grave_small"][rng.randi() % 3], p)
-	light(world(R(1485, 480)), Color(0.62, 0.78, 0.9), 0.55, 3.2)
+	# Лунный свет — лучами, а не пятном. [центр, ширина, длина, яркость]
+	moon_rays(world(R(1485, 470)) + Vector2(97, 241), 300.0, 0.42)   # лунный сад
+	moon_rays(world(R(900, 230)) + Vector2(86, 213), 260.0, 0.3)     # кладбище у часовни
+	moon_rays(world(R(420, 230)) + Vector2(79, 195), 220.0, 0.28)    # роща с кострами
+	moon_rays(world(R(760, 410)) + Vector2(82, 204), 240.0, 0.3)     # поляна (бывший пруд)
+	moon_rays(world(R(1250, 700)) + Vector2(82, 204), 240.0, 0.26)   # у южной дороги
 
 	# ---------- отдельные деревья внутри участков
 	for p in [R(420, 370), R(565, 385), R(600, 430), R(745, 345), R(905, 480), R(870, 575), R(1080, 560), R(1040, 385), R(1240, 575), R(1330, 445), R(1420, 650), R(340, 560), R(180, 470), R(660, 560)]:
@@ -880,9 +1038,7 @@ func layout() -> void:
 		var c := Vector2i(rng.randi_range(play_rect.position.x, play_rect.end.x), rng.randi_range(play_rect.position.y, play_rect.end.y))
 		stamp(["bush1", "bush2", "bush3", "bush4", "bush5"][rng.randi() % 5], c, true)
 
-	# ---------- факелы и костры (пиксели референса)
-	for p in [Vector2(640, 140), Vector2(880, 88), Vector2(1082, 232), Vector2(1230, 232), Vector2(1312, 108), Vector2(1430, 225), Vector2(1705, 300), Vector2(1275, 420), Vector2(1043, 425), Vector2(668, 395), Vector2(530, 452), Vector2(1088, 495), Vector2(1112, 645), Vector2(1155, 645), Vector2(625, 645), Vector2(500, 645), Vector2(150, 612), Vector2(300, 690), Vector2(215, 790), Vector2(935, 800), Vector2(1405, 560), Vector2(1585, 595), Vector2(1140, 255), Vector2(1172, 255), Vector2(820, 645), Vector2(865, 645), Vector2(905, 645), Vector2(950, 645), Vector2(410, 190), Vector2(1600, 380)]:
-		torch(world(R(p.x, p.y)) + Vector2(0, 6))
+	# ---------- костры (факелы убраны — свет на карте теперь даёт луна)
 	for p in CAMPFIRES:
 		torch(world(R(p.x, p.y)), "campfire")
 
@@ -899,39 +1055,6 @@ func grave_rows(r: Rect2i, sx: int, sy: int, fill: float) -> void:
 					decal("skull", Vector2i(x, y + 1))
 			x += sx
 		y += sy
-
-
-func pond(center: Vector2i, rx: float, ry: float) -> void:
-	var pts := PackedVector2Array()
-	var c := world(center)
-	for i in 28:
-		var a := TAU * i / 28.0
-		var k := 1.0 + 0.12 * sin(a * 3.0 + 1.3) + 0.07 * sin(a * 5.0)
-		pts.append(c + Vector2(cos(a) * rx * T * k, sin(a) * ry * T * k))
-	var poly := Polygon2D.new()
-	poly.name = "Pond"
-	poly.polygon = pts
-	poly.z_index = -15
-	var mat := ShaderMaterial.new()
-	mat.shader = load("res://Shaders/dark_water.gdshader")
-	poly.material = mat
-	add_node(poly)
-	var body := StaticBody2D.new()
-	body.name = "PondBody"
-	var cp := CollisionPolygon2D.new()
-	var inner := PackedVector2Array()
-	for p in pts:
-		inner.append(c + (p - c) * 0.88)
-	cp.polygon = inner
-	body.add_child(cp)
-	add_node(body)
-	cp.owner = lvl
-	reserve_circle(center, rx + 1.5)
-	for i in 14:
-		var a := TAU * i / 14.0 + rng.randf() * 0.3
-		var e := center + Vector2i(roundi(cos(a) * (rx + 0.6)), roundi(sin(a) * (ry + 0.6)))
-		decal("pebble", e)
-	light(c, Color(0.5, 0.65, 0.8), 0.35, 1.6)
 
 
 # Густота леса в клетке: кольцо по краю карты + рощи с референса
@@ -1001,20 +1124,7 @@ func finish_scene() -> void:
 	grade.set("vignette_strength", 0.55)
 	grade.set("vignette_radius", 0.95)
 
-	# Туман — поверх всего мира, под интерфейсом
-	var fog := Polygon2D.new()
-	fog.name = "Fog"
-	var m := 600.0
-	fog.polygon = PackedVector2Array([Vector2(-m, -m), Vector2(W * T + m, -m), Vector2(W * T + m, H * T + m), Vector2(-m, H * T + m)])
-	fog.z_index = 100
-	var fm := ShaderMaterial.new()
-	fm.shader = load("res://Shaders/fog.gdshader")
-	var pr := Rect2(Vector2(play_rect.position * T), Vector2(play_rect.size * T))
-	fm.set_shader_parameter("play_rect", Vector4(pr.position.x, pr.position.y, pr.end.x, pr.end.y))
-	fm.set_shader_parameter("fog_color", Color(0.34, 0.38, 0.4))
-	fm.set_shader_parameter("edge_width", 280.0)
-	fog.material = fm
-	add_node(fog)
+	# Туман убран по просьбе (был Polygon2D с Shaders/fog.gdshader поверх мира)
 
 	# Невидимая граница игровой зоны (за ней — лес и туман)
 	var pr_px := Rect2(Vector2((play_rect.position - Vector2i(2, 2)) * T), Vector2((play_rect.size + Vector2i(4, 4)) * T))
@@ -1037,6 +1147,7 @@ func finish_scene() -> void:
 	var spawn: Marker2D = lvl.get_node("PlayerSpawn")
 	spawn.position = world(R(930, 705))
 	spawn.set("character_z_index", 0)
+	spawn.set("player_glow_energy", 0.25)
 	spawn.set("camera_limits", Rect2i(Vector2i(4, 2) * T, Vector2i(W - 8, H - 4) * T))
 	var shop: Node2D = lvl.get_node("Shop")
 	var shop_sprite: Sprite2D = shop.get_node("Shop")

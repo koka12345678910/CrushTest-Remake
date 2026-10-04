@@ -1,106 +1,106 @@
 [gd_scene load_steps=25 format=3]
 
-[ext_resource type="Script" path="res://Levels/props/fire_flicker.gd" id="1_m1gb3"]
-[ext_resource type="Texture2D" path="res://TileMap/EFOutside_B.png" id="2_xc0o6"]
-[ext_resource type="Texture2D" path="res://TileMap/Textures Of Light/32x32/animation/1.png" id="3_scb2e"]
+[ext_resource type="Script" path="res://Levels/props/fire_flicker.gd" id="1_w03xn"]
+[ext_resource type="Texture2D" path="res://TileMap/EFOutside_B.png" id="2_xuhyk"]
+[ext_resource type="Texture2D" path="res://TileMap/Textures Of Light/32x32/animation/1.png" id="3_mednp"]
 
-[sub_resource type="AtlasTexture" id="AtlasTexture_44yi1"]
-atlas = ExtResource("2_xc0o6")
+[sub_resource type="AtlasTexture" id="AtlasTexture_0mco4"]
+atlas = ExtResource("2_xuhyk")
 region = Rect2(400, 432, 16, 32)
 
-[sub_resource type="CircleShape2D" id="CircleShape2D_y84sg"]
+[sub_resource type="CircleShape2D" id="CircleShape2D_uri31"]
 radius = 4.0
 
-[sub_resource type="CanvasItemMaterial" id="CanvasItemMaterial_qy74w"]
+[sub_resource type="CanvasItemMaterial" id="CanvasItemMaterial_82aqc"]
 blend_mode = 1
 light_mode = 1
 
-[sub_resource type="AtlasTexture" id="AtlasTexture_fidvt"]
-atlas = ExtResource("3_scb2e")
+[sub_resource type="AtlasTexture" id="AtlasTexture_klofp"]
+atlas = ExtResource("3_mednp")
 region = Rect2(0, 0, 32, 32)
 
-[sub_resource type="AtlasTexture" id="AtlasTexture_brrv6"]
-atlas = ExtResource("3_scb2e")
+[sub_resource type="AtlasTexture" id="AtlasTexture_twu81"]
+atlas = ExtResource("3_mednp")
 region = Rect2(32, 0, 32, 32)
 
-[sub_resource type="AtlasTexture" id="AtlasTexture_n2lsf"]
-atlas = ExtResource("3_scb2e")
+[sub_resource type="AtlasTexture" id="AtlasTexture_85y5y"]
+atlas = ExtResource("3_mednp")
 region = Rect2(64, 0, 32, 32)
 
-[sub_resource type="AtlasTexture" id="AtlasTexture_e0f0a"]
-atlas = ExtResource("3_scb2e")
+[sub_resource type="AtlasTexture" id="AtlasTexture_uxrbv"]
+atlas = ExtResource("3_mednp")
 region = Rect2(96, 0, 32, 32)
 
-[sub_resource type="AtlasTexture" id="AtlasTexture_fwcrj"]
-atlas = ExtResource("3_scb2e")
+[sub_resource type="AtlasTexture" id="AtlasTexture_0pfmg"]
+atlas = ExtResource("3_mednp")
 region = Rect2(128, 0, 32, 32)
 
-[sub_resource type="AtlasTexture" id="AtlasTexture_q65o5"]
-atlas = ExtResource("3_scb2e")
+[sub_resource type="AtlasTexture" id="AtlasTexture_4y61e"]
+atlas = ExtResource("3_mednp")
 region = Rect2(160, 0, 32, 32)
 
-[sub_resource type="AtlasTexture" id="AtlasTexture_qaj13"]
-atlas = ExtResource("3_scb2e")
+[sub_resource type="AtlasTexture" id="AtlasTexture_flbco"]
+atlas = ExtResource("3_mednp")
 region = Rect2(192, 0, 32, 32)
 
-[sub_resource type="AtlasTexture" id="AtlasTexture_aqxxj"]
-atlas = ExtResource("3_scb2e")
+[sub_resource type="AtlasTexture" id="AtlasTexture_ghw2u"]
+atlas = ExtResource("3_mednp")
 region = Rect2(224, 0, 32, 32)
 
-[sub_resource type="AtlasTexture" id="AtlasTexture_8g4el"]
-atlas = ExtResource("3_scb2e")
+[sub_resource type="AtlasTexture" id="AtlasTexture_uea8u"]
+atlas = ExtResource("3_mednp")
 region = Rect2(256, 0, 32, 32)
 
-[sub_resource type="AtlasTexture" id="AtlasTexture_5bmr6"]
-atlas = ExtResource("3_scb2e")
+[sub_resource type="AtlasTexture" id="AtlasTexture_pjgog"]
+atlas = ExtResource("3_mednp")
 region = Rect2(288, 0, 32, 32)
 
-[sub_resource type="SpriteFrames" id="SpriteFrames_3ikar"]
+[sub_resource type="SpriteFrames" id="SpriteFrames_vw7y7"]
 animations = [{
 "frames": [{
 "duration": 1.0,
-"texture": SubResource("AtlasTexture_fidvt")
+"texture": SubResource("AtlasTexture_klofp")
 }, {
 "duration": 1.0,
-"texture": SubResource("AtlasTexture_brrv6")
+"texture": SubResource("AtlasTexture_twu81")
 }, {
 "duration": 1.0,
-"texture": SubResource("AtlasTexture_n2lsf")
+"texture": SubResource("AtlasTexture_85y5y")
 }, {
 "duration": 1.0,
-"texture": SubResource("AtlasTexture_e0f0a")
+"texture": SubResource("AtlasTexture_uxrbv")
 }, {
 "duration": 1.0,
-"texture": SubResource("AtlasTexture_fwcrj")
+"texture": SubResource("AtlasTexture_0pfmg")
 }, {
 "duration": 1.0,
-"texture": SubResource("AtlasTexture_q65o5")
+"texture": SubResource("AtlasTexture_4y61e")
 }, {
 "duration": 1.0,
-"texture": SubResource("AtlasTexture_qaj13")
+"texture": SubResource("AtlasTexture_flbco")
 }, {
 "duration": 1.0,
-"texture": SubResource("AtlasTexture_aqxxj")
+"texture": SubResource("AtlasTexture_ghw2u")
 }, {
 "duration": 1.0,
-"texture": SubResource("AtlasTexture_8g4el")
+"texture": SubResource("AtlasTexture_uea8u")
 }, {
 "duration": 1.0,
-"texture": SubResource("AtlasTexture_5bmr6")
+"texture": SubResource("AtlasTexture_pjgog")
 }],
 "loop": true,
 "name": &"default",
 "speed": 12.0
 }]
 
-[sub_resource type="Gradient" id="Gradient_u0u72"]
+[sub_resource type="Gradient" id="Gradient_0so06"]
 offsets = PackedFloat32Array(0, 0.5, 1)
 colors = PackedColorArray(1, 0.75, 0.3, 1, 1, 0.35, 0.1, 0.8, 0.6, 0.1, 0.05, 0)
 
-[sub_resource type="GradientTexture1D" id="GradientTexture1D_2ny0b"]
-gradient = SubResource("Gradient_u0u72")
+[sub_resource type="GradientTexture1D" id="GradientTexture1D_4ml8b"]
+gradient = SubResource("Gradient_0so06")
 
-[sub_resource type="ParticleProcessMaterial" id="ParticleProcessMaterial_shcbl"]
+[sub_resource type="ParticleProcessMaterial" id="ParticleProcessMaterial_jv3lb"]
 particle_flag_disable_z = true
 emission_shape = 1
 emission_sphere_radius = 1.5
@@ -111,25 +111,25 @@ initial_velocity_max = 22.0
 gravity = Vector3(0, -12, 0)
 scale_min = 0.6
 scale_max = 1.3
-color_ramp = SubResource("GradientTexture1D_2ny0b")
+color_ramp = SubResource("GradientTexture1D_4ml8b")
 
-[sub_resource type="Gradient" id="Gradient_oqssx"]
+[sub_resource type="Gradient" id="Gradient_06kjj"]
 colors = PackedColorArray(1, 1, 1, 1, 1, 1, 1, 0)
 
-[sub_resource type="GradientTexture2D" id="GradientTexture2D_883ri"]
-gradient = SubResource("Gradient_oqssx")
+[sub_resource type="GradientTexture2D" id="GradientTexture2D_jx4u2"]
+gradient = SubResource("Gradient_06kjj")
 width = 4
 height = 4
 fill = 1
 fill_from = Vector2(0.5, 0.5)
 fill_to = Vector2(0.5, 0)
 
-[sub_resource type="Gradient" id="Gradient_46xme"]
+[sub_resource type="Gradient" id="Gradient_6jxsy"]
 offsets = PackedFloat32Array(0, 0.35, 1)
 colors = PackedColorArray(1, 1, 1, 1, 1, 1, 1, 0.45, 1, 1, 1, 0)
 
-[sub_resource type="GradientTexture2D" id="GradientTexture2D_1cfso"]
-gradient = SubResource("Gradient_46xme")
+[sub_resource type="GradientTexture2D" id="GradientTexture2D_e05rs"]
+gradient = SubResource("Gradient_6jxsy")
 width = 256
 height = 256
 fill = 1
@@ -137,7 +137,7 @@ fill_from = Vector2(0.5, 0.5)
 fill_to = Vector2(0.5, 0)
 
 [node name="Torch" type="Node2D"]
-script = ExtResource("1_m1gb3")
+script = ExtResource("1_w03xn")
 light_path = NodePath("Light")
 glow_path = NodePath("Glow")
 base_energy = 0.9
@@ -146,35 +146,35 @@ scale_jitter = 0.06
 speed = 7.0
 
 [node name="Post" type="Sprite2D" parent="."]
-texture = SubResource("AtlasTexture_44yi1")
+texture = SubResource("AtlasTexture_0mco4")
 offset = Vector2(0, -16)
 
 [node name="Body" type="StaticBody2D" parent="."]
 
 [node name="@CollisionShape2D@2" type="CollisionShape2D" parent="Body"]
-shape = SubResource("CircleShape2D_y84sg")
+shape = SubResource("CircleShape2D_uri31")
 
 [node name="Glow" type="AnimatedSprite2D" parent="."]
 modulate = Color(1.9, 0.85, 0.3, 0.95)
 z_index = 1
-material = SubResource("CanvasItemMaterial_qy74w")
+material = SubResource("CanvasItemMaterial_82aqc")
 position = Vector2(0, -27)
 scale = Vector2(0.45, 0.45)
-sprite_frames = SubResource("SpriteFrames_3ikar")
+sprite_frames = SubResource("SpriteFrames_vw7y7")
 autoplay = "default"
 
 [node name="Embers" type="GPUParticles2D" parent="."]
 z_index = 1
-material = SubResource("CanvasItemMaterial_qy74w")
+material = SubResource("CanvasItemMaterial_82aqc")
 position = Vector2(0, -29)
 amount = 5
-process_material = SubResource("ParticleProcessMaterial_shcbl")
-texture = SubResource("GradientTexture2D_883ri")
+process_material = SubResource("ParticleProcessMaterial_jv3lb")
+texture = SubResource("GradientTexture2D_jx4u2")
 lifetime = 1.6
 
 [node name="Light" type="PointLight2D" parent="."]
 position = Vector2(0, -27)
 color = Color(1, 0.5, 0.2, 1)
 energy = 0.9
-texture = SubResource("GradientTexture2D_1cfso")
+texture = SubResource("GradientTexture2D_e05rs")
 texture_scale = 0.9
