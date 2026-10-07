@@ -156,9 +156,38 @@ func _unhandled_input(event: InputEvent) -> void:
 @export var quick_shot_stamina_cost := 30.0
 @export var quick_shot_cooldown := 1.5
 
+## Натяжение тетивы (ЛКМ): пока кнопка зажата, играет Tension_ и копится
+## сила выстрела; отпустил — стрела вылетает сразу, играет Shot_. Чем дольше
+## тянул, тем больше урон и скорость стрелы. Полное натяжение — когда клип
+## Tension_ доходит до последнего кадра (11 кадров по 0.2с = 2с), дальше он
+## просто стоит на нём, пока кнопку не отпустят
+@export var charge_full_time := 2.0
+@export var charge_min_damage := 1
+@export var charge_max_damage := 3
+@export var charge_min_speed_mult := 0.7
+@export var charge_max_speed_mult := 1.3
+## Стамина на натяжение: небольшая цена на старте + расход в секунду, пока
+## тянешь (до полного натяжения). Полное натяжение = 2с * 12 = 24 + 5 на
+## старте; быстрый тап обходится почти даром. Последний взор тянет вдвое
+## быстрее, поэтому за то же натяжение тратится столько же
+@export var charge_start_stamina_cost := 5.0
+@export var charge_stamina_drain := 12.0
+## Скорость клипа Shot_ (1.0 — как нарисован). Пока он играет, лучница стоит
+@export var shot_anim_speed := 1.0
+const COLOR_FULL_DRAW := Color(1.6, 1.45, 1.0)
+
 var _shoot_cooldown_timer := 0.0
 var _kick_cooldown_timer := 0.0
 var _quick_shot_cooldown_timer := 0.0
+## Сколько держать ЛКМ, чтобы это считалось удержанием (натяжение), а не
+## нажатием (быстрый выстрел Attack_)
+@export var tap_hold_threshold := 0.18
+var _press_pending := false
+var _press_time := 0.0
+var _charging := false
+var _charge_time := 0.0
+var _charge_full_flashed := false
+var _charge_aim: Node2D = null
 
 
 ## Полностью переопределяет базовую версию (а не зовёт super + добавляет
@@ -184,25 +213,159 @@ func handle_attack_input() -> void:
 		_start_quick_shot()
 		return
 
+	if _charging:
+		_update_charge(get_physics_process_delta_time())
+		return
+	# Нажатие или удержание? Первые tap_hold_threshold секунд решаем:
+	# отпустили раньше — обычный быстрый выстрел (Attack_), держат дольше —
+	# натяжение тетивы (Tension_ -> Shot_)
+	if _press_pending:
+		# Пока решали, успели начать другое действие (пинок, залп) — отмена
+		if is_attacking:
+			_press_pending = false
+			return
+		_press_time += get_physics_process_delta_time()
+		if not Input.is_action_pressed("attack"):
+			_press_pending = false
+			_tap_shot()
+		elif _press_time >= tap_hold_threshold:
+			_press_pending = false
+			# На старте натяжения — небольшая цена, остальное тратится, пока
+			# тетива натягивается (см. _update_charge). Без стамины не начать
+			if is_instance_valid(health_bar) and not health_bar.use_stamina(charge_start_stamina_cost):
+				return
+			_start_charge()
+		return
 	if not Input.is_action_just_pressed("attack"):
 		return
 	if is_attacking:
-		if combo_step < combo_length:
-			combo_queued = true
 		return
 	if _shoot_cooldown_timer > 0.0:
 		return
+	# Выстрел на бегу — быстрый, без натяжения (как раньше): полная цена
+	# сразу, другая анимация и рывок вместо остановки. Логика рывка и отката на
+	# Attack_, если Run_Attack_ ещё не нарисована — в базе (character_base.gd)
+	if is_running and input_vector != Vector2.ZERO:
+		if is_instance_valid(health_bar) and not health_bar.use_stamina(shoot_stamina_cost):
+			return
+		_shoot_cooldown_timer = _current_cooldown()
+		start_run_attack()
+		return
+	# Стоя: ждём, нажатие это или удержание (решается выше, в _press_pending)
+	_press_pending = true
+	_press_time = 0.0
+
+
+## Быстрый выстрел по нажатию ЛКМ (без удержания) — как было до натяжения:
+## Attack_, стрела вылетает через shoot_delay с базовым уроном
+func _tap_shot() -> void:
 	if is_instance_valid(health_bar) and not health_bar.use_stamina(shoot_stamina_cost):
 		return
+	_shoot_cooldown_timer = _current_cooldown()
+	start_attack(1)
+
+
+func _current_cooldown() -> float:
 	# Последний взор — стрельба вдвое чаще
-	_shoot_cooldown_timer = shoot_cooldown * (LAST_LOOK_RATE if _last_look_time > 0.0 else 1.0)
-	# Выстрел на бегу — та же цена (стамина/кулдаун уже списаны выше), только
-	# другая анимация и рывок вместо остановки. Логика самого рывка и отката
-	# на Attack_, если Run_Attack_ ещё не нарисована — в базе (character_base.gd)
-	if is_running and input_vector != Vector2.ZERO:
-		start_run_attack()
+	return shoot_cooldown * (LAST_LOOK_RATE if _last_look_time > 0.0 else 1.0)
+
+
+# ─────────────────────────────────────────────
+# НАТЯЖЕНИЕ ТЕТИВЫ
+# ─────────────────────────────────────────────
+
+func _start_charge() -> void:
+	is_attacking = true
+	is_run_attacking = false
+	combo_step = 0
+	combo_queued = false
+	_charging = true
+	_charge_time = 0.0
+	_charge_full_flashed = false
+	_aim_charge(true)
+
+
+## Последний взор — тетива натягивается вдвое быстрее
+func _charge_rate() -> float:
+	return 1.0 / LAST_LOOK_RATE if _last_look_time > 0.0 else 1.0
+
+
+## 0..1 — насколько натянута тетива. Выстрел Валькирии всегда в полную силу
+func _charge_power() -> float:
+	if _valkyrie_shot_ready:
+		return 1.0
+	return clampf(_charge_time / charge_full_time, 0.0, 1.0)
+
+
+## Направление натяжения: фокус > ближайший враг > WASD > куда смотрели.
+## Зовётся каждый кадр, пока тетива натянута — цель может сместиться, а без
+## цели лук можно повернуть клавишами. При смене направления клип Tension_
+## переключается на нужную сторону с того же места, а не с начала
+func _aim_charge(restart := false) -> void:
+	var aim: Node2D = _pick_aim()
+	var dir: Vector2
+	if is_instance_valid(aim):
+		dir = (aim.global_position - global_position).normalized()
+	elif input_vector != Vector2.ZERO:
+		dir = input_vector.normalized()
 	else:
-		start_attack(1)
+		dir = facing_dir
+	var dir_name := get_direction(dir)
+	if dir_name == "":
+		return
+	_charge_aim = aim
+	facing_dir = dir
+	var clip := "Tension_" + dir_name
+	if anim.assigned_animation == clip and not restart:
+		return
+	if not anim.has_animation(clip):
+		return
+	last_direction = dir_name
+	var rate := _charge_rate()
+	anim.play(clip, -1, rate)
+	# Позиция в клипе = сколько уже натянули. Дошли до конца — клип сразу
+	# доигрывается и замирает на последнем кадре
+	anim.seek(minf(_charge_power() * charge_full_time, anim.current_animation_length), true)
+
+
+func _update_charge(delta: float) -> void:
+	# Натяжение перебили: перекат, удар (Take_Damage_ заменил клип), смерть
+	if is_rolling or is_dead() or not String(anim.assigned_animation).begins_with("Tension_"):
+		_charging = false
+		if not is_rolling:
+			is_attacking = false
+		return
+	# Натяжение стоит стамины: пока тянем — она уходит. Кончилась — тетива
+	# дальше не натягивается (держать уже набранное можно, но сила не растёт).
+	# Полностью натянутую тетиву держать бесплатно — это уже не "тянуть"
+	if _charge_time < charge_full_time:
+		var drain := charge_stamina_drain * delta * _charge_rate()
+		if not is_instance_valid(health_bar) or health_bar.use_stamina(drain):
+			_charge_time += delta * _charge_rate()
+	if not _charge_full_flashed and _charge_power() >= 1.0:
+		_charge_full_flashed = true
+		_flash_skill(COLOR_FULL_DRAW)
+	_aim_charge()
+	if not Input.is_action_pressed("attack"):
+		_release_shot()
+
+
+func _release_shot() -> void:
+	var power := _charge_power()
+	_charging = false
+	_shoot_cooldown_timer = _current_cooldown()
+	shoot_audio.stream = SHOOT_SOUND
+	shoot_audio.play()
+	var dir := facing_dir
+	if is_instance_valid(_charge_aim):
+		dir = (_charge_aim.global_position - global_position).normalized()
+	_fire_arrow(dir, _charge_aim, power)
+	var clip := "Shot_" + last_direction
+	if anim.has_animation(clip):
+		anim.play(clip, -1, shot_anim_speed)
+	else:
+		is_attacking = false
+		play_movement_animation()
 
 
 ## Дёргается из базы (start_attack) сразу после того, как отыграна анимация
@@ -242,10 +405,16 @@ func _shoot_arrow(aim: Node2D) -> void:
 ##
 ## Здесь же на стрелу навешиваются заряженные навыки — каждый заряд уходит
 ## ровно в одну стрелу, какой бы кнопкой она ни была выпущена
-func _fire_arrow(dir: Vector2, aim: Node2D = null) -> void:
+##
+## power — сила натяжения 0..1 (обычный выстрел ЛКМ); -1 — без натяжения
+## (залп, выстрел на бегу): базовые урон и скорость
+func _fire_arrow(dir: Vector2, aim: Node2D = null, power := -1.0) -> void:
 	var arrow: Area2D = ArrowScript.new()
 	var dmg := arrow_damage
 	var spd := arrow_speed
+	if power >= 0.0:
+		dmg = roundi(lerpf(charge_min_damage, charge_max_damage, power))
+		spd *= lerpf(charge_min_speed_mult, charge_max_speed_mult, power)
 	var trail := Color(0, 0, 0, 0)
 
 	if _last_look_time > 0.0:
@@ -580,6 +749,14 @@ func _disable_kick_hitbox() -> void:
 ## отдаём наверх, как было
 func _on_animation_finished(finished_anim: String) -> void:
 	if finished_anim.begins_with("Kick_"):
+		is_attacking = false
+		play_movement_animation()
+		return
+	# Tension_ доиграл до последнего кадра — так и стоим на нём, пока не
+	# отпустят ЛКМ (выстрел и сброс — в _update_charge/_release_shot)
+	if finished_anim.begins_with("Tension_"):
+		return
+	if finished_anim.begins_with("Shot_"):
 		is_attacking = false
 		play_movement_animation()
 		return
