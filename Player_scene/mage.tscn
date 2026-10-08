@@ -1,8 +1,8 @@
 [gd_scene format=3 uid="uid://dfaaqngcja74x"]
 
 [ext_resource type="Script" uid="uid://j0djrjdp0hsh" path="res://UI/health_stamina_bar.gd" id="0_hpbar"]
-[ext_resource type="Script" path="res://UI/skill_points_bar.gd" id="0_skillbar"]
 [ext_resource type="Script" uid="uid://csjjwu468ikvf" path="res://Player_scene/mage.gd" id="0_mage_script"]
+[ext_resource type="Script" uid="uid://7cev6imio80h" path="res://UI/skill_points_bar.gd" id="0_skillbar"]
 [ext_resource type="Texture2D" uid="uid://mx5iy7gko76r" path="res://Character/Mage/Attack2.png" id="1_6ue3j"]
 [ext_resource type="Texture2D" uid="uid://bkqr7qc538tsy" path="res://Character/Mage/Attack1.png" id="2_e0wa3"]
 [ext_resource type="Texture2D" uid="uid://bb6mi77xmw8wr" path="res://Character/Mage/Attack3.png" id="3_2tvos"]
@@ -14321,8 +14321,9 @@ shape = SubResource("CapsuleShape2D_g4v7s")
 
 [node name="AnimatedSprite2D" type="AnimatedSprite2D" parent="." unique_id=835045067]
 texture_filter = 1
+scale = Vector2(0.765625, 0.765625)
 sprite_frames = SubResource("SpriteFrames_g4v7s")
-animation = &"Attack_2_Down"
+animation = &"Attack_3_Down"
 
 [node name="MageAnimations" type="AnimationPlayer" parent="." unique_id=441008004]
 libraries/ = SubResource("AnimationLibrary_r86py")
