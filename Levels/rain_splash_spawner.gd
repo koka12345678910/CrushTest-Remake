@@ -53,6 +53,11 @@ func _spawn_splash() -> void:
 		center.y + randf_range(-half_extent.y, half_extent.y)
 	)
 
+	# Внутри дома (интерьер показан) на пол не капает
+	for house in get_tree().get_nodes_in_group("house_interior"):
+		if house.is_roofed(pos):
+			return
+
 	var splash := SPLASH_VFX.instantiate()
 	splash.global_position = pos
 	get_tree().current_scene.add_child(splash)

@@ -24,6 +24,24 @@ extends Marker2D
 ## Радиус свечения в пикселях мира
 @export var player_glow_radius := 95.0
 
+## Тень персонажа от огня (костры, камин, лампы). У ног ставится маленький
+## LightOccluder2D; тень от него отбрасывают только источники, у которых
+## включены тени и в shadow_item_cull_mask есть SHADOW_OCCLUDER_BIT.
+##
+## В виде сверху такой свет, стоящий НИЖЕ персонажа, положил бы тень прямо на
+## его же спрайт (тело "над" ногами — как раз за оклюдером). Поэтому тело
+## переезжает на свой слой света BODY_LIGHT_BIT (без бита 1): огонь с тенью
+## светит только на землю и предметы, а тело освещает его "копия" без тени
+## (у костра — BodyLight). Все прочие источники (луна, облака, свечение игрока,
+## свет комнаты, заклинания) получают BODY_LIGHT_BIT автоматически — на них
+## ничего не меняется
+@export var player_shadow := false
+## Половина ширины и высоты овала-оклюдера у ног, px мира
+@export var shadow_radius := Vector2(6.0, 2.5)
+
+const BODY_LIGHT_BIT := 8
+const SHADOW_OCCLUDER_BIT := 16
+
 ## Как часто скидывать прогресс на диск. Пишем редко: сохранение — это запись
 ## файла, а дёргать её каждый кадр незачем
 @export var autosave_interval := 30.0
@@ -45,6 +63,8 @@ func _ready() -> void:
 	character.position = position
 	character.z_index = character_z_index
 	_add_glow()
+	if player_shadow:
+		_setup_shadow()
 
 	# ОБЯЗАТЕЛЬНО call_deferred: наш _ready() вызывается, пока уровень ещё
 	# расставляет своих детей, и обычный add_child в этот момент отваливается с
@@ -77,12 +97,79 @@ func _add_glow() -> void:
 	tex.height = 128
 	var light := PointLight2D.new()
 	light.name = "PlayerGlow"
+	# Холодный "лунный" ореол — в доме гаснет на теле героя, там его
+	# освещает огонь (Levels/house_interior.gd)
+	light.add_to_group("outdoor_light")
 	light.texture = tex
 	light.texture_scale = player_glow_radius * 2.0 / 128.0
 	light.color = player_glow_color
 	light.energy = player_glow_energy
 	light.blend_mode = Light2D.BLEND_MODE_ADD
 	character.add_child(light)
+
+
+func _setup_shadow() -> void:
+	_move_body_to_own_light_layer(character)
+
+	var occ := LightOccluder2D.new()
+	occ.name = "ShadowOccluder"
+	var poly := OccluderPolygon2D.new()
+	var pts := PackedVector2Array()
+	for i in 12:
+		var a := TAU * i / 12.0
+		pts.append(Vector2(cos(a) * shadow_radius.x, sin(a) * shadow_radius.y))
+	poly.polygon = pts
+	occ.occluder = poly
+	occ.position = Vector2(0, _feet_y())
+	occ.occluder_light_mask = SHADOW_OCCLUDER_BIT
+	character.add_child(occ)
+
+	# Источники, которые уже на уровне, и те, что появятся позже (свечение
+	# игрока, облака луны, свет заклинаний)
+	for l in get_tree().root.find_children("*", "Light2D", true, false):
+		_light_body_too(l)
+	get_tree().node_added.connect(_on_node_added)
+
+
+func _on_node_added(n: Node) -> void:
+	if n is Light2D:
+		_light_body_too(n)
+
+
+## Обычный источник светит и на тело персонажа; "теневой" огонь — нет (тело
+## от него освещает отдельная копия без тени)
+func _light_body_too(l: Light2D) -> void:
+	if l.shadow_enabled and (l.shadow_item_cull_mask & SHADOW_OCCLUDER_BIT) != 0:
+		return
+	if (l.range_item_cull_mask & 1) != 0:
+		l.range_item_cull_mask |= BODY_LIGHT_BIT
+
+
+func _move_body_to_own_light_layer(n: Node) -> void:
+	for ch in n.get_children():
+		if ch is CanvasLayer:
+			continue        # интерфейс светом не освещается
+		if ch is CanvasItem and ((ch as CanvasItem).light_mask & 1) != 0:
+			var ci := ch as CanvasItem
+			ci.light_mask = (ci.light_mask & ~1) | BODY_LIGHT_BIT
+		_move_body_to_own_light_layer(ch)
+
+
+## Низ коллизии персонажа — там его ноги
+func _feet_y() -> float:
+	for ch in character.get_children():
+		if ch is CollisionShape2D and (ch as CollisionShape2D).shape:
+			var cs := ch as CollisionShape2D
+			var sh := cs.shape
+			var half := 0.0
+			if sh is CapsuleShape2D:
+				half = (sh as CapsuleShape2D).height * 0.5
+			elif sh is RectangleShape2D:
+				half = (sh as RectangleShape2D).size.y * 0.5
+			elif sh is CircleShape2D:
+				half = (sh as CircleShape2D).radius
+			return cs.position.y + half * cs.scale.y
+	return 10.0
 
 
 func _apply_camera_limits() -> void:

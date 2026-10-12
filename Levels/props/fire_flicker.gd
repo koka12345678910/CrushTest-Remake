@@ -7,6 +7,9 @@ extends Node2D
 
 @export var light_path: NodePath = ^"Light"
 @export var glow_path: NodePath = ^"Glow"
+## Копия света без тени, которая освещает тело персонажа (см. player_spawner.gd,
+## player_shadow). Дрожит вместе с основным светом
+@export var body_light_path: NodePath = ^"BodyLight"
 ## Базовая яркость света и разброс дрожания (доля от базовой)
 @export var base_energy := 1.1
 @export_range(0.0, 1.0) var energy_jitter := 0.28
@@ -19,6 +22,7 @@ var _noise := FastNoiseLite.new()
 var _t := 0.0
 var _light: PointLight2D
 var _glow: CanvasItem
+var _body_light: PointLight2D
 var _base_scale := 1.0
 var _glow_base := Vector2.ONE
 
@@ -29,6 +33,7 @@ func _ready() -> void:
 	_t = randf() * 100.0
 	_light = get_node_or_null(light_path) as PointLight2D
 	_glow = get_node_or_null(glow_path) as CanvasItem
+	_body_light = get_node_or_null(body_light_path) as PointLight2D
 	if _light:
 		_base_scale = _light.texture_scale
 	if _glow is Node2D:
@@ -42,5 +47,8 @@ func _process(delta: float) -> void:
 	if _light:
 		_light.energy = base_energy * (1.0 + n * energy_jitter)
 		_light.texture_scale = _base_scale * (1.0 + n * scale_jitter)
+		if _body_light:
+			_body_light.energy = _light.energy
+			_body_light.texture_scale = _light.texture_scale
 	if _glow is Node2D:
 		(_glow as Node2D).scale = _glow_base * (1.0 + n * 0.12)

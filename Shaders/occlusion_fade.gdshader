@@ -6,10 +6,11 @@ shader_type canvas_item;
 
 void vertex() {
 	occlusion_world_pos = occlusion_world(VERTEX, MODEL_MATRIX);
+	occlusion_origin = occlusion_world(vec2(0.0), MODEL_MATRIX);
 }
 
 void fragment() {
 	COLOR = texture(TEXTURE, UV) * COLOR;
 	COLOR.rgb *= object_brightness;
-	COLOR.a *= occlusion_alpha(occlusion_world_pos);
+	COLOR.a *= occlusion_alpha_depth(occlusion_world_pos, occlusion_origin);
 }

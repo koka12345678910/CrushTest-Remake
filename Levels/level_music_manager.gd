@@ -62,6 +62,8 @@ var _duck_tween: Tween
 
 var _in_combat := false
 var _in_shop := false
+var _in_house := false
+var _house_rain_db := 0.0
 var _check_timer := 0.0
 var _fade_tween: Tween
 var _rain_tween: Tween
@@ -240,11 +242,24 @@ func set_shop_open(is_open: bool, duration: float) -> void:
 	_apply_rain_volume(duration)
 
 
+# Вызывается домом (Levels/house_interior.gd), когда игрок заходит внутрь или
+# выходит: под крышей дождь слышен глухо, но не пропадает. Громкость задаёт
+# сам дом — у разных построек могут быть разные стены
+func set_indoors(is_inside: bool, duration: float, volume_db: float) -> void:
+	_in_house = is_inside
+	_house_rain_db = volume_db
+	_apply_rain_volume(duration)
+
+
 # Единая точка, откуда управляется громкость дождя — и по боевому состоянию,
 # и по магазину. Раньше это делал ещё один tween внутри _update_combat_state,
 # и он бы конфликтовал с этим, борясь за одно и то же свойство rain_player
 func _apply_rain_volume(duration: float) -> void:
-	var target := rain_volume_shop if _in_shop else (rain_volume_combat if _in_combat else rain_volume_calm)
+	var target := rain_volume_combat if _in_combat else rain_volume_calm
+	if _in_house:
+		target = minf(target, _house_rain_db)
+	if _in_shop:
+		target = rain_volume_shop
 	if _rain_tween:
 		_rain_tween.kill()
 	_rain_tween = create_tween()
