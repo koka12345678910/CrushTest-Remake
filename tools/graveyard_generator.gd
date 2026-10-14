@@ -767,341 +767,328 @@ func static_rect(px: Vector2, rect: Rect2, layer := 1) -> void:
 
 
 # ============================================================ ИНТЕРЬЕРЫ ДОМОВ
+#
+# Интерьеры собираются из листа TileMap/interior/rooms/tiles_interior_2.png в
+# top-down стиле: дощатый пол, задняя стена — фасад с деревянным каркасом и
+# окнами (бывает разрушенный), боковые, нижняя и внутренние стены — тёмные
+# балки "сверху". Дома заброшены: огня нет нигде, свет только лунный — из окон
+# и дыр в крыше; на полу мусор, листья и обломки.
+#
+# Все координаты ниже — пиксели "картинки дома" (= пиксели листа), в мир она
+# ложится с масштабом INT_S. Точка door (низ проёма входной двери) ставится
+# на дверь спрайта дома снаружи.
 
-const INTERIOR_TEX := "res://TileMap/interior/tile_interior.png"
-## Лист интерьеров нарисован крупнее карты: при 0.5 кровать выходит ~в два
-## роста персонажа, а дверной проём (~30 px) пропускает и игрока, и врагов
-## (у навмеша отступ 14 — проём уже 28 px враг бы не прошёл)
-const INT_S := 0.5
-## Собранные интерьеры домов сохраняются сюда — сцена ссылается на них
+const INT_SHEET := "res://TileMap/interior/rooms/tiles_interior_2.png"
+## Кровать ~ 55 px мира (два роста героя), доска пола ~ 30 px
+const INT_S := 0.4
+## Собранные картинки этажей сохраняются сюда — сцена ссылается на них
 const ROOMS_DIR := "res://TileMap/interior/rooms/"
-## Чистые доски из листа — ими заделываются проёмы и застилается пол комнат,
-## из которых убрана родная мебель
-const FLOOR_SRC := Rect2(28, 332, 96, 220)
-## Лестница из листа: перила по бокам, 6 ступеней; её середина (2 ступени)
-## повторяется, чтобы пролёт стал длиннее
-const STAIRS_SRC := Rect2(892, 207, 74, 108)
-const STAIRS_MID := Vector2(226, 260)
+## Толщина стены "сверху" и высота фасада задней стены
+const WALL_T := 24
+const FACE_H := 105
+
+const IS := {
+	# пол: доски (по большей части), гнилые доски, мусор/листья с рваным краем
+	"planks": [Rect2(18, 18, 78, 82), Rect2(18, 112, 78, 82), Rect2(18, 206, 78, 81), Rect2(200, 18, 81, 82)],
+	"rotten": [Rect2(109, 206, 79, 81), Rect2(200, 206, 80, 81), Rect2(200, 112, 80, 82)],
+	"debris": [Rect2(584, 113, 81, 82), Rect2(679, 206, 85, 88), Rect2(584, 206, 81, 90), Rect2(480, 300, 103, 88), Rect2(601, 301, 163, 94)],
+	# каркас стены: верхняя балка (повторяемая середина) и столб
+	"beam": Rect2(1015, 20, 110, 18), "post": Rect2(992, 40, 21, 65),
+	# лестница: перила по бокам, середина (5 ступеней) повторяется
+	"stairs": Rect2(1406, 16, 107, 127), "stairs_mid": Vector2(46, 104),
+}
+
+## Фасады задней стены: прямоугольник, доля ширины, где центр окна (-1 — без окна)
+const FACES := {
+	"broken": [Rect2(790, 18, 182, 105), -1.0], "hole": [Rect2(784, 132, 107, 102), -1.0],
+	"win_a": [Rect2(988, 18, 159, 105), 0.53], "win_b": [Rect2(1162, 17, 134, 106), 0.49],
+	"win_c": [Rect2(906, 132, 131, 102), 0.5], "win_d": [Rect2(1052, 131, 131, 104), 0.5],
+	"win_e": [Rect2(1200, 132, 101, 103), 0.43],
+}
+
+## Мебель и утварь: прямоугольник в листе
+const IT := {
+	"hearth": Rect2(1417, 286, 96, 110),        # холодный камин с золой
+	"chimney_ruin": Rect2(1421, 150, 85, 124),  # развалившийся дымоход
+	"bed_torn": Rect2(522, 399, 64, 130), "bed_red": Rect2(115, 387, 82, 138),
+	"chair": Rect2(706, 404, 39, 53), "chair_small": Rect2(635, 471, 29, 50), "plank": Rect2(600, 471, 21, 60),
+	"shelf_potions": Rect2(889, 429, 90, 76), "shelf_jars": Rect2(997, 428, 78, 78), "shelf_low": Rect2(1010, 592, 98, 65),
+	"shelf_small": Rect2(953, 593, 36, 53), "armor": Rect2(1092, 424, 54, 85), "wardrobe": Rect2(1300, 419, 60, 91),
+	"chest_big": Rect2(1204, 444, 77, 61), "chest": Rect2(1310, 520, 56, 39), "trunk": Rect2(797, 705, 69, 44),
+	"desk_map": Rect2(898, 520, 68, 58), "table_cloth": Rect2(793, 512, 90, 61), "table_plates": Rect2(866, 756, 103, 52),
+	"table_tools": Rect2(674, 825, 99, 54), "bench": Rect2(797, 650, 88, 43), "nightstand": Rect2(890, 588, 45, 45),
+	"rug_red": Rect2(987, 520, 143, 64), "fur": Rect2(1123, 727, 83, 79), "bear": Rect2(1240, 684, 69, 117),
+	"barrel": Rect2(200, 792, 45, 66), "tub": Rect2(87, 881, 54, 59), "crate": Rect2(1336, 713, 60, 67),
+	"crate_s": Rect2(664, 897, 44, 46), "crate_tall": Rect2(729, 920, 39, 76), "sack": Rect2(337, 951, 40, 47),
+	"basket": Rect2(284, 878, 33, 43), "bucket": Rect2(889, 706, 30, 34), "skull": Rect2(857, 960, 29, 37),
+	"rubble": Rect2(1162, 250, 52, 63), "rubble2": Rect2(1238, 246, 59, 61), "stones": Rect2(620, 697, 50, 28),
+	"wagon": Rect2(528, 794, 125, 118), "logs": Rect2(402, 851, 104, 31), "logs2": Rect2(407, 819, 97, 30),
+	"wheel": Rect2(562, 730, 49, 52), "anvil": Rect2(1026, 765, 59, 38),
+}
+
+var _isheet: Image
 
 
-## Интерьер дома — одна картинка из нескольких готовых комнат листа
-## TileMap/interior/tile_interior.png (пол, стены, мебель нарисованы вместе).
-##
-## Комната (словарь), координаты — пиксели листа:
-##   room    — комната (стены включительно), src — что вырезать (бывает чуть
-##             больше комнаты: свисающие столбы)
-##   at      — где левый верхний угол комнаты в "картинке дома" (пиксели листа;
-##             у главной комнаты — 0, 0). Комнаты рисуются по порядку списка:
-##             следующая перекрывает общую стену предыдущей
-##   cols    — [x0, x1, n]: вертикальная полоса листа, которая повторяется ещё
-##             n раз — так комната становится шире; rows [y0, y1, n] — то же
-##             по высоте. Полосы выбраны там, где поперёк комнаты только стены
-##             и пол (или то, что не страшно удлинить: скамья, ковёр) — мебель
-##             не растягивается, в комнате просто больше места
-##   col_alt — [[y0, y1, x]]: в копиях колонки строки y0..y1 брать с x (если
-##             в самой колонке на этой высоте камин или столб); row_alt —
-##             [[x0, x1, y]] — то же для копий ряда (тень под камином)
-##   patches — [откуда, куда] кусок пола поверх стены: так прорезается входная
-##             дверь (в листе стены комнат глухие)
-##   floor   — прямоугольник, который застилается чистыми досками (FLOOR_SRC):
-##             родная мебель комнаты убирается, ставится своя из items
-##   items   — [откуда, куда] предметы листа поверх пола (с прозрачностью)
-##   solids  — стены и мебель (коллизия), lights — [где, цвет, энергия, радиус
-##             в мире, мерцает], fill — общий свет комнаты [цвет, энергия, мерцает]
-##
-## Дом (словарь): floors — этажи (первый — с входной дверью), main — номер
-## комнаты с входной дверью в первом этаже, door_x/wall_y — середина проёма и
-## низ нижней стены этой комнаты (пиксели листа): эта точка ставится на дверь
-## спрайта снаружи (world_door).
-##
-## Этаж (словарь): rooms + в координатах "картинки дома" (у главной комнаты
-## первого этажа угол 0, 0): doors — внутренние проёмы (застилаются досками),
-## stairs — {at, repeat, down} лестница (down — пролёт сверху: темнеет низ, а не
-## верх), items — [откуда, куда] утварь поверх всего, lights — свет вне
-## комнат [где, цвет, энергия, радиус, мерцает], solids — коллизия вне комнат
-## (перила, мебель из items), occluders — ломаные стен для огня (иначе —
-## контур главной комнаты с щелью двери). Комнаты всех этажей должны
-## совпадать по контуру — это один и тот же дом
-func build_interiors(ruin_base: Vector2, ruin_sc: float, ruin_body: Rect2, barn_base: Vector2, barn_sc: float, barn_body: Rect2) -> void:
-	# Разрушенный дом. Под правым щипцом (там арочная дверь, центр арки —
-	# 0.5895 ширины картинки) — зал с камином и лестницей на второй этаж;
-	# влево под низким крылом уходят кладовая и спальня. Стены соседних комнат
-	# перекрываются, проёмы между ними застелены досками
-	var ruin_w: float = load("res://TileMap/Houses/ruin_house.png").get_width()
-	var hall := {
-		"room": Rect2(26, 583, 272, 283), "src": Rect2(26, 583, 272, 283), "at": Vector2.ZERO,
-		"cols": [216, 230, 12],                                 # между камином и правой полкой — только стена и пол
-		"rows": [661, 674, 9], "row_alt": [[127, 215, 778]],     # между камином и столом; под камином — пол из-под стола (без тени)
-		"patches": [[Rect2(150, 771, 76, 48), Vector2(68, 818)]],    # входная дверь в нижней стене
-		# стены (верх с камином, левая — с проёмом в кладовую, правая, низ по
-		# обе стороны двери) и мебель
-		"solids": [Rect2(26, 583, 272, 45), Rect2(138, 583, 64, 68), Rect2(26, 583, 32, 153), Rect2(26, 816, 32, 50),
-				Rect2(266, 583, 32, 283), Rect2(26, 818, 42, 48), Rect2(144, 818, 154, 48),
-				Rect2(132, 690, 66, 75), Rect2(63, 696, 29, 40)],
-		"lights": [[Vector2(170, 640), Color(1.0, 0.55, 0.25), 1.25, 170.0, true]],   # камин — главный свет, от него тень
-		"fill": [Color(1.0, 0.7, 0.45), 0.5, true],              # от камина, поэтому дышит
-	}
-	# Кладовая: стены от каморки с бочками, пол застелен заново, своя утварь
-	# вдоль верхней стены — шкаф с кувшином, стол с тазом и свечой, бочка,
-	# мешок. Вдоль нижней стены свободный коридор между проёмами в зал и в
-	# спальню (31 px — шире отступа навмеша, враги тоже пройдут)
-	var pantry_walls := [Rect2(596, 586, 213, 26), Rect2(596, 586, 26, 149),
-			Rect2(783, 586, 26, 130), Rect2(783, 796, 26, 22), Rect2(596, 798, 213, 20)]
-	var pantry := {
-		"room": Rect2(596, 586, 213, 232), "src": Rect2(596, 586, 213, 243), "at": Vector2(-181, 140),
-		"floor": Rect2(622, 612, 161, 186),
-		"items": [[Rect2(1042, 328, 73, 86), Vector2(624, 604)],     # шкаф с кувшином
-				[Rect2(952, 526, 82, 59), Vector2(700, 612)],        # стол с тазом
-				[Rect2(1047, 742, 23, 58), Vector2(745, 596)],       # свеча на столе
-				[Rect2(1272, 666, 39, 58), Vector2(742, 674)],       # бочка
-				[Rect2(1297, 812, 38, 50), Vector2(702, 680)]],      # мешок
-		"solids": pantry_walls + [Rect2(624, 606, 73, 80), Rect2(700, 612, 82, 59), Rect2(742, 676, 39, 56), Rect2(702, 690, 38, 40)],
-		"lights": [[Vector2(756, 606), Color(1.0, 0.68, 0.4), 0.9, 110.0, true]],     # свеча
-		"fill": [Color(1.0, 0.72, 0.5), 0.4, true],
-	}
-	# Спальня в дальнем конце — как есть (проём к кладовой вместо полки и стула)
-	var bedroom_walls := [Rect2(344, 586, 231, 34), Rect2(344, 586, 28, 232), Rect2(344, 798, 231, 20)]
-	var bedroom := {
-		"room": Rect2(344, 586, 231, 232), "src": Rect2(344, 586, 231, 243), "at": Vector2(-386, 140),
-		"solids": bedroom_walls + [Rect2(378, 620, 56, 138), Rect2(470, 600, 35, 58), Rect2(511, 620, 42, 115)],
-		"lights": [[Vector2(487, 628), Color(1.0, 0.68, 0.4), 0.8, 110.0, true]],     # свеча на столике
-		"fill": [Color(1.0, 0.72, 0.5), 0.4, true],
-	}
-	# Внешний контур (без щели входной двери — она только внизу) и внутренние
-	# стены с проёмами: свет одной комнаты не идёт в соседние
-	var outline := [Vector2(440, 400), Vector2(440, 0), Vector2(0, 0), Vector2(0, 140),
-			Vector2(-386, 140), Vector2(-386, 372), Vector2(0, 372), Vector2(0, 400)]
-	var inner := [[Vector2(16, 140), Vector2(16, 270)], [Vector2(16, 350), Vector2(16, 372)],
-			[Vector2(-168, 140), Vector2(-168, 289)], [Vector2(-168, 351), Vector2(-168, 372)]]
-	var doors := [Rect2(-1, 270, 47, 80),         # зал <-> кладовая (вместо табурета и ведра у левой стены зала; 40 px — пройдут и враги)
-			Rect2(-219, 289, 69, 62)]           # кладовая <-> спальня (по низу — на одной линии с проёмом в зал)
-	var ground := {
-		"rooms": [bedroom, pantry, hall],
-		"doors": doors,
-		# Лестница у правой стены зала поднимается к потолку: верх уходит в
-		# тёмный пролёт второго этажа
-		"stairs": {"at": Vector2(333, 30), "repeat": 3},
-		"solids": [Rect2(333, 30, 14, 210)],      # левые перила
-		# внешний контур с щелью входной двери (x 42..118 по низу зала)
-		"occluders": [[Vector2(118, 400)] + outline + [Vector2(42, 400)]] + inner,
-	}
-
-	# ---- Второй этаж: те же стены и проёмы, своя обстановка. Над залом —
-	# кабинет-библиотека (камин тот же — труба идёт насквозь), над кладовой —
-	# комната с чертёжным столом, над спальней — хозяйская спальня. Крыша
-	# дырявая — на пол падают пятна лунного света
-	var up_hall := {
-		"room": hall.room, "src": hall.src, "at": hall.at, "cols": hall.cols, "rows": hall.rows, "row_alt": hall.row_alt,
-		"floor": [Rect2(58, 652, 208, 166), Rect2(58, 628, 80, 24), Rect2(202, 628, 64, 24)],
-		"solids": [Rect2(26, 583, 272, 45), Rect2(138, 583, 64, 68), Rect2(26, 583, 32, 153), Rect2(26, 816, 32, 50),
-				Rect2(266, 583, 32, 283), Rect2(26, 818, 272, 48)],    # нижняя стена — сплошная, двери наверху нет
-		"lights": hall.lights,
-		"fill": [Color(1.0, 0.7, 0.45), 0.35, true],
-	}
-	var up_study := {
-		"room": pantry.room, "src": pantry.src, "at": pantry.at, "floor": pantry.floor,
-		"solids": pantry_walls, "fill": [Color(1.0, 0.72, 0.5), 0.35, true],
-	}
-	var up_bedroom := {
-		"room": bedroom.room, "src": bedroom.src, "at": bedroom.at, "floor": Rect2(372, 612, 181, 186),
-		"solids": bedroom_walls, "fill": [Color(1.0, 0.72, 0.5), 0.35, true],
-	}
-	var moon := Color(0.62, 0.72, 0.95)
-	var upper := {
-		"rooms": [up_bedroom, up_study, up_hall],
-		"doors": doors,
-		"stairs": {"at": Vector2(333, 30), "repeat": 3, "down": true},
-		"items": [
-			# кабинет над залом
-			[Rect2(939, 329, 76, 111), Vector2(190, 30)],      # книжный шкаф со склянками
-			[Rect2(1148, 329, 83, 71), Vector2(40, 110)],      # стол с картой
-			[Rect2(1230, 421, 33, 62), Vector2(124, 128)],     # стул
-			[Rect2(832, 465, 90, 45), Vector2(170, 215)],      # шкура на полу
-			[Rect2(1310, 735, 51, 55), Vector2(275, 292)],     # бочка
-			[Rect2(1090, 689, 42, 41), Vector2(345, 300)],     # ящик
-			[Rect2(1070, 947, 50, 48), Vector2(352, 252)],     # ящик под пролётом
-			# комната над кладовой
-			[Rect2(1259, 325, 97, 75), Vector2(-150, 166)],    # чертёжный стол
-			[Rect2(1474, 440, 39, 100), Vector2(-45, 160)],    # высокий шкаф
-			[Rect2(1230, 421, 33, 62), Vector2(-110, 222)],    # стул
-			[Rect2(1462, 340, 43, 55), Vector2(-122, 148)],    # подсвечник на стене
-			# спальня над спальней
-			[Rect2(828, 535, 84, 125), Vector2(-352, 168)],    # большая кровать с ковриком
-			[Rect2(1152, 419, 58, 66), Vector2(-250, 168)],    # столик с бумагами
-			[Rect2(960, 452, 65, 64), Vector2(-250, 250)],     # круглый коврик
-			[Rect2(837, 750, 45, 46), Vector2(-300, 300)],     # сундук
-		],
-		"lights": [
-			[Vector2(-100, 175), Color(1.0, 0.68, 0.4), 0.8, 100.0, true],    # подсвечник
-			[Vector2(-221, 185), Color(1.0, 0.68, 0.4), 0.7, 100.0, true],    # свеча на столике
-			[Vector2(230, 280), moon, 0.6, 45.0, false],                      # луна сквозь дыры в крыше
-			[Vector2(95, 240), moon, 0.5, 40.0, false],
-			[Vector2(-280, 240), moon, 0.45, 40.0, false],
-		],
-		"solids": [
-			Rect2(333, 130, 14, 110), Rect2(333, 236, 74, 8),  # перила пролёта: слева (кроме верха — там проход к спуску, шире героя) и снизу
-			Rect2(190, 40, 76, 95), Rect2(40, 115, 83, 60), Rect2(275, 300, 51, 45), Rect2(345, 305, 42, 36), Rect2(352, 255, 50, 45),
-			Rect2(-150, 175, 97, 60), Rect2(-45, 175, 39, 80),
-			Rect2(-352, 175, 84, 60), Rect2(-250, 180, 58, 50), Rect2(-300, 305, 45, 38),
-		],
-		"occluders": [outline + [Vector2(440, 400)]] + inner,
-	}
-	house_interior("RuinHouseInterior", "RuinHouse", ruin_body, {
-		"floors": [ground, upper], "main": 2,
-		"door_x": 106.0, "wall_y": 838.0,
-		"world_door": Vector2(ruin_base.x + 0.0895 * ruin_w * ruin_sc, ruin_base.y + 4.0),
-		# Второй этаж проступает по ходу подъёма по лестнице, без переноса:
-		# наверху сходят влево — в проход над укороченными перилами второго этажа
-	})
-	# Амбар: каморка с кроватью и бочками в жилой половине (справа — открытый
-	# навес с сеном, туда не заходим). Дверь на спрайте — 0.365 ширины
-	var barn_w: float = load("res://TileMap/Houses/barn.png").get_width()
-	house_interior("BarnInterior", "Barn", barn_body, {
-		"floors": [{"rooms": [{
-			"room": Rect2(596, 586, 213, 232), "src": Rect2(596, 586, 213, 243), "at": Vector2.ZERO,
-			# пол перед бочками; в копиях низ берём с гладкого бревна без столба
-			"cols": [733, 751, 7], "col_alt": [[798, 829, 700]],
-			"rows": [740, 760, 5],                                  # через ковёр — он станет дорожкой
-			"patches": [[Rect2(680, 775, 64, 20), Vector2(671, 798)]],
-			"solids": [Rect2(596, 586, 213, 34), Rect2(596, 586, 26, 232), Rect2(752, 586, 57, 232),
-					Rect2(596, 798, 75, 20), Rect2(735, 798, 74, 20),
-					Rect2(628, 618, 55, 109), Rect2(700, 605, 30, 57), Rect2(628, 766, 32, 26)],
-			"lights": [[Vector2(690, 690), Color(1.0, 0.68, 0.4), 1.0, 140.0, true]],    # свеча/лампа
-			"fill": [Color(1.0, 0.72, 0.5), 0.45, true],
-		}]}], "main": 0,
-		"door_x": 703.0, "wall_y": 818.0,
-		"world_door": Vector2(barn_base.x - 0.135 * barn_w * barn_sc, barn_base.y + 2.0),
-	})
+func _int_sheet() -> Image:
+	if _isheet == null:
+		_isheet = Image.load_from_file(ProjectSettings.globalize_path(INT_SHEET))
+		_isheet.convert(Image.FORMAT_RGBA8)
+	return _isheet
 
 
-## Точка листа -> точка растянутой комнаты (в пикселях листа от её угла).
-## Всё, что правее/ниже вставленной полосы, сдвигается на ширину копий
-func room_ex(d: Dictionary, p: Vector2) -> Vector2:
-	var room: Rect2 = d.room
-	var c: Array = d.get("cols", [0, 0, 0])
-	var r: Array = d.get("rows", [0, 0, 0])
-	var x := p.x - room.position.x
-	var y := p.y - room.position.y
-	if p.x >= c[1]:
-		x += (c[1] - c[0]) * c[2]
-	if p.y >= r[1]:
-		y += (r[1] - r[0]) * r[2]
-	return Vector2(x, y)
+func _blend_piece(img: Image, src: Image, at: Vector2i) -> void:
+	img.blend_rect(src, Rect2i(Vector2i.ZERO, src.get_size()), at)
 
 
-## Заливает прямоугольник картинки плиткой из куска листа
-func fill_tiled(img: Image, sheet: Image, dst: Rect2i, src: Rect2i) -> void:
-	var y := dst.position.y
-	while y < dst.end.y:
-		var x := dst.position.x
-		var h := mini(src.size.y, dst.end.y - y)
-		while x < dst.end.x:
-			var w := mini(src.size.x, dst.end.x - x)
-			img.blit_rect(sheet, Rect2i(src.position, Vector2i(w, h)), Vector2i(x, y))
+## Кусок листа, при необходимости растянутый до size
+func _piece(r: Rect2, size := Vector2i.ZERO) -> Image:
+	var p := _int_sheet().get_region(Rect2i(r))
+	if size != Vector2i.ZERO and size != p.get_size():
+		p.resize(size.x, size.y, Image.INTERPOLATE_BILINEAR)
+	return p
+
+
+func _fill_rect(img: Image, r: Rect2i, c: Color) -> void:
+	img.fill_rect(r.intersection(Rect2i(Vector2i.ZERO, img.get_size())), c)
+
+
+## Пол: доски плиткой, кое-где гнилые; без рамки плитки (обрезка по 4 px)
+func _int_floor(img: Image, r: Rect2i, rnd: RandomNumberGenerator, rotten := 0.15) -> void:
+	var y := r.position.y
+	while y < r.end.y:
+		var x := r.position.x
+		var h := 72
+		while x < r.end.x:
+			var pool: Array = IS.rotten if rnd.randf() < rotten else IS.planks
+			var t: Rect2 = pool[rnd.randi() % pool.size()]
+			var tile := _piece(t.grow(-4))
+			var w := mini(tile.get_width(), r.end.x - x)
+			var hh := mini(mini(h, tile.get_height()), r.end.y - y)
+			img.blit_rect(tile, Rect2i(0, 0, w, hh), Vector2i(x, y))
 			x += w
 		y += h
 
 
-## Собирает комнату в картинку: растяжка копиями колонки и ряда, новый пол,
-## прорезанные проёмы, своя утварь
-func compose_room(sheet: Image, d: Dictionary) -> Image:
-	var src := Rect2i(d.src)
-	var cols: Array = d.get("cols", [0, 0, 0])
-	var rows: Array = d.get("rows", [0, 0, 0])
-	var c0: int = cols[0]
-	var c1: int = cols[1]
-	var nx: int = cols[2]
-	var cw := c1 - c0
-	var wide := sheet.get_region(src)
-	if nx > 0:
-		wide = Image.create(src.size.x + cw * nx, src.size.y, false, Image.FORMAT_RGBA8)
-		wide.blit_rect(sheet, Rect2i(src.position.x, src.position.y, c1 - src.position.x, src.size.y), Vector2i.ZERO)
-		for i in nx:
-			var dx := c1 - src.position.x + i * cw
-			wide.blit_rect(sheet, Rect2i(c0, src.position.y, cw, src.size.y), Vector2i(dx, 0))
-			for a in d.get("col_alt", []):
-				wide.blit_rect(sheet, Rect2i(a[2], a[0], cw, a[1] - a[0]), Vector2i(dx, a[0] - src.position.y))
-		wide.blit_rect(sheet, Rect2i(c1, src.position.y, src.end.x - c1, src.size.y), Vector2i(c1 - src.position.x + nx * cw, 0))
-
-	var img := wide
-	var ny: int = rows[2]
-	if ny > 0:
-		var r0: int = rows[0] - src.position.y
-		var r1: int = rows[1] - src.position.y
-		var rh := r1 - r0
-		var ww := wide.get_width()
-		img = Image.create(ww, src.size.y + rh * ny, false, Image.FORMAT_RGBA8)
-		img.blit_rect(wide, Rect2i(0, 0, ww, r1), Vector2i.ZERO)
-		for i in ny:
-			img.blit_rect(wide, Rect2i(0, r0, ww, rh), Vector2i(0, r1 + i * rh))
-			for a in d.get("row_alt", []):
-				img.blit_rect(sheet, Rect2i(a[0], a[2], a[1] - a[0], rh), Vector2i(a[0] - src.position.x, r1 + i * rh))
-		img.blit_rect(wide, Rect2i(0, r1, ww, src.size.y - r1), Vector2i(0, r1 + ny * rh))
-
-	# Новый пол: один прямоугольник или список (концы — через растяжку,
-	# прямоугольник может пересекать вставленные полосы)
-	var floors: Array = d.floor if d.get("floor") is Array else ([d.floor] if d.has("floor") else [])
-	for f: Rect2 in floors:
-		var fa := room_ex(d, f.position)
-		fill_tiled(img, sheet, Rect2i(Rect2(fa, room_ex(d, f.end) - fa)), Rect2i(FLOOR_SRC))
-	for p in d.get("patches", []):
-		img.blit_rect(sheet, Rect2i(p[0]), Vector2i(room_ex(d, p[1])))
-	for it in d.get("items", []):
-		img.blend_rect(sheet, Rect2i(it[0]), Vector2i(room_ex(d, it[1])))
-	return img
+## Мусор и листья поверх пола — пятнами с рваным краем
+func _int_debris(img: Image, r: Rect2i, count: int, rnd: RandomNumberGenerator) -> void:
+	for i in count:
+		var d: Rect2 = IS.debris[rnd.randi() % IS.debris.size()]
+		var p := _piece(d)
+		if rnd.randf() < 0.5:
+			p.flip_x()
+		if rnd.randf() < 0.5:
+			p.flip_y()
+		var k := rnd.randf_range(0.55, 0.85)
+		for yy in p.get_height():
+			for xx in p.get_width():
+				var c := p.get_pixel(xx, yy)
+				c.a *= k
+				p.set_pixel(xx, yy, c)
+		var at := Vector2i(rnd.randi_range(r.position.x - 20, r.end.x - p.get_width() + 20), rnd.randi_range(r.position.y - 10, r.end.y - p.get_height() + 10))
+		_blend_piece(img, p, at)
 
 
-## Ступенчатая лестница: верх и низ куска листа, между ними — повтор середины
-func compose_stairs(sheet: Image, repeat: int) -> Image:
-	var s := Rect2i(STAIRS_SRC)
-	var m0 := int(STAIRS_MID.x)
-	var m1 := int(STAIRS_MID.y)
-	var mh := m1 - m0
-	var img := Image.create(s.size.x, s.size.y + mh * repeat, false, Image.FORMAT_RGBA8)
-	img.blit_rect(sheet, Rect2i(s.position.x, s.position.y, s.size.x, m1 - s.position.y), Vector2i.ZERO)
+## Задняя стена-фасад: куски по порядку, растянутые ровно под ширину.
+## Возвращает x центров окон
+func _int_face(img: Image, x0: int, x1: int, y: int, names: Array) -> Array:
+	var total := 0.0
+	for n in names:
+		total += (FACES[n][0] as Rect2).size.x
+	var sx := float(x1 - x0) / total
+	var x := float(x0)
+	var windows := []
+	for n in names:
+		var r: Rect2 = FACES[n][0]
+		var w := r.size.x * sx
+		_blend_piece(img, _piece(r, Vector2i(roundi(w), FACE_H)), Vector2i(roundi(x), y))
+		if FACES[n][1] >= 0.0:
+			windows.append(x + w * FACES[n][1])
+		x += w
+	return windows
+
+
+## Стена "сверху": тёмная полоса с балкой каркаса посередине
+func _int_hstrip(img: Image, x0: int, x1: int, y: int) -> void:
+	_fill_rect(img, Rect2i(x0, y, x1 - x0, WALL_T), Color(0.07, 0.055, 0.045))
+	var b := _piece(IS.beam)
+	var x := x0 + 2
+	while x < x1 - 2:
+		var w := mini(b.get_width(), x1 - 2 - x)
+		img.blit_rect(b, Rect2i(0, 0, w, b.get_height()), Vector2i(x, y + 3))
+		x += w
+
+
+func _int_vstrip(img: Image, x: int, y0: int, y1: int) -> void:
+	_fill_rect(img, Rect2i(x, y0, WALL_T, y1 - y0), Color(0.07, 0.055, 0.045))
+	var p := _piece(IS.post)
+	var y := y0 + 2
+	while y < y1 - 2:
+		var h := mini(p.get_height(), y1 - 2 - y)
+		img.blit_rect(p, Rect2i(0, 0, p.get_width(), h), Vector2i(x + 1, y))
+		y += h
+
+
+## Лестница: верх и низ куска листа, середина повторяется repeat раз.
+## down — вид сверху в пролёт: низ уходит в темноту первого этажа,
+## иначе (снизу) — верх уходит под перекрытие
+func _int_stairs(img: Image, at: Vector2i, repeat: int, down: bool) -> Rect2i:
+	var s: Rect2 = IS.stairs
+	var m: Vector2 = IS.stairs_mid
+	var top := _piece(Rect2(s.position.x, s.position.y, s.size.x, m.x))
+	var mid := _piece(Rect2(s.position.x, s.position.y + m.x, s.size.x, m.y - m.x))
+	var bot := _piece(Rect2(s.position.x, s.position.y + m.y, s.size.x, s.size.y - m.y))
+	var h := top.get_height() + mid.get_height() * repeat + bot.get_height()
+	if down:
+		_fill_rect(img, Rect2i(at.x + 18, at.y, int(s.size.x) - 36, h), Color(0.02, 0.015, 0.01))
+	_blend_piece(img, top, at)
 	for i in repeat:
-		img.blit_rect(sheet, Rect2i(s.position.x, m0, s.size.x, mh), Vector2i(0, m1 - s.position.y + i * mh))
-	img.blit_rect(sheet, Rect2i(s.position.x, m1, s.size.x, s.end.y - m1), Vector2i(0, m1 - s.position.y + repeat * mh))
-	return img
+		_blend_piece(img, mid, at + Vector2i(0, top.get_height() + i * mid.get_height()))
+	_blend_piece(img, bot, at + Vector2i(0, top.get_height() + repeat * mid.get_height()))
+	var dh := 130
+	var dark := Image.create(int(s.size.x) + 8, dh, false, Image.FORMAT_RGBA8)
+	for y in dh:
+		var k := float(y) / dh
+		var a := 0.95 * pow(k if down else 1.0 - k, 1.5)
+		for x in dark.get_width():
+			var e := clampf(minf(x, dark.get_width() - 1 - x) / 6.0, 0.0, 1.0)
+			dark.set_pixel(x, y, Color(0.02, 0.015, 0.01, a * e))
+	_blend_piece(img, dark, Vector2i(at.x - 4, at.y + h - dh if down else at.y))
+	return Rect2i(at, Vector2i(int(s.size.x), h))
 
 
-func house_interior(node_name: String, exterior: String, body: Rect2, h: Dictionary) -> void:
-	# Картинки этажей — лист читаем как Image напрямую (без импорта), результат
-	# сохраняем ресурсами, чтобы сцена ссылалась на файлы, а не тащила
-	# картинки внутри .tscn
-	var sheet := Image.load_from_file(ProjectSettings.globalize_path(INTERIOR_TEX))
-	sheet.convert(Image.FORMAT_RGBA8)
-	# Отдельные доски в листе светлее пола в готовых комнатах — притемняем,
-	# чтобы заделанные проёмы и новый пол не выделялись пятнами
-	var fr := Rect2i(FLOOR_SRC)
-	for y in range(fr.position.y, fr.end.y):
-		for x in range(fr.position.x, fr.end.x):
-			var c := sheet.get_pixel(x, y)
-			sheet.set_pixel(x, y, Color(c.r * 0.86, c.g * 0.86, c.b * 0.86, c.a))
+## Предмет: картинка листа в точке at (левый верх). solid — нижняя доля высоты
+## под коллизию (0 — без коллизии, ковры). Возвращает коллизию или пустой
+func _int_item(img: Image, name: String, at: Vector2, solid := 0.45, flip := false) -> Rect2:
+	var r: Rect2 = IT[name]
+	var p := _piece(r)
+	if flip:
+		p.flip_x()
+	_blend_piece(img, p, Vector2i(at))
+	if solid <= 0.0:
+		return Rect2()
+	return Rect2(at.x + 3, at.y + r.size.y * (1.0 - solid), r.size.x - 6, r.size.y * solid - 2)
 
-	var floors: Array = h.floors
-	var room_imgs := []          # [этаж][комната]
-	var lo := Vector2(INF, INF)
-	var hi := Vector2(-INF, -INF)
-	for f in floors:
-		var imgs := []
-		for r in f.rooms:
-			var im := compose_room(sheet, r)
-			imgs.append(im)
-			lo = Vector2(minf(lo.x, r.at.x), minf(lo.y, r.at.y))
-			hi = Vector2(maxf(hi.x, r.at.x + im.get_width()), maxf(hi.y, r.at.y + im.get_height()))
-		room_imgs.append(imgs)
-	# Всё ниже — в "картинке дома" с началом в левом верхнем углу всех комнат
-	var shift := -lo
-	var size := Vector2i(hi - lo)
 
-	# Мир: точка (door_x, wall_y) главной комнаты ложится на дверь спрайта снаружи
-	var main: Dictionary = floors[0].rooms[h.main]
-	var hp := func(r: Dictionary, p: Vector2) -> Vector2: return r.at + shift + room_ex(r, p)
-	var world_door: Vector2 = h.world_door
-	var origin: Vector2 = world_door - hp.call(main, Vector2(h.door_x, h.wall_y)) * INT_S
+## Дома. Разрушенный дом: справа зал под щипцом (дверь — арка на спрайте,
+## 0.5895 ширины картинки), слева под низким крылом кладовая и спальня, по
+## лестнице у правой стены зала — второй этаж. Амбар — одна большая комната
+func build_interiors(ruin_base: Vector2, ruin_sc: float, ruin_body: Rect2, barn_base: Vector2, barn_sc: float, barn_body: Rect2) -> void:
+	var moon := Color(0.62, 0.72, 0.95)
+	var ruin_w: float = load("res://TileMap/Houses/ruin_house.png").get_width()
+	# Комнаты занимают всё место под крышей дома: зал x 586..1156 y 0..660,
+	# крыло (спальня x 0..320, кладовая x 296..610) y 180..660. Справа от
+	# зала — ограда кладбища, дальше не расширить. Проёмы между комнатами у
+	# нижней стены — 90 px (36 px мира: проходят и враги)
+	var walls_common := {
+		"h": [[586, 1156, 0], [0, 586, 180]],
+		"v": [[0, 180, 660], [1132, 0, 660], [586, 0, 530], [586, 620, 636], [296, 180, 530], [296, 620, 636]],
+	}
+	var floor_rects := [Rect2i(610, 129, 522, 507), Rect2i(320, 309, 266, 327), Rect2i(24, 309, 272, 327),
+			Rect2i(574, 530, 50, 90), Rect2i(284, 530, 50, 90), Rect2i(641, 630, 90, 30)]     # + проёмы и порог
+	var debris_g := [[Rect2i(610, 140, 400, 490), 12], [Rect2i(320, 320, 260, 300), 5], [Rect2i(24, 320, 265, 300), 5]]
+	var ground := {
+		"floor": floor_rects,
+		"rotten": 0.18,
+		"debris": debris_g,
+		"faces": [[610, 1132, WALL_T, ["broken", "win_a", "hole", "win_d"]],
+				[320, 586, 204, ["win_b", "win_c"]],
+				[24, 296, 204, ["hole", "win_e"]]],
+		"h": walls_common.h + [[0, 641, 636], [731, 1156, 636]],     # входная дверь x 641..731
+		"v": walls_common.v,
+		"stairs": [Vector2i(1021, WALL_T), 5, false],
+		"items": [
+			# зал
+			["hearth", Vector2(760, 39)], ["shelf_jars", Vector2(900, 62)],
+			["rubble", Vector2(616, 132), 0.5], ["stones", Vector2(680, 172), 0.0], ["skull", Vector2(960, 250), 0.0],
+			["table_plates", Vector2(720, 360)], ["chair", Vector2(835, 356), 0.4, true], ["plank", Vector2(700, 450), 0.0],
+			["bench", Vector2(765, 425), 0.35], ["crate", Vector2(630, 290)], ["rubble2", Vector2(900, 520), 0.5],
+			["barrel", Vector2(1050, 470)], ["crate_s", Vector2(1060, 540)],
+			# кладовая
+			["shelf_potions", Vector2(335, 240)], ["shelf_low", Vector2(440, 250)], ["barrel", Vector2(340, 330)],
+			["sack", Vector2(395, 345)], ["crate", Vector2(480, 330)], ["basket", Vector2(440, 410), 0.4], ["crate_s", Vector2(530, 420)],
+			# спальня
+			["bed_torn", Vector2(44, 245)], ["nightstand", Vector2(120, 265)], ["wardrobe", Vector2(210, 220)],
+			["chest", Vector2(130, 345)], ["bear", Vector2(130, 395), 0.0], ["chair_small", Vector2(240, 330), 0.4],
+		],
+		"solids": [Rect2(1021, 129, 20, 312), Rect2(1108, 129, 24, 312)],     # перила лестницы
+		"lights": [[Vector2(820, 300), moon, 0.38, 46.0]],                    # дыра в крыше над залом
+		"fill": 0.34,
+	}
+	var upper := {
+		"floor": floor_rects,
+		"rotten": 0.3,
+		"debris": [[Rect2i(610, 140, 400, 490), 16], [Rect2i(320, 320, 260, 300), 7], [Rect2i(24, 320, 265, 300), 7]],
+		"faces": [[610, 1132, WALL_T, ["win_b", "broken", "win_c"]],
+				[320, 586, 204, ["broken", "win_e"]],
+				[24, 296, 204, ["win_d", "hole"]]],
+		"h": walls_common.h + [[0, 1156, 636]],      # двери наверху нет
+		"v": walls_common.v,
+		"stairs": [Vector2i(1021, WALL_T), 5, true],
+		"items": [
+			# кабинет над залом: дымоход насквозь, книжные полки, стол с картой
+			["chimney_ruin", Vector2(765, 24)], ["shelf_potions", Vector2(630, 60)], ["shelf_low", Vector2(870, 72)],
+			["armor", Vector2(960, 52), 0.35], ["rug_red", Vector2(700, 420), 0.0],
+			["desk_map", Vector2(660, 260)], ["chair_small", Vector2(690, 318), 0.4],
+			["rubble", Vector2(820, 520), 0.5], ["stones", Vector2(880, 300), 0.0], ["crate_tall", Vector2(1070, 500)],
+			# комната над кладовой: верстак, сундук
+			["table_tools", Vector2(340, 380)], ["chest_big", Vector2(470, 250)], ["shelf_small", Vector2(330, 256)],
+			# хозяйская спальня
+			["bed_red", Vector2(40, 250)], ["nightstand", Vector2(130, 255)], ["trunk", Vector2(180, 380)],
+			["fur", Vector2(60, 420), 0.0],
+		],
+		# Перила пролёта: слева (кроме верха — там сходят на этаж), снизу и справа
+		# (как внизу — иначе, спускаясь вдоль правого края, герой оказался бы
+		# внутри нижних перил)
+		"solids": [Rect2(1021, 235, 20, 208), Rect2(1021, 441, 111, 8), Rect2(1108, 129, 24, 312)],
+		# луна сквозь дыры в крыше
+		"lights": [[Vector2(700, 520), moon, 0.42, 46.0], [Vector2(880, 360), moon, 0.36, 40.0],
+				[Vector2(420, 470), moon, 0.34, 36.0], [Vector2(150, 500), moon, 0.3, 36.0]],
+		"fill": 0.3,
+	}
+	house2("RuinHouseInterior", "RuinHouse", ruin_body, {
+		"size": Vector2i(1156, 660), "door": Vector2(686, 660),
+		"world_door": Vector2(ruin_base.x + 0.0895 * ruin_w * ruin_sc, ruin_base.y + 4.0),
+		"rooms": [Rect2(586, 0, 570, 660), Rect2(296, 180, 314, 480), Rect2(0, 180, 320, 480)],
+		"floors": [ground, upper],
+		# ступени между перилами; верх — докуда реально доходит герой у стены
+		"stairs_rect": Rect2(1041, 140, 67, 301),
+		"seed": 77,
+	})
+	# Амбар: телега, дрова, бочки — хозяйство брошено. Комната — почти вся
+	# стеновая часть сарая
+	var barn_w: float = load("res://TileMap/Houses/barn.png").get_width()
+	house2("BarnInterior", "Barn", barn_body, {
+		"size": Vector2i(700, 535), "door": Vector2(274, 535),
+		"world_door": Vector2(barn_base.x - 0.135 * barn_w * barn_sc, barn_base.y + 2.0),
+		"rooms": [Rect2(0, 0, 700, 535)],
+		"floors": [{
+			"floor": [Rect2i(24, 129, 652, 382), Rect2i(229, 505, 90, 30)],
+			"rotten": 0.35,
+			"debris": [[Rect2i(24, 140, 652, 370), 11]],
+			"faces": [[24, 676, WALL_T, ["win_a", "hole", "win_e", "win_b"]]],
+			"h": [[0, 700, 0], [0, 229, 511], [319, 700, 511]],
+			"v": [[0, 0, 535], [676, 0, 535]],
+			"items": [
+				["wagon", Vector2(50, 120), 0.5], ["wheel", Vector2(200, 140), 0.0], ["logs", Vector2(330, 125), 0.6],
+				["logs2", Vector2(334, 150), 0.6], ["sack", Vector2(500, 170)], ["tub", Vector2(560, 170)],
+				["crate", Vector2(580, 280)], ["crate_tall", Vector2(620, 380)], ["crate_s", Vector2(60, 380)],
+				["barrel", Vector2(110, 370)], ["anvil", Vector2(450, 400)], ["bucket", Vector2(300, 330), 0.4],
+				["stones", Vector2(380, 450), 0.0],
+			],
+			"lights": [],
+			"fill": 0.34,
+		}],
+		"seed": 91,
+	})
+
+
+func house2(node_name: String, exterior: String, body: Rect2, h: Dictionary) -> void:
+	var size: Vector2i = h.size
+	var origin: Vector2 = (h.world_door as Vector2) - (h.door as Vector2) * INT_S
 	var wp := func(p: Vector2) -> Vector2: return origin + p * INT_S
 	var wrect := func(r: Rect2) -> Rect2: return Rect2(origin + r.position * INT_S, r.size * INT_S)
+	var rnd := RandomNumberGenerator.new()
+	rnd.seed = h.seed
 
 	var root := Node2D.new()
 	root.name = node_name
@@ -1109,59 +1096,43 @@ func house_interior(node_name: String, exterior: String, body: Rect2, h: Diction
 	root.set_script(load("res://Levels/house_interior.gd"))
 	add_node(root)
 
-	var g := Gradient.new()
-	g.colors = PackedColorArray([Color(1, 1, 1, 1), Color(1, 1, 1, 0)])
-	var lt := GradientTexture2D.new()
-	lt.gradient = g
-	lt.width = 128
-	lt.height = 128
-	lt.fill = GradientTexture2D.FILL_RADIAL
-	lt.fill_from = Vector2(0.5, 0.5)
-	lt.fill_to = Vector2(1.0, 0.5)
-
-	var room_rects: Array[Rect2] = []
-	var stairs_world := Rect2()
+	var floors: Array = h.floors
 	for fi in floors.size():
 		var f: Dictionary = floors[fi]
-		var rooms: Array = f.rooms
-		# Свои слои: стены верхних этажей — только для игрока наверху (слой 10),
-		# оклюдеры — свои для огня каждого этажа
-		var solid_layer := 1 if fi == 0 else 512
+		var solid_layer := 1 if fi == 0 else 512   # верхний этаж — только для игрока наверху
 		var occ_bit := 32 << fi
-
-		# ---- картинка этажа
 		var img := Image.create(size.x, size.y, false, Image.FORMAT_RGBA8)
-		for i in rooms.size():
-			var im: Image = room_imgs[fi][i]
-			img.blend_rect(im, Rect2i(Vector2i.ZERO, im.get_size()), Vector2i(rooms[i].at + shift))
-		for door: Rect2 in f.get("doors", []):
-			fill_tiled(img, sheet, Rect2i(Rect2(door.position + shift, door.size)), Rect2i(FLOOR_SRC))
-		var stairs: Dictionary = f.get("stairs", {})
-		var stairs_img: Image = null if stairs.is_empty() else compose_stairs(sheet, stairs.repeat)
-		if stairs_img:
-			var sa := Vector2i(stairs.at + shift)
-			var down: bool = stairs.get("down", false)
-			if down:
-				# Пролёт сверху: под лестницей — провал вниз
-				var hole := Image.create(stairs_img.get_width(), stairs_img.get_height(), false, Image.FORMAT_RGBA8)
-				hole.fill(Color(0.03, 0.02, 0.015, 1.0))
-				img.blit_rect(hole, Rect2i(Vector2i.ZERO, hole.get_size()), sa)
-			img.blend_rect(stairs_img, Rect2i(Vector2i.ZERO, stairs_img.get_size()), sa)
-			# Темнота пролёта: внизу — верх лестницы уходит под перекрытие (тёмный
-			# верх); наверху — низ лестницы уходит на первый этаж (тёмный низ)
-			var dw := stairs_img.get_width() + 8
-			var dh := 120
-			var dark := Image.create(dw, dh, false, Image.FORMAT_RGBA8)
-			for y in dh:
-				var k := float(y) / dh
-				var a := 0.96 * pow(k if down else 1.0 - k, 1.4)
-				for x in dw:
-					var edge := clampf(minf(x, dw - 1 - x) / 6.0, 0.0, 1.0)
-					dark.set_pixel(x, y, Color(0.02, 0.015, 0.01, a * edge))
-			var dy := sa.y + stairs_img.get_height() - dh if down else int(shift.y)
-			img.blend_rect(dark, Rect2i(0, 0, dw, dh), Vector2i(sa.x - 4, dy))
+		for r: Rect2i in f.floor:
+			_int_floor(img, r, rnd, f.get("rotten", 0.15))
+		for d in f.get("debris", []):
+			_int_debris(img, d[0], d[1], rnd)
+		var windows := []
+		var solids: Array[Rect2] = []
+		for fc in f.faces:
+			# Под фасадом — тёмная кладка: в рваных краях разрушенных кусков иначе
+			# просвечивала бы трава с улицы
+			_fill_rect(img, Rect2i(fc[0], fc[2], fc[1] - fc[0], FACE_H), Color(0.1, 0.085, 0.075))
+			for wx in _int_face(img, fc[0], fc[1], fc[2], fc[3]):
+				windows.append(Vector2(wx, fc[2] + FACE_H))
+			# фасад непроходим, кроме нижних пикселей — герой встаёт к стене вплотную
+			solids.append(Rect2(fc[0], fc[2], fc[1] - fc[0], FACE_H - 8))
+		# Стены "сверху" — поверх пола и мусора
+		var wall_rects: Array[Rect2] = []
+		for s in f.h:
+			_int_hstrip(img, s[0], s[1], s[2])
+			wall_rects.append(Rect2(s[0], s[2], s[1] - s[0], WALL_T))
+		for s in f.v:
+			_int_vstrip(img, s[0], s[1], s[2])
+			wall_rects.append(Rect2(s[0], s[1], WALL_T, s[2] - s[1]))
+		if f.has("stairs"):
+			_int_stairs(img, f.stairs[0], f.stairs[1], f.stairs[2])
 		for it in f.get("items", []):
-			img.blend_rect(sheet, Rect2i(it[0]), Vector2i(it[1] + shift))
+			var sr := _int_item(img, it[0], it[1], it[2] if it.size() > 2 else 0.45, it[3] if it.size() > 3 else false)
+			if sr.size != Vector2.ZERO:
+				solids.append(sr)
+		for s: Rect2 in f.get("solids", []):
+			solids.append(s)
+
 		var path := ROOMS_DIR + node_name + ("" if fi == 0 else "_floor%d" % (fi + 1)) + ".res"
 		DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path(ROOMS_DIR))
 		ResourceSaver.save(ImageTexture.create_from_image(img), path)
@@ -1173,68 +1144,53 @@ func house_interior(node_name: String, exterior: String, body: Rect2, h: Diction
 		var vis := Node2D.new()
 		vis.name = "Visuals"
 		add_node(vis, fnode)
-		var s := Sprite2D.new()
-		s.name = "Rooms"
-		s.texture = tex
-		s.centered = false
-		s.position = origin
-		s.scale = Vector2(INT_S, INT_S)
-		# Лист уменьшается в 2 раза — линейная фильтрация, как у домов
-		s.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR
+		var spr := Sprite2D.new()
+		spr.name = "Rooms"
+		spr.texture = tex
+		spr.centered = false
+		spr.position = origin
+		spr.scale = Vector2(INT_S, INT_S)
+		# Лист уменьшается в 2.5 раза — линейная фильтрация, как у домов
+		spr.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR
 		# Свой бит света: лунный свет и облака (бит 1) под крышу не попадают
-		s.light_mask = 2
-		add_node(s, vis)
+		spr.light_mask = 2
+		add_node(spr, vis)
 
+		# ---- свет: только луна — пятна под окнами и дырами в крыше
 		var lights := Node2D.new()
 		lights.name = "Lights"
 		add_node(lights, fnode)
-		var radial := func(pos: Vector2, l: Array) -> void:
+		var moon := Color(0.62, 0.72, 0.95)
+		var spots: Array = f.get("lights", []).duplicate()
+		for w: Vector2 in windows:
+			spots.append([w + Vector2(0, 48), moon, 0.36, 40.0])
+		for l in spots:
 			var pl := PointLight2D.new()
-			pl.texture = lt
-			pl.texture_scale = float(l[3]) * 2.0 / 128.0
-			pl.position = pos
+			pl.texture = radial_tex(256)
+			pl.texture_scale = float(l[3]) * 2.0 / 256.0
+			pl.position = wp.call(l[0])
 			pl.color = l[1]
 			pl.energy = l[2]
 			pl.blend_mode = Light2D.BLEND_MODE_ADD
-			# Круглый свет (огонь, свеча, луна в дыре крыши) светит и на интерьер,
-			# и на обычный слой. С одной маской 2 он ложился тускло и плоско, а
-			# тень почти пропадала. Наружу и в соседние комнаты не проливается:
-			# стены — оклюдеры этого этажа. Тень персонажа на пол тоже от него
-			# (тело персонажа освещает общий свет комнаты — он без тени)
+			# Светит и на интерьер, и на героя/врагов (бит 1); стены — оклюдеры,
+			# свет не выходит наружу. От него и тень героя на полу
 			pl.range_item_cull_mask = 3
 			fire_shadow(pl, occ_bit)
-			if l[4]:
-				pl.set_meta("flicker", true)
 			add_node(pl, lights)
-			# Копия без тени — только для тела персонажа (слой 8, см.
-			# player_spawner.gd): огонь окрашивает героя своим тёплым цветом,
-			# сильнее всего вблизи. Сам теневой свет тело не освещает — иначе
-			# персонаж ловил бы собственную тень. Чуть шире оригинала, цвет
-			# насыщеннее, а яркость ниже: спрайты героев светлые, и полный огонь
-			# пересвечивал их почти в белый вместо тёплого оранжевого
+			# Копия без тени — только тело героя (слой 8): лунный свет ложится и
+			# на него, но собственной тени он не ловит
 			var bl := pl.duplicate() as PointLight2D
 			bl.name = "BodyLight"
 			bl.shadow_enabled = false
 			bl.range_item_cull_mask = 8
 			bl.texture_scale = pl.texture_scale * 1.3
-			var lc: Color = l[1]
-			bl.color = Color(lc.r, lc.g * 0.8, lc.b * 0.45)
-			bl.energy = pl.energy * 0.75
+			bl.energy = pl.energy * 0.8
 			add_node(bl, lights)
-
-		for r in rooms:
-			var room: Rect2 = r.room
-			var rr: Rect2 = wrect.call(Rect2(hp.call(r, room.position), room_ex(r, room.end)))
-			if fi == 0:
-				room_rects.append(rr)
-			for l in r.get("lights", []):
-				radial.call(wp.call(hp.call(r, l[0])), l)
-			# Общий тёплый свет комнаты — "коробка" ровно по комнате с мягкими
-			# краями в толще стен. Светит и на интерьер, и на всё обычное (бит 1):
-			# на игрока и врагов внутри, — но наружу не выходит по форме текстуры
-			var fill: Array = r.fill
+		# Общий рассеянный свет — "коробка" по каждой комнате, холодный и тусклый
+		for rr: Rect2 in h.rooms:
+			var wr: Rect2 = wrect.call(rr)
 			var bw := 64
-			var bh := maxi(8, roundi(bw * rr.size.y / rr.size.x))
+			var bh := maxi(8, roundi(bw * wr.size.y / wr.size.x))
 			var box := Image.create(bw, bh, false, Image.FORMAT_RGBA8)
 			for y in bh:
 				for x in bw:
@@ -1243,59 +1199,30 @@ func house_interior(node_name: String, exterior: String, body: Rect2, h: Diction
 					box.set_pixel(x, y, Color(v, v, v, v))
 			var fl := PointLight2D.new()
 			fl.texture = ImageTexture.create_from_image(box)
-			fl.texture_scale = rr.size.x / bw
-			fl.position = rr.get_center()
-			fl.color = fill[0]
-			fl.energy = fill[1]
+			fl.texture_scale = wr.size.x / bw
+			fl.position = wr.get_center()
+			fl.color = Color(0.58, 0.64, 0.78)
+			fl.energy = f.fill
 			fl.blend_mode = Light2D.BLEND_MODE_ADD
-			fl.range_item_cull_mask = 3
-			if fill[2]:
-				fl.set_meta("flicker", true)
+			fl.range_item_cull_mask = 11     # интерьер, всё обычное и тело героя
 			add_node(fl, lights)
-			# Стены и мебель
-			for sr: Rect2 in r.get("solids", []):
-				var a: Vector2 = hp.call(r, sr.position)
-				static_rect(Vector2.ZERO, wrect.call(Rect2(a, hp.call(r, sr.end) - a)), solid_layer)
-		for l in f.get("lights", []):
-			radial.call(wp.call(l[0] + shift), l)
-		for sr: Rect2 in f.get("solids", []):
-			static_rect(Vector2.ZERO, wrect.call(Rect2(sr.position + shift, sr.size)), solid_layer)
 
-		# Стены не пропускают огонь наружу (и в соседние комнаты): незамкнутые
-		# ломаные по стенам — сами стены изнутри остаются освещёнными; в дверях
-		# щели, сквозь которые свет чуть выливается
-		var lines: Array = []
-		if f.has("occluders"):
-			for line in f.occluders:
-				var pts := PackedVector2Array()
-				for p: Vector2 in line:
-					pts.append(wp.call(p + shift))
-				lines.append(pts)
-		else:
-			var door_patch: Array = main.patches[0]
-			var R: Rect2 = room_rects[h.main]
-			var gx0: float = wp.call(hp.call(main, door_patch[1])).x
-			var gx1: float = gx0 + (door_patch[0] as Rect2).size.x * INT_S
-			lines.append(PackedVector2Array([Vector2(gx1, R.end.y), R.end, Vector2(R.end.x, R.position.y),
-					R.position, Vector2(R.position.x, R.end.y), Vector2(gx0, R.end.y)]))
-		for i in lines.size():
+		# ---- стены не пропускают свет наружу и в соседние комнаты
+		for i in wall_rects.size():
+			var wr: Rect2 = wrect.call(wall_rects[i])
 			var occ := LightOccluder2D.new()
 			occ.name = "WallOccluder%d" % (i + 1)
 			var poly := OccluderPolygon2D.new()
-			poly.closed = false
-			poly.polygon = lines[i]
+			poly.polygon = PackedVector2Array([wr.position, Vector2(wr.end.x, wr.position.y), wr.end, Vector2(wr.position.x, wr.end.y)])
 			occ.occluder = poly
 			occ.occluder_light_mask = occ_bit
 			add_node(occ, fnode)
 
-		# Лестница общая для этажей: по ней первый этаж плавно сменяется вторым
-		# (Levels/house_interior.gd). Ступени — между левыми перилами и правой
-		# стеной зала
-		if stairs_img and fi == 0:
-			stairs_world = wrect.call(Rect2(stairs.at + shift + Vector2(14, 0), Vector2(stairs_img.get_width() - 14, stairs_img.get_height())))
+		# ---- коллизия: стены и мебель
+		for s: Rect2 in wall_rects + solids:
+			static_rect(Vector2.ZERO, wrect.call(s), solid_layer)
 
 	# Затемнение улицы — полигон на всю карту с запасом, поверх всего мира
-	# (лунные лучи — z 101)
 	var shade := Polygon2D.new()
 	shade.name = "Shade"
 	var m := 1200.0
@@ -1307,10 +1234,13 @@ func house_interior(node_name: String, exterior: String, body: Rect2, h: Diction
 	shade.material = sm
 	add_node(shade, root)
 
+	var room_rects: Array[Rect2] = []
+	for rr: Rect2 in h.rooms:
+		room_rects.append(wrect.call(rr))
 	root.set("exterior_path", root.get_path_to(lvl.get_node(exterior)))
 	root.set("rooms", room_rects)
-	if stairs_world.size != Vector2.ZERO:
-		root.set("stairs_rect", stairs_world)
+	if h.has("stairs_rect"):
+		root.set("stairs_rect", wrect.call(h.stairs_rect))
 
 	# Корпус дома, не занятый комнатами, — сплошной: по бокам от комнат и над
 	# теми, что ниже крыши (низкое крыло)
@@ -1325,6 +1255,7 @@ func house_interior(node_name: String, exterior: String, body: Rect2, h: Diction
 		static_rect(Vector2.ZERO, Rect2(body.position.x, body.position.y, minx - body.position.x, body.size.y))
 	if maxx < body.end.x:
 		static_rect(Vector2.ZERO, Rect2(maxx, body.position.y, body.end.x - maxx, body.size.y))
+
 
 # ============================================================ ЛИСТ ground_&_props
 #
@@ -1390,7 +1321,76 @@ func gp_tex(name: String) -> AtlasTexture:
 ## Спрайт из листа, стоящий основанием (низ картинки по центру) в base —
 ## по основанию он и сортируется по глубине. solid — доли ширины/высоты
 ## картинки у основания под коллизию (ноль — без коллизии)
+## Что можно разбить (Levels/props/breakable_prop.gd): [прочность, шанс монет].
+## Хрупкое деревянное и глиняное; камни, кусты, палатки, колодец — нет
+const BREAKABLE := {
+	"barrel": [2, 0.35], "barrel_small": [1, 0.25], "crate": [2, 0.4], "crate_stack": [3, 0.5],
+	"crate_tall": [2, 0.35], "bucket": [1, 0.0], "jug": [1, 0.15], "firewood": [1, 0.0],
+	"woodpile": [3, 0.0], "sack_cart": [3, 0.4], "handcart": [3, 0.0], "pot_stand": [2, 0.0],
+	"log_bench": [2, 0.0], "log_bench2": [2, 0.0], "banner_red": [2, 0.0], "banner_red2": [2, 0.0],
+	"scythe": [1, 0.0],
+}
+
+
+## Разбиваемый предмет: StaticBody2D со скриптом, стоит основанием в base
+func gp_breakable(name: String, base: Vector2, sc: float, solid: Vector2, flip: bool) -> Sprite2D:
+	var r: Rect2 = GP_SPR[name]
+	var b := StaticBody2D.new()
+	b.name = name.to_pascal_case()
+	b.position = base
+	b.collision_layer = 1
+	b.set_script(load("res://Levels/props/breakable_prop.gd"))
+	b.set("hits", BREAKABLE[name][0])
+	b.set("loot_chance", BREAKABLE[name][1])
+	b.set("pieces", Vector2i(clampi(roundi(r.size.x / 28.0), 2, 4), clampi(roundi(r.size.y / 28.0), 2, 3)))
+	# Цвет щепок — средний цвет самого предмета
+	var img := _gp_sheet_img()
+	var avg := Color(0, 0, 0, 0)
+	for y in range(int(r.position.y), int(r.end.y), 3):
+		for x in range(int(r.position.x), int(r.end.x), 3):
+			var c := img.get_pixel(x, y)
+			if c.a > 0.5:
+				avg += Color(c.r, c.g, c.b, 1.0)
+	if avg.a > 0.0:
+		b.set("chip_color", Color(avg.r / avg.a, avg.g / avg.a, avg.b / avg.a))
+	add_node(b)
+	var s := Sprite2D.new()
+	s.name = "Sprite"
+	s.texture = gp_tex(name)
+	s.centered = false
+	s.offset = Vector2(-r.size.x * 0.5, -r.size.y)
+	s.scale = Vector2(sc, sc)
+	s.flip_h = flip
+	s.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR
+	s.material = occl_sprite
+	add_node(s, b)
+	var w := r.size.x * sc
+	var h := r.size.y * sc
+	if solid.x > 0.0 and solid.y > 0.0:
+		var cs := CollisionShape2D.new()
+		var sh := RectangleShape2D.new()
+		sh.size = Vector2(w * solid.x, h * solid.y)
+		cs.shape = sh
+		cs.position = Vector2(0, -h * solid.y * 0.5)
+		add_node(cs, b)
+	# Область попаданий — весь предмет: удар мечом приходится по корпусу
+	var hb := Area2D.new()
+	hb.name = "Hurtbox"
+	hb.collision_layer = 0
+	hb.collision_mask = 1
+	add_node(hb, b)
+	var hcs := CollisionShape2D.new()
+	var hsh := RectangleShape2D.new()
+	hsh.size = Vector2(w * 0.9, h * 0.9)
+	hcs.shape = hsh
+	hcs.position = Vector2(0, -h * 0.5)
+	add_node(hcs, hb)
+	return s
+
+
 func gp_prop(name: String, base: Vector2, sc := GP_S, solid := Vector2(0.7, 0.3), flip := false, sx := 1.0) -> Sprite2D:
+	if BREAKABLE.has(name) and sx == 1.0:
+		return gp_breakable(name, base, sc, solid, flip)
 	var r: Rect2 = GP_SPR[name]
 	var s := Sprite2D.new()
 	s.name = name.to_pascal_case()
@@ -1996,7 +1996,7 @@ func layout() -> void:
 	v_wall(RX(290), RY(680), RY(790), [[RY(720), RY(740)]])
 	h_wall(RX(290), RX(335), RY(680))
 
-	# ---------- фонтан, алтарь
+	# ---------- пруд, фонтан, алтарь (всё убрано)
 	# Пруд убран (не подошёл для игры). На его месте — поляна, а вызовы rng,
 	# которые раньше тратил пруд (камешки по берегу), сохранены вхолостую:
 	# иначе сдвинулся бы весь случайный поток и поменялась бы вся остальная карта
@@ -2004,15 +2004,9 @@ func layout() -> void:
 	for i in 14:
 		rng.randf()
 		rng.randi()
-	var fountain := AnimatedSprite2D.new()
-	fountain.name = "Fountain"
-	fountain.sprite_frames = frames_from_strip("res://TileMap/Props/shrine or fountain 160x128-on grass.png", 160, 128, 8, 6.0)
-	fountain.autoplay = "default"
-	fountain.centered = false
-	fountain.offset = Vector2(-80, -122)
-	fountain.position = world(R(565, 612))
-	add_node(fountain)
-	static_rect(fountain.position, Rect2(-62, -100, 124, 92))
+	# Фонтан убран по просьбе. Его место остаётся зарезервированным — иначе
+	# сдвинулся бы поток случайных чисел и поменялась бы вся остальная карта;
+	# на месте фонтана теперь просто поляна, куда выходит тропа
 	reserve_rect(Rect2i(R(565, 612) - Vector2i(6, 8), Vector2i(12, 9)))
 
 	# Алтарь убран по просьбе — на его месте осталась мощёная площадка

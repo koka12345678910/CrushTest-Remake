@@ -2,9 +2,12 @@ extends "res://Player_scene/character_base.gd"
 ## Маг. Движение, направления и серия ударов — в общей базе
 ## (character_base.gd), здесь только то, что отличает его от остальных.
 ##
-## Набор клипов у мага такой же, как у лучника (Idle_/Walk_/Run_/Attack_/
-## Attack_2_/Take_Damage_ на 8 направлений), поэтому база подходит как есть.
-## Заклинания и посох — следующий шаг, и им место здесь, а не в базе.
+## Набор клипов у мага почти как у лучника (Idle_/Walk_/Run_/Attack_/
+## Attack_2_/Take_Damage_ на 8 направлений); ходьба спиной — Backwards_, разворот
+## — Turn_Around_, база понимает оба варианта имён. Цель (фокус) — из базы:
+## радиус взятия у мага, как у лучника, большой (snap_radius в mage.tscn) —
+## он бьёт издалека. Монет маг не копит (collects_gold = false): его валюта —
+## души.
 ##
 ## Скорости и длину серии не переопределяем кодом: они объявлены как @export в
 ## базе, и правильное место их крутить — инспектор в mage.tscn. Присваивание в
@@ -83,6 +86,11 @@ func handle_attack_input() -> void:
 		return
 	if is_attacking:
 		return
+	# Заклинание стоит стамины — как выстрел у лучника. Не хватает — не
+	# колдуем: нельзя бесконечно спамить сильнейшим импульсом
+	var cost := pulse_stamina_cost if pulse else (sweep_stamina_cost if sweep else fireball_stamina_cost)
+	if is_instance_valid(health_bar) and not health_bar.use_stamina(cost):
+		return
 	if pulse:
 		start_attack(3)
 	elif sweep:
@@ -91,6 +99,12 @@ func handle_attack_input() -> void:
 		start_run_attack()
 	else:
 		start_attack(1)
+
+
+## Цена заклинаний в стамине (её шкала — HealthStaminaBar, восполняется сама)
+@export var fireball_stamina_cost := 12.0
+@export var sweep_stamina_cost := 16.0
+@export var pulse_stamina_cost := 28.0
 
 
 const PulseScript := preload("res://Player_scene/mage_pulse.gd")
@@ -109,6 +123,12 @@ const PulseScript := preload("res://Player_scene/mage_pulse.gd")
 ## За сколько большая волна доходит до края
 @export var pulse_big_expand := 0.6
 @export var pulse_big_knockback := 280.0
+## Тряска экрана на каждый заряд: первый — лёгкий толчок, второй (большая
+## волна) — сильнее и дольше. Сила — смещение камеры в пикселях
+@export var pulse_small_shake := 2.5
+@export var pulse_small_shake_time := 0.15
+@export var pulse_big_shake := 6.0
+@export var pulse_big_shake_time := 0.32
 
 
 func _cast_pulses() -> void:
@@ -117,8 +137,9 @@ func _cast_pulses() -> void:
 	if is_dead() or anim.current_animation != clip:
 		return
 	var small: Node2D = PulseScript.new()
-	small.setup(self, pulse_small_radius, 0.16, 0.0, pulse_damage, pulse_small_knockback, 0.45)
+	small.setup(self, pulse_small_radius, 0.16, 0.0, pulse_damage, pulse_small_knockback, 0.45, true)
 	add_child(small)
+	shake_camera(pulse_small_shake, pulse_small_shake_time)
 
 	await get_tree().create_timer(maxf(pulse_big_time - pulse_small_time, 0.0)).timeout
 	if is_dead() or anim.current_animation != clip:
@@ -126,3 +147,4 @@ func _cast_pulses() -> void:
 	var big: Node2D = PulseScript.new()
 	big.setup(self, pulse_big_radius, pulse_big_expand, 1.0, pulse_damage, pulse_big_knockback, 1.0)
 	add_child(big)
+	shake_camera(pulse_big_shake, pulse_big_shake_time)

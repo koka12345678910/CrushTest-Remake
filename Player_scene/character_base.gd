@@ -99,6 +99,11 @@ var turn_velocity := Vector2.ZERO
 @export var turn_friction := 6.0
 
 var gold := 0
+## Копит ли класс золото. У мага валюта другая — души (логика душ будет
+## позже), монеты ему не нужны: при игре за него они не выпадают ни из
+## врагов, ни из разбитых ящиков (enemy.gd / breakable_prop.gd спрашивают
+## это поле), а подобранные (если вдруг) в золото не идут
+@export var collects_gold := true
 ## Копится на прокачку выбранного класса (см. UI/skill_points_bar.gd и
 ## SaveManager.gd), тот же контракт, что у gold. Растёт НЕ за каждое убийство —
 ## только когда skill_progress долился до skill_progress_per_point (см. ниже)
@@ -332,17 +337,18 @@ func play_movement_animation() -> void:
 		anim_name = "Run_" + last_direction
 	elif speed >= 10.0:
 		# Ходьба спиной вперёд (взгляд держит фокус на враге) — своя
-		# раскадровка Backward_, а не Walk_. Та же логика, что у рыцаря
-		# (player.gd::play_movement_animation, там Backwards_ с "s"):
-		# суффикс — направление ДВИЖЕНИЯ, а не взгляда. Нет клипа под класс
-		# (мага) — тихо остаёмся на Walk_
+		# раскадровка, а не Walk_. Та же логика, что у рыцаря
+		# (player.gd::play_movement_animation): суффикс — направление
+		# ДВИЖЕНИЯ, а не взгляда. Клипы у классов названы по-разному: у
+		# лучника Backward_, у мага (и рыцаря) Backwards_ — берём тот, что есть
 		if _is_moving_backward():
 			var move_dir := get_direction(input_vector.normalized())
-			var backward_name := "Backward_" + move_dir
-			if move_dir != "" and anim.has_animation(backward_name):
-				anim_name = backward_name
-			else:
-				anim_name = "Walk_" + last_direction
+			anim_name = "Walk_" + last_direction
+			if move_dir != "":
+				for prefix in ["Backward_", "Backwards_"]:
+					if anim.has_animation(prefix + move_dir):
+						anim_name = prefix + move_dir
+						break
 		else:
 			anim_name = "Walk_" + last_direction
 
@@ -388,7 +394,10 @@ func check_for_turn() -> void:
 func start_turn(new_dir: Vector2) -> void:
 	var new_facing := new_dir.normalized()
 	var new_last_direction := get_direction(new_facing)
+	# У лучника клипы разворота — Turn_, у мага — Turn_Around_
 	var anim_name := "Turn_" + new_last_direction
+	if not anim.has_animation(anim_name):
+		anim_name = "Turn_Around_" + new_last_direction
 
 	# Клипа под это направление может не быть (пока не у всех классов
 	# нарисованы все 8) — тогда просто меняем взгляд без рывка и блокировки,
@@ -710,6 +719,8 @@ func receive_parry(_posture_damage: float) -> void:
 ## Подбор монеты (coin.gd). Золото хранится в сейве, поэтому копить его должен
 ## уметь любой персонаж, даже пока у него нет HUD, чтобы это показать
 func add_gold(amount: int) -> void:
+	if not collects_gold:
+		return
 	gold += amount
 
 

@@ -1377,6 +1377,10 @@ func _on_dead() -> void:
 func _drop_coins() -> void:
 	if not coin_scene:
 		return
+	# Герой без золота (маг копит души, а не монеты) — монеты не выпадают
+	var hero := get_tree().get_first_node_in_group("player")
+	if hero and "collects_gold" in hero and not hero.collects_gold:
+		return
 	var count = randi_range(coin_drop_min, coin_drop_max)
 	var spawn_pos = global_position
 	for i in count:

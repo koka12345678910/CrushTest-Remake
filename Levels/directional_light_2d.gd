@@ -14,6 +14,14 @@ var lightning_flash: ColorRect = null
 @export var lightning_interval_max := 15.0
 @export var night_energy := 1.0 # обычное ночное освещение — поставь своё значение
 
+# Сила вспышки. Раньше свет бил до 3.0, а белый слой на экране — до половины
+# непрозрачности: в тёмной сцене это слепило. Теперь вспышка мягче — мир
+# коротко высвечивается холодным светом, но не заливает экран белым
+@export var flash_energy := 1.4
+@export_range(0.0, 1.0) var flash_overlay_alpha := 0.2
+## Холодный оттенок экранной вспышки — чистый белый режет глаз сильнее
+@export var flash_overlay_color := Color(0.75, 0.82, 1.0)
+
 # Гром. Свет доходит мгновенно, звук — примерно 343 м/с, поэтому далёкая
 # молния грохочет заметно позже вспышки и тише. Именно эта задержка и делает
 # грозу "настоящей" — мгновенный гром читается как фальшь
@@ -73,13 +81,16 @@ func _resolve_lightning_flash() -> ColorRect:
 
 func _flash() -> void:
 	var tween = create_tween()
-	tween.tween_property(self, "energy", 3.0, 0.02)
-	tween.tween_property(self, "energy", night_energy, 0.08)
+	# Каждый всполох в серии чуть разный по силе — так молния живее
+	var k := randf_range(0.6, 1.0)
+	tween.tween_property(self, "energy", flash_energy * k, 0.03)
+	tween.tween_property(self, "energy", night_energy, 0.12)
 
 	var flash := _resolve_lightning_flash()
 	if flash:
+		flash.color = Color(flash_overlay_color, flash.color.a)
 		var flash_tween = create_tween()
-		flash_tween.tween_property(flash, "color:a", 0.5, 0.02)
-		flash_tween.tween_property(flash, "color:a", 0.0, 0.08)
+		flash_tween.tween_property(flash, "color:a", flash_overlay_alpha * k, 0.03)
+		flash_tween.tween_property(flash, "color:a", 0.0, 0.12)
 
 	await tween.finished

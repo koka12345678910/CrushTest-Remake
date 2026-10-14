@@ -136,6 +136,10 @@ func _on_area_entered(area: Area2D) -> void:
 func _on_body_entered(body: Node) -> void:
 	if _stuck or ignore_walls or body == _shooter:
 		return
+	# Бочка, ящик и т.п. (Levels/props/breakable_prop.gd) — стрела бьёт в
+	# предмет и застревает в нём, как в стене
+	if body.is_in_group("breakable") and body.has_method("take_damage"):
+		body.take_damage(damage, _shooter)
 	_stuck = true
 	set_deferred("monitoring", false)
 	await get_tree().create_timer(STUCK_TIME).timeout

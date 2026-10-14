@@ -9,6 +9,9 @@ extends Node2D
 ## отбросит — волна к краю выдыхается. Собран целиком кодом.
 
 const SHADER := preload("res://Shaders/magic_pulse.gdshader")
+const DISTORT_SHADER := preload("res://Shaders/magic_distort.gdshader")
+const CIRCLE_SHADER := preload("res://Shaders/magic_circle.gdshader")
+const MageFx := preload("res://Player_scene/mage_fx.gd")
 
 @export var color := Color(0.3, 0.6, 1.0)
 
@@ -26,11 +29,16 @@ var _mat: ShaderMaterial
 var _light: PointLight2D
 var _hit_ids := {}
 var _front := 0.0
+var _echo_mat: ShaderMaterial
+var _dist_mat: ShaderMaterial
+## Рисовать ли рунический круг под магом (первый импульс заклинания)
+var rune_circle := false
 
 
 ## r — докуда дойдёт волна (px), time — за сколько, dis — рассеивание 0..1,
 ## glow — яркость (вспышка, искры, свет)
-func setup(caster: Node2D, r: float, time: float, dis: float, dmg: int, push: float, glow: float) -> void:
+func setup(caster: Node2D, r: float, time: float, dis: float, dmg: int, push: float, glow: float, circle := false) -> void:
+	rune_circle = circle
 	_caster = caster
 	radius = r
 	expand_time = time
@@ -62,6 +70,7 @@ func _ready() -> void:
 	_mat.set_shader_parameter("seed", randf() * 10.0)
 	_mat.set_shader_parameter("intensity", 1.1 + 0.6 * brightness)
 	_mat.set_shader_parameter("dissipate", dissipate)
+	_mat.set_shader_parameter("noise_tex", MageFx.noise_tex())
 	# Узкое кольцо у большой волны — иначе на большом квадрате оно толстое
 	_mat.set_shader_parameter("ring_width", clampf(9.0 / radius, 0.05, 0.16))
 	quad.material = _mat
@@ -72,6 +81,7 @@ func _ready() -> void:
 	add_mat.blend_mode = CanvasItemMaterial.BLEND_MODE_ADD
 	add_mat.light_mode = CanvasItemMaterial.LIGHT_MODE_UNSHADED
 	var sparks := GPUParticles2D.new()
+	sparks.visibility_rect = MageFx.VIS_RECT
 	sparks.amount = int(24 + 36 * brightness)
 	sparks.lifetime = expand_time + 0.15
 	sparks.one_shot = true
@@ -102,9 +112,67 @@ func _ready() -> void:
 	add_child(sparks)
 	sparks.emitting = true
 
+
+	# Вторая волна — тонкое кольцо, идёт вдогонку первой и чуть отстаёт
+	var echo := Sprite2D.new()
+	echo.texture = quad.texture
+	echo.scale = quad.scale * 0.9
+	_echo_mat = ShaderMaterial.new()
+	_echo_mat.shader = SHADER
+	_echo_mat.set_shader_parameter("progress", 0.0)
+	_echo_mat.set_shader_parameter("fade", 1.0)
+	_echo_mat.set_shader_parameter("color_edge", MageFx.MID)
+	_echo_mat.set_shader_parameter("seed", randf() * 10.0)
+	_echo_mat.set_shader_parameter("intensity", 0.5 + 0.3 * brightness)
+	_echo_mat.set_shader_parameter("dissipate", dissipate)
+	_echo_mat.set_shader_parameter("noise_tex", MageFx.noise_tex())
+	_echo_mat.set_shader_parameter("ring_width", clampf(4.0 / radius, 0.025, 0.07))
+	echo.material = _echo_mat
+	add_child(echo)
+
+	# Искажение воздуха по фронту — картинка за волной "плывёт"
+	var dist := Sprite2D.new()
+	dist.texture = quad.texture
+	dist.scale = quad.scale * 1.04
+	_dist_mat = ShaderMaterial.new()
+	_dist_mat.shader = DISTORT_SHADER
+	_dist_mat.set_shader_parameter("strength", 0.006 + 0.008 * brightness)
+	_dist_mat.set_shader_parameter("width", clampf(14.0 / radius, 0.08, 0.2))
+	dist.material = _dist_mat
+	add_child(dist)
+
+	# Пыль, которую поднимает фронт: мягкие клубы летят наружу вместе с волной.
+	# Не аддитивные — пыль затуманивает, а не светится
+	var dust := MageFx.burst(self, int(10 + 18 * brightness), expand_time + 0.6, MageFx.soft(), func(pm: ParticleProcessMaterial):
+		pm.emission_shape = ParticleProcessMaterial.EMISSION_SHAPE_RING
+		pm.emission_ring_axis = Vector3(0, 0, 1)
+		pm.emission_ring_radius = radius * 0.35
+		pm.emission_ring_inner_radius = radius * 0.25
+		pm.emission_ring_height = 0.0
+		pm.direction = Vector3(1, 0, 0)
+		pm.spread = 180.0
+		pm.initial_velocity_min = radius / expand_time * 0.45
+		pm.initial_velocity_max = radius / expand_time * 0.7
+		pm.damping_min = radius / expand_time * 0.5
+		pm.damping_max = radius / expand_time * 0.9
+		pm.scale_min = 0.35
+		pm.scale_max = 0.6
+		pm.scale_curve = MageFx.size_curve(0.3)
+		pm.angle_max = 360.0
+		pm.color_ramp = MageFx.ramp([Color(MageFx.SMOKE, 0.0), Color(MageFx.SMOKE, 0.2), Color(MageFx.SMOKE, 0.0)], [0.0, 0.25, 1.0]), false)
+	dust.scale = Vector2(1.0, 0.8)
+
+	# Искры-штрихи наружу — летят вместе с фронтом
+	MageFx.sparks(self, int(10 + 22 * brightness), radius / expand_time * 1.3, expand_time + 0.2)
+
+	# Рунический круг на земле (только у первого импульса — он открывает
+	# заклинание и висит, пока не пройдёт большая волна)
+	if rune_circle:
+		_spawn_circle()
+
 	_light = PointLight2D.new()
 	_light.color = color
-	_light.energy = 1.4 + 0.8 * brightness
+	_light.energy = 1.0 + 0.5 * brightness
 	_light.texture = _radial_texture()
 	_light.texture_scale = minf(radius, 90.0) * 2.8 / 128.0
 	_light.blend_mode = Light2D.BLEND_MODE_ADD
@@ -114,15 +182,58 @@ func _ready() -> void:
 	t.tween_method(_set_progress, 0.0, 1.0, expand_time) \
 			.set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_QUAD)
 	t.parallel().tween_property(_light, "energy", 0.0, expand_time + fade_time)
-	t.tween_method(func(v: float): _mat.set_shader_parameter("fade", v), 1.0, 0.0, fade_time)
-	t.tween_interval(0.2)
+	t.tween_method(_set_fade, 1.0, 0.0, fade_time)
+	# Ждём, пока доиграют пыль и искры — они дети этого узла
+	t.tween_interval(0.75)
 	t.tween_callback(queue_free)
 
 
 func _set_progress(v: float) -> void:
 	_mat.set_shader_parameter("progress", v)
+	_dist_mat.set_shader_parameter("progress", v)
+	# Вторая волна отстаёт и не доходит до самого края
+	_echo_mat.set_shader_parameter("progress", clampf((v - 0.14) / 0.86, 0.0, 1.0) * 0.9)
 	_front = v * radius
 	_hit_front()
+
+
+func _set_fade(v: float) -> void:
+	_mat.set_shader_parameter("fade", v)
+	_echo_mat.set_shader_parameter("fade", v)
+	_dist_mat.set_shader_parameter("fade", v)
+
+
+## Рунический круг на земле под магом: прорисовывается по окружности,
+## медленно вращается, светится и гаснет. Живёт в мире, а не на маге —
+## круг остаётся на месте заклинания, даже если маг сдвинется
+func _spawn_circle() -> void:
+	var at := global_position + Vector2(0, 4)
+	var h := MageFx.holder(get_tree(), at, 1.3, 0)
+	# Под персонажами (y-sort уровня), но над землёй
+	h.z_as_relative = false
+	h.z_index = -16
+	var img := Image.create(4, 4, false, Image.FORMAT_RGBA8)
+	img.fill(Color.WHITE)
+	var s := Sprite2D.new()
+	s.texture = ImageTexture.create_from_image(img)
+	var size := 74.0
+	s.scale = Vector2(size, size * 0.62) / 4.0
+	var m := ShaderMaterial.new()
+	m.shader = CIRCLE_SHADER
+	m.set_shader_parameter("seed", randf() * 10.0)
+	m.set_shader_parameter("draw", 0.0)
+	m.set_shader_parameter("fade", 1.0)
+	m.set_shader_parameter("intensity", 1.2)
+	s.material = m
+	h.add_child(s)
+	MageFx.light_pulse(h, 70.0, 1.0, 1.1)
+	# Руны-искорки поднимаются с круга
+	MageFx.embers(h, 14, 26.0, 1.0)
+	var t := h.create_tween()
+	t.tween_method(func(v: float): m.set_shader_parameter("draw", v), 0.0, 1.0, 0.18)
+	t.parallel().tween_property(s, "scale", s.scale * 1.08, 1.0)
+	t.tween_interval(0.45)
+	t.tween_method(func(v: float): m.set_shader_parameter("fade", v), 1.0, 0.0, 0.5)
 
 
 ## Бьём всех, до кого уже дошёл фронт волны (каждого один раз)
@@ -130,7 +241,9 @@ func _hit_front() -> void:
 	if not is_instance_valid(_caster):
 		return
 	var origin := _caster.global_position
-	for e in get_tree().get_nodes_in_group("enemy"):
+	# Разбиваемые предметы (Levels/props/breakable_prop.gd) отвечают тем же,
+	# что враги: is_dead, take_damage, global_position
+	for e in get_tree().get_nodes_in_group("enemy") + get_tree().get_nodes_in_group("breakable"):
 		if not is_instance_valid(e) or e.is_dead:
 			continue
 		var id: int = e.get_instance_id()
@@ -143,6 +256,7 @@ func _hit_front() -> void:
 			continue
 		_hit_ids[id] = true
 		e.take_damage(damage, _caster)
+		MageFx.hit_burst(get_tree(), e.global_position, to.normalized() if to.length() > 0.001 else Vector2.DOWN)
 		if not e.is_dead and "knockback_velocity" in e:
 			var dir := to.normalized() if to.length() > 0.001 else Vector2.DOWN
 			# К краю пути волна выдыхается — дальних толкает слабее

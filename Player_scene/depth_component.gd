@@ -27,6 +27,11 @@ extends Node
 
 var height := 0.0
 
+## Дополнительный множитель размера картинки — например, в доме герой чуть
+## меньше (Levels/house_interior.gd), чтобы комнаты казались просторнее.
+## На скорость не влияет: это не "даль", а масштаб интерьера
+var scale_mul := 1.0
+
 var _body: Node2D
 var _sprite: Node2D
 var _base_sprite_scale := Vector2.ONE
@@ -64,7 +69,7 @@ func set_height(h: float) -> void:
 func _process(delta: float) -> void:
 	if _body == null:
 		return
-	var target := size_factor()
+	var target := size_factor() * scale_mul
 	_shown_factor = lerpf(_shown_factor, target, minf(1.0, smoothing * delta))
 	if absf(_shown_factor - target) < 0.001:
 		_shown_factor = target
@@ -72,7 +77,7 @@ func _process(delta: float) -> void:
 	if _sprite:
 		_sprite.scale = _base_sprite_scale * _shown_factor
 
-	var speed_k := 1.0 + (_shown_factor - 1.0) * speed_follow
+	var speed_k := 1.0 + (_shown_factor / scale_mul - 1.0) * speed_follow
 	for prop in _base_speeds:
 		_body.set(prop, _base_speeds[prop] * speed_k)
 

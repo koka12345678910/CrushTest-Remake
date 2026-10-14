@@ -11,6 +11,7 @@ extends Node2D
 
 const SHADER := preload("res://Shaders/magic_sweep.gdshader")
 const SEGMENTS := 28
+const MageFx := preload("res://Player_scene/mage_fx.gd")
 
 @export var inner_radius := 12.0
 @export var outer_radius := 64.0
@@ -30,6 +31,8 @@ var _caster: Node2D
 var _facing := Vector2.DOWN
 var _mat: ShaderMaterial
 var _sparks: GPUParticles2D
+var _streaks: GPUParticles2D
+var _echo_mat: ShaderMaterial
 var _light: PointLight2D
 var _progress := 0.0
 var _hit_done := false
@@ -56,12 +59,57 @@ func _ready() -> void:
 	_mat.set_shader_parameter("color_edge", color)
 	mesh_node.material = _mat
 	add_child(mesh_node)
+	_mat.set_shader_parameter("seed", randf() * 20.0)
+
+	# Остаточный след: та же дуга чуть шире, бледнее и отстаёт от руки —
+	# как шлейф за быстрым движением
+	var echo := MeshInstance2D.new()
+	echo.mesh = mesh_node.mesh
+	echo.scale = Vector2.ONE * 1.12
+	_echo_mat = ShaderMaterial.new()
+	_echo_mat.shader = SHADER
+	_echo_mat.set_shader_parameter("progress", 0.0)
+	_echo_mat.set_shader_parameter("fade", 1.0)
+	_echo_mat.set_shader_parameter("intensity", 0.55)
+	_echo_mat.set_shader_parameter("tail_length", 0.5)
+	_echo_mat.set_shader_parameter("color_edge", MageFx.EDGE)
+	_echo_mat.set_shader_parameter("seed", randf() * 20.0)
+	echo.material = _echo_mat
+	add_child(echo)
+	move_child(echo, 0)
+
+	# Искры-штрихи с головы потока: вытягиваются по полёту
+	_streaks = GPUParticles2D.new()
+	_streaks.visibility_rect = MageFx.VIS_RECT
+	_streaks.amount = 26
+	_streaks.lifetime = 0.3
+	_streaks.local_coords = false
+	_streaks.material = MageFx.add_material()
+	_streaks.texture = MageFx.streak()
+	var sm := ParticleProcessMaterial.new()
+	sm.particle_flag_disable_z = true
+	sm.particle_flag_align_y = true
+	sm.emission_shape = ParticleProcessMaterial.EMISSION_SHAPE_SPHERE
+	sm.emission_sphere_radius = 8.0
+	sm.direction = Vector3(_facing.x, _facing.y, 0)
+	sm.spread = 60.0
+	sm.initial_velocity_min = 60.0
+	sm.initial_velocity_max = 150.0
+	sm.damping_min = 150.0
+	sm.damping_max = 260.0
+	sm.gravity = Vector3.ZERO
+	sm.scale_min = 0.17
+	sm.scale_max = 0.36
+	sm.color_ramp = MageFx.ramp([Color(MageFx.CORE, 1.0), Color(MageFx.MID, 0.9), Color(MageFx.EDGE, 0.0)])
+	_streaks.process_material = sm
+	add_child(_streaks)
 
 	# Искры с головы потока — остаются в мире (local_coords = false)
 	var add_mat := CanvasItemMaterial.new()
 	add_mat.blend_mode = CanvasItemMaterial.BLEND_MODE_ADD
 	add_mat.light_mode = CanvasItemMaterial.LIGHT_MODE_UNSHADED
 	_sparks = GPUParticles2D.new()
+	_sparks.visibility_rect = MageFx.VIS_RECT
 	_sparks.amount = 36
 	_sparks.lifetime = 0.4
 	_sparks.local_coords = false
@@ -89,6 +137,7 @@ func _ready() -> void:
 	_sparks.texture = _dot_texture()
 	add_child(_sparks)
 	_sparks.global_position = _head_position(0.0)
+	_streaks.global_position = _head_position(0.0)
 
 	_light = PointLight2D.new()
 	_light.color = color
@@ -102,8 +151,8 @@ func _ready() -> void:
 	var t := create_tween()
 	t.tween_method(_set_progress, 0.0, 1.0, sweep_time)
 	t.parallel().tween_property(_light, "energy", 1.4, sweep_time * 0.6)
-	t.tween_callback(func(): _sparks.emitting = false)
-	t.tween_method(func(v: float): _mat.set_shader_parameter("fade", v), 1.0, 0.0, fade_time)
+	t.tween_callback(_stop_emitting)
+	t.tween_method(_set_fade, 1.0, 0.0, fade_time)
 	t.parallel().tween_property(_light, "energy", 0.0, fade_time)
 	t.tween_interval(_sparks.lifetime)
 	t.tween_callback(queue_free)
@@ -112,12 +161,27 @@ func _ready() -> void:
 func _set_progress(v: float) -> void:
 	_progress = v
 	_mat.set_shader_parameter("progress", v)
+	# След отстаёт от руки
+	_echo_mat.set_shader_parameter("progress", clampf((v - 0.12) / 0.88, 0.0, 1.0))
 	if is_instance_valid(_sparks):
 		_sparks.global_position = _head_position(v)
+	if is_instance_valid(_streaks):
+		_streaks.global_position = _head_position(v)
 	# Удар — когда поток прошёл середину, т.е. оказался прямо перед магом
 	if not _hit_done and v >= 0.5:
 		_hit_done = true
 		_apply_hit()
+
+
+func _set_fade(v: float) -> void:
+	_mat.set_shader_parameter("fade", v)
+	_echo_mat.set_shader_parameter("fade", v * 0.8)
+
+
+func _stop_emitting() -> void:
+	_sparks.emitting = false
+	_streaks.emitting = false
+
 
 
 func _angle_at(t: float) -> float:
@@ -156,7 +220,9 @@ func _apply_hit() -> void:
 		return
 	var origin := _caster.global_position
 	var half := deg_to_rad(hit_half_angle_deg)
-	for e in get_tree().get_nodes_in_group("enemy"):
+	# Разбиваемые предметы (Levels/props/breakable_prop.gd) отвечают тем же,
+	# что враги: is_dead, take_damage, global_position
+	for e in get_tree().get_nodes_in_group("enemy") + get_tree().get_nodes_in_group("breakable"):
 		if not is_instance_valid(e) or e.is_dead:
 			continue
 		var to: Vector2 = e.global_position - origin
@@ -165,6 +231,8 @@ func _apply_hit() -> void:
 		if to.length() > 4.0 and absf(_facing.angle_to(to)) > half:
 			continue
 		e.take_damage(damage, _caster)
+		# Вспышка удара на враге — видно, кого именно достала пелена
+		MageFx.hit_burst(get_tree(), e.global_position, to.normalized() if to.length() > 0.001 else _facing)
 		# Свой отброс — сильнее стандартного (enemy.take_damage даёт 150)
 		if not e.is_dead and "knockback_velocity" in e:
 			var push_dir := to.normalized() if to.length() > 0.001 else _facing

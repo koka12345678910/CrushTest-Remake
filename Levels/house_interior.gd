@@ -32,6 +32,8 @@ extends Node2D
 @export var outside_darkness := 0.62
 ## Громкость дождя, слышного из-под крыши (см. level_music_manager.gd)
 @export var rain_volume_inside := -26.0
+## Размер героя внутри (картинка и коллизия), 1 — как на улице
+@export var inside_scale := 0.8
 
 @export_group("Лестница")
 ## Ступени между перилами (низ — первый этаж, верх — второй)
@@ -131,6 +133,9 @@ func is_roofed(p: Vector2) -> bool:
 
 func _set_inside(value: bool) -> void:
 	_inside = value
+	var player := get_tree().get_first_node_in_group("player") as Node2D
+	if player:
+		_set_player_small(player, value)
 	if _tween:
 		_tween.kill()
 	_tween = create_tween()
@@ -138,6 +143,25 @@ func _set_inside(value: bool) -> void:
 	var music := get_tree().get_first_node_in_group("level_music")
 	if music and music.has_method("set_indoors"):
 		music.set_indoors(value, fade_time * 2.0, rain_volume_inside)
+
+
+## В доме герой чуть меньше — комнаты кажутся просторнее. Картинку плавно
+## уменьшает DepthComponent (scale_mul), коллизию и оклюдер тени у ног
+## масштабируем сразу. Исходные значения хранятся в meta узлов, поэтому
+## повторный вход не накапливает уменьшение
+func _set_player_small(player: Node2D, small: bool) -> void:
+	var k := inside_scale if small else 1.0
+	var depth = player.get_node_or_null("DepthComponent")
+	if depth:
+		depth.scale_mul = k
+	for ch in player.get_children():
+		if ch is CollisionShape2D or ch is LightOccluder2D:
+			var n := ch as Node2D
+			if not n.has_meta("base_scale"):
+				n.set_meta("base_scale", n.scale)
+				n.set_meta("base_pos", n.position)
+			n.scale = (n.get_meta("base_scale") as Vector2) * k
+			n.position = (n.get_meta("base_pos") as Vector2) * k
 
 
 ## Наверху игрок сталкивается только со стенами верхнего этажа, а сам — на

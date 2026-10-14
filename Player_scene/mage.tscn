@@ -14550,6 +14550,9 @@ _data = {
 collision_layer = 2
 collision_mask = 5
 script = ExtResource("0_mage_script")
+snap_radius = 220.0
+focus_break_range = 500.0
+collects_gold = false
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="." unique_id=1767030573]
 shape = SubResource("CapsuleShape2D_g4v7s")
