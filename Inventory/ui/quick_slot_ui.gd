@@ -29,16 +29,16 @@ const WORN_MATERIAL := preload("res://UI/hud_worn_material.tres")
 
 # Мягкое тёплое свечение позади медальона — вписывается в язык освещения
 # уровня (тёплые круги света от фонарей на тёмной ночной сцене)
-@export var glow_color := Color(0.9, 0.72, 0.35)
-@export var glow_inner_alpha := 0.32
+@export var glow_color := Color(0.62, 0.52, 0.34)
+@export var glow_inner_alpha := 0.18
 
 # Цвет счётчика зарядов: обычный — тёплое золото, на последнем заряде —
 # тревожный красный, чтобы предмет не кончился внезапно
-const CHARGES_COLOR := Color(0.98, 0.82, 0.35)
-const CHARGES_LOW_COLOR := Color(0.92, 0.42, 0.25)
-const TEXT_COLOR := Color(0.9, 0.84, 0.72)
-const GOLD := Color(0.72, 0.57, 0.33)
-const GOLD_BRIGHT := Color(0.98, 0.8, 0.42)
+const CHARGES_COLOR := Color(0.8, 0.68, 0.4)
+const CHARGES_LOW_COLOR := Color(0.78, 0.38, 0.26)
+const TEXT_COLOR := Color(0.78, 0.73, 0.64)
+const GOLD := Color(0.55, 0.47, 0.33)
+const GOLD_BRIGHT := Color(0.76, 0.65, 0.43)
 
 # Показывается вместо иконки, когда быстрый слот пуст
 const EMPTY_SLOT_ICON := preload("res://Shop/icons/empty_slot_256x256.png")
@@ -206,6 +206,8 @@ func _build_single_slot() -> void:
 	_charges_box.size = Vector2(box_w, box_h)
 	_charges_box.set("fill_color", Color(0.035, 0.03, 0.027, 0.92))
 	_charges_box.set("corner_length", 8.0)
+	_charges_box.set("border_color", Color(0.4, 0.34, 0.25, 0.45))
+	_charges_box.set("corner_color", Color(GOLD, 0.85))
 	add_child(_charges_box)
 
 	_charges_label = _make_label("", 21, CHARGES_COLOR)

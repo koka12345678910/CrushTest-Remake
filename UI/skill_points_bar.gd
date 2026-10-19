@@ -14,8 +14,11 @@ extends CanvasLayer
 const HudBarScript := preload("res://UI/HudBar.gd")
 const DiamondMarkerScript := preload("res://Main_Menu/scripts/DiamondMarker.gd")
 
-const FILL_COLOR := Color(0.78, 0.56, 0.22)
-const TEXT_COLOR := Color(0.9, 0.84, 0.72)
+# Приглушённые тона — в одном ключе с полосками здоровья (health_stamina_bar.gd)
+const FILL_COLOR := Color(0.56, 0.45, 0.27)
+const TEXT_COLOR := Color(0.78, 0.73, 0.64)
+const FRAME_COLOR := Color(0.5, 0.43, 0.32, 0.95)
+const BADGE_COLOR := Color(0.55, 0.47, 0.33)
 
 @export var bar_size := Vector2(420, 22)
 ## Отступ всего блока от правого верхнего угла экрана
@@ -81,6 +84,7 @@ func _build_ui() -> void:
 	_bar.position = Vector2(bar_x, cy - bar_size.y / 2.0)
 	_bar.size = bar_size
 	_bar.set("fill_color", FILL_COLOR)
+	_bar.set("frame_color", FRAME_COLOR)
 	_bar.set("ratio", 0.0)
 	corner.add_child(_bar)
 
@@ -97,7 +101,7 @@ func _build_ui() -> void:
 	badge.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	badge.position = Vector2(bar_x - badge_size * 0.55, cy - badge_size / 2.0)
 	badge.size = Vector2(badge_size, badge_size)
-	badge.set("outline_color", Color(0.72, 0.57, 0.33))
+	badge.set("outline_color", BADGE_COLOR)
 	badge.set("outline_width", 2.0)
 	# Тёмное тело ромба — иначе число ложится прямо на мир
 	badge.set("body_color", Color(0.04, 0.035, 0.03, 0.95))
@@ -111,7 +115,7 @@ func _build_ui() -> void:
 	inner.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	inner.position = badge.position + Vector2(5.0, 5.0)
 	inner.size = Vector2(badge_size - 10.0, badge_size - 10.0)
-	inner.set("outline_color", Color(0.72, 0.57, 0.33, 0.4))
+	inner.set("outline_color", Color(BADGE_COLOR, 0.4))
 	inner.set("fill_color", Color(0.0, 0.0, 0.0, 0.0))
 	inner.material = HudBarScript.WORN_MATERIAL
 	corner.add_child(inner)

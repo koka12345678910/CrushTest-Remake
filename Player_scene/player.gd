@@ -262,10 +262,11 @@ const HURT_SOUNDS: Array[AudioStream] = [
 # Подбор монеты — сам звук уже звонкий, шина CoinEcho добавляет лёгкий
 # металлический хвост, а не меняет тембр заново
 const COIN_SOUND := preload("res://Sound/coin_picking.mp3")
-# Брызг крови на получении урона — та же сцена, что и у врагов
-# (enemy.gd, play_blood_vfx), сама выбирает случайный вариант анимации
-# из своего SpriteFrames
-const BLOOD_VFX := preload("res://VFX/VFX_scene/blood_vfx.tscn")
+# Кровь на получении урона — та же процедурная, что и у врагов
+# (enemy.gd::play_blood_vfx): брызги летят от того, кто ударил
+const BloodFx := preload("res://VFX/VFX_scene/blood_fx.gd")
+# Дуги клинка, удар по щиту, парирование (VFX/VFX_scene/knight_fx.gd)
+const KnightFx := preload("res://VFX/VFX_scene/knight_fx.gd")
 
 var max_posture := 100.0
 var current_posture := 0.0
@@ -840,8 +841,12 @@ func _physics_process(delta):
 	var target_velocity = input_vector.normalized() * target_speed
 
 # --- разные коэффициенты для разгона и торможения ---
-	var accel := 6.0      # разгон
-	var friction_run := 4.0   # торможение
+	# Резкие: до полной скорости и до остановки — около 0.1с. Раньше (6 и 4)
+	# рыцарь секунду разгонялся и докатывался, и анимации плавно перетекали
+	# бег → шаг → стойка; теперь анимация меняется сразу по клавишам
+	# (play_movement_animation), и тело не должно скользить после неё
+	var accel := 30.0      # разгон
+	var friction_run := 30.0   # торможение
 
 	if input_vector != Vector2.ZERO:
 		velocity = velocity.lerp(target_velocity, accel * delta)
@@ -1040,16 +1045,20 @@ func play_movement_animation():
 	if is_parrying or is_blocking:  # 👈 добавь эту проверку
 		return
 	
-	var speed = velocity.length()
 	var anim_name = ""
 
-	# --- пороги скорости ---
-	if speed < 10:
-		anim.speed_scale = 1.0
+	# Анимация — по нажатым клавишам, а не по скорости: отпустил — сразу
+	# стойка, зажал бег — сразу бег. Выбор по скорости давал плавные переходы
+	# бег → шаг → стойка, пока тело разгонялось и тормозило
+	anim.speed_scale = 1.0
+	if input_vector == Vector2.ZERO:
 		anim.play("Idle_" + last_direction)
 		return
-	elif speed < 120:
-		anim.speed_scale = 1.0
+	elif not is_running or is_exhausted():
+		var strafe := _strafe_animation()
+		if strafe != "":
+			_play_keep_phase(strafe)
+			return
 		# Ходьба спиной вперёд (взгляд держит фокус на враге) — своя
 		# раскадровка Backwards_, а не Walk_. Суффикс здесь — направление
 		# ДВИЖЕНИЯ (куда шагает нога), а не взгляда: Backwards_Right — шаг
@@ -1067,16 +1076,67 @@ func play_movement_animation():
 		else:
 			anim_name = "Walk_" + last_direction
 	else:
+		# Бег сразу в полном темпе (клипы Run_* сняты на 25 fps = speed_scale
+		# 1.0), без прежнего разгона анимации с 0.35
 		anim_name = "Run_" + last_direction
-		# Клипы Run_* сняты на 25 fps (шаг кадра 0.04с = speed_scale 1.0) — это и
-		# есть "естественный максимум", выше него не поднимаем. Растягиваем
-		# видимый диапазон от 0.35 (только вбежал в зону бега) до 1.0 (полный
-		# разгон) — простое speed/run_speed давало разницу всего 0.6-1.0 (40%),
-		# что на глаз почти незаметно за доли секунды разгона
-		var t = clamp((speed - 120.0) / (run_speed - 120.0), 0.0, 1.0)
-		anim.speed_scale = lerp(0.35, 1.0, t)
 
+	_play_keep_phase(anim_name)
+
+
+## Направления по кругу по часовой стрелке на экране — в этом же порядке идут
+## строки листов анимаций рыцаря (Right, Down_Right, Down, ...)
+const DIR_RING := ["Right", "Down_Right", "Down", "Down_Left", "Left", "Up_Left", "Up", "Up_Right"]
+## Насколько движение должно быть "вбок" от взгляда, чтобы шёл стрейф:
+## |cos угла| меньше этого — вбок, больше — вперёд (Walk_) или назад (Backwards_)
+@export var strafe_threshold := 0.55
+
+
+## Стрейф (шаг вбок) под фокусом: взгляд держится на враге, а ноги идут в
+## сторону. Строка листа StrafeLeft/StrafeRight — направление ДВИЖЕНИЯ, взгляд
+## в ней повёрнут на 90° (в StrafeRight_Right рыцарь смотрит вверх и шагает
+## вправо). Поэтому строку берём не по вводу, а от направления взгляда со
+## сдвигом на четверть круга — так рыцарь на всём стрейфе смотрит ровно туда
+## же, куда и до него (last_direction), и не дёргается при входе и выходе.
+## "" — стрейф сейчас не нужен
+func _strafe_animation() -> String:
+	var side := _strafe_side()
+	if side == 0:
+		return ""
+	var i := DIR_RING.find(last_direction)
+	if i < 0:
+		return ""
+	var clip: String
+	if side > 0:
+		clip = "StrafeRight_" + DIR_RING[(i + 2) % 8]
+	else:
+		clip = "StrafeLeft_" + DIR_RING[(i + 6) % 8]
+	return clip if anim.has_animation(clip) else ""
+
+
+## Идёт ли шаг вбок от взгляда на врага: 1 — вправо, -1 — влево, 0 — нет
+## (вперёд, назад, без фокуса)
+func _strafe_side() -> int:
+	if input_vector == Vector2.ZERO or not is_instance_valid(focused_enemy) or _is_fleeing_focus():
+		return 0
+	var move := input_vector.normalized()
+	if absf(move.dot(facing_dir)) > strafe_threshold:
+		return 0
+	# cross > 0 — движение вправо от взгляда (на экране y вниз)
+	return 1 if facing_dir.cross(move) > 0.0 else -1
+
+
+## Шаговые клипы (Walk_, Run_, Backwards_, StrafeLeft_, ...) при смене
+## направления продолжаются с того же места шага, а не с первого кадра:
+## под фокусом направление меняется на ходу, пока рыцарь обходит врага, и
+## перезапуск каждый раз давал бы спотыкание
+func _play_keep_phase(anim_name: String) -> void:
+	var prev := anim.current_animation
+	if prev == anim_name:
+		return
+	var pos := anim.current_animation_position if prev != "" else 0.0
 	anim.play(anim_name)
+	if prev != "" and prev.get_slice("_", 0) == anim_name.get_slice("_", 0):
+		anim.seek(pos, true)
 
 func play_idle_animation():
 	anim.play("Idle_" + last_direction)
@@ -1369,6 +1429,9 @@ func _on_blocked_attack(attack_data: Dictionary) -> void:
 
 	play_block_hit_sound()
 	shake_camera(block_shake_strength)
+	# Искры о щит — со стороны удара, искры летят обратно к бьющему
+	var to_src := _dir_to_source(attack_data.get("source", null))
+	KnightFx.shield_hit(get_tree(), global_position + KnightFx.CHEST + to_src * 16.0, to_src)
 	# Холодная бело-голубая искра щита — отличается и от белой вспышки урона,
 	# и от тёплых тонов лечения/монет: блок должен читаться как "звон металла",
 	# а не как что-то из этих двух категорий
@@ -1382,11 +1445,18 @@ func play_parry_vfx() -> void:
 	# не привязано к хитбоксу — просто сдвиг вперёд по направлению взгляда,
 	# туда, где скрещиваются клинки, а не в центр игрока
 	var dir = direction_to_vector(last_direction)
-	var offset = 32  # чуть в сторону от центра игрока — здесь встречаются клинки
-	parry_vfx.global_position = global_position + dir * offset
-	parry_vfx.play("parry_vfx")
-	await parry_vfx.animation_finished
-	parry_vfx.stop()
+	var offset = 24.0  # чуть в сторону от центра игрока — здесь встречаются клинки
+	KnightFx.parry(get_tree(), global_position + KnightFx.CHEST + dir * offset, dir)
+
+
+## Направление от рыцаря к тому, кто ударил (нет источника — куда смотрит)
+func _dir_to_source(source: Variant) -> Vector2:
+	var src := source as Node2D
+	if is_instance_valid(src):
+		var d := src.global_position - global_position
+		if d.length() > 0.001:
+			return d.normalized()
+	return direction_to_vector(last_direction)
 
 # Идеальный уворот — атака врага реально задела бы игрока (сработал
 # receive_attack), но в этот момент шёл уворот/перекат. В отличие от
@@ -1458,9 +1528,10 @@ func take_damage(amount: int, source: Node = null) -> void:
 	hit_flash.flash()
 	shake_camera(damage_shake_strength)
 
-	var blood := BLOOD_VFX.instantiate()
-	blood.global_position = global_position
-	get_tree().current_scene.add_child(blood)
+	BloodFx.hit(self, source as Node2D, BloodFx.power_for(amount, max_health, health <= 0.0))
+	if is_instance_valid(source as Node2D):
+		var hit_dir := -_dir_to_source(source)
+		KnightFx.impact(get_tree(), global_position + KnightFx.CHEST - hit_dir * 6.0, hit_dir, 0.8)
 	
 	current_posture += 10.0 * get_posture_damage_reduction_factor()
 	current_posture = min(current_posture, max_posture)
@@ -1626,10 +1697,14 @@ func melee_weapon_tip():
 	melee_hit.position = dir * 35     # VFX спавнится здесь — дальше
 	player_hitbox.position = dir * 25
 
+## Эффекты взмаха — зовутся из клипов ударов (method-трек AnimationPlayer) в
+## момент взмаха. Обычный удар — процедурная дуга клинка (knight_fx.gd), а под
+## способностью (Фенрир, Берсерк) — её собственные спрайтовые вспышки
 func play_hit_vfx():
-	var scene_to_use: PackedScene = active_hit_vfx_override if active_hit_vfx_override != null else hit_vfx_scene
-	if scene_to_use == null:
+	if active_hit_vfx_override == null:
+		KnightFx.slash(self, KnightFx.Swing.HEAVY, direction_to_vector(last_direction))
 		return
+	var scene_to_use: PackedScene = active_hit_vfx_override
 	var vfx = scene_to_use.instantiate()
 	vfx.global_position = weapon_tip.global_position
 	var dir = direction_to_vector(last_direction)
@@ -1642,9 +1717,10 @@ func play_hit_vfx():
 	get_tree().current_scene.add_child(vfx)
 
 func play_melee_hit_vfx():
-	var scene_to_use: PackedScene = active_hit_vfx_override if active_hit_vfx_override != null else melee_hit_vfx_scene
-	if scene_to_use == null:
+	if active_hit_vfx_override == null:
+		KnightFx.slash(self, KnightFx.Swing.RISING, direction_to_vector(last_direction))
 		return
+	var scene_to_use: PackedScene = active_hit_vfx_override
 	var vfx = scene_to_use.instantiate()
 	vfx.global_position = melee_hit.global_position
 	var dir = direction_to_vector(last_direction)
@@ -1657,9 +1733,10 @@ func play_melee_hit_vfx():
 	get_tree().current_scene.add_child(vfx)
 
 func play_melee_2_hit_vfx():
-	var scene_to_use: PackedScene = active_hit_vfx_override if active_hit_vfx_override != null else melee_hit_2_vfx_scene
-	if scene_to_use == null:
+	if active_hit_vfx_override == null:
+		KnightFx.slash(self, KnightFx.Swing.SWEEP, direction_to_vector(last_direction))
 		return
+	var scene_to_use: PackedScene = active_hit_vfx_override
 	var vfx = scene_to_use.instantiate()
 	vfx.global_position = melee_hit.global_position
 	var dir = direction_to_vector(last_direction)
@@ -1722,20 +1799,7 @@ func _spin_finisher() -> void:
 		_play_hit_sound(spin_impact_mult)
 
 func play_running_hit_vfx():
-	if running_hit_vfx_scene == null:
-		print("⚠ Running VFX не назначен")
-		return
-		
-	var vfx_running = running_hit_vfx_scene.instantiate()
-	vfx_running.global_position = weapon_tip.global_position
-	
-	var dir_running = direction_to_vector(last_direction)
-
-	# передаём направление
-	vfx_running.set("move_direction", dir_running)
-	vfx_running.rotation = dir_running.angle()  # 👈 ВОТ ЭТО НОВОЕ
-	
-	get_tree().current_scene.add_child(vfx_running)
+	KnightFx.slash(self, KnightFx.Swing.RUN, direction_to_vector(last_direction))
 
 # ----------------------------------------------------------
 # ЗАВЕРШЕНИЕ

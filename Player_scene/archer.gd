@@ -38,8 +38,15 @@ var _last_gold := -1
 func _ready() -> void:
 	super._ready()
 	add_to_group("ranged_player")
+	# Постоянная метка лучницы (в любой стойке): её удары не отбрасывают врагов
+	# (enemy.gd::_pushes)
+	add_to_group("archer_player")
 	kick_hitbox.add_to_group("player_attack")
 	kick_hitbox.set_meta("damage", kick_damage)
+	kick_hitbox.area_entered.connect(_on_blade_contact)
+	_bow_combo_length = combo_length
+	# В листах Сигрид StrafeLeft/StrafeRight подписаны со стороны зрителя
+	strafe_names_swapped = true
 	_setup_inventory()
 	_load_starting_items()
 
@@ -197,12 +204,23 @@ var _charge_aim: Node2D = null
 ## рукопашный маг. Здесь же тикает кулдаун: handle_attack_input дёргается из
 ## базового _physics_process каждый кадр независимо от того, нажата ли кнопка
 func handle_attack_input() -> void:
+	var dt := get_physics_process_delta_time()
 	if _shoot_cooldown_timer > 0.0:
-		_shoot_cooldown_timer -= get_physics_process_delta_time()
+		_shoot_cooldown_timer -= dt
 	if _kick_cooldown_timer > 0.0:
-		_kick_cooldown_timer -= get_physics_process_delta_time()
+		_kick_cooldown_timer -= dt
 	if _quick_shot_cooldown_timer > 0.0:
-		_quick_shot_cooldown_timer -= get_physics_process_delta_time()
+		_quick_shot_cooldown_timer -= dt
+	_spin_cooldown_timer = maxf(_spin_cooldown_timer - dt, 0.0)
+	_lunge_cooldown_timer = maxf(_lunge_cooldown_timer - dt, 0.0)
+
+	# 1 — лук, 2 — меч. Меняется только в свободной стойке (не посреди удара,
+	# переката или натяжения)
+	if _try_switch_weapon():
+		return
+	if weapon == Weapon.SWORD:
+		_handle_sword_input()
+		return
 
 	# Пинок и быстрый выстрел проверяем первыми и отдельно от серии обычных
 	# выстрелов — свои кнопки, не участвуют в комбо/is_attacking-очереди лука
@@ -373,6 +391,9 @@ func _release_shot() -> void:
 ## (фокус > ближайший враг > null). Не await'ится вызывающим (start_attack) —
 ## отрабатывает как fire-and-forget, комбо продолжается независимо
 func _on_attack_started(_step: int, aim: Node2D) -> void:
+	if weapon == Weapon.SWORD:
+		_sword_strike(_step)
+		return
 	# Звук — здесь, ДО паузы: "перед выстрелом" значит до того, как стрела
 	# реально появится (натяжение), а не в момент её вылета
 	shoot_audio.stream = SHOOT_SOUND
@@ -719,6 +740,9 @@ func _start_kick() -> void:
 	facing_dir = dir
 	last_direction = dir_name
 	_play("Kick_" + dir_name)
+	# Хитбокс общий с мечом — урон и размер задаём заново
+	kick_hitbox.set_meta("damage", kick_damage)
+	kick_hitbox.scale = Vector2.ONE
 
 	await get_tree().create_timer(kick_windup).timeout
 	# Перекат/смерть могли прервать пинок, пока он натягивался (is_attacking
@@ -748,6 +772,15 @@ func _disable_kick_hitbox() -> void:
 ## сделает, поэтому здесь свой обработчик именно для него; всё остальное
 ## отдаём наверх, как было
 func _on_animation_finished(finished_anim: String) -> void:
+	# Мечевые клипы: свои приёмы (разворот, выпад) заканчиваются здесь, а
+	# серия, перекат и прочее — как обычные, база узнаёт их без приставки
+	if finished_anim.begins_with(SWORD_PREFIX):
+		var plain := finished_anim.substr(SWORD_PREFIX.length())
+		if plain.begins_with("Spin_") or plain.begins_with("Lunge_"):
+			is_attacking = false
+			play_movement_animation()
+			return
+		finished_anim = plain
 	if finished_anim.begins_with("Kick_"):
 		is_attacking = false
 		play_movement_animation()
@@ -808,3 +841,283 @@ func _start_quick_shot() -> void:
 
 	is_attacking = false
 	play_movement_animation()
+
+
+# ─────────────────────────────────────────────
+# ЛУК / МЕЧ
+# ─────────────────────────────────────────────
+## Две стойки Сигрид: 1 — лук (выстрел, натяжение, залп на ПКМ), 2 — меч
+## (серия из трёх ударов на ЛКМ, удар с разворотом на ПКМ, выпад на V, удар
+## на бегу). Анимации меча — те же имена с приставкой "Sword_"
+## (Player_scene/sigrid_anims.tres, собирает tools/build_sigrid_anims.gd); если
+## мечевого клипа нет — играет обычный (см. _play)
+enum Weapon { BOW, SWORD }
+var weapon: int = Weapon.BOW
+
+const SWORD_PREFIX := "Sword_"
+const SWING_SOUND := preload("res://Sound/melee_sound/swing.mp3")
+const UNSHEATH_SOUND := preload("res://Sound/melee_sound/unsneath_sword.wav")
+const KnightFx := preload("res://VFX/VFX_scene/knight_fx.gd")
+
+@export var sword_damage := 1
+## Последний удар серии (Attack4, восходящий взмах) — тяжелее
+@export var sword_finisher_damage := 2
+## Насколько далеко вперёд бьёт клинок и какой ширины зона удара (хитбокс
+## 20x22 растягивается на sword_hit_scale)
+@export var sword_reach := 30.0
+@export var sword_hit_scale := Vector2(1.9, 1.7)
+@export var sword_stamina_cost := 10.0
+@export var sword_combo_length := 3
+@export var spin_damage := 1
+@export var spin_stamina_cost := 22.0
+@export var spin_cooldown := 1.2
+@export var lunge_damage := 2
+## Скорость рывка вперёд на выпаде (гаснет так же, как отбрасывание)
+@export var lunge_speed := 260.0
+@export var lunge_stamina_cost := 18.0
+@export var lunge_cooldown := 1.0
+
+## Взмахи меча сняты с кадров спрайтов (tools/build_sigrid_swings.gd ->
+## sigrid_swing_data.gd): когда в каждом из 8 направлений идёт след клинка,
+## откуда и куда он ведёт. По ним идут и дуга, и окно удара
+const SwingData := preload("res://Player_scene/sigrid_swing_data.gd")
+## Грудь Сигрид относительно её узла — центр дуг (точка (64, 62) кадра 128)
+const SIGRID_CHEST := Vector2(0, -2)
+## В кадре со следом взмах уже прошёл — дуга стартует на кадр раньше
+const SWING_LEAD := 0.04
+## Шаг серии -> [лист, заготовка дуги на случай, если взмах по кадрам не
+## измерился]. Серия: Attack1 -> Attack6 (укол, потом взмах) -> Attack4 (финиш);
+## 0 — удар на бегу
+const STEP_SWING := {
+	1: ["Attack1", KnightFx.Swing.RISING],
+	2: ["Attack6", KnightFx.Swing.SWEEP],
+	3: ["Attack4", KnightFx.Swing.HEAVY],
+	0: ["AttackRun", KnightFx.Swing.RUN],
+}
+## Время взмаха, если для направления в таблице ничего нет (с от старта клипа)
+const SWING_DEFAULT_TIME := {
+	"Attack1": [0.24, 0.40], "Attack6": [0.5, 0.7], "Attack4": [0.24, 0.40],
+	"Attack2": [0.24, 0.40], "AttackRun": [0.24, 0.40],
+}
+## Укол Attack6 — выпад с вытянутым клинком, кадры 5-8 при 20 к/с
+const ATTACK6_STAB := [0.25, 0.45]
+## Рубящий удар Attack4 — клинок идёт от головы вниз на кадрах 7-9 при 25 к/с
+## (во всех направлениях одинаково, по кадрам листа)
+const ATTACK4_CHOP := [0.26, 0.40]
+const LUNGE_HIT := [0.1, 0.28]
+## Задержка закрытия хитбокса после конца взмаха — кончик клинка ещё летит
+const SWING_TAIL_HIT := 0.03
+
+var _bow_combo_length := 1
+var _spin_cooldown_timer := 0.0
+var _lunge_cooldown_timer := 0.0
+
+
+func _try_switch_weapon() -> bool:
+	var want := -1
+	if Input.is_action_just_pressed("weapon_bow"):
+		want = Weapon.BOW
+	elif Input.is_action_just_pressed("weapon_sword"):
+		want = Weapon.SWORD
+	if want < 0 or want == weapon:
+		return false
+	if is_attacking or is_rolling or _charging or _press_pending:
+		return false
+	_set_weapon(want)
+	return true
+
+
+func _set_weapon(w: int) -> void:
+	weapon = w
+	combo_step = 0
+	combo_queued = false
+	combo_length = sword_combo_length if w == Weapon.SWORD else _bow_combo_length
+	# Метка стрелка нужна врагам и крови только для лука: с мечом Сигрид —
+	# обычный боец ближнего боя (разрез и искры клинка, кровь веером)
+	if w == Weapon.BOW:
+		add_to_group("ranged_player")
+	else:
+		remove_from_group("ranged_player")
+	shoot_audio.stream = UNSHEATH_SOUND
+	shoot_audio.play()
+	_flash_skill(Color(0.85, 0.88, 1.0))
+	play_movement_animation()
+
+
+## В стойке меча подставляем мечевую версию клипа, если она нарисована
+func _play(anim_name: String) -> bool:
+	if weapon == Weapon.SWORD and not anim_name.begins_with(SWORD_PREFIX) \
+			and anim.has_animation(SWORD_PREFIX + anim_name):
+		return super._play(SWORD_PREFIX + anim_name)
+	return super._play(anim_name)
+
+
+func _handle_sword_input() -> void:
+	# Окно серии в базе (combo_window) короче мечевого удара — пока удар идёт,
+	# держим его открытым, иначе шаг серии сбросился бы посреди замаха
+	if is_attacking and combo_step > 0:
+		combo_timer = maxf(combo_timer, 0.2)
+	if Input.is_action_just_pressed("attack"):
+		if is_attacking:
+			# Следующий удар серии в очередь — база начнёт его, когда этот доиграет
+			if combo_step >= 1 and combo_step < combo_length and not combo_queued and _pay(sword_stamina_cost):
+				combo_queued = true
+			return
+		if not _pay(sword_stamina_cost):
+			return
+		if is_running and input_vector != Vector2.ZERO:
+			start_run_attack()
+		else:
+			start_attack(1)
+		return
+	if is_attacking:
+		return
+	if Input.is_action_just_pressed("parry") and _spin_cooldown_timer <= 0.0:
+		_start_sword_move("Spin")
+	elif Input.is_action_just_pressed("kick") and _lunge_cooldown_timer <= 0.0:
+		_start_sword_move("Lunge")
+
+
+func _pay(cost: float) -> bool:
+	return not is_instance_valid(health_bar) or health_bar.use_stamina(cost)
+
+
+## Взмах листа sheet в направлении dir_name: время (t0..t1, с от старта клипа)
+## и дуга. Время — по кадрам спрайта всегда, когда направление измерилось;
+## геометрия — только если измерение надёжное (охват 60..220°), иначе
+## заготовка swing относительно взгляда, уменьшенная под рост Сигрид
+func _swing(sheet: String, dir_name: String, swing: int, dir: Vector2) -> Dictionary:
+	var e: Dictionary = SwingData.DATA.get(sheet, {}).get(dir_name, {})
+	var tt: Array = SWING_DEFAULT_TIME.get(sheet, [0.24, 0.4])
+	var p := KnightFx.preset(swing, dir)
+	var res := {"t0": tt[0], "t1": tt[1], "from": p.from, "to": p.to,
+			"radius": p.radius * 0.85, "width": p.width, "power": p.power}
+	if e.has("t0"):
+		res.t0 = e.t0
+		res.t1 = maxf(e.t1, e.t0 + 0.08)
+		var span := absf(e.to - e.from)
+		if span > deg_to_rad(60.0) and span < deg_to_rad(220.0):
+			res.from = e.from
+			res.to = e.to
+			res.radius = clampf(e.radius, 22.0, 34.0)
+	return res
+
+
+## Удар серии мечом (зовётся из _on_attack_started): дуга идёт вместе со
+## следом клинка на спрайте, хитбокс открыт ровно на время взмаха
+func _sword_strike(step: int) -> void:
+	var clip := anim.current_animation
+	var dir := facing_dir if facing_dir != Vector2.ZERO else direction_to_vector(last_direction)
+	var info: Array = STEP_SWING.get(step, STEP_SWING[1])
+	var events := []
+	match step:
+		# Второй удар (Attack6) — только укол: выпад с вытянутым клинком на
+		# кадрах 5-8. Вихрь клинка после него — прокрут, а не удар
+		2: events.append({"t0": ATTACK6_STAB[0], "t1": ATTACK6_STAB[1], "thrust": true})
+		# Финиш (Attack4) — рубящий сверху: клинок от головы вниз и вперёд
+		3: events.append({"t0": ATTACK4_CHOP[0], "t1": ATTACK4_CHOP[1], "chop": true})
+		_: events.append(_swing(info[0], last_direction, info[1], dir))
+	var t := 0.0
+	for ev in events:
+		var vfx_at := maxf(ev.t0 - SWING_LEAD, t)
+		await get_tree().create_timer(vfx_at - t).timeout
+		t = vfx_at
+		# Перекат, удар по Сигрид или смерть оборвали замах
+		if not is_attacking or anim.current_animation != clip:
+			_disable_kick_hitbox()
+			return
+		if ev.has("thrust"):
+			KnightFx.thrust(self, dir, 36.0, SIGRID_CHEST)
+		elif ev.has("chop"):
+			KnightFx.chop(self, dir, 28.0, ev.t1 - ev.t0 + SWING_LEAD, 1.25, SIGRID_CHEST)
+		else:
+			KnightFx.arc(self, ev.from, ev.to, ev.radius, ev.width, ev.t1 - ev.t0 + SWING_LEAD, ev.power,
+					SIGRID_CHEST, true, false)
+		shoot_audio.stream = SWING_SOUND
+		shoot_audio.play()
+		await get_tree().create_timer(maxf(ev.t0 - t, 0.0)).timeout
+		t = maxf(ev.t0, t)
+		if not is_attacking or anim.current_animation != clip:
+			return
+		var dmg := sword_finisher_damage if step == 3 else sword_damage
+		_open_sword_hitbox(dir * sword_reach, sword_hit_scale, dmg)
+		var close_at: float = ev.t1 + SWING_TAIL_HIT
+		await get_tree().create_timer(maxf(close_at - t, 0.01)).timeout
+		t = close_at
+		_disable_kick_hitbox()
+
+
+## Удар с разворотом (ПКМ) — бьёт всех вокруг, и выпад (V) — рывок вперёд с
+## уколом. Отдельные приёмы, не шаги серии
+func _start_sword_move(kind: String) -> void:
+	var aim: Node2D = _pick_aim()
+	var dir: Vector2
+	if is_instance_valid(aim):
+		dir = (aim.global_position - global_position).normalized()
+	elif input_vector != Vector2.ZERO:
+		dir = input_vector.normalized()
+	else:
+		dir = facing_dir
+	var dir_name := get_direction(dir)
+	var clip := SWORD_PREFIX + kind + "_" + dir_name
+	if dir_name == "" or not anim.has_animation(clip):
+		return
+	var spin := kind == "Spin"
+	if not _pay(spin_stamina_cost if spin else lunge_stamina_cost):
+		return
+	if spin:
+		_spin_cooldown_timer = spin_cooldown
+	else:
+		_lunge_cooldown_timer = lunge_cooldown
+	is_attacking = true
+	is_run_attacking = false
+	combo_step = 0
+	combo_queued = false
+	facing_dir = dir
+	last_direction = dir_name
+	anim.play(clip)
+
+	if spin:
+		# Время — по следу клинка на спрайте (Attack2), дуга — полный круг
+		var sw := _swing("Attack2", dir_name, KnightFx.Swing.SPIN, dir)
+		var p := KnightFx.preset(KnightFx.Swing.SPIN, dir)
+		await get_tree().create_timer(maxf(sw.t0 - SWING_LEAD, 0.0)).timeout
+		if not is_attacking or anim.current_animation != clip:
+			return
+		KnightFx.arc(self, p.from, p.to, p.radius * 0.85, p.width, sw.t1 - sw.t0 + SWING_LEAD, p.power, SIGRID_CHEST, true)
+		shoot_audio.stream = SWING_SOUND
+		shoot_audio.play()
+		await get_tree().create_timer(SWING_LEAD).timeout
+		if not is_attacking or anim.current_animation != clip:
+			return
+		_open_sword_hitbox(Vector2.ZERO, Vector2(3.4, 3.0), spin_damage)
+		await get_tree().create_timer(sw.t1 - sw.t0 + SWING_TAIL_HIT).timeout
+		_disable_kick_hitbox()
+		return
+
+	await get_tree().create_timer(LUNGE_HIT[0]).timeout
+	if not is_attacking or anim.current_animation != clip:
+		return
+	shoot_audio.stream = SWING_SOUND
+	shoot_audio.play()
+	knockback_velocity = dir * lunge_speed
+	KnightFx.thrust(self, dir, 40.0, SIGRID_CHEST)
+	_open_sword_hitbox(dir * (sword_reach + 8.0), sword_hit_scale * Vector2(1.2, 0.9), lunge_damage)
+	await get_tree().create_timer(LUNGE_HIT[1] - LUNGE_HIT[0]).timeout
+	_disable_kick_hitbox()
+
+
+## Хитбокс клинка — тот же узел, что у пинка (KickHitbox): enemy.gd узнаёт
+## удар по группе player_attack и берёт урон из meta "damage"
+func _open_sword_hitbox(pos: Vector2, scl: Vector2, dmg: int) -> void:
+	kick_hitbox.set_meta("damage", dmg)
+	kick_hitbox.scale = scl
+	kick_hitbox.position = pos
+	kick_hitbox.set_deferred("monitoring", true)
+	kick_hitbox.get_child(0).set_deferred("disabled", false)
+
+
+## Клинок задел врага — лёгкая тряска камеры, как у рыцаря
+func _on_blade_contact(area: Area2D) -> void:
+	if weapon == Weapon.SWORD and area.is_in_group("enemy_hurtbox"):
+		shake_camera(2.5, 0.12)

@@ -13,7 +13,7 @@ func _build_gold_counter() -> void:
 	gold_label.position = Vector2(16, -40)
 	gold_label.size = Vector2(130, 30)
 	gold_label.add_theme_font_size_override("font_size", 20)
-	gold_label.add_theme_color_override("font_color", Color(1.0, 0.85, 0.2))
+	gold_label.add_theme_color_override("font_color", Color(0.8, 0.68, 0.36))
 	gold_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
 	gold_label.text = "0 G"
 	add_child(gold_label)

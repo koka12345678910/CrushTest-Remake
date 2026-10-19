@@ -94,6 +94,8 @@ var _telegraph_tween: Tween
 ## до take_damage (см. там же), так что к моменту State.DEAD это гарантированно
 ## тот, кто нанёс добивающий удар, даже если он сменился на середине драки
 @export var skill_points_reward := 1
+## Старая спрайтовая кровь (VFX/VFX_scene/blood_vfx.tscn) — больше не
+## используется, кровь теперь процедурная (play_blood_vfx -> BloodFx)
 @export var blood_vfx_scene: PackedScene
 @export var parry_vfx_scene: PackedScene
 
@@ -107,8 +109,38 @@ enum State {
 	BLOCK,
 	PARRY,    # ← добавь
 	COUNTER,
-	STAGGER   # ← добавь
+	STAGGER,  # ← добавь
+	GUARD     # осторожная стойка в стае (см. _state_guard)
 }
+
+# ============== СТАЙНОЕ ПОВЕДЕНИЕ ==============
+# Когда рядом несколько врагов, они ведут себя по-разному в зависимости от
+# фокуса игрока (focused_enemy, Player_scene/focus_system.gd):
+# - игрок взял в фокус соседа по стае — остальные, кого он НЕ держит в фокусе,
+#   бегом догоняют его (RUSH), пока не настигнут;
+# - игрок никого не держит в фокусе — стая осторожничает (CAUTIOUS): держит
+#   дистанцию в стойке блока и лишь изредка выходит на удар.
+# Одиночка (никого из своих в pack_radius) дерётся как раньше (SOLO)
+enum PackRole { SOLO, RUSH, CAUTIOUS }
+## Радиус, в котором враги считаются одной стаей
+@export var pack_radius := 200.0
+## Докуда бегущий в рывке враг продолжает видеть игрока (обычный vision_range
+## мал — сосед, поднятый чужим фокусом, мог и не видеть игрока сам)
+@export var pack_rush_range := 600.0
+## Тот, кого игрок держит в фокусе, тоже осторожничает (дуэль в блоке), пока
+## остальные заходят с боков. false — дерётся как одиночка
+@export var focused_enemy_cautious := true
+## На какой дистанции от игрока осторожный враг стоит в блоке
+@export var guard_distance := 58.0
+## Шанс поднять блок, если игрок атакует, пока осторожный враг идёт на удар
+@export var guard_block_chance := 0.9
+## Пауза в стойке перед тем, как осторожный враг сам выйдет на удар
+@export var guard_strike_min := 1.6
+@export var guard_strike_max := 3.2
+var pack_role := PackRole.SOLO
+var _guard_strike_timer := 0.0
+var _guard_pressing := false
+var _guard_saw_attack := false
 
 # ============== ПЕРЕМЕННЫЕ ==============
 
@@ -207,6 +239,8 @@ var is_player_berserk := false
 # Враг переиспользует боевые сэмплы игрока, но звучит ниже: Death Knight —
 # крупнее и тяжелее, и по одному тону слышно, чей это удар. Позиционный
 # AudioStreamPlayer2D + attenuation в сцене довершают: дальний враг тише
+const BloodFx := preload("res://VFX/VFX_scene/blood_fx.gd")
+const KnightFx := preload("res://VFX/VFX_scene/knight_fx.gd")
 const ENEMY_SWING_SOUND := preload("res://Sound/melee_sound/swing.mp3")
 const ENEMY_HIT_SOUND := preload("res://Sound/melee_sound/hit.mp3")
 const ENEMY_DEATH_SOUND := preload("res://Sound/death_sound/death.mp3")
@@ -316,8 +350,10 @@ func _physics_process(delta: float) -> void:
 	attack_cooldown_timer = max(0.0, attack_cooldown_timer - delta)
 	if attack_cooldown_timer <= 0.0:
 		can_attack = true
-	# реген концентрации
-	if not is_blocking and posture > 0.0:
+	# реген концентрации. В осторожной стойке блок держится постоянно — иначе
+	# концентрация не восстанавливалась бы никогда; удар в щит всё равно
+	# сбрасывает posture_regen_timer (take_damage)
+	if (not is_blocking or current_state == State.GUARD) and posture > 0.0:
 		posture_regen_timer += delta
 		if posture_regen_timer >= posture_regen_delay:
 			posture = max(0.0, posture - posture_regen_rate * delta)
@@ -461,7 +497,49 @@ func _separate_from_enemies(delta: float) -> void:
 # ============== AI ==============
 
 func _effective_vision_range() -> float:
-	return max(vision_range, ranged_alert_range) if is_ranged_alert else vision_range
+	var r := vision_range
+	if is_ranged_alert:
+		r = max(r, ranged_alert_range)
+	if pack_role == PackRole.RUSH:
+		r = max(r, pack_rush_range)
+	return r
+
+# Пересчитывает роль в стае (см. PackRole). Зовётся из _decide_state, т.е.
+# раз в think_rate — дёшево даже при толпе
+func _update_pack_role() -> void:
+	pack_role = PackRole.SOLO
+	var hero: Node2D = player if (player and is_instance_valid(player)) else get_tree().get_first_node_in_group("player")
+	if hero == null or not ("focused_enemy" in hero):
+		return
+	var focus: Node2D = hero.focused_enemy
+	if not is_instance_valid(focus) or not focus.is_in_group("enemy") or focus.is_dead:
+		focus = null
+
+	var has_mates := false
+	var focus_is_mate := false
+	for e in get_tree().get_nodes_in_group("enemy"):
+		if e == self or not is_instance_valid(e) or e.is_dead:
+			continue
+		if global_position.distance_to(e.global_position) > pack_radius:
+			continue
+		has_mates = true
+		if e == focus:
+			focus_is_mate = true
+	if not has_mates:
+		return
+
+	var knows_player: bool = player == hero and see_player
+	if focus == self:
+		if focused_enemy_cautious and knows_player:
+			pack_role = PackRole.CAUTIOUS
+	elif focus_is_mate:
+		# Игрок занят соседом — бежим на него, даже если сами его ещё не видели
+		pack_role = PackRole.RUSH
+		player = hero
+		see_player = true
+	elif focus == null and knows_player:
+		pack_role = PackRole.CAUTIOUS
+	# Фокус на ком-то вне нашей стаи — деремся как одиночка
 
 # Лучника враг замечает так же, как рыцаря — только через обычную VisionArea.
 # Издалека он себя выдаёт лишь попавшей стрелой (см. take_damage): тогда
@@ -499,8 +577,11 @@ func _decide_state() -> void:
 	if current_state == State.BLOCK:
 		return
 
-	# пробуем заблокировать если игрок атакует рядом
-	if player and is_instance_valid(player):
+	_update_pack_role()
+
+	# пробуем заблокировать если игрок атакует рядом. В осторожной стойке
+	# блок решает сама _state_guard
+	if player and is_instance_valid(player) and current_state != State.GUARD:
 		if _is_player_in_range(attack_range * 1.5):
 			if player.is_attacking and not is_blocking and not is_posture_broken and not is_player_berserk:
 				_try_block()
@@ -514,10 +595,17 @@ func _decide_state() -> void:
 				player.global_position
 			)
 
+			# Осторожная стая: вблизи — стойка блока, удар сама выбирает
+			# _state_guard. За лучником издалека так не подкрадёшься —
+			# там обычная погоня
+			if pack_role == PackRole.CAUTIOUS and dist <= chase_range and not is_ranged_alert:
+				_change_state(State.GUARD)
+				return
+
 			if dist <= attack_range and can_attack:
 				_change_state(State.ATTACK)
 
-			elif dist <= chase_range or is_ranged_alert:
+			elif dist <= chase_range or is_ranged_alert or pack_role == PackRole.RUSH:
 				_change_state(State.CHASE)
 
 			else:
@@ -536,24 +624,58 @@ func _decide_state() -> void:
 		_change_state(State.COUNTER)
 		return
 
+## Парирование: звезда, кольца и искры там, где встречаются клинки — со
+## стороны игрока, а не в центре врага (VFX/VFX_scene/knight_fx.gd).
+## parry_vfx_scene (старая спрайтовая вспышка) больше не используется
 func play_parry_vfx() -> void:
-	if parry_vfx_scene == null:
-		return
-	var vfx = parry_vfx_scene.instantiate()
-	# Не привязано к хитбоксу — сдвиг в сторону игрока, туда, где встречаются
-	# клинки, а не в центр врага
-	var dir := Vector2.RIGHT
-	if is_instance_valid(player):
-		dir = global_position.direction_to(player.global_position)
-	vfx.global_position = global_position + dir * 32.0
-	get_tree().current_scene.add_child(vfx)
+	var dir := _dir_to(player)
+	KnightFx.parry(get_tree(), global_position + Vector2(0, -8) + dir * 22.0, dir)
 
-func play_blood_vfx() -> void:
-	if blood_vfx_scene == null:
+
+## Клинок попал по телу: черта-разрез и искры. Стрелы и магия — свои
+## эффекты, здесь только ближний бой (рыцарь, лучница с мечом)
+func _play_blade_impact(source: Node2D) -> void:
+	if not is_instance_valid(source) or not source.is_in_group("player") \
+			or source.is_in_group("ranged_player") or source.is_in_group("caster_player"):
 		return
-	var vfx = blood_vfx_scene.instantiate()
-	vfx.global_position = global_position + Vector2(15, 0)  # смещение вправо
-	get_tree().current_scene.add_child(vfx)
+	var dir := -_dir_to(source)
+	KnightFx.impact(get_tree(), global_position + Vector2(0, -8) - dir * 6.0, dir)
+
+
+## Направление от врага к цели (нет цели — куда смотрит враг)
+func _dir_to(target: Node2D) -> Vector2:
+	if is_instance_valid(target):
+		var d := target.global_position - global_position
+		if d.length() > 0.001:
+			return d.normalized()
+	return direction
+
+
+## Щит и клинок закрывают только фронт: удар засчитывается в блок/парирование,
+## только если бьющий спереди — в пределах block_front_dot от взгляда врага.
+## Источник неизвестен — считаем, что спереди
+@export_range(-1.0, 1.0) var block_front_dot := 0.0
+
+func _is_guarding_against(source: Node2D) -> bool:
+	if not is_instance_valid(source):
+		return true
+	var d := source.global_position - global_position
+	if d.length() < 0.001:
+		return true
+	return direction.dot(d.normalized()) > block_front_dot
+
+
+## Удары лучницы (стрелы, меч, выпад) врага не отбрасывают — только ранят и
+## оглушают. Остальные (рыцарь, маг) толкают как раньше
+func _pushes(source: Node) -> bool:
+	return is_instance_valid(source) and not source.is_in_group("archer_player")
+
+## Кровь от попадания: брызги летят от того, кто ударил, и сильнее, чем больше
+## урон (зовётся уже после вычета здоровья — добивающий удар брызжет сильнее
+## всех). kind — вид брызг (BloodFx.Kind), по умолчанию — по тому, кто ударил
+func play_blood_vfx(source: Node2D = null, amount := 1.0, kind := -1) -> void:
+	var from: Node2D = source if is_instance_valid(source) else (player as Node2D)
+	BloodFx.hit(self, from, BloodFx.power_for(amount, max_health, health <= 0), kind)
 
 func _update_state(delta: float) -> void:
 	match current_state:
@@ -586,6 +708,8 @@ func _update_state(delta: float) -> void:
 			_state_counter(delta)
 		State.STAGGER:
 			_state_stagger(delta)
+		State.GUARD:
+			_state_guard(delta)
 
 # ============== STATE MACHINE ==============
 
@@ -600,6 +724,9 @@ func _change_state(new_state: State) -> void:
 	# телеграфа так и продолжил бы дёргать scale/modulate до бесконечности
 	if current_state == State.ATTACK and _telegraph_tween:
 		_stop_attack_telegraph()
+	# Щит стойки опускается при любом выходе из неё (BLOCK ниже поднимет свой)
+	if current_state == State.GUARD:
+		is_blocking = false
 
 	current_state = new_state
 	state_time = 0.0
@@ -682,6 +809,11 @@ func _change_state(new_state: State) -> void:
 		State.STAGGER:
 			move_velocity = Vector2.ZERO
 			attack_active = false
+
+		State.GUARD:
+			_guard_pressing = false
+			_guard_saw_attack = false
+			_guard_strike_timer = randf_range(guard_strike_min, guard_strike_max)
 
 
 # ============== СОСТОЯНИЯ ==============
@@ -825,7 +957,8 @@ func _state_chase(delta: float) -> void:
 			move_dir = -dir
 		direction = direction.lerp(move_dir, direction_smoothness * delta).normalized()
 
-		if is_ranged_alert:
+		if is_ranged_alert or pack_role == PackRole.RUSH:
+			# Рывок стаи (игрок занят соседом) — бежим, пока не настигнем.
 			# Погоня за лучником — тут важна скорость закрытия дистанции, а
 			# не "убегает ли он". Если решать по флаг-скорости игрока, как
 			# ниже, враг трусцой идёт на стоящего лучника, и тот безнаказанно
@@ -848,6 +981,69 @@ func _state_chase(delta: float) -> void:
 	else:
 		move_velocity = Vector2.ZERO
 		_play_animation("idle")
+
+# ===================== GUARD =====================
+# Осторожная стойка в стае: подходим на guard_distance и стоим лицом к игроку
+# с поднятым щитом. Раз в guard_strike_min..max секунд опускаем щит и идём на
+# удар — это и есть окно, в которое игрок может наказать. Если игрок в этот
+# момент сам замахнулся, враг скорее всего (guard_block_chance) передумает и
+# снова закроется. Уходом из стойки (роль сменилась, игрок отбежал) управляет
+# _decide_state
+func _state_guard(delta: float) -> void:
+	if not player or not is_instance_valid(player):
+		_change_state(State.WANDER)
+		return
+
+	var to_player := player.global_position - global_position
+	var dist := to_player.length()
+	var dir := _safe_direction(to_player, direction)
+	direction = direction.lerp(dir, direction_smoothness * delta).normalized()
+
+	# Реагируем на НАЧАЛО замаха игрока, а не на каждый его кадр — иначе шанс
+	# блока перебрасывался бы 60 раз в секунду и стал бы фактически 100%
+	var attacking: bool = player.is_attacking
+	if attacking and not _guard_saw_attack and _guard_pressing and dist <= attack_range * 1.5:
+		if randf() < guard_block_chance:
+			_guard_pressing = false
+			_guard_strike_timer = randf_range(guard_strike_min, guard_strike_max) * 0.5
+	_guard_saw_attack = attacking
+
+	if not _guard_pressing:
+		_guard_strike_timer -= delta
+		if _guard_strike_timer <= 0.0 and can_attack:
+			_guard_pressing = true
+
+	if _guard_pressing:
+		is_blocking = false
+		if dist <= attack_range:
+			_change_state(State.ATTACK)
+			return
+		_guard_move_toward(to_player, dist, walk_speed, delta)
+		return
+
+	if dist > guard_distance + 24.0:
+		# Далеко от стойки — подходим, щит опущен (блок на ходу смотрелся бы
+		# как скольжение статичной позы)
+		is_blocking = false
+		_guard_move_toward(to_player, dist, walk_speed * 0.8, delta)
+		return
+
+	is_blocking = true
+	move_velocity = Vector2.ZERO
+	var anim_name := "block_" + _get_direction_name(direction)
+	if anim.current_animation != anim_name:
+		anim.play(anim_name)
+
+
+func _guard_move_toward(to_player: Vector2, dist: float, speed: float, delta: float) -> void:
+	target_refresh_timer -= delta
+	if target_refresh_timer <= 0.0:
+		target_refresh_timer = target_refresh_interval
+		nav_agent.target_position = player.global_position
+	var move_dir := _nav_direction_to(to_player / max(dist, 0.001))
+	direction = direction.lerp(move_dir, direction_smoothness * delta).normalized()
+	move_velocity = direction * speed
+	_play_animation("walk")
 
 # Публичный признак "вот-вот ударю" — читает его блок игрока (player.gd,
 # _find_incoming_attacker), чтобы понять, когда переключаться на анимацию
@@ -1041,7 +1237,9 @@ func _try_hit_body(body: Node2D) -> void:
 
 var knockback_velocity := Vector2.ZERO
 
-func take_damage(amount: int, source: Node2D = null) -> void:
+## unblockable — удар, который нельзя ни парировать, ни заблокировать
+## (столп огня мага, mage_pillar.gd): проходит мимо обеих проверок ниже
+func take_damage(amount: int, source: Node2D = null, unblockable := false) -> void:
 	if is_dead:
 		return
 
@@ -1066,7 +1264,8 @@ func take_damage(amount: int, source: Node2D = null) -> void:
 		hp_bar.visible = true
 		hp_bar.value = health
 		_trigger_damage_flash()
-		play_blood_vfx()
+		play_blood_vfx(source, amount)
+		_play_blade_impact(source)
 		_play_enemy_sound(voice_audio, ENEMY_HURT_SOUNDS.pick_random())
 
 		if health <= 0:
@@ -1076,21 +1275,31 @@ func take_damage(amount: int, source: Node2D = null) -> void:
 		else:
 			_trigger_stagger()
 
-		if source and not is_dead:
+		if _pushes(source) and not is_dead:
 			var knockback_dir := _safe_direction(global_position - source.global_position)
 			knockback_velocity = knockback_dir * 150.0
 		return
 
+	# Щит и клинок закрывают только фронт. В стойке блока враг не
+	# поворачивается за игроком, и зашедший за спину бьёт мимо щита — урон
+	# проходит, а стойка ломается (как у самого рыцаря, player.gd::receive_attack)
+	var guarded := _is_guarding_against(source)
+	if not guarded and (is_blocking or is_parrying) and not unblockable:
+		is_blocking = false
+		is_parrying = false
+		block_hit_count = 0
+
 	# Парирование — если игрок ударил во время окна парирования
-	if is_parrying:
+	if is_parrying and not unblockable:
 		is_parrying = false
 		if source and source.has_method("receive_parry"):
 			source.receive_parry(pummel_posture_damage)
+		play_parry_vfx()
 		_change_state(State.COUNTER)
 		return
 	
 	# Проверяем блок
-	if is_blocking and not is_posture_broken:
+	if is_blocking and not is_posture_broken and not unblockable:
 		posture += block_posture_damage
 		posture_bar.visible = true
 		posture_bar.value = posture
@@ -1098,14 +1307,14 @@ func take_damage(amount: int, source: Node2D = null) -> void:
 		block_hit_count += 1
 
 		if source:
-			var knockback_dir := _safe_direction(global_position - source.global_position)
-			knockback_velocity = knockback_dir * 80.0
+			if _pushes(source):
+				knockback_velocity = _safe_direction(global_position - source.global_position) * 80.0
 			if source.has_method("play_block_hit_sound"):
 				source.play_block_hit_sound()
 
 		if posture >= max_posture:
 			posture = max_posture
-			_trigger_block_effect()
+			_trigger_block_effect(source)
 			_posture_break()
 			return
 
@@ -1117,14 +1326,15 @@ func take_damage(amount: int, source: Node2D = null) -> void:
 			_start_parry()
 			return
 
-		_trigger_block_effect()
+		_trigger_block_effect(source)
 		return
 	
 	health -= amount
 	hp_bar.visible = true
 	hp_bar.value = health
 	_trigger_damage_flash()
-	play_blood_vfx()
+	play_blood_vfx(source, amount)
+	_play_blade_impact(source)
 	_play_enemy_sound(voice_audio, ENEMY_HURT_SOUNDS.pick_random())
 
 	if health <= 0:
@@ -1139,7 +1349,7 @@ func take_damage(amount: int, source: Node2D = null) -> void:
 			_pending_ranged_block = randf() < ranged_block_chance
 		_change_state(State.HIT_STUN)
 
-	if source and not is_dead:
+	if _pushes(source) and not is_dead:
 		var knockback_dir := _safe_direction(global_position - source.global_position)
 		knockback_velocity = knockback_dir * 150.0
 
@@ -1155,7 +1365,7 @@ func take_bleed_damage(amount: int, source: Node2D = null) -> void:
 	hp_bar.visible = true
 	hp_bar.value = health
 	_trigger_damage_flash()
-	play_blood_vfx()
+	play_blood_vfx(source, amount, BloodFx.Kind.DRIP)
 	if health <= 0:
 		health = 0
 		is_dead = true
@@ -1243,7 +1453,7 @@ func _trigger_stagger() -> void:
 	var anim_name = stagger_name + "_" + _get_direction_name(direction)
 	anim.play(anim_name)
 	
-	if player:
+	if _pushes(player):
 		var knockback_dir := _safe_direction(global_position - player.global_position)
 		knockback_velocity = knockback_dir * 200.0
 
@@ -1305,11 +1515,13 @@ func _stop_attack_telegraph() -> void:
 	var tween = create_tween()
 	tween.tween_property(sp, "modulate", _rest_modulate, 0.05)
 
-func _trigger_block_effect() -> void:
-	block_vfx.restart()
-	block_vfx.emitting = true
+## Удар пришёлся в щит: искры о щит со стороны удара (knight_fx.gd) и короткая
+## тёплая вспышка самого врага. source — кто ударил (нет — игрок)
+func _trigger_block_effect(source: Node2D = null) -> void:
+	var dir := _dir_to(source if is_instance_valid(source) else player)
+	KnightFx.shield_hit(get_tree(), global_position + Vector2(0, -8) + dir * 16.0, dir)
 	var sp = $AnimatedSprite2D
-	sp.modulate = Color(2.0, 2.0, 0.5, 1.0)
+	sp.modulate = Color(1.7, 1.55, 1.2, 1.0)
 	var tween = create_tween()
 	tween.tween_property(sp, "modulate", _rest_modulate, 0.15)
 
@@ -1345,7 +1557,7 @@ func execute_kill() -> void:
 	hp_bar.value = 0
 	is_blocking = false
 	is_parrying = false
-	play_blood_vfx()
+	play_blood_vfx(player, max_health)
 	is_dead = true
 	_change_state(State.DEAD)
 
@@ -1365,6 +1577,8 @@ func _on_dead() -> void:
 
 	_drop_coins()  # ← добавь
 	_award_skill_points()
+	# Лужа крови растекается под павшим и остаётся, когда тело исчезнет
+	BloodFx.death_pool(self)
 
 	await get_tree().create_timer(death_fade_time).timeout
 
@@ -1438,7 +1652,7 @@ func _on_vision_body_exited(body: Node2D) -> void:
 		# Поднятый стрелой враг держит цель по ranged_alert_range, а не по
 		# VisionArea — иначе лучница отходила бы на шаг из зоны, и погоня
 		# тут же обрывалась
-		if is_ranged_alert:
+		if is_ranged_alert or pack_role == PackRole.RUSH:
 			return
 		player = null
 		see_player = false

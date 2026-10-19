@@ -33,11 +33,21 @@ var _echo_mat: ShaderMaterial
 var _dist_mat: ShaderMaterial
 ## Рисовать ли рунический круг под магом (первый импульс заклинания)
 var rune_circle := false
+var _center := Vector2(0, -4)
+var _feet := Vector2.ZERO
+## Длительность кадра клипа Attack_3_ (из mage.gd) — по ней живёт рунический круг
+var _frame := 1.0 / 15.0
 
 
 ## r — докуда дойдёт волна (px), time — за сколько, dis — рассеивание 0..1,
 ## glow — яркость (вспышка, искры, свет)
-func setup(caster: Node2D, r: float, time: float, dis: float, dmg: int, push: float, glow: float, circle := false) -> void:
+## center — центр волны относительно мага (центр его тела на картинке),
+## feet — точка под ногами, туда ложится рунический круг; frame — длительность
+## кадра клипа в секундах
+func setup(caster: Node2D, r: float, time: float, dis: float, dmg: int, push: float, glow: float, circle := false, center := Vector2(0, -4), feet := Vector2(0, 0), frame := 1.0 / 15.0) -> void:
+	_center = center
+	_feet = feet
+	_frame = frame
 	rune_circle = circle
 	_caster = caster
 	radius = r
@@ -51,8 +61,9 @@ func setup(caster: Node2D, r: float, time: float, dis: float, dmg: int, push: fl
 
 func _ready() -> void:
 	z_index = 11
-	# Центр волны — корпус мага, чуть выше точки опоры
-	position = Vector2(0, -4)
+	# Центр волны — середина тела мага на картинке (center из setup,
+	# см. mage.gd::_body_anchor)
+	position = _center
 
 	var img := Image.create(4, 4, false, Image.FORMAT_RGBA8)
 	img.fill(Color.WHITE)
@@ -205,10 +216,11 @@ func _set_fade(v: float) -> void:
 
 ## Рунический круг на земле под магом: прорисовывается по окружности,
 ## медленно вращается, светится и гаснет. Живёт в мире, а не на маге —
-## круг остаётся на месте заклинания, даже если маг сдвинется
+## круг остаётся на месте заклинания, даже если маг сдвинется. Все времена —
+## в кадрах клипа (* _frame): висит, пока не пройдёт большая волна
 func _spawn_circle() -> void:
-	var at := global_position + Vector2(0, 4)
-	var h := MageFx.holder(get_tree(), at, 1.3, 0)
+	var at := global_position - _center + _feet
+	var h := MageFx.holder(get_tree(), at, 19.5 * _frame, 0)
 	# Под персонажами (y-sort уровня), но над землёй
 	h.z_as_relative = false
 	h.z_index = -16
@@ -226,21 +238,22 @@ func _spawn_circle() -> void:
 	m.set_shader_parameter("intensity", 1.2)
 	s.material = m
 	h.add_child(s)
-	MageFx.light_pulse(h, 70.0, 1.0, 1.1)
+	MageFx.light_pulse(h, 70.0, 1.0, 16.5 * _frame)
 	# Руны-искорки поднимаются с круга
 	MageFx.embers(h, 14, 26.0, 1.0)
 	var t := h.create_tween()
-	t.tween_method(func(v: float): m.set_shader_parameter("draw", v), 0.0, 1.0, 0.18)
-	t.parallel().tween_property(s, "scale", s.scale * 1.08, 1.0)
-	t.tween_interval(0.45)
-	t.tween_method(func(v: float): m.set_shader_parameter("fade", v), 1.0, 0.0, 0.5)
+	t.tween_method(func(v: float): m.set_shader_parameter("draw", v), 0.0, 1.0, 2.7 * _frame)
+	t.parallel().tween_property(s, "scale", s.scale * 1.08, 15.0 * _frame)
+	t.tween_interval(6.75 * _frame)
+	t.tween_method(func(v: float): m.set_shader_parameter("fade", v), 1.0, 0.0, 7.5 * _frame)
 
 
 ## Бьём всех, до кого уже дошёл фронт волны (каждого один раз)
 func _hit_front() -> void:
 	if not is_instance_valid(_caster):
 		return
-	var origin := _caster.global_position
+	# От центра самой волны — там, где её видно, а не от точки опоры мага
+	var origin := global_position
 	# Разбиваемые предметы (Levels/props/breakable_prop.gd) отвечают тем же,
 	# что враги: is_dead, take_damage, global_position
 	for e in get_tree().get_nodes_in_group("enemy") + get_tree().get_nodes_in_group("breakable"):

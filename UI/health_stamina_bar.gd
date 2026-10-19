@@ -51,15 +51,19 @@ var stamina_regen_timer: float = 0.0
 # Отрицательный — отступ центра полоски от НИЖНЕГО края экрана
 @export var posture_position_y: float = -84.0
 
-# Цвета здоровья: чем меньше осталось, тем ярче и тревожнее красный
-const HP_COLOR_HIGH := Color(0.6, 0.06, 0.05)
-const HP_COLOR_MID := Color(0.7, 0.1, 0.04)
-const HP_COLOR_LOW := Color(0.82, 0.09, 0.03)
-const STAMINA_COLOR := Color(0.36, 0.6, 0.22)
-# Концентрация: золото → оранжевый → красный по мере приближения к срыву
-const POSTURE_COLOR_LOW := Color(0.86, 0.62, 0.24)
-const POSTURE_COLOR_MID := Color(0.93, 0.45, 0.12)
-const POSTURE_COLOR_HIGH := Color(0.95, 0.16, 0.08)
+# Цвета приглушённые, землистые — HUD не должен перетягивать взгляд с игры.
+# Здоровье: чем меньше осталось, тем краснее
+const HP_COLOR_HIGH := Color(0.5, 0.13, 0.11)
+const HP_COLOR_MID := Color(0.56, 0.14, 0.1)
+const HP_COLOR_LOW := Color(0.64, 0.14, 0.1)
+const STAMINA_COLOR := Color(0.34, 0.46, 0.27)
+# Концентрация: тусклое золото → охра → кирпичный по мере приближения к срыву
+const POSTURE_COLOR_LOW := Color(0.66, 0.53, 0.32)
+const POSTURE_COLOR_MID := Color(0.63, 0.41, 0.22)
+const POSTURE_COLOR_HIGH := Color(0.68, 0.2, 0.14)
+# Кайма — потемневшая бронза вместо яркого золота
+const FRAME_COLOR := Color(0.5, 0.43, 0.32, 0.95)
+const DELAYED_COLOR := Color(0.75, 0.7, 0.62, 0.5)
 
 # --- Концентрация (Posture) ---
 var max_posture: float = 100.0
@@ -238,4 +242,6 @@ func _make_bar(pos: Vector2, sz: Vector2, col: Color) -> Control:
 	bar.position = pos
 	bar.size = sz
 	bar.set("fill_color", col)
+	bar.set("frame_color", FRAME_COLOR)
+	bar.set("delayed_color", DELAYED_COLOR)
 	return bar

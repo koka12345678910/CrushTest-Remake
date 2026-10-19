@@ -1,8 +1,9 @@
 extends Area2D
 ## mage_fireball.gd — синий огненный шар мага (первая атака, Attack_).
 ## Летит по прямой; при попадании во врага, в стену или в конце полёта
-## взрывается: прямая цель получает direct_damage, все остальные враги в
-## splash_radius — splash_damage.
+## растворяется в воздухе (без взрыва и колец): прямая цель получает
+## direct_damage, остальные враги совсем рядом —
+## splash_damage (в splash_radius).
 ##
 ## Собран целиком кодом, без .tscn — тот же приём, что у стрелы (arrow.gd).
 ## Урон бьёт напрямую через enemy.take_damage(dmg, маг): source — сам маг,
@@ -10,8 +11,6 @@ extends Area2D
 
 const MageFx := preload("res://Player_scene/mage_fx.gd")
 const ORB_SHADER := preload("res://Shaders/magic_orb.gdshader")
-const PULSE_SHADER := preload("res://Shaders/magic_pulse.gdshader")
-const DISTORT_SHADER := preload("res://Shaders/magic_distort.gdshader")
 
 @export var speed := 300.0
 @export var lifetime := 1.3
@@ -19,6 +18,8 @@ const DISTORT_SHADER := preload("res://Shaders/magic_distort.gdshader")
 @export var splash_damage := 1
 @export var splash_radius := 56.0
 @export var color := Color(0.35, 0.65, 1.0)
+## За сколько шар растворяется в воздухе при попадании
+@export var dissolve_time := 0.22
 
 var _caster: Node2D
 var _direction := Vector2.RIGHT
@@ -231,92 +232,60 @@ func _explode(direct_hit: Node2D) -> void:
 			e.take_damage(direct_damage, _caster)
 		elif center.distance_to(e.global_position) <= splash_radius:
 			e.take_damage(splash_damage, _caster)
-	_spawn_burst(center)
-	# Шар гаснет, хвост и дымка доживают своё
+	_dissolve(center)
 	if _visual == null:
 		queue_free()
 		return
-	_visual.visible = false
+	# Хвост, дымка и блики больше не пополняются, но доживают своё
 	_trail.emitting = false
 	_haze.emitting = false
 	_glints.emitting = false
-	var t := create_tween()
-	t.tween_property(_light, "energy", 0.0, 0.2)
-	await get_tree().create_timer(_haze.lifetime + 0.1).timeout
+	# Сам шар не взрывается, а растворяется на месте: чуть расплывается,
+	# тускнеет и исчезает, огоньки разлетаются и гаснут
+	var orb := _core.material as ShaderMaterial
+	var t := create_tween().set_parallel(true)
+	t.tween_property(_visual, "scale", Vector2.ONE * 1.35, dissolve_time).set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_QUAD)
+	t.tween_property(_visual, "modulate:a", 0.0, dissolve_time).set_ease(Tween.EASE_IN)
+	t.tween_method(func(v: float): orb.set_shader_parameter("intensity", v), 1.0, 0.0, dissolve_time)
+	t.tween_property(_light, "energy", 0.0, dissolve_time)
+	for i in _motes.size():
+		var m := _motes[i] as Node2D
+		var out := Vector2.from_angle(_spin + i * TAU / _motes.size()) * 16.0
+		t.tween_property(m, "position", m.position + out, dissolve_time).set_ease(Tween.EASE_OUT)
+	await get_tree().create_timer(maxf(dissolve_time, _haze.lifetime) + 0.1).timeout
 	queue_free()
 
 
-## Взрыв — отдельный узел в мире: шар уже исчезает, а взрыв доигрывает на
-## месте. Слои: вспышка, ударное кольцо с искажением воздуха, искры-штрихи,
-## поднимающиеся угольки, клубы дыма, ожог на земле и короткий свет
-func _spawn_burst(at: Vector2) -> void:
-	var h := MageFx.holder(get_tree(), at, 2.2, 11)
-	MageFx.flash(h, splash_radius * 1.3, 0.18)
-	MageFx.light_pulse(h, splash_radius * 1.6, 2.2, 0.5)
-	MageFx.sparks(h, 34, 190.0, 0.5)
-	MageFx.embers(h, 16, splash_radius * 0.35, 1.2)
-	MageFx.smoke(h, 9, splash_radius * 0.3, 46.0, 1.0)
-
-	# Ударное кольцо (тот же шейдер, что у импульса) — быстрое и узкое
-	var img := Image.create(4, 4, false, Image.FORMAT_RGBA8)
-	img.fill(Color.WHITE)
-	var quad_tex := ImageTexture.create_from_image(img)
-	var side := splash_radius * 2.2 / 0.95
-	var ring := Sprite2D.new()
-	ring.texture = quad_tex
-	ring.scale = Vector2(side, side * 0.8) / 4.0
-	var rm := ShaderMaterial.new()
-	rm.shader = PULSE_SHADER
-	rm.set_shader_parameter("color_edge", color)
-	rm.set_shader_parameter("intensity", 1.6)
-	rm.set_shader_parameter("ring_width", 0.07)
-	rm.set_shader_parameter("seed", randf() * 10.0)
-	rm.set_shader_parameter("noise_tex", MageFx.noise_tex())
-	ring.material = rm
-	h.add_child(ring)
-	# Искажение воздуха по тому же фронту
-	var dist := Sprite2D.new()
-	dist.texture = quad_tex
-	dist.scale = ring.scale * 1.05
-	var dm := ShaderMaterial.new()
-	dm.shader = DISTORT_SHADER
-	dm.set_shader_parameter("strength", 0.008)
-	dist.material = dm
-	h.add_child(dist)
-	var rt := h.create_tween().set_parallel(true)
-	rt.tween_method(_set_pair.bind(rm, dm, "progress"), 0.0, 1.0, 0.26).set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_CUBIC)
-	rt.tween_method(_set_pair.bind(rm, dm, "fade"), 1.0, 0.0, 0.32).set_delay(0.08)
-
-	# Ожог на земле: тёмное пятно с тлеющей голубой кромкой, гаснет за 2 с.
-	# Ниже персонажей и объектов, над землёй
-	var scorch := Sprite2D.new()
-	scorch.texture = MageFx.soft()
-	scorch.modulate = Color(0.02, 0.03, 0.08, 0.6)
-	scorch.scale = Vector2(1.0, 0.6) * splash_radius * 1.1 / 64.0
-	scorch.z_as_relative = false
-	scorch.z_index = -17
-	scorch.position = Vector2(0, 6)
-	h.add_child(scorch)
-	var glow := Sprite2D.new()
-	glow.texture = MageFx.soft()
-	glow.material = MageFx.add_material()
-	glow.modulate = Color(MageFx.EDGE.r, MageFx.EDGE.g, MageFx.EDGE.b, 0.5)
-	glow.scale = scorch.scale * 0.7
-	glow.z_as_relative = false
-	glow.z_index = -16
-	glow.position = scorch.position
-	h.add_child(glow)
-	var st := h.create_tween().set_parallel(true)
-	st.tween_property(glow, "modulate:a", 0.0, 1.0)
-	st.tween_property(scorch, "modulate:a", 0.0, 1.4).set_delay(0.7)
-
-	if is_instance_valid(_caster) and _caster.has_method("shake_camera"):
-		_caster.shake_camera(1.5, 0.12)
-
-
-## Один и тот же параметр в двух шейдерах (кольцо и искажение идут вместе).
-## Метод, а не лямбда: шейдеры живут на узле взрыва, а не на шаре — шар к
-## этому моменту уже удаляется, но твин принадлежит узлу взрыва
-static func _set_pair(v: float, a: ShaderMaterial, b: ShaderMaterial, key: String) -> void:
-	a.set_shader_parameter(key, v)
-	b.set_shader_parameter(key, v)
+## След растворения в воздухе — отдельный узел в мире, без колец, ожога и
+## тряски: короткая мягкая вспышка, горстка искорок и тающая дымка
+func _dissolve(at: Vector2) -> void:
+	var h := MageFx.holder(get_tree(), at, 1.4, 11)
+	MageFx.flash(h, 18.0, 0.12)
+	MageFx.light_pulse(h, 42.0, 0.9, 0.3)
+	MageFx.embers(h, 10, 5.0, 0.8)
+	MageFx.burst(h, 14, 0.45, MageFx.dot(), func(pm: ParticleProcessMaterial):
+		pm.emission_shape = ParticleProcessMaterial.EMISSION_SHAPE_SPHERE
+		pm.emission_sphere_radius = 4.0
+		pm.direction = Vector3(1, 0, 0)
+		pm.spread = 180.0
+		pm.initial_velocity_min = 12.0
+		pm.initial_velocity_max = 38.0
+		pm.damping_min = 30.0
+		pm.damping_max = 60.0
+		pm.scale_min = 0.6
+		pm.scale_max = 1.4
+		pm.scale_curve = MageFx.size_curve(0.15)
+		pm.color_ramp = MageFx.ramp([Color(MageFx.CORE, 1.0), Color(MageFx.MID, 0.8), Color(MageFx.EDGE, 0.0)]))
+	# Дымка — не аддитивная пелена, а синее свечение, тающее в воздухе
+	MageFx.burst(h, 6, 0.6, MageFx.soft(), func(pm: ParticleProcessMaterial):
+		pm.emission_shape = ParticleProcessMaterial.EMISSION_SHAPE_SPHERE
+		pm.emission_sphere_radius = 3.0
+		pm.direction = Vector3(0, -1, 0)
+		pm.spread = 180.0
+		pm.initial_velocity_min = 4.0
+		pm.initial_velocity_max = 12.0
+		pm.gravity = Vector3(0, -8, 0)
+		pm.scale_min = 0.2
+		pm.scale_max = 0.34
+		pm.scale_curve = MageFx.size_curve(0.3)
+		pm.color_ramp = MageFx.ramp([Color(MageFx.EDGE, 0.0), Color(MageFx.EDGE, 0.3), Color(MageFx.EDGE, 0.0)], [0.0, 0.25, 1.0]))

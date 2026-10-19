@@ -18,6 +18,7 @@ const DepthComponentScript := preload("res://Player_scene/depth_component.gd")
 ## Пыль из-под ног на резком развороте (Turn_) — тот же VFX, что у рыцаря
 ## (player.gd::turn_around_vfx_scene), общий на все классы, не копия
 const TurnDustScene := preload("res://VFX/VFX_scene/turn_around_vfx_scene.tscn")
+const BloodFx := preload("res://VFX/VFX_scene/blood_fx.gd")
 
 @export var walk_speed := 100.0
 @export var run_speed := 200.0
@@ -335,6 +336,8 @@ func play_movement_animation() -> void:
 	var anim_name := "Idle_" + last_direction
 	if speed >= 120.0:
 		anim_name = "Run_" + last_direction
+	elif speed >= 10.0 and _strafe_clip() != "":
+		anim_name = _strafe_clip()
 	elif speed >= 10.0:
 		# Ходьба спиной вперёд (взгляд держит фокус на враге) — своя
 		# раскадровка, а не Walk_. Та же логика, что у рыцаря
@@ -353,6 +356,40 @@ func play_movement_animation() -> void:
 			anim_name = "Walk_" + last_direction
 
 	_play(anim_name)
+
+
+## Направления по кругу по часовой стрелке на экране — в этом же порядке идут
+## строки листов анимаций (Right, Down_Right, Down, ...)
+const DIR_RING := ["Right", "Down_Right", "Down", "Down_Left", "Left", "Up_Left", "Up", "Up_Right"]
+## |cos угла| между движением и взглядом меньше этого — шаг вбок (стрейф)
+@export var strafe_threshold := 0.55
+## Left/Right в листах стрейфа подписаны со стороны зрителя, а не персонажа
+## (так у Сигрид — сверено по кадрам; у рыцаря — со стороны персонажа)
+@export var strafe_names_swapped := false
+
+
+## Стрейф под фокусом: взгляд на враге, ноги идут вбок — как у рыцаря
+## (player.gd::_strafe_animation). Строка листа StrafeLeft/StrafeRight — это
+## направление ДВИЖЕНИЯ, взгляд в ней повёрнут на 90°, поэтому строку берём от
+## направления взгляда со сдвигом на четверть круга. "" — стрейф не нужен
+## или такого клипа у персонажа нет
+func _strafe_clip() -> String:
+	if input_vector == Vector2.ZERO or not _focus.has_target():
+		return ""
+	var move := input_vector.normalized()
+	if absf(move.dot(facing_dir)) > strafe_threshold:
+		return ""
+	var i := DIR_RING.find(last_direction)
+	if i < 0:
+		return ""
+	var right := "StrafeLeft_" if strafe_names_swapped else "StrafeRight_"
+	var left := "StrafeRight_" if strafe_names_swapped else "StrafeLeft_"
+	var clip: String
+	if facing_dir.cross(move) > 0.0:
+		clip = right + DIR_RING[(i + 2) % 8]
+	else:
+		clip = left + DIR_RING[(i + 6) % 8]
+	return clip if anim.has_animation(clip) else ""
 
 
 ## Взгляд держит фокус на враге, а WASD ведёт корпус в противоположную
@@ -556,15 +593,7 @@ func start_attack(step: int) -> void:
 	# если игрок явно выбрал врага, бить надо именно его, а не того, кто
 	# случайно оказался ближе в толпе
 	var aim: Node2D = _pick_aim()
-	if is_instance_valid(aim):
-		var to_aim := (aim.global_position - global_position).normalized()
-		var aim_dir := get_direction(to_aim)
-		if aim_dir != "":
-			facing_dir = to_aim
-			last_direction = aim_dir
-	elif input_vector != Vector2.ZERO:
-		facing_dir = input_vector.normalized()
-		last_direction = get_direction(facing_dir)
+	_turn_to_aim(aim)
 
 	# Первый удар — Attack_, дальше Attack_2_, Attack_3_ и т.д. Клипа под шаг
 	# может не быть — тогда переигрываем первый, а не обрываем всю серию (тот
@@ -576,6 +605,19 @@ func start_attack(step: int) -> void:
 			return
 
 	_on_attack_started(step, aim)
+
+
+## Развернуться к цели удара, а без цели — туда, куда жмут стрелки
+func _turn_to_aim(aim: Node2D) -> void:
+	if is_instance_valid(aim):
+		var to_aim := (aim.global_position - global_position).normalized()
+		var aim_dir := get_direction(to_aim)
+		if aim_dir != "":
+			facing_dir = to_aim
+			last_direction = aim_dir
+	elif input_vector != Vector2.ZERO:
+		facing_dir = input_vector.normalized()
+		last_direction = get_direction(facing_dir)
 
 
 ## Кого бить/в кого стрелять. Приоритет: взятая в фокус цель > ближайший
@@ -644,6 +686,7 @@ func receive_attack(attack_data: Dictionary) -> bool:
 		health_bar.take_damage(amount)
 	play_take_damage()
 	_flash_hit()
+	BloodFx.hit(self, attack_data.get("source", null) as Node2D, BloodFx.power_for(amount, max_health, is_dead()))
 	shake_camera(4.0)
 	_apply_knockback(attack_data.get("source", null))
 	is_invulnerable = true
@@ -707,6 +750,9 @@ func _die() -> void:
 	turn_lock = false
 	velocity = Vector2.ZERO
 	knockback_velocity = Vector2.ZERO
+	# Анимация смерти, если нарисована (у Сигрид — Die_). Дальше _physics_process
+	# уже не работает, так что её никто не перебьёт
+	_play("Die_" + last_direction)
 	died.emit()
 
 
