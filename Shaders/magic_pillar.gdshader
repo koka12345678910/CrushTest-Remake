@@ -22,6 +22,11 @@ uniform float intensity = 1.0;
 // Высота / ширина квадрата — чтобы клубы шума не вытягивались по вертикали
 uniform float aspect = 2.6;
 uniform float speed = 1.0;
+// Отсвет на земле у основания и мягкость низа. У столпа (по умолчанию) низ
+// чёткий и светится; мелким языкам выжигания (mage_scorch.gd) отсвет даёт
+// плоскую "полочку" под каждым — им ground_glow = 0 и мягкий низ
+uniform float ground_glow = 1.0;
+uniform float base_soft = 0.07;
 
 void fragment() {
 	float y = 1.0 - UV.y;
@@ -60,10 +65,10 @@ void fragment() {
 	col += color_core.rgb * fil * 0.6;
 
 	// Свечение земли у основания
-	float ground = exp(-y * 9.0) * (1.0 - smoothstep(0.25, 1.0, abs(x))) * 0.55 * (1.0 - lift) * rise;
+	float ground = exp(-y * 9.0) * (1.0 - smoothstep(0.25, 1.0, abs(x))) * 0.55 * (1.0 - lift) * rise * ground_glow;
 
 	float alpha = a * (0.4 + 0.4 * hot) + fil * 0.35 + ground;
 	// Края квадрата мягкие — и у земли тоже, иначе низ столпа срезан линией
-	alpha *= smoothstep(0.0, 0.07, y) * (1.0 - smoothstep(0.93, 1.0, y)) * (1.0 - smoothstep(0.9, 1.0, abs(x)));
+	alpha *= smoothstep(0.0, base_soft, y) * (1.0 - smoothstep(0.93, 1.0, y)) * (1.0 - smoothstep(0.9, 1.0, abs(x)));
 	COLOR = vec4(col * intensity, clamp(alpha, 0.0, 1.0) * fade);
 }

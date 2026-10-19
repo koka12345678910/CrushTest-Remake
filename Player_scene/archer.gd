@@ -876,6 +876,22 @@ const KnightFx := preload("res://VFX/VFX_scene/knight_fx.gd")
 @export var lunge_speed := 260.0
 @export var lunge_stamina_cost := 18.0
 @export var lunge_cooldown := 1.0
+## Шаг вперёд на каждом ударе серии мечом — скорость рывка (путь ≈ скорость /
+## attack_step_friction из character_base). Укол и финиш шагают шире
+@export var sword_step_speed := 110.0
+@export var sword_thrust_step_speed := 150.0
+@export var sword_finisher_step_speed := 170.0
+## За сколько секунд до удара клинка начинается шаг — нога ставится на
+## замахе, и к моменту попадания Сигрид уже идёт вперёд всем весом
+@export var sword_step_lead := 0.12
+## Враги перед Сигрид в этом радиусе едут вместе с её шагом/рывком — иначе
+## она упиралась бы в того, кого бьёт, и шаг гас бы о его тело
+@export var sword_carry_reach := 52.0
+## Насколько враг уезжает быстрее самой Сигрид (>1 — зазор не схлопывается
+## из-за того, что враги и игрок обрабатывают физику в разном порядке)
+@export var sword_carry_factor := 1.15
+## На каком расстоянии до врага гаснет разбег удара на бегу мечом
+@export var run_attack_stop_distance := 38.0
 
 ## Взмахи меча сняты с кадров спрайтов (tools/build_sigrid_swings.gd ->
 ## sigrid_swing_data.gd): когда в каждом из 8 направлений идёт след клинка,
@@ -1017,6 +1033,10 @@ func _sword_strike(step: int) -> void:
 		# Финиш (Attack4) — рубящий сверху: клинок от головы вниз и вперёд
 		3: events.append({"t0": ATTACK4_CHOP[0], "t1": ATTACK4_CHOP[1], "chop": true})
 		_: events.append(_swing(info[0], last_direction, info[1], dir))
+	# Удар на бегу (step 0) уже несёт свой рывок (_run_dash_velocity)
+	if step > 0:
+		var step_speed: float = [sword_step_speed, sword_thrust_step_speed, sword_finisher_step_speed][clampi(step, 1, 3) - 1]
+		_step_into_swing(clip, maxf(events[0].t0 - sword_step_lead, 0.0), dir * step_speed)
 	var t := 0.0
 	for ev in events:
 		var vfx_at := maxf(ev.t0 - SWING_LEAD, t)
@@ -1047,6 +1067,76 @@ func _sword_strike(step: int) -> void:
 		_disable_kick_hitbox()
 
 
+## Шаг на ударе серии — отложенный до замаха (см. sword_step_lead). Если
+## удар успели оборвать (перекат, урон), шагать уже некуда
+func _step_into_swing(clip: String, delay: float, step_velocity: Vector2) -> void:
+	if delay > 0.0:
+		await get_tree().create_timer(delay).timeout
+	if not is_attacking or anim.current_animation != clip:
+		return
+	attack_step(step_velocity)
+
+
+func _physics_process(delta: float) -> void:
+	super._physics_process(delta)
+	_carry_enemies()
+
+
+## Куда Сигрид сейчас движется самим ударом: шаг серии или выпад (он идёт
+## через knockback_velocity). Рывок удара на бегу сюда не входит — он слишком
+## быстрый, и враг улетал от него далеко; вместо этого разбег гасится о цель
+## (см. _brake_run_attack). Не в стойке меча или не в ударе — ноль
+func _sword_motion() -> Vector2:
+	if weapon != Weapon.SWORD or not is_attacking or is_rolling or is_run_attacking:
+		return Vector2.ZERO
+	if knockback_velocity != Vector2.ZERO:
+		# Тот же knockback_velocity несёт и отброс от вражеского удара — его
+		# врагам не передаём, только рывок выпада
+		if anim.current_animation.begins_with(SWORD_PREFIX + "Lunge"):
+			return knockback_velocity
+		return Vector2.ZERO
+	return _attack_step_velocity
+
+
+## Враги прямо перед Сигрид едут вместе с её шагом — удар «вдавливает» их
+## назад, а не упирается в тело. Скорость задаём каждый кадр заново через
+## knockback_velocity врага (enemy.gd гасит его сам, когда шаг кончится)
+func _carry_enemies() -> void:
+	_brake_run_attack()
+	var motion := _sword_motion()
+	if motion.length() < 20.0:
+		return
+	var motion_dir := motion.normalized()
+	for e in get_tree().get_nodes_in_group("enemy"):
+		if not is_instance_valid(e) or e.is_dead or not ("knockback_velocity" in e):
+			continue
+		var offset: Vector2 = e.global_position - global_position
+		var dist := offset.length()
+		if dist > sword_carry_reach or dist < 0.001:
+			continue
+		if motion_dir.dot(offset / dist) < 0.35:
+			continue
+		var carry := motion * sword_carry_factor
+		if e.knockback_velocity.length() < carry.length():
+			e.knockback_velocity = carry
+
+
+## Удар с разбега мечом: добежала до врага — разбег гаснет о него, Сигрид
+## останавливается у цели, а не проезжает дальше и не таранит её
+func _brake_run_attack() -> void:
+	if weapon != Weapon.SWORD or not is_run_attacking or _run_dash_velocity.length() < 20.0:
+		return
+	var dash_dir := _run_dash_velocity.normalized()
+	for e in get_tree().get_nodes_in_group("enemy"):
+		if not is_instance_valid(e) or e.is_dead:
+			continue
+		var offset: Vector2 = e.global_position - global_position
+		var dist := offset.length()
+		if dist < run_attack_stop_distance and dist > 0.001 and dash_dir.dot(offset / dist) > 0.35:
+			_run_dash_velocity = Vector2.ZERO
+			return
+
+
 ## Удар с разворотом (ПКМ) — бьёт всех вокруг, и выпад (V) — рывок вперёд с
 ## уколом. Отдельные приёмы, не шаги серии
 func _start_sword_move(kind: String) -> void:
@@ -1073,6 +1163,7 @@ func _start_sword_move(kind: String) -> void:
 	is_run_attacking = false
 	combo_step = 0
 	combo_queued = false
+	_attack_step_velocity = Vector2.ZERO
 	facing_dir = dir
 	last_direction = dir_name
 	anim.play(clip)

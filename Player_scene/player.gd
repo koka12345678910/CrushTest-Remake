@@ -1798,8 +1798,51 @@ func _spin_finisher() -> void:
 		# низкий слой тела — самый тяжёлый звук в серии, ровно на добивании
 		_play_hit_sound(spin_impact_mult)
 
+## Удар на бегу: дуга идёт ровно со следом клинка на спрайте — когда, откуда и
+## куда, снято с кадров MeleeRun.png (tools/build_knight_run_swing.gd ->
+## knight_run_swing_data.gd). Заготовка Swing.RUN вела дугу в обратную
+## сторону и раньше взмаха. Метод-трек клипа зовёт это незадолго до взмаха —
+## досчитываем остаток сами (с учётом замедления удара при усталости)
+const KnightRunSwing := preload("res://Player_scene/knight_run_swing_data.gd")
+const RUN_SWING_LEAD := 0.03
+## Удар с разбега тяжёлый и медленный — дуга крупнее и размашистее следа на
+## спрайте: радиус, ширина полосы, яркость и охват сверх измеренного (с
+## каждой стороны). Плюс внешняя бледная волна для веса
+@export var run_swing_radius_mult := 1.35
+@export var run_swing_width := 0.46
+@export var run_swing_power := 1.45
+@export var run_swing_extra_span_deg := 18.0
+
 func play_running_hit_vfx():
-	KnightFx.slash(self, KnightFx.Swing.RUN, direction_to_vector(last_direction))
+	var sw: Dictionary = KnightRunSwing.DATA.get(last_direction, {})
+	if sw.is_empty():
+		KnightFx.slash(self, KnightFx.Swing.RUN, direction_to_vector(last_direction))
+		return
+	var clip := anim.current_animation
+	var speed := maxf(anim.speed_scale, 0.05)
+	var t0: float = sw.t0 - RUN_SWING_LEAD
+	var late := anim.current_animation_position - t0
+	if late < 0.0:
+		await get_tree().create_timer(-late / speed).timeout
+		# Удар успели оборвать (перекат, урон) — дуге рисоваться не к чему
+		if anim.current_animation != clip:
+			return
+		late = 0.0
+	# Размах шире измеренного в обе стороны — середина остаётся там, где клинок
+	var extra := deg_to_rad(run_swing_extra_span_deg) * signf(sw.to - sw.from)
+	var a_from: float = sw.from - extra
+	var a_to: float = sw.to + extra
+	# Опоздали к началу взмаха — дуга стартует оттуда, где клинок уже сейчас
+	var total: float = sw.t1 - t0
+	var k := clampf(late / total, 0.0, 0.7)
+	var from: float = lerpf(a_from, a_to, k)
+	var dur := maxf(total * (1.0 - k), 0.08) / speed
+	var radius := clampf(sw.radius * run_swing_radius_mult, 40.0, 58.0)
+	KnightFx.arc(self, from, a_to, radius, run_swing_width, dur, run_swing_power,
+			KnightFx.CHEST, true, true)
+	# Внешняя волна — широкая и бледная, чуть позади клинка
+	KnightFx.arc(self, from, a_to, radius * 1.18, run_swing_width * 0.7, dur * 1.1,
+			run_swing_power * 0.35, KnightFx.CHEST, true, false)
 
 # ----------------------------------------------------------
 # ЗАВЕРШЕНИЕ

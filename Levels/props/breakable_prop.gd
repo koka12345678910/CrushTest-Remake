@@ -16,7 +16,7 @@ extends StaticBody2D
 ## куски: они подлетают, падают, чуть подпрыгивают и лежат, потом гаснут.
 ## Иногда выпадают монеты.
 
-const COIN_SCENE := preload("res://Resources/ResourcesScene/coin.tscn")
+const GoldWisp := preload("res://VFX/VFX_scene/gold_wisp.gd")
 const HIT_SOUND := preload("res://Sound/melee_sound/block.wav")
 const BREAK_SOUND := preload("res://Sound/posture_break.mp3")
 
@@ -199,12 +199,9 @@ func _drop_coins() -> void:
 	var hero := get_tree().get_first_node_in_group("player")
 	if hero and "collects_gold" in hero and not hero.collects_gold:
 		return
+	# Золотые души вместо монет — сами летят к игроку (gold_wisp.gd)
 	for i in randi_range(1, 2):
-		var coin = COIN_SCENE.instantiate()
-		coin.global_position = global_position + Vector2(0, -4)
-		coin.coin_value = 5
-		coin.is_big_coin = false
-		level.call_deferred("add_child", coin)
+		GoldWisp.spawn(get_tree(), global_position + Vector2(0, -6), 5)
 
 
 func _play(stream: AudioStream, pitch: float, volume: float) -> void:

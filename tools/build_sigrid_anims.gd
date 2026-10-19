@@ -20,7 +20,7 @@ const CLIPS := [
 	["Idle_", "Idle_with_Bow", 5.0, true, 0, 14],
 	["Walk_", "Walk_with_Bow", 15.0, true, 0, 14],
 	# Бег с луком
-	["Run_", "Run_with_Bow", 15.0, true, 0, 14],
+	["Run_", "Run_with_Bow", 20.0, true, 0, 14],
 	["Backward_", "RunBackwards_with_Bow", 15.0, true, 0, 14],
 	["StrafeLeft_", "StrafeLeft_with_Bow", 15.0, true, 0, 14],
 	["StrafeRight_", "StrafeRight_with_Bow", 15.0, true, 0, 14],
@@ -37,7 +37,7 @@ const CLIPS := [
 	# --- меч ---
 	["Sword_Idle_", "Idle", 5.0, true, 0, 14],
 	["Sword_Walk_", "Walk", 15.0, true, 0, 14],
-	["Sword_Run_", "Run", 15.0, true, 0, 14],
+	["Sword_Run_", "Run", 20.0, true, 0, 14],
 	["Sword_Backward_", "RunBackwards", 15.0, true, 0, 14],
 	["Sword_StrafeLeft_", "StrafeLeft", 15.0, true, 0, 14],
 	["Sword_StrafeRight_", "StrafeRight", 15.0, true, 0, 14],

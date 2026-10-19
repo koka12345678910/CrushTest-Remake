@@ -2,6 +2,7 @@
 
 [ext_resource type="Script" uid="uid://dph25kqh5e2wa" path="res://Player_scene/player.gd" id="1_sf3ye"]
 [ext_resource type="SpriteFrames" uid="uid://djodea10mjltw" path="res://Player_scene/player.tres" id="2_tgf2g"]
+[ext_resource type="Material" path="res://Player_scene/knight_detail_material.tres" id="knight_detail"]
 [ext_resource type="PackedScene" uid="uid://do3g22fs238l4" path="res://VFX/VFX_scene/hit_vfx.tscn" id="2_tna0o"]
 [ext_resource type="PackedScene" uid="uid://b3j8k0aj2e5fc" path="res://VFX/VFX_scene/running_hit_vfx.tscn" id="3_n1bac"]
 [ext_resource type="PackedScene" uid="uid://ckjq1ftt8nvsw" path="res://VFX/VFX_scene/move_start_vfx_scene.tscn" id="4_sf3ye"]
@@ -6273,6 +6274,7 @@ berserk_hit_vfx_scene = ExtResource("10_jr5wu")
 
 [node name="PlayerAnim" type="AnimatedSprite2D" parent="." unique_id=53146337]
 modulate = Color(0.7722583, 0.7722583, 0.7722583, 1)
+material = ExtResource("knight_detail")
 texture_filter = 1
 scale = Vector2(0.640625, 0.78125006)
 sprite_frames = ExtResource("2_tgf2g")

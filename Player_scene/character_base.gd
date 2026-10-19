@@ -51,6 +51,12 @@ const BloodFx := preload("res://VFX/VFX_scene/blood_fx.gd")
 ## умолчанию, как у рыцаря) — рывок вперёд, гаснущий трением, для будущего
 ## рукопашного класса это ближе к ощущению удара с разбега
 @export var run_attack_keeps_moving := false
+## Шаг вперёд на ударе стоя — как микро-рывок рыцаря (player.gd::play_attack,
+## attack_velocity). Наследник задаёт скорость шага через attack_step(), здесь
+## она только гаснет трением: путь шага ≈ скорость / attack_step_friction.
+## Никто не позвал attack_step() — удар стоя на месте, как раньше (маг)
+@export var attack_step_friction := 6.0
+var _attack_step_velocity := Vector2.ZERO
 
 ## Перекат — та же механика, что у рыцаря (player.gd::start_roll/handle_roll):
 ## синусоидальный разгон-торможение, неуязвимость на всю длительность и
@@ -154,7 +160,7 @@ var focused_enemy: Node2D:
 
 func _ready() -> void:
 	# Враги, монеты и триггеры уровня ищут игрока через группу, а не по имени
-	# ноды (см. enemy.gd, coin.gd, shop_trigger.gd) — без этого персонаж просто
+	# ноды (см. enemy.gd, gold_wisp.gd, shop_trigger.gd) — без этого персонаж просто
 	# не существует для всего остального мира
 	add_to_group("player")
 
@@ -266,7 +272,8 @@ func _physics_process(delta: float) -> void:
 			_run_dash_velocity = _run_dash_velocity.lerp(Vector2.ZERO, run_attack_friction * delta)
 			velocity = _run_dash_velocity
 		else:
-			velocity = Vector2.ZERO
+			_attack_step_velocity = _attack_step_velocity.lerp(Vector2.ZERO, attack_step_friction * delta)
+			velocity = _attack_step_velocity
 		move_and_slide()
 		return
 
@@ -509,6 +516,7 @@ func start_roll() -> void:
 	combo_step = 0
 	combo_queued = false
 	knockback_velocity = Vector2.ZERO
+	_attack_step_velocity = Vector2.ZERO
 	# Слой 3 = "enemy" (project.godot/layer_names) — на время переката
 	# проходим сквозь врагов физически, как и рыцарь
 	set_collision_mask_value(3, false)
@@ -587,6 +595,8 @@ func start_attack(step: int) -> void:
 	combo_step = step
 	combo_queued = false
 	combo_timer = combo_window
+	# Хвост шага прошлого удара серии не тащит в новый
+	_attack_step_velocity = Vector2.ZERO
 
 	# Приоритет наведения: взятая в фокус цель > ближайший враг > направление
 	# ввода. Тот же порядок, что у рыцаря (player.gd::try_snap_to_enemy):
@@ -625,6 +635,12 @@ func _turn_to_aim(aim: Node2D) -> void:
 ## ищет помеченных врагов (archer.gd)
 func _pick_aim() -> Node2D:
 	return _focus.target if _focus.has_target() else _focus.get_nearest_enemy()
+
+
+## Шаг вперёд на ударе: скорость velocity гаснет attack_step_friction (см. там же)
+func attack_step(velocity_: Vector2) -> void:
+	if is_attacking and not is_run_attacking:
+		_attack_step_velocity = velocity_
 
 
 ## Переопределяют наследники — сюда вешается конкретный эффект удара: выстрел
@@ -762,7 +778,7 @@ func receive_parry(_posture_damage: float) -> void:
 	pass
 
 
-## Подбор монеты (coin.gd). Золото хранится в сейве, поэтому копить его должен
+## Подбор золота (золотая душа, VFX/VFX_scene/gold_wisp.gd). Золото хранится в сейве, поэтому копить его должен
 ## уметь любой персонаж, даже пока у него нет HUD, чтобы это показать
 func add_gold(amount: int) -> void:
 	if not collects_gold:

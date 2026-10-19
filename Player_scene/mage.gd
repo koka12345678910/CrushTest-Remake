@@ -38,7 +38,8 @@ func _on_attack_started(step: int, aim: Node2D) -> void:
 	if step == 3:
 		_cast_pulses()
 		return
-	if step != 1:
+	# step 0 — удар на бегу (Run_Attack_, лист AttackRun): тот же огненный шар
+	if step != 1 and step != 0:
 		return
 	var clip := anim.current_animation
 	await get_tree().create_timer(fireball_cast_delay).timeout
@@ -58,14 +59,15 @@ func _on_attack_started(step: int, aim: Node2D) -> void:
 	ball.launch(global_position + dir * fireball_offset, dir, self)
 
 
-const SweepScript := preload("res://Player_scene/mage_sweep.gd")
+const ScorchScript := preload("res://Player_scene/mage_scorch.gd")
 
-## Вторая атака (Attack_2_) — ближний удар: пелена магии за рукой по
-## диагонали, бьёт всех в секторе перед магом и отбрасывает. Рука начинает
-## вести поток примерно с 3-го кадра из 15 (0.2с)
+## Вторая атака (Attack_2_, ПКМ) — выжигание: голубой огонь вспыхивает у ног
+## мага и нарастающе ползёт вперёд конусом (mage_scorch.gd). Враг горит, когда
+## до него дошёл фронт, а не весь сектор разом. Поджиг — на 3-м кадре из 15
+## (0.2с), когда маг выбрасывает руку
 @export var sweep_start_delay := 0.2
 @export var sweep_damage := 1
-@export var sweep_knockback := 330.0
+@export var sweep_knockback := 180.0
 
 
 func _cast_sweep() -> void:
@@ -74,10 +76,10 @@ func _cast_sweep() -> void:
 	await get_tree().create_timer(sweep_start_delay).timeout
 	if is_dead() or anim.current_animation != clip:
 		return
-	var sweep: Node2D = SweepScript.new()
-	sweep.setup(self, facing, sweep_damage, sweep_knockback)
-	# Ребёнок мага — пелена держится у руки, даже если мага сдвинет
-	add_child(sweep)
+	var scorch: Node2D = ScorchScript.new()
+	# В мире, а не на маге: выжженная земля остаётся на месте, если он отойдёт
+	scorch.setup(self, facing, global_position + _body_anchor()[1], sweep_damage, sweep_knockback)
+	get_tree().current_scene.add_child(scorch)
 
 
 ## ЛКМ — дальняя атака (Attack_, огненный шар), ПКМ ("parry", у мага парирования

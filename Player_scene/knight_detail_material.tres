@@ -1,0 +1,24 @@
+[gd_resource type="ShaderMaterial" load_steps=2 format=3]
+
+[ext_resource type="Shader" path="res://Shaders/sprite_detail.gdshader" id="1_detail"]
+
+[resource]
+shader = ExtResource("1_detail")
+shader_parameter/shadow_tint = Color(0.52, 0.56, 0.7, 1)
+shader_parameter/light_tint = Color(0.8, 0.88, 1, 1)
+shader_parameter/shadow_strength = 0.42
+shader_parameter/light_strength = 0.5
+shader_parameter/relief = 3.5
+shader_parameter/crevice = 0.24
+shader_parameter/ground_shade = 0.1
+shader_parameter/detail = 0.45
+shader_parameter/detail_wide = 0.2
+shader_parameter/contrast = 1.06
+shader_parameter/saturation = 0.75
+shader_parameter/warm_desaturation = 0.6
+shader_parameter/value_gamma = 1.12
+shader_parameter/cloth_dim = 0.18
+shader_parameter/cloth_tint = Color(0.82, 0.84, 0.86, 1)
+shader_parameter/shadow_grade = Color(0.68, 0.74, 0.9, 1)
+shader_parameter/highlight_grade = Color(0.93, 0.96, 1, 1)
+shader_parameter/brightness = 1.06

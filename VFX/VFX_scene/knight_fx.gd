@@ -250,7 +250,8 @@ static func chop(owner: Node2D, dir: Vector2, radius := 30.0, dur := 0.14, power
 			spawn.call()
 		else:
 			owner.get_tree().create_timer(l[3]).timeout.connect(spawn)
-	# Клинок дошёл донизу — удар о землю: кольцо, пыль, искры
+	# Клинок дошёл донизу — удар о землю: вспышка, пыль, искры (ударное
+	# кольцо здесь убрано — в конце удара оно выглядело лишним)
 	var end := fwd * cos(to) * radius + up * sin(to) * radius
 	owner.get_tree().create_timer(dur).timeout.connect(func():
 		if not is_instance_valid(owner):
@@ -258,6 +259,5 @@ static func chop(owner: Node2D, dir: Vector2, radius := 30.0, dur := 0.14, power
 		var at := owner.global_position + center + end
 		var g := MageFx.holder(owner.get_tree(), at, 0.8, 11)
 		MageFx.flash(g, 18.0 * power, 0.1, STEEL)
-		_ring(g, 4.0, 22.0 * power, 2.0, 0.2, Color(STEEL, 0.8))
 		MageFx.smoke(g, 4, 4.0, 16.0, 0.5)
 		_sparks(owner.get_tree(), at, fwd.normalized(), 7, 1.3, 80.0, 200.0, 0.4))

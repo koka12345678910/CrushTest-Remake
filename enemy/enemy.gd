@@ -69,6 +69,8 @@ var _telegraph_tween: Tween
 @export var wander_speed_multiplier := 0.6
 @export var target_refresh_interval := 0.15
 @export var prediction_strength := 0.2
+## С какой долей walk_speed враг пятится назад лицом к игроку (см. _state_chase)
+@export var backpedal_speed_multiplier := 0.7
 # Смерть
 @export var death_fade_time := 0.8
 # Концентрация (Posture)
@@ -86,7 +88,6 @@ var _telegraph_tween: Tween
 # в стороны, y — вверх/вниз. Небольшая нарочно: за лучницей бегут только
 # те, кто стоит рядом, а одиночка идёт один
 @export var pack_alert_radius := Vector2(150.0, 100.0)
-@export var coin_scene: PackedScene
 @export var coin_drop_min := 1
 @export var coin_drop_max := 3
 ## Очки навыков — мгновенно убийце, без физического подбора (в отличие от
@@ -241,6 +242,7 @@ var is_player_berserk := false
 # AudioStreamPlayer2D + attenuation в сцене довершают: дальний враг тише
 const BloodFx := preload("res://VFX/VFX_scene/blood_fx.gd")
 const KnightFx := preload("res://VFX/VFX_scene/knight_fx.gd")
+const GoldWisp := preload("res://VFX/VFX_scene/gold_wisp.gd")
 const ENEMY_SWING_SOUND := preload("res://Sound/melee_sound/swing.mp3")
 const ENEMY_HIT_SOUND := preload("res://Sound/melee_sound/hit.mp3")
 const ENEMY_DEATH_SOUND := preload("res://Sound/death_sound/death.mp3")
@@ -642,6 +644,33 @@ func _play_blade_impact(source: Node2D) -> void:
 	KnightFx.impact(get_tree(), global_position + Vector2(0, -8) - dir * 6.0, dir)
 
 
+## Доворачивает врага к игроку, пока тот его бьёт (оглушение, стаггер, блок,
+## парирование, контратака), и возвращает имя клипа base_<направление>. Если
+## направление сменилось посреди клипа — переключаемся на тот же клип в новую
+## сторону С ТОГО ЖЕ МЕСТА, а не с начала: иначе каждый поворот заново
+## запускал бы реакцию на удар (и для parry_/stagger — её конец, на котором
+## висят переходы в _on_animation_finished)
+func _face_player_anim(delta: float, base: String) -> String:
+	if player and is_instance_valid(player):
+		_turn_toward(_dir_to(player), direction_smoothness * delta)
+	var anim_name := base + "_" + _get_direction_name(direction)
+	var cur := String(anim.current_animation)
+	if cur != anim_name and cur.begins_with(base + "_") and anim.is_playing():
+		var pos := anim.current_animation_position
+		anim.play(anim_name)
+		anim.seek(pos, true)
+	return anim_name
+
+
+## Плавный поворот взгляда по углу. Не lerp+normalized: при взгляде ровно в
+## противоположную сторону тот на каждом кадре нормализуется обратно в
+## исходный вектор, и враг так и стоит спиной
+func _turn_toward(target_dir: Vector2, weight: float) -> void:
+	if target_dir.length() < 0.001 or not target_dir.is_finite():
+		return
+	direction = direction.rotated(direction.angle_to(target_dir) * clampf(weight, 0.0, 1.0)).normalized()
+
+
 ## Направление от врага к цели (нет цели — куда смотрит враг)
 func _dir_to(target: Node2D) -> Vector2:
 	if is_instance_valid(target):
@@ -730,6 +759,15 @@ func _change_state(new_state: State) -> void:
 
 	current_state = new_state
 	state_time = 0.0
+
+	# Под ударами враг всегда лицом к игроку: оглушение, стаггер, блок и
+	# парирование начинаются сразу в его сторону, а не туда, куда враг
+	# смотрел до этого (например, пятясь). Удар в спину по-прежнему проходит
+	# мимо щита — проверка _is_guarding_against в take_damage идёт ДО смены
+	# состояния
+	if new_state in [State.HIT_STUN, State.STAGGER, State.BLOCK, State.PARRY, State.COUNTER] \
+			and player and is_instance_valid(player):
+		direction = _dir_to(player)
 
 	match new_state:
 
@@ -937,24 +975,27 @@ func _state_chase(delta: float) -> void:
 	var dir := to_player / dist
 	var error := dist - preferred_distance
 
-	# если слишком близко — останавливаемся полностью
+	# если слишком близко — останавливаемся полностью (но смотрим на игрока)
 	if dist < preferred_distance * 0.5:
 		move_velocity = Vector2.ZERO
+		_turn_toward(dir, direction_smoothness * delta)
 		_play_animation("idle")
 		return
 
-	if abs(error) > 5.0:
-		var move_dir: Vector2
-		if error > 0.0:
-			# Идём К цели — по пути навигации (NavigationAgent2D), а не
-			# напролом по прямой: иначе враг застревает, упираясь в стену
-			# между собой и игроком/лучником. Отступление ниже (error < 0,
-			# слишком близко) остаётся прямой линией: это всегда дистанция
-			# внутри preferred_distance, там стен между врагом и целью не
-			# бывает — пятиться назад по "чужому" пути некуда и незачем
-			move_dir = _nav_direction_to(dir)
-		else:
-			move_dir = -dir
+	if abs(error) > 5.0 and error < 0.0:
+		# Слишком близко — пятимся назад ЛИЦОМ к игроку, а не разворачиваемся
+		# к нему спиной: раньше взгляд шёл за направлением отступления, и под
+		# градом ударов (игрок давит вплотную) враг постоянно отворачивался.
+		# Отступление — прямой линией: это всегда дистанция внутри
+		# preferred_distance, там стен между врагом и целью не бывает
+		_turn_toward(dir, direction_smoothness * delta)
+		move_velocity = -dir * walk_speed * backpedal_speed_multiplier
+		_play_animation("walk")
+	elif abs(error) > 5.0:
+		# Идём К цели — по пути навигации (NavigationAgent2D), а не
+		# напролом по прямой: иначе враг застревает, упираясь в стену
+		# между собой и игроком/лучником
+		var move_dir := _nav_direction_to(dir)
 		direction = direction.lerp(move_dir, direction_smoothness * delta).normalized()
 
 		if is_ranged_alert or pack_role == PackRole.RUSH:
@@ -980,6 +1021,8 @@ func _state_chase(delta: float) -> void:
 				_play_animation("walk")
 	else:
 		move_velocity = Vector2.ZERO
+		# На удобной дистанции стоим лицом к игроку
+		_turn_toward(dir, direction_smoothness * delta)
 		_play_animation("idle")
 
 # ===================== GUARD =====================
@@ -1131,7 +1174,7 @@ func _state_hit_stun(delta: float) -> void:
 	# НЕ обнуляем move_velocity сразу — даём нокбэку сработать
 	hit_stun_timer -= delta
 	
-	var anim_name = "take_damage_" + _get_direction_name(direction)
+	var anim_name := _face_player_anim(delta, "take_damage")
 	if anim.current_animation != anim_name or not anim.is_playing():
 		anim.play(anim_name)
 	
@@ -1280,8 +1323,9 @@ func take_damage(amount: int, source: Node2D = null, unblockable := false) -> vo
 			knockback_velocity = knockback_dir * 150.0
 		return
 
-	# Щит и клинок закрывают только фронт. В стойке блока враг не
-	# поворачивается за игроком, и зашедший за спину бьёт мимо щита — урон
+	# Щит и клинок закрывают только фронт. В стойке блока враг доворачивается
+	# за игроком плавно (_face_player_anim), не мгновенно — и тот, кто успел
+	# зайти за спину (перекатом), бьёт мимо щита — урон
 	# проходит, а стойка ломается (как у самого рыцаря, player.gd::receive_attack)
 	var guarded := _is_guarding_against(source)
 	if not guarded and (is_blocking or is_parrying) and not unblockable:
@@ -1388,7 +1432,7 @@ func _start_parry() -> void:
 
 func _state_block(delta: float) -> void:
 	move_velocity = Vector2.ZERO
-	var anim_name = "block_" + _get_direction_name(direction)
+	var anim_name := _face_player_anim(delta, "block")
 	if anim.current_animation != anim_name:
 		anim.play(anim_name)
 
@@ -1450,6 +1494,7 @@ func _trigger_stagger() -> void:
 	
 	_change_state(State.STAGGER)
 	
+	_stagger_anim = stagger_name
 	var anim_name = stagger_name + "_" + _get_direction_name(direction)
 	anim.play(anim_name)
 	
@@ -1457,18 +1502,21 @@ func _trigger_stagger() -> void:
 		var knockback_dir := _safe_direction(global_position - player.global_position)
 		knockback_velocity = knockback_dir * 200.0
 
-func _state_stagger(_delta: float) -> void:
-	move_velocity = Vector2.ZERO
+var _stagger_anim := "stagger"
 
-func _state_parry(_delta: float) -> void:
+func _state_stagger(delta: float) -> void:
 	move_velocity = Vector2.ZERO
-	var anim_name = "parry_" + _get_direction_name(direction)
+	_face_player_anim(delta, _stagger_anim)
+
+func _state_parry(delta: float) -> void:
+	move_velocity = Vector2.ZERO
+	var anim_name := _face_player_anim(delta, "parry")
 	if anim.current_animation != anim_name:
 		anim.play(anim_name)
 
-func _state_counter(_delta: float) -> void:
+func _state_counter(delta: float) -> void:
 	move_velocity = Vector2.ZERO
-	var anim_name = "pummel_" + _get_direction_name(direction)
+	var anim_name := _face_player_anim(delta, "pummel")
 	if anim.current_animation != anim_name:
 		anim.play(anim_name)
 	# наносим урон по концентрации игрока — только если он реально в досягаемости
@@ -1589,27 +1637,17 @@ func _on_dead() -> void:
 	queue_free()
 
 func _drop_coins() -> void:
-	if not coin_scene:
-		return
 	# Герой без золота (маг копит души, а не монеты) — монеты не выпадают
 	var hero := get_tree().get_first_node_in_group("player")
 	if hero and "collects_gold" in hero and not hero.collects_gold:
 		return
+	# Золото — не монеты на земле, а золотые души: сами взлетают и летят к
+	# игроку (VFX/VFX_scene/gold_wisp.gd). Номиналы как у прежних монет:
+	# 30% — крупная, ярче и дороже
 	var count = randi_range(coin_drop_min, coin_drop_max)
-	var spawn_pos = global_position
 	for i in count:
-		var coin = coin_scene.instantiate()
-		coin.global_position = spawn_pos
-		
-		# 30% шанс что монетка "блестящая" с большим номиналом
-		if randf() < 0.3:
-			coin.coin_value = randi_range(10, 15)
-			coin.is_big_coin = true
-		else:
-			coin.coin_value = 5
-			coin.is_big_coin = false
-		
-		get_tree().current_scene.call_deferred("add_child", coin)
+		var big := randf() < 0.3
+		GoldWisp.spawn(get_tree(), global_position + Vector2(0, -10), randi_range(10, 15) if big else 5, big)
 
 
 func _award_skill_points() -> void:
