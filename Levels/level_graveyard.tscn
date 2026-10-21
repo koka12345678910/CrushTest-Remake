@@ -51,6 +51,7 @@
 [ext_resource type="Texture2D" path="res://TileMap/ground/generated/grass.res" id="55_rht2y"]
 [ext_resource type="Texture2D" path="res://TileMap/ground/generated/ground_mask.res" id="56_utk33"]
 [ext_resource type="Texture2D" path="res://TileMap/ground/generated/stone.res" id="57_6o3fr"]
+[ext_resource type="Script" path="res://Levels/rain_system.gd" id="rain_system"]
 
 [sub_resource type="PhysicsMaterial" id="PhysicsMaterial_jkbap"]
 
@@ -4658,7 +4659,7 @@ shader_parameter/edge_dark = 0.35
 y_sort_enabled = true
 
 [node name="NightModulate" type="CanvasModulate" parent="." unique_id=51912274]
-color = Color(0.24, 0.27, 0.29, 1)
+color = Color(0.325, 0.365, 0.39, 1)
 
 [node name="MusicManager" type="Node" parent="." unique_id=450290150]
 script = ExtResource("1_74jpe")
@@ -4678,6 +4679,9 @@ volume_db = -11.0
 
 [node name="RainSplashSpawner" type="Node2D" parent="." unique_id=255053250]
 script = ExtResource("4_wkb0l")
+
+[node name="RainSystem" type="Node2D" parent="."]
+script = ExtResource("rain_system")
 
 [node name="DirectionalLight2D" type="DirectionalLight2D" parent="." unique_id=154794840 groups=["outdoor_light"]]
 color = Color(0.55, 0.65, 0.8, 1)

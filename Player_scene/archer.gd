@@ -962,10 +962,15 @@ func _set_weapon(w: int) -> void:
 
 ## В стойке меча подставляем мечевую версию клипа, если она нарисована
 func _play(anim_name: String) -> bool:
+	return super._play(_clip_name(anim_name))
+
+
+## Та же подмена — для шагов, которые база играет мимо _play (_play_loco)
+func _clip_name(anim_name: String) -> String:
 	if weapon == Weapon.SWORD and not anim_name.begins_with(SWORD_PREFIX) \
 			and anim.has_animation(SWORD_PREFIX + anim_name):
-		return super._play(SWORD_PREFIX + anim_name)
-	return super._play(anim_name)
+		return SWORD_PREFIX + anim_name
+	return anim_name
 
 
 func _handle_sword_input() -> void:

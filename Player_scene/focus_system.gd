@@ -125,12 +125,15 @@ func direction_to_target() -> Vector2:
 	return to_target.normalized()
 
 
-## Бег НАПРЯМУЮ от цели — особый случай: убегать с намертво повёрнутой на
-## врага головой выглядит нелепо, а не как побег. Персонаж на этот кадр
-## отпускает взгляд и ведёт себя как обычно. Ходьбы назад это не касается:
-## там взгляд держит фокус, а корпус идёт спиной вперёд
+## Бег НАПРЯМУЮ от цели — раньше фокус на этот кадр отпускал взгляд, и герой
+## разворачивался к врагу спиной. Теперь (по просьбе игрока, 2026-10-21) под
+## фокусом лицо всегда на враге: и при беге назад герой пятится спиной
+## вперёд (Backward_), а чтобы убежать лицом вперёд — фокус снимают.
+## release_on_flee = true возвращает прежнее поведение
+@export var release_on_flee := false
+
 func is_fleeing(input_vector: Vector2, running: bool) -> bool:
-	if not has_target() or not running or input_vector == Vector2.ZERO:
+	if not release_on_flee or not has_target() or not running or input_vector == Vector2.ZERO:
 		return false
 	var to_target := direction_to_target()
 	if to_target == Vector2.ZERO:

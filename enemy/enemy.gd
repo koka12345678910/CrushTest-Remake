@@ -1299,6 +1299,12 @@ func take_damage(amount: int, source: Node2D = null, unblockable := false) -> vo
 			is_ranged_alert = true
 			_alert_nearby_allies(source)
 
+	# Концентрация пробита — следующий удар героя не ранит, а добивает
+	# (VFX/juice.gd::execution): кровь, ударная волна, замедление, наезд камеры
+	if is_posture_broken and is_instance_valid(source) and source.is_in_group("player"):
+		_execute_by(source)
+		return
+
 	# Безумие Берсерка — ломает защиту врага с первого удара: без блока, парирования и контратаки
 	if is_player_berserk:
 		is_parrying = false
@@ -1317,6 +1323,7 @@ func take_damage(amount: int, source: Node2D = null, unblockable := false) -> vo
 			_change_state(State.DEAD)
 		else:
 			_trigger_stagger()
+		Juice.hit(self, source, amount, is_dead)
 
 		if _pushes(source) and not is_dead:
 			var knockback_dir := _safe_direction(global_position - source.global_position)
@@ -1362,6 +1369,9 @@ func take_damage(amount: int, source: Node2D = null, unblockable := false) -> vo
 			_posture_break()
 			return
 
+		# Удар пришёлся в щит — лёгкий звонкий отклик (толчок камеры)
+		Juice.hit(self, source, 0, false, true)
+
 		# рандомный шанс парировать именно этот удар — не зависит от того,
 		# сколько ударов уже заблокировано, поэтому нет предсказуемого паттерна.
 		# У парирования свой VFX (не искры блока), чтобы игрок видел разницу
@@ -1392,6 +1402,10 @@ func take_damage(amount: int, source: Node2D = null, unblockable := false) -> vo
 		if is_ranged_alert:
 			_pending_ranged_block = randf() < ranged_block_chance
 		_change_state(State.HIT_STUN)
+
+	# Отклик удара — по весу: лёгкий, тяжёлый, убийство, последнее в группе
+	# (VFX/juice.gd)
+	Juice.hit(self, source, amount, is_dead)
 
 	if _pushes(source) and not is_dead:
 		var knockback_dir := _safe_direction(global_position - source.global_position)
@@ -1461,16 +1475,51 @@ func _exit_block() -> void:
 	block_hold_timer = 0.0
 	_change_state(State.CHASE)
 
+## Окно добивания после пробитой концентрации (с): пока над врагом горит руна,
+## следующий удар героя — добивание
+@export var execution_window := 3.0
+var _break_marker: Node2D
+
 func _posture_break() -> void:
 	is_posture_broken = true
 	is_blocking = false
 	hit_stun_timer = 2.0
 	_change_state(State.HIT_STUN)
-	await get_tree().create_timer(3.0).timeout
+	# Щит раскололся: звонкий отклик и руна над головой — "его можно добить"
+	_break_marker = Juice.guard_break(self)
+	await get_tree().create_timer(execution_window).timeout
+	if is_instance_valid(_break_marker):
+		_break_marker.queue_free()
+	if is_dead:
+		return
 	posture = 0.0
 	posture_bar.value = 0.0
 	posture_bar.visible = false
 	is_posture_broken = false
+
+
+## Добивание: руна гаснет, Juice разыгрывает самый тяжёлый удар в игре,
+## враг умирает сразу, мимо блока и здоровья
+func _execute_by(source: Node2D) -> void:
+	if is_instance_valid(_break_marker):
+		_break_marker.queue_free()
+	player = source
+	Juice.execution(self, source)
+	execute_kill()
+
+
+## Молния ударила рядом (Levels/directional_light_2d.gd): отбрасывает от
+## точки удара и оглушает — без урона
+func lightning_stun(from: Vector2) -> void:
+	if is_dead:
+		return
+	is_blocking = false
+	is_parrying = false
+	_trigger_damage_flash()
+	# Сначала состояние: вход в HIT_STUN обнуляет отброс
+	_change_state(State.HIT_STUN)
+	hit_stun_timer = 1.3
+	knockback_velocity = _safe_direction(global_position - from) * 230.0
 
 func take_posture_damage(amount: float) -> void:
 	posture += amount

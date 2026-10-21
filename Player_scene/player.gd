@@ -937,9 +937,37 @@ func _update_facing() -> void:
 # побег от цели уже снял лок в _update_facing, и facing_dir там смотрит по
 # движению — dot почти всегда положительный
 func _is_moving_backward() -> bool:
-	if input_vector == Vector2.ZERO:
-		return false
-	return input_vector.normalized().dot(facing_dir) < -0.5
+	return _locomotion_mode() == LOCO_BACK
+
+
+## Клипы Backwards_ рыцаря подписаны по направлению ДВИЖЕНИЯ (в player.tres
+## Backwards_Right собран из строки листа, где он смотрит влево). Берём
+## направление строго от взгляда — тогда лицо смотрит ровно на врага, даже если
+## пятишься от него чуть наискосок
+func _backwards_row() -> String:
+	var i := DIR_RING.find(last_direction)
+	return DIR_RING[(i + 4) % 8] if i >= 0 else get_direction(input_vector.normalized())
+
+
+## Добивание: враг с пробитой концентрацией (руна над головой) в досягаемости
+## удара. Сначала — тот, что в фокусе, иначе ближайший такой
+@export var execution_reach := 72.0
+var _exec_target: Node2D = null
+
+func _execution_target() -> Node2D:
+	if is_instance_valid(focused_enemy) and not focused_enemy.is_dead and focused_enemy.get("is_posture_broken") == true \
+			and global_position.distance_to(focused_enemy.global_position) <= execution_reach:
+		return focused_enemy
+	var best: Node2D = null
+	var best_d := execution_reach
+	for e in get_tree().get_nodes_in_group("enemy"):
+		if not is_instance_valid(e) or e.is_dead or e.get("is_posture_broken") != true:
+			continue
+		var d := global_position.distance_to(e.global_position)
+		if d <= best_d:
+			best_d = d
+			best = e
+	return best
 
 
 func try_snap_to_enemy() -> void:
@@ -1067,7 +1095,7 @@ func play_movement_animation():
 		# _update_facing, и там facing_dir уже смотрит по движению — сюда
 		# мы просто не попадаем (см. _is_moving_backward)
 		if _is_moving_backward():
-			var move_dir := get_direction(input_vector.normalized())
+			var move_dir := _backwards_row()
 			var backwards_name := "Backwards_" + move_dir
 			if move_dir != "" and anim.has_animation(backwards_name):
 				anim_name = backwards_name
@@ -1076,6 +1104,21 @@ func play_movement_animation():
 		else:
 			anim_name = "Walk_" + last_direction
 	else:
+		# Под фокусом бег вбок — тот же стрейф, только темп шага быстрее (раньше
+		# тут играл обычный бег лицом к врагу, а тело ехало боком)
+		var run_strafe := _strafe_animation()
+		if run_strafe != "":
+			anim.speed_scale = run_strafe_speed
+			_play_keep_phase(run_strafe)
+			return
+		# Бег назад под фокусом — пятится лицом к врагу (фокус больше не
+		# отпускает взгляд на бегу, focus_system.gd::release_on_flee)
+		if _is_moving_backward():
+			var back_name := "Backwards_" + _backwards_row()
+			if anim.has_animation(back_name):
+				anim.speed_scale = run_strafe_speed
+				_play_keep_phase(back_name)
+				return
 		# Бег сразу в полном темпе (клипы Run_* сняты на 25 fps = speed_scale
 		# 1.0), без прежнего разгона анимации с 0.35
 		anim_name = "Run_" + last_direction
@@ -1086,18 +1129,48 @@ func play_movement_animation():
 ## Направления по кругу по часовой стрелке на экране — в этом же порядке идут
 ## строки листов анимаций рыцаря (Right, Down_Right, Down, ...)
 const DIR_RING := ["Right", "Down_Right", "Down", "Down_Left", "Left", "Up_Left", "Up", "Up_Right"]
-## Насколько движение должно быть "вбок" от взгляда, чтобы шёл стрейф:
-## |cos угла| меньше этого — вбок, больше — вперёд (Walk_) или назад (Backwards_)
-@export var strafe_threshold := 0.55
+## Под фокусом: куда идёт корпус относительно взгляда на врага. Пороги — cos
+## угла между движением и взглядом, с запасом (гистерезис): в стрейф входим
+## при |cos| < strafe_enter (~63..117°), выходим только при |cos| >
+## strafe_exit (~41°/139°) — иначе, кружа вокруг врага, анимация дёргалась
+## бы между Walk_, стрейфом и Backwards_ на каждом пересечении порога
+@export var strafe_enter := 0.45
+@export var strafe_exit := 0.75
+## Темп шага стрейфа на бегу под фокусом (тело едет вдвое быстрее ходьбы)
+@export var run_strafe_speed := 1.6
+const LOCO_FORWARD := 0
+const LOCO_SIDE := 1
+const LOCO_BACK := 2
+var _loco_mode := LOCO_FORWARD
+
+
+func _locomotion_mode() -> int:
+	if input_vector == Vector2.ZERO or not is_instance_valid(focused_enemy) or _is_fleeing_focus():
+		_loco_mode = LOCO_FORWARD
+		return _loco_mode
+	var d := input_vector.normalized().dot(facing_dir)
+	match _loco_mode:
+		LOCO_SIDE:
+			if d > strafe_exit:
+				_loco_mode = LOCO_FORWARD
+			elif d < -strafe_exit:
+				_loco_mode = LOCO_BACK
+		_:
+			if absf(d) < strafe_enter:
+				_loco_mode = LOCO_SIDE
+			elif d < -strafe_enter:
+				_loco_mode = LOCO_BACK
+			else:
+				_loco_mode = LOCO_FORWARD
+	return _loco_mode
 
 
 ## Стрейф (шаг вбок) под фокусом: взгляд держится на враге, а ноги идут в
 ## сторону. Строка листа StrafeLeft/StrafeRight — направление ДВИЖЕНИЯ, взгляд
 ## в ней повёрнут на 90° (в StrafeRight_Right рыцарь смотрит вверх и шагает
-## вправо). Поэтому строку берём не по вводу, а от направления взгляда со
-## сдвигом на четверть круга — так рыцарь на всём стрейфе смотрит ровно туда
-## же, куда и до него (last_direction), и не дёргается при входе и выходе.
-## "" — стрейф сейчас не нужен
+## вправо). Поэтому строку берём от направления ВЗГЛЯДА со сдвигом на четверть
+## круга — так рыцарь на всём стрейфе смотрит лицом на врага, туда же, куда и
+## до него (last_direction). "" — стрейф сейчас не нужен
 func _strafe_animation() -> String:
 	var side := _strafe_side()
 	if side == 0:
@@ -1116,13 +1189,10 @@ func _strafe_animation() -> String:
 ## Идёт ли шаг вбок от взгляда на врага: 1 — вправо, -1 — влево, 0 — нет
 ## (вперёд, назад, без фокуса)
 func _strafe_side() -> int:
-	if input_vector == Vector2.ZERO or not is_instance_valid(focused_enemy) or _is_fleeing_focus():
-		return 0
-	var move := input_vector.normalized()
-	if absf(move.dot(facing_dir)) > strafe_threshold:
+	if _locomotion_mode() != LOCO_SIDE:
 		return 0
 	# cross > 0 — движение вправо от взгляда (на экране y вниз)
-	return 1 if facing_dir.cross(move) > 0.0 else -1
+	return 1 if facing_dir.cross(input_vector.normalized()) > 0.0 else -1
 
 
 ## Шаговые клипы (Walk_, Run_, Backwards_, StrafeLeft_, ...) при смене
@@ -1580,6 +1650,18 @@ func handle_attack_input():
 			can_counter = false
 			start_counter_attack()
 			return
+		# Рядом враг с пробитой концентрацией (горит руна) — добивание: сразу
+		# тяжёлый третий удар серии (Attack_3_), прямо в него. Важнее удара
+		# с разбега; посреди серии — встаёт следующим в очередь
+		var exec_target := _execution_target()
+		if exec_target:
+			_exec_target = exec_target
+			if is_attacking:
+				combo_queued = true
+			elif not is_run_attacking:
+				combo_step = 3
+				play_attack(3)
+			return
 		if is_running and input_vector != Vector2.ZERO and not is_attacking and not is_run_attacking:
 			start_run_attack()
 			return
@@ -1604,6 +1686,12 @@ func play_attack(step: int):
 	combo_queued = false
 	dodge_velocity = Vector2.ZERO
 	try_snap_to_enemy() 
+	# Добивание — лицом ровно к врагу с руной, а не к ближайшему/в фокусе
+	if is_instance_valid(_exec_target):
+		var to_exec := (_exec_target.global_position - global_position).normalized()
+		if get_direction(to_exec) != "":
+			facing_dir = to_exec
+			last_direction = get_direction(to_exec)
 	var anim_name := ""
 
 	if step == 1:
@@ -1887,7 +1975,12 @@ func _on_anim_finished(finished_anim: StringName) -> void:
 	# месте) — серия просто больше до него не доходит. Когда навык будет
 	# готов и получит свой отдельный вызов play_attack(4), эту цифру можно
 	# вернуть обратно на 4, если 4-й удар снова понадобится и в обычной серии
-	if combo_queued and combo_step < 3:
+	if combo_queued and is_instance_valid(_exec_target) and not _exec_target.is_dead:
+		# В очереди добивание — следующим идёт Attack_3_, с какого бы шага
+		combo_step = 3
+		play_attack(3)
+	elif combo_queued and combo_step < 3:
+		_exec_target = null
 		combo_step += 1
 		play_attack(combo_step)
 	else:
@@ -1897,6 +1990,7 @@ func reset_combo():
 	is_attacking = false
 	combo_step = 0
 	combo_queued = false
+	_exec_target = null
 	# disable_attack_hitbox(), а не прямое monitoring=false — та же причина,
 	# что и в interrupt_all_actions()/receive_parry(): гасить нужно и
 	# monitoring, и disabled коллизии, иначе они могут разъехаться
@@ -2134,12 +2228,10 @@ func _perfect_dodge_slowmo() -> void:
 # контратака → хитстоп от попадания) время корректно восстановит только
 # самый последний по времени вызов, а не тот, что запустился раньше
 func _apply_timescale(scale: float, duration: float) -> void:
-	_timescale_token += 1
-	var token := _timescale_token
-	Engine.time_scale = scale
-	await get_tree().create_timer(duration, true, false, true).timeout
-	if token == _timescale_token:
-		Engine.time_scale = 1.0
+	# Теперь через общий учёт времени (VFX/juice.gd): там же замедление
+	# последнего убийства и добивания — заявки копятся, действует самая
+	# медленная, и стоп-кадр больше не обрывает чужое замедление
+	Juice.slow(scale, duration, 1.0)
 
 
 # Проигрывает звук со случайным разбросом высоты тона. Без этого каждый удар,

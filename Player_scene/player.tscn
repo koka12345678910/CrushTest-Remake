@@ -6288,28 +6288,6 @@ zoom = Vector2(2.2, 2.2)
 limit_smoothed = true
 position_smoothing_enabled = true
 
-[node name="Rain2" type="GPUParticles2D" parent="Camera2D" unique_id=271765989]
-texture_filter = 1
-position = Vector2(-30, -451)
-amount = 500
-texture = ExtResource("12_6r4ru")
-lifetime = 1.8
-speed_scale = 1.5
-visibility_rect = Rect2(-1400, -100, 2800, 1400)
-local_coords = true
-process_material = SubResource("ParticleProcessMaterial_v6ddd")
-
-[node name="Rain" type="GPUParticles2D" parent="Camera2D" unique_id=1488762265]
-texture_filter = 1
-position = Vector2(-30, -451)
-amount = 500
-texture = ExtResource("12_6r4ru")
-lifetime = 1.8
-speed_scale = 1.5
-visibility_rect = Rect2(-1400, -100, 2800, 1400)
-local_coords = true
-process_material = SubResource("ParticleProcessMaterial_v6ddd")
-
 [node name="CanvasLayer" type="CanvasLayer" parent="Camera2D" unique_id=1119566698]
 
 [node name="LightningFlash" type="ColorRect" parent="Camera2D/CanvasLayer" unique_id=1014078783]

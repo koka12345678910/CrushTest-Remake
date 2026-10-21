@@ -340,52 +340,86 @@ func _update_facing() -> void:
 
 func play_movement_animation() -> void:
 	var speed := velocity.length()
-	var anim_name := "Idle_" + last_direction
+	if speed < 10.0:
+		_play_loco("Idle_" + last_direction)
+		return
+	# Темп шага — по реальной скорости: разгоняется/тормозит тело — так же
+	# ноги, без скольжения по земле
+	var cadence := clampf(speed / walk_speed, 0.6, 1.9)
+	match _locomotion_mode():
+		LOCO_SIDE:
+			var strafe := _strafe_clip()
+			if strafe != "":
+				_play_loco(strafe, cadence)
+				return
+		LOCO_BACK:
+			# Ходьба спиной вперёд — лицом к врагу. У лучницы и мага клипы
+			# собраны из строк листа один в один (build_*_anims.gd), а строка
+			# листа RunBackwards — направление ЛИЦА (сверено по кадрам), поэтому
+			# суффикс — направление взгляда. (У рыцаря клипы Backwards_ в
+			# player.tres подписаны по движению — у него в player.gd своё.) Имена у
+			# классов разные: у лучника Backward_, у мага Backwards_
+			for prefix in ["Backward_", "Backwards_"]:
+				if _has_clip(prefix + last_direction):
+					_play_loco(prefix + last_direction, cadence)
+					return
 	if speed >= 120.0:
-		anim_name = "Run_" + last_direction
-	elif speed >= 10.0 and _strafe_clip() != "":
-		anim_name = _strafe_clip()
-	elif speed >= 10.0:
-		# Ходьба спиной вперёд (взгляд держит фокус на враге) — своя
-		# раскадровка, а не Walk_. Та же логика, что у рыцаря
-		# (player.gd::play_movement_animation): суффикс — направление
-		# ДВИЖЕНИЯ, а не взгляда. Клипы у классов названы по-разному: у
-		# лучника Backward_, у мага (и рыцаря) Backwards_ — берём тот, что есть
-		if _is_moving_backward():
-			var move_dir := get_direction(input_vector.normalized())
-			anim_name = "Walk_" + last_direction
-			if move_dir != "":
-				for prefix in ["Backward_", "Backwards_"]:
-					if anim.has_animation(prefix + move_dir):
-						anim_name = prefix + move_dir
-						break
-		else:
-			anim_name = "Walk_" + last_direction
-
-	_play(anim_name)
+		_play_loco("Run_" + last_direction)
+	else:
+		_play_loco("Walk_" + last_direction, minf(cadence, 1.2))
 
 
 ## Направления по кругу по часовой стрелке на экране — в этом же порядке идут
 ## строки листов анимаций (Right, Down_Right, Down, ...)
 const DIR_RING := ["Right", "Down_Right", "Down", "Down_Left", "Left", "Up_Left", "Up", "Up_Right"]
-## |cos угла| между движением и взглядом меньше этого — шаг вбок (стрейф)
-@export var strafe_threshold := 0.55
 ## Left/Right в листах стрейфа подписаны со стороны зрителя, а не персонажа
 ## (так у Сигрид — сверено по кадрам; у рыцаря — со стороны персонажа)
 @export var strafe_names_swapped := false
+## Под фокусом: куда идёт корпус относительно взгляда на врага. Пороги — cos
+## угла между движением и взглядом, с запасом (гистерезис): в стрейф входим
+## при |cos| < strafe_enter (~63..117°), выходим только при |cos| >
+## strafe_exit (~41°/139°) — иначе, кружа вокруг врага, анимация дёргалась
+## бы между ходьбой, стрейфом и ходьбой назад на каждом пересечении порога
+@export var strafe_enter := 0.45
+@export var strafe_exit := 0.75
+const LOCO_FORWARD := 0
+const LOCO_SIDE := 1
+const LOCO_BACK := 2
+var _loco_mode := LOCO_FORWARD
 
 
-## Стрейф под фокусом: взгляд на враге, ноги идут вбок — как у рыцаря
-## (player.gd::_strafe_animation). Строка листа StrafeLeft/StrafeRight — это
-## направление ДВИЖЕНИЯ, взгляд в ней повёрнут на 90°, поэтому строку берём от
-## направления взгляда со сдвигом на четверть круга. "" — стрейф не нужен
-## или такого клипа у персонажа нет
+func _locomotion_mode() -> int:
+	if input_vector == Vector2.ZERO or not _focus.has_target() or _focus.is_fleeing(input_vector, is_running):
+		_loco_mode = LOCO_FORWARD
+		return _loco_mode
+	var d := input_vector.normalized().dot(facing_dir)
+	match _loco_mode:
+		LOCO_SIDE:
+			if d > strafe_exit:
+				_loco_mode = LOCO_FORWARD
+			elif d < -strafe_exit:
+				_loco_mode = LOCO_BACK
+		_:
+			if absf(d) < strafe_enter:
+				_loco_mode = LOCO_SIDE
+			elif d < -strafe_enter:
+				_loco_mode = LOCO_BACK
+			else:
+				_loco_mode = LOCO_FORWARD
+	return _loco_mode
+
+
+## Стрейф под фокусом: лицо на враге, ноги идут вбок. Строка листа
+## StrafeLeft/StrafeRight — направление ДВИЖЕНИЯ, лицо в ней повёрнуто на 90°
+## (сверено по кадрам). Поэтому строку берём от направления ВЗГЛЯДА со
+## сдвигом на четверть круга — тогда в выбранном клипе лицо смотрит ровно туда
+## же, куда и до стрейфа: на врага. Влево или вправо — по знаку поворота от
+## взгляда к движению. Имена Left/Right у части листов — со стороны зрителя
+## (strafe_names_swapped: Сигрид, Frost-маг)
 func _strafe_clip() -> String:
 	if input_vector == Vector2.ZERO or not _focus.has_target():
 		return ""
 	var move := input_vector.normalized()
-	if absf(move.dot(facing_dir)) > strafe_threshold:
-		return ""
 	var i := DIR_RING.find(last_direction)
 	if i < 0:
 		return ""
@@ -396,16 +430,55 @@ func _strafe_clip() -> String:
 		clip = right + DIR_RING[(i + 2) % 8]
 	else:
 		clip = left + DIR_RING[(i + 6) % 8]
-	return clip if anim.has_animation(clip) else ""
+	return clip if _has_clip(clip) else ""
 
 
 ## Взгляд держит фокус на враге, а WASD ведёт корпус в противоположную
 ## сторону — тот же признак, что у рыцаря (player.gd::_is_moving_backward)
 func _is_moving_backward() -> bool:
-	if input_vector == Vector2.ZERO:
-		return false
-	return input_vector.normalized().dot(facing_dir) < -0.5
+	return _locomotion_mode() == LOCO_BACK
 
+
+## Имя клипа с учётом стойки (лучница подставляет мечевые Sword_-версии,
+## archer.gd). База имён не меняет
+func _clip_name(anim_name: String) -> String:
+	return anim_name
+
+
+func _has_clip(anim_name: String) -> bool:
+	return anim.has_animation(_clip_name(anim_name))
+
+
+## Клипы шагов (стойка, ходьба, бег, стрейф, спиной) при смене направления или
+## вида шага продолжаются с той же фазы шага, а не с первого кадра — как у
+## рыцаря (player.gd::_play_keep_phase): под фокусом направление меняется на
+## ходу, и перезапуск каждый раз давал бы спотыкание. speed — темп шага
+const LOCO_PREFIXES := ["Walk_", "Run_", "StrafeLeft_", "StrafeRight_", "Backward_", "Backwards_"]
+var _loco_speed := 1.0
+
+func _play_loco(anim_name: String, speed := 1.0) -> void:
+	var clip := _clip_name(anim_name)
+	if not anim.has_animation(clip):
+		return
+	speed = snappedf(speed, 0.1)
+	var prev := String(anim.current_animation)
+	if prev == clip and is_equal_approx(speed, _loco_speed):
+		return
+	var phase := -1.0
+	if prev != "" and _is_loco(prev) and _is_loco(clip) and anim.current_animation_length > 0.0:
+		phase = anim.current_animation_position / anim.current_animation_length
+	_loco_speed = speed
+	anim.play(clip, -1, speed)
+	if phase >= 0.0:
+		anim.seek(phase * anim.current_animation_length, true)
+
+
+func _is_loco(clip: String) -> bool:
+	var c := clip.trim_prefix("Sword_")
+	for p in LOCO_PREFIXES:
+		if c.begins_with(p):
+			return true
+	return false
 
 # ─────────────────────────────────────────────
 # РАЗВОРОТ НА МЕСТЕ (Turn_)

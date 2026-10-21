@@ -213,6 +213,9 @@ func _apply(t: float) -> void:
 	# Под крышей неба нет: лучи луны и капли дождя гаснут вместе с улицей
 	for ray in get_tree().get_nodes_in_group("moon_rays"):
 		(ray as CanvasItem).modulate.a = 1.0 - t
+	# Дождь уровня (Levels/rain_system.gd) — пелена, капли и круги на земле
+	for rain in get_tree().get_nodes_in_group("rain_fx"):
+		(rain as CanvasItem).modulate.a = 1.0 - t
 	var player := get_tree().get_first_node_in_group("player")
 	var cam: Node = player.get_node_or_null("Camera2D") if player else null
 	if cam:

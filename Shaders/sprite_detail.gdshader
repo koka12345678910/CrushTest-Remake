@@ -54,6 +54,17 @@ uniform vec4 highlight_grade : source_color = vec4(0.97, 0.96, 0.92, 1.0);
 uniform float brightness : hint_range(0.3, 1.5) = 0.96;
 // Размер ячейки кадра в листе (кадры 128x128) — чтобы знать высоту внутри кадра
 uniform float cell_px = 128.0;
+// Перекраска вшитой в кадры магии (маг: ледяные эффекты Frost-листов) в его
+// собственную палитру — как у огненного шара и выжигания (mage_fx.gd). Магия —
+// яркое насыщенное бирюзовое (оттенок ~165..210°, яркость > ~0.5): по яркости
+// она отделяется от тёмной сине-бирюзовой мантии того же оттенка. Почти белые
+// следы взмахов слегка уходят в холодное ядро. Применяется ПОСЛЕ тонировки —
+// магия светится, как его огонь, а не гаснет вместе с мантией.
+// 0 — выключено (рыцарь, лучница), 1 — полностью
+uniform float magic_recolor : hint_range(0.0, 1.0) = 0.0;
+uniform vec4 magic_core : source_color = vec4(0.88, 0.96, 1.0, 1.0);
+uniform vec4 magic_mid : source_color = vec4(0.42, 0.72, 1.0, 1.0);
+uniform vec4 magic_edge : source_color = vec4(0.14, 0.32, 1.0, 1.0);
 
 // Цвет вершины (modulate спрайта — вспышки урона, свечение навыков). В
 // fragment COLOR уже умножен на текстуру, поэтому берём его из vertex
@@ -69,6 +80,34 @@ float body(sampler2D t, vec2 uv) {
 
 float lum(vec3 c) {
 	return dot(c, vec3(0.299, 0.587, 0.114));
+}
+
+vec3 rgb2hsv(vec3 c) {
+	vec4 K = vec4(0.0, -1.0 / 3.0, 2.0 / 3.0, -1.0);
+	vec4 p = mix(vec4(c.bg, K.wz), vec4(c.gb, K.xy), step(c.b, c.g));
+	vec4 q = mix(vec4(p.xyw, c.r), vec4(c.r, p.yzx), step(p.x, c.r));
+	float d = q.x - min(q.w, q.y);
+	return vec3(abs(q.z + (q.w - q.y) / (6.0 * d + 1e-10)), d / (q.x + 1e-10), q.x);
+}
+
+// Насколько пиксель — вшитая магия (0..1) и чем её заменить (палитра мага).
+// Возвращает vec4(цвет, вес)
+vec4 magic_of(vec3 c) {
+	vec3 hsv = rgb2hsv(c);
+	float hue = hsv.x * 360.0;
+	float hue_m = smoothstep(150.0, 168.0, hue) * (1.0 - smoothstep(203.0, 216.0, hue));
+	float m = hue_m * smoothstep(0.45, 0.62, hsv.z) * smoothstep(0.16, 0.36, hsv.y);
+	// Светлота решает, где на "огне" пиксель: тёмный край — глубокий синий,
+	// середина — голубой, самое яркое — почти белое ядро
+	float l = (max(c.r, max(c.g, c.b)) + min(c.r, min(c.g, c.b))) * 0.5;
+	vec3 ramp = l < 0.6 ? mix(magic_edge.rgb, magic_mid.rgb, smoothstep(0.28, 0.6, l))
+			: mix(magic_mid.rgb, magic_core.rgb, smoothstep(0.6, 0.92, l));
+	// Чуть ярче исходного — магия светится, как огонь мага
+	vec3 target = ramp * hsv.z * 1.15;
+	// Почти белые следы — лишь чуть холоднее, к ядру
+	float white = smoothstep(0.72, 0.9, hsv.z) * (1.0 - smoothstep(0.08, 0.22, hsv.y)) * (1.0 - m);
+	target = mix(target, magic_core.rgb * hsv.z, white / max(m + white, 1e-4));
+	return vec4(target, max(m, white * 0.5));
 }
 
 // Среднее по телу в кольце радиуса r пикселей (пустоту вокруг не считаем —
@@ -91,6 +130,7 @@ void fragment() {
 	vec2 px = TEXTURE_PIXEL_SIZE;
 	vec4 tex = texture(TEXTURE, UV);
 	vec4 result = tex;
+	vec4 magic = magic_recolor > 0.0 ? magic_of(tex.rgb) : vec4(0.0);
 	if (tex.a >= body_alpha) {
 		vec3 c = tex.rgb;
 		float h = lum(c);
@@ -163,5 +203,8 @@ void fragment() {
 		c = max(c, shadow_floor.rgb);
 		result = vec4(clamp(c, 0.0, 1.0), tex.a);
 	}
+	// Вшитая магия — в палитру мага, поверх тонировки (и на полупрозрачном,
+	// вне "тела": шипы и осколки часто полупрозрачные)
+	result.rgb = mix(result.rgb, magic.rgb, magic.a * magic_recolor);
 	COLOR = result * modulate_color;
 }

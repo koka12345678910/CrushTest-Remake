@@ -2144,11 +2144,21 @@ func forest() -> void:
 
 
 func finish_scene() -> void:
+	# Дождь уровня (Levels/rain_system.gd) — сам находит камеру героя; раньше
+	# капли были только на камере рыцаря
+	if lvl.get_node_or_null("RainSystem") == null:
+		var rain := Node2D.new()
+		rain.name = "RainSystem"
+		rain.set_script(load("res://Levels/rain_system.gd"))
+		lvl.add_child(rain)
+		rain.owner = lvl
 	# Ночь: тёмная общая подсветка + слабый холодный "лунный" свет; всё яркое
 	# на карте даёт огонь (факелы/костры) и холодное свечение лунного сада
 	var cm: CanvasModulate = lvl.get_node("NightModulate")
 	cm.visible = true
-	cm.color = Color(0.24, 0.27, 0.29)
+	# 2026-10-21: чуть ярче по просьбе игрока (было 0.24, 0.27, 0.29) — средняя
+	# яркость кадра +40%, ночь и холодный тон остались
+	cm.color = Color(0.325, 0.365, 0.39)
 	var moon: DirectionalLight2D = lvl.get_node("DirectionalLight2D")
 	moon.color = Color(0.55, 0.65, 0.8)
 	# Ровная подсветка совсем слабая — это свет, рассеянный облаками. Сама луна

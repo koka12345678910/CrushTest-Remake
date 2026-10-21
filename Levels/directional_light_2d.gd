@@ -31,6 +31,19 @@ var lightning_flash: ColorRect = null
 @export var thunder_volume_far := -20.0
 @export var thunder_pitch_variation := 0.12
 
+# Удары молнии РЯДОМ с героем (видимый разряд, свет, трещина, оглушение
+# врагов). Остальные вспышки — далёкие: свет мира мигает, иногда у края вида
+# виден бледный разряд
+@export_range(0.0, 1.0) var strike_chance := 0.3
+@export var strike_distance_min := 80.0
+@export var strike_distance_max := 190.0
+## Радиус, в котором удар отбрасывает и оглушает врагов (без урона)
+@export var strike_stun_radius := 60.0
+@export_range(0.0, 1.0) var far_bolt_chance := 0.45
+
+const LightningBolt := preload("res://VFX/VFX_scene/lightning_bolt.gd")
+const MageFx := preload("res://Player_scene/mage_fx.gd")
+
 var lightning_timer := 0.0
 var next_lightning_time := 0.0
 
@@ -45,6 +58,12 @@ func _process(delta: float) -> void:
 		_trigger_lightning()
 
 func _trigger_lightning() -> void:
+	var hero := get_tree().get_first_node_in_group("player") as Node2D
+	if hero and randf() < strike_chance and _outdoors(hero.global_position):
+		_strike(hero)
+		return
+	if hero and randf() < far_bolt_chance and _outdoors(hero.global_position):
+		_far_bolt(hero)
 	# "дальность" удара: 0 = рядом, 1 = у горизонта. Одно и то же число задаёт
 	# и паузу до грома, и его громкость, поэтому близкая молния бьёт резко и
 	# громко, а далёкая долго доходит и глухо перекатывается
@@ -86,11 +105,66 @@ func _flash() -> void:
 	tween.tween_property(self, "energy", flash_energy * k, 0.03)
 	tween.tween_property(self, "energy", night_energy, 0.12)
 
-	var flash := _resolve_lightning_flash()
-	if flash:
-		flash.color = Color(flash_overlay_color, flash.color.a)
-		var flash_tween = create_tween()
-		flash_tween.tween_property(flash, "color:a", flash_overlay_alpha * k, 0.03)
-		flash_tween.tween_property(flash, "color:a", 0.0, 0.12)
+	# Засветка экрана — через Juice: она есть у любого героя (раньше — только
+	# у рыцаря, оверлей LightningFlash в его камере)
+	Juice.flash(flash_overlay_alpha * k)
 
 	await tween.finished
+
+
+## Под крышей молния не видна — только гром и отсвет в окнах
+func _outdoors(p: Vector2) -> bool:
+	for house in get_tree().get_nodes_in_group("house_interior"):
+		if house.is_roofed(p):
+			return false
+	return true
+
+
+## Удар рядом с героем — самая зрелищная часть грозы
+func _strike(hero: Node2D) -> void:
+	var dir := Vector2.RIGHT.rotated(randf() * TAU)
+	var at := hero.global_position + Vector2(dir.x, dir.y * 0.75) * randf_range(strike_distance_min, strike_distance_max)
+	LightningBolt.strike(get_tree(), at, true)
+	# Мир и экран — вспышкой; гром сразу, без паузы: молния над головой
+	var t := create_tween()
+	t.tween_property(self, "energy", flash_energy * 1.4, 0.03)
+	t.tween_property(self, "energy", night_energy, 0.4)
+	Juice.flash(0.42)
+	Juice.pulse("aberration", 0.45, 0.0)
+	Juice.shake(6.0)
+	Juice.kick(hero.global_position - at, 5.0)
+	Juice.shockwave(at, 90.0, 0.45, 0.022)
+	Juice.ground_crack(at, 1.5, Color(0.55, 0.75, 1.0, 0.9))
+	var h := MageFx.holder(get_tree(), at + Vector2(0, -4), 1.0, 12)
+	MageFx.sparks(h, 22, 240.0, 0.5, Vector2.UP, 80.0)
+	MageFx.smoke(h, 6, 8.0, 26.0, 1.0)
+	if thunder_audio:
+		thunder_audio.volume_db = thunder_volume_near + 2.0
+		thunder_audio.pitch_scale = randf_range(0.9, 1.0)
+		thunder_audio.play()
+	# Враги у точки удара отлетают и на миг оглушены, ящики разлетаются
+	for e in get_tree().get_nodes_in_group("enemy"):
+		if is_instance_valid(e) and not e.is_dead and e.global_position.distance_to(at) < strike_stun_radius \
+				and e.has_method("lightning_stun"):
+			e.lightning_stun(at)
+	for p in get_tree().get_nodes_in_group("breakable"):
+		if is_instance_valid(p) and not p.is_dead and p.global_position.distance_to(at) < strike_stun_radius * 0.7:
+			p.take_damage(99, null)
+	# Порыв: дождь на несколько секунд усиливается
+	for r in get_tree().get_nodes_in_group("rain_fx"):
+		if r.has_method("boost"):
+			r.boost(0.45, 4.0)
+	# Второй всполох неба — эхо удара
+	await get_tree().create_timer(0.12).timeout
+	await _flash()
+
+
+## Далёкая молния: бледный разряд за краем вида, без последствий
+func _far_bolt(hero: Node2D) -> void:
+	var cam := hero.get_node_or_null("Camera2D") as Camera2D
+	var half := Vector2(320, 180)
+	if cam:
+		half = get_viewport().get_visible_rect().size / cam.zoom * 0.5
+	var side := Vector2(randf_range(-1.0, 1.0), randf_range(-0.6, -0.2))
+	var at := hero.global_position + Vector2(side.x * half.x * 1.1, side.y * half.y * 1.6)
+	LightningBolt.strike(get_tree(), at, false)

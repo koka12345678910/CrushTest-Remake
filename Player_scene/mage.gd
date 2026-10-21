@@ -2,9 +2,11 @@ extends "res://Player_scene/character_base.gd"
 ## Маг. Движение, направления и серия ударов — в общей базе
 ## (character_base.gd), здесь только то, что отличает его от остальных.
 ##
-## Набор клипов у мага почти как у лучника (Idle_/Walk_/Run_/Attack_/
-## Attack_2_/Take_Damage_ на 8 направлений); ходьба спиной — Backwards_, разворот
-## — Turn_Around_, база понимает оба варианта имён. Цель (фокус) — из базы:
+## Вид — Frost-маг (Character/Mage_Frost), анимации собирает
+## tools/build_mage_anims.gd в mage_frames.tres / mage_anims.tres. Набор клипов
+## почти как у лучника (Idle_/Walk_/Run_/Attack_/Attack_2_/Take_Damage_ на 8
+## направлений); ходьба спиной — Backwards_. Клипа разворота у Frost-мага нет —
+## база тогда поворачивает его мгновенно. Цель (фокус) — из базы:
 ## радиус взятия у мага, как у лучника, большой (snap_radius в mage.tscn) —
 ## он бьёт издалека. Монет маг не копит (collects_gold = false): его валюта —
 ## души.
@@ -22,9 +24,10 @@ func _ready() -> void:
 	# во все стороны и темнее, обожжённая (VFX/VFX_scene/blood_fx.gd::kind_from)
 	add_to_group("caster_player")
 
-## Первая атака (Attack_) — синий огненный шар. Пауза до вылета подогнана под
-## анимацию: маг выбрасывает руку с магией на 7-8 кадре из 15 (клип 1с)
-@export var fireball_cast_delay := 0.5
+## Первая атака (Attack_, лист Attack1) — синий огненный шар. Пауза до вылета
+## подогнана под анимацию: маг выбрасывает руку вперёд на 6-м кадре из 15
+## (15 к/с, клип 1с)
+@export var fireball_cast_delay := 0.4
 ## Откуда вылетает шар — смещение от центра тела в сторону взгляда
 @export var fireball_offset := 18.0
 
@@ -63,9 +66,9 @@ const ScorchScript := preload("res://Player_scene/mage_scorch.gd")
 
 ## Вторая атака (Attack_2_, ПКМ) — выжигание: голубой огонь вспыхивает у ног
 ## мага и нарастающе ползёт вперёд конусом (mage_scorch.gd). Враг горит, когда
-## до него дошёл фронт, а не весь сектор разом. Поджиг — на 3-м кадре из 15
-## (0.2с), когда маг выбрасывает руку
-@export var sweep_start_delay := 0.2
+## до него дошёл фронт, а не весь сектор разом. Поджиг — на 4-м кадре из 15
+## листа Attack5 (0.27с), когда сила срывается с руки мага
+@export var sweep_start_delay := 0.27
 @export var sweep_damage := 1
 @export var sweep_knockback := 180.0
 
@@ -125,16 +128,17 @@ const PulseScript := preload("res://Player_scene/mage_pulse.gd")
 
 ## Третья атака (Attack_3_) — два импульса вокруг мага. Тайминги по анимации,
 ## в КАДРАХ клипа (длительность кадра — из самого клипа, _clip_frame_time):
-## маг разводит руки на 2-4 кадре и второй раз, со вспышкой, на 8-9 кадре.
+## лист Special1 (10 к/с, тот же, что у столпов): маг поднимает посох на 2-5
+## кадре — малый импульс, выброс силы на 9-10 кадре — большая волна.
 ##   1-й — маленький и короткий, вплотную вокруг мага, лишь чуть толкает
 ##   2-й — большая волна: уходит далеко, по пути рассеивается, бьёт фронтом
 @export var pulse_damage := 1
-@export var pulse_small_frame := 3.0
+@export var pulse_small_frame := 4.0
 @export var pulse_small_radius := 56.0
 ## За сколько кадров маленький импульс доходит до края
 @export var pulse_small_expand_frames := 2.4
 @export var pulse_small_knockback := 100.0
-@export var pulse_big_frame := 8.25
+@export var pulse_big_frame := 9.5
 @export var pulse_big_radius := 150.0
 ## За сколько кадров большая волна доходит до края
 @export var pulse_big_expand_frames := 9.0
@@ -155,7 +159,9 @@ func _cast_pulses() -> void:
 		return
 	var small: Node2D = PulseScript.new()
 	var body := _body_anchor()
-	small.setup(self, pulse_small_radius, pulse_small_expand_frames * frame, 0.0, pulse_damage, pulse_small_knockback, 0.45, true, body[0], body[1], frame)
+	# Рунический круг под магом (circle = true) убран — к новому виду мага не
+	# подошёл. Сам круг в mage_pulse.gd остался, включается этим флагом
+	small.setup(self, pulse_small_radius, pulse_small_expand_frames * frame, 0.0, pulse_damage, pulse_small_knockback, 0.45, false, body[0], body[1], frame)
 	add_child(small)
 	shake_camera(pulse_small_shake, pulse_small_shake_time)
 
@@ -190,14 +196,14 @@ const PillarScript := preload("res://Player_scene/mage_pillar.gd")
 ## Особая атака (SpecialAttack_, B — действие "special") — столпы голубого
 ## огня под ближайшими врагами. Тайминги — в КАДРАХ клипа, а не в секундах:
 ## длительность кадра берётся из самого клипа (_clip_frame_time), так что
-## при смене скорости анимации столпы подстраиваются сами. На 1-6 кадре маг
-## собирает силу — под целями в это время проступают руны (видно, куда
-## ударит), на 7-8 кадре белая вспышка выброса — тогда вырываются столпы
+## при смене скорости анимации столпы подстраиваются сами. Лист Special1: на
+## 2-8 кадре маг поднимает посох и собирает силу — под целями в это время
+## проступают руны (видно, куда ударит), на 9-10 кадре вырываются столпы
 @export var special_max_targets := 5
 ## Радиус, в котором ищутся цели
 @export var special_radius := 240.0
-@export var special_mark_frame := 2.0
-@export var special_erupt_frame := 7.0
+@export var special_mark_frame := 3.0
+@export var special_erupt_frame := 9.5
 ## Столпы вырываются не разом, а волной от ближнего врага к дальнему (в кадрах)
 @export var special_stagger_frames := 0.7
 ## Если длительность кадра из клипа не прочиталась (клипа нет) — эта скорость

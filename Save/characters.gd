@@ -81,7 +81,7 @@ const DATA := {
 		"quote": "Every rune remembers\nthe hand that carved it.",
 		"color": Color(0.55, 0.6, 0.9),
 		"icon": "rune",
-		"portrait_sheet": "res://Character/Mage/Idle.png",
+		"portrait_sheet": "res://Character/Mage_Frost/Idle.png",
 		"portrait_region": Rect2(0, 256, 128, 128),
 		"idle_frame_time": 0.2,
 		"stats": {

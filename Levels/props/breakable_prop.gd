@@ -64,6 +64,10 @@ func take_damage(_amount: int = 1, source: Node = null) -> void:
 	# Один взмах меча может задеть предмет несколько раз подряд
 	_cooldown = 0.18
 	hits -= 1
+	# Отклик удара (VFX/juice.gd) — как у врага, но всегда "лёгкий": разбитый
+	# ящик не должен включать замедление последнего убийства. На разлом —
+	# чуть сильнее (amount 2 = тяжёлый: волна и трещина)
+	Juice.hit(self, source as Node2D, 2 if hits <= 0 else 1, false)
 	if hits <= 0:
 		_break(source)
 	else:
