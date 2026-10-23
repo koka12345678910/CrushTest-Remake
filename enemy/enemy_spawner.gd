@@ -4,6 +4,13 @@ extends Node2D
 # чтобы игрок не видел момент спавна.
 
 @export var enemy_scene: PackedScene
+## Смешанный состав (локации со своими врагами, напр. скелеты кладбища).
+## Если список не пуст, enemy_scene не используется: каждый враг пачки
+## выбирается случайно по весу enemy_weights, а enemy_pack_limits ограничивает,
+## сколько таких может быть в одной пачке (0 — без ограничения)
+@export var enemy_scenes: Array[PackedScene] = []
+@export var enemy_weights: Array[float] = []
+@export var enemy_pack_limits: Array[int] = []
 @export var max_enemies: int = 12
 @export var check_interval: float = 1.5
 # запас за краем экрана — точка считается «вне камеры», если дальше этого отступа
@@ -56,6 +63,7 @@ func _try_spawn() -> void:
 	# ("Vector2 cannot be normalized") пытаясь их раздвинуть
 	var min_spacing := 40.0
 	var placed: Array[Vector2] = []
+	var in_pack := {}
 	for i in pack_size:
 		var offset := Vector2.ZERO
 		for attempt in 8:
@@ -68,9 +76,46 @@ func _try_spawn() -> void:
 			if far_enough:
 				break
 		placed.append(offset)
-		var enemy := enemy_scene.instantiate()
+		var scene := _pick_scene(in_pack)
+		if scene == null:
+			continue
+		in_pack[scene] = in_pack.get(scene, 0) + 1
+		var enemy := scene.instantiate()
 		get_parent().add_child(enemy)
-		enemy.global_position = chosen.global_position + offset
+		enemy.global_position = _walkable(chosen.global_position + offset)
+
+## Точка разброса могла попасть в надгробие, ящик или стену — притягиваем её
+## к ближайшему месту на навмеше (он запечён с отступом от препятствий).
+## Навмеш ещё не готов — оставляем как есть: враг сам выйдет из предмета
+## (enemy.gd::_free_from_obstacles)
+func _walkable(p: Vector2) -> Vector2:
+	var nav_map := get_world_2d().navigation_map
+	if NavigationServer2D.map_get_iteration_id(nav_map) == 0:
+		return p
+	var snapped := NavigationServer2D.map_get_closest_point(nav_map, p)
+	if not snapped.is_finite() or snapped == Vector2.ZERO or snapped.distance_to(p) > 200.0:
+		return p
+	return snapped
+
+## Враг для пачки: по весу из enemy_scenes с учётом лимитов на пачку
+## (пустой список — просто enemy_scene)
+func _pick_scene(in_pack: Dictionary) -> PackedScene:
+	if enemy_scenes.is_empty():
+		return enemy_scene
+	var total := 0.0
+	var options: Array[int] = []
+	for i in enemy_scenes.size():
+		var limit: int = enemy_pack_limits[i] if i < enemy_pack_limits.size() else 0
+		if enemy_scenes[i] == null or (limit > 0 and in_pack.get(enemy_scenes[i], 0) >= limit):
+			continue
+		options.append(i)
+		total += enemy_weights[i] if i < enemy_weights.size() else 1.0
+	var r := randf() * total
+	for i in options:
+		r -= enemy_weights[i] if i < enemy_weights.size() else 1.0
+		if r <= 0.0:
+			return enemy_scenes[i]
+	return enemy_scenes[options.back()] if not options.is_empty() else enemy_scene
 
 func _get_spawn_points() -> Array:
 	var pts := []

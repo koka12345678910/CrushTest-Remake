@@ -24,6 +24,10 @@ const TAB_INVENTORY := 0
 const TAB_SKILLS    := 1
 const TAB_TALISMANS := 2
 const TAB_SETTINGS  := 3
+## Магия рыцаря (Player_scene/magic/knight_magic.gd): та же сетка, описание и
+## три слота, что у предметов, только над книгой заклинаний и слотами магии
+const TAB_MAGIC     := 4
+const COLOR_ODR     = Color(0.58, 0.68, 0.98, 1.0)
 
 # Настройки — та же панель, что и в главном меню, а не её копия: значения живут
 # в автозагрузке GameSettings, и второй реализации взяться неоткуда
@@ -53,6 +57,17 @@ func _play_ui_sound(stream: AudioStream) -> void:
 
 var _ability_system: AbilitySystem
 var _inventory_system: InventorySystem
+# Сумка/быстрые слоты и книга заклинаний/слоты магии. Вкладка «Магия»
+# подменяет _inventory_system/_ability_system на книгу и слоты магии — вся
+# логика сетки, карточки и кнопки "в слот" работает над ними так же
+var _bag_inventory: InventorySystem
+var _bag_slots: AbilitySystem
+var _magic_inventory: InventorySystem
+var _magic_slots: AbilitySystem
+var _magic_mode := false
+var _tab_ids: Array[int] = []
+var _quick_col_header: Label
+var _empty_hint_name := "Выберите предмет"
 ## Сам персонаж (сейчас всегда рыцарь — InventoryUI есть только в player.tscn).
 ## Нужен деревьям навыков: skill_points/unlocked_skills/try_unlock_skill живут
 ## на нём, не здесь (см. Inventory/ui/skill_tree_panel.gd)
@@ -166,9 +181,14 @@ func _ready() -> void:
 ## null — на случай вызова без него (тесты, будущие владельцы) — тогда
 ## создаём свой, чтобы UI не падал, но никакой боевой код его не увидит
 func init(ability_system: AbilitySystem, inventory_system: InventorySystem, player: Node = null,
-		talisman_system: TalismanSystem = null) -> void:
+		talisman_system: TalismanSystem = null, magic_inventory: InventorySystem = null,
+		magic_slots: AbilitySystem = null) -> void:
 	_ability_system = ability_system
 	_inventory_system = inventory_system
+	_bag_inventory = inventory_system
+	_bag_slots = ability_system
+	_magic_inventory = magic_inventory
+	_magic_slots = magic_slots
 	_player = player
 	if talisman_system != null:
 		_talisman_system = talisman_system
@@ -485,6 +505,12 @@ func _build_tabs() -> void:
 		["ТАЛИСМАНЫ",  TAB_TALISMANS],
 		["НАСТРОЙКИ",  TAB_SETTINGS],
 	]
+	# Вкладка магии — только у того, у кого есть книга заклинаний (рыцарь)
+	if _magic_inventory != null:
+		tab_defs.insert(1, ["МАГИЯ", TAB_MAGIC])
+	_tab_ids.clear()
+	for d in tab_defs:
+		_tab_ids.append(d[1])
 	var tab_w := 280.0
 	var strip_h := 66.0
 	var strip_w := tab_w * tab_defs.size()
@@ -559,21 +585,45 @@ func _make_tab_button(text: String, pos: Vector2, sz: Vector2) -> Button:
 func _update_tab_visuals() -> void:
 	for i in _tab_buttons.size():
 		var btn := _tab_buttons[i]
-		var active := i == _current_tab
+		var active := i < _tab_ids.size() and _tab_ids[i] == _current_tab
 		btn.add_theme_color_override("font_color", COLOR_TEXT_GOLD if active else COLOR_TEXT_DIM)
 		(btn.get_node("Indicator") as Control).visible = active
 
 
 func _set_current_tab(tab: int) -> void:
 	_current_tab = tab
+	# Предметы и магия — одна и та же раскладка, разные данные
+	if tab == TAB_INVENTORY:
+		_set_magic_mode(false)
+	elif tab == TAB_MAGIC:
+		_set_magic_mode(true)
 	_update_tab_visuals()
+
+
+## Переключить сетку, карточку и слоты на книгу заклинаний / обратно на сумку
+func _set_magic_mode(on: bool) -> void:
+	if on and _magic_inventory == null:
+		on = false
+	if on == _magic_mode:
+		return
+	_magic_mode = on
+	_inventory_system = _magic_inventory if on else _bag_inventory
+	_ability_system = _magic_slots if on else _bag_slots
+	_empty_hint_name = "Выберите заклинание" if on else "Выберите предмет"
+	if is_instance_valid(_quick_col_header):
+		_quick_col_header.text = "СЛОТЫ МАГИИ" if on else "БЫСТРЫЙ СЛОТ"
+	if is_instance_valid(_detail_count):
+		(_detail_count.get_meta("caption") as Label).text = "Стоимость" if on else "При себе"
+		(_detail_max_count.get_meta("caption") as Label).text = "Длительность" if on else "Макс. за сессию"
+	_hover_index = -1
+	_select_slot(-1, false)
 
 
 func _on_tab_pressed(id: int) -> void:
 	if id == _current_tab:
 		return
 	match id:
-		TAB_INVENTORY:
+		TAB_INVENTORY, TAB_MAGIC:
 			_play_ui_sound(SOUND_CHOICE)
 			if is_instance_valid(_skills_panel) and _skills_panel.visible:
 				_skills_panel.visible = false
@@ -581,7 +631,7 @@ func _on_tab_pressed(id: int) -> void:
 				_talismans_panel.visible = false
 			if is_instance_valid(_settings_panel) and _settings_panel.visible:
 				_settings_panel.close()
-			_set_current_tab(TAB_INVENTORY)
+			_set_current_tab(id)
 		TAB_SKILLS:
 			if is_instance_valid(_talismans_panel) and _talismans_panel.visible:
 				_talismans_panel.visible = false
@@ -786,6 +836,8 @@ func _add_stat_row(parent: Control, caption: String, y: float) -> Label:
 	val.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	val.add_theme_color_override("font_color", COLOR_TEXT_GOLD)
 	parent.add_child(val)
+	# Подпись меняется на вкладке «Магия» (_set_magic_mode)
+	val.set_meta("caption", cap)
 	return val
 
 
@@ -798,6 +850,7 @@ func _build_quick_column(parent: Control) -> void:
 	var hdr := _make_label("БЫСТРЫЙ СЛОТ", 22)
 	hdr.position = Vector2(x, 26.0)
 	parent.add_child(hdr)
+	_quick_col_header = hdr
 
 	var line := _make_fade_line(col_w, false, COLOR_DIVIDER)
 	line.position = Vector2(x, 64.0)
@@ -995,11 +1048,16 @@ func _refresh_grid() -> void:
 			icon.texture = ab.icon
 			name_l.text  = ab.ability_name
 			var cnt := _inventory_system.get_count(ab.ability_name)
-			count_l.text = "x%d" % cnt
-			# Последний заряд подсвечиваем красным: предмет вот-вот исчезнет из
-			# сумки, и это должно быть видно ещё до того, как игрок его потратит
-			count_l.add_theme_color_override(
-				"font_color", COLOR_WARN if cnt <= 1 else COLOR_TEXT_GOLD)
+			if _magic_mode:
+				# Заклинание не тратится — вместо количества его цена в Одре
+				count_l.text = "%d Одр" % int(ab.get("odr_cost"))
+				count_l.add_theme_color_override("font_color", COLOR_ODR)
+			else:
+				count_l.text = "x%d" % cnt
+				# Последний заряд подсвечиваем красным: предмет вот-вот исчезнет из
+				# сумки, и это должно быть видно ещё до того, как игрок его потратит
+				count_l.add_theme_color_override(
+					"font_color", COLOR_WARN if cnt <= 1 else COLOR_TEXT_GOLD)
 			frame.set("show_cross", false)
 		else:
 			icon.texture  = null
@@ -1030,7 +1088,8 @@ func _refresh_quick_slot_preview() -> void:
 
 	var used := _ability_system.abilities.size()
 	if is_instance_valid(_quick_slot_header):
-		_quick_slot_header.text = "Быстрый доступ  %d/%d" % [used, AbilitySystem.MAX_SLOTS]
+		_quick_slot_header.text = ("Магия  %d/%d" if _magic_mode else "Быстрый доступ  %d/%d") \
+				% [used, AbilitySystem.MAX_SLOTS]
 
 	# Рисуем ВСЕ ячейки, включая пустые — так видно, сколько места осталось,
 	# а не только то, что уже занято
@@ -1080,10 +1139,14 @@ func _select_slot(idx: int, play_sound := true) -> void:
 		_detail_effect.text      = ab.description
 		_detail_count.text       = "%d / %d" % [cnt, max_cnt]
 		_detail_max_count.text   = "%d" % max_cnt
+		if _magic_mode:
+			_detail_count.text     = "%d Одр" % int(ab.get("odr_cost"))
+			_detail_max_count.text = "%d сек" % int(ab.get("duration"))
 		# Кнопка работает как переключатель: повторное нажатие на предмет,
 		# который уже в быстром доступе, освобождает слот. Без этого при трёх
 		# занятых ячейках поменять набор было бы нечем
-		_btn_equip.text     = "[E]   УБРАТЬ ИЗ СЛОТА" if equipped else "[E]   В БЫСТРЫЙ СЛОТ"
+		_btn_equip.text     = "[E]   УБРАТЬ ИЗ СЛОТА" if equipped else \
+				("[E]   В СЛОТ МАГИИ" if _magic_mode else "[E]   В БЫСТРЫЙ СЛОТ")
 		# Талисманы экипируются на своей вкладке (четыре секции-слота), не
 		# в быстрый доступ — здесь только подсказка, куда идти
 		_btn_equip.disabled = ab.is_passive
@@ -1094,13 +1157,14 @@ func _select_slot(idx: int, play_sound := true) -> void:
 		# Ничего не выбрано — вместо пустой колонки подсказка, что делать
 		_detail_icon.texture     = null
 		_detail_icon_frame.visible = false
-		_detail_name.text        = "Выберите предмет"
+		_detail_name.text        = _empty_hint_name
 		_detail_name.add_theme_color_override("font_color", COLOR_TEXT_DIM)
-		_detail_type.text        = "Нажмите на ячейку инвентаря"
-		_detail_effect.text      = ""
+		_detail_type.text        = "Нажмите на ячейку" if _magic_mode else "Нажмите на ячейку инвентаря"
+		_detail_effect.text      = "Благословения богов находят в мире. Применение — Q, смена слота — X, цена — Одр." \
+				if _magic_mode and _inventory_system.get_all().is_empty() else ""
 		_detail_count.text       = "—"
 		_detail_max_count.text   = "—"
-		_btn_equip.text          = "[E]   В БЫСТРЫЙ СЛОТ"
+		_btn_equip.text          = "[E]   В СЛОТ МАГИИ" if _magic_mode else "[E]   В БЫСТРЫЙ СЛОТ"
 		_btn_equip.disabled      = true
 
 	_update_equip_deco()
@@ -1159,13 +1223,18 @@ func _on_equip_pressed() -> void:
 		_play_ui_sound(SOUND_CHOICE)
 		# Перерисовку делаем ДО статуса: _select_slot чистит строку сообщения
 		_select_slot(_selected_index, false)
-		_set_status("Убрано из быстрого доступа: %s" % ab.ability_name, COLOR_TEXT_DIM)
+		_set_status(("Убрано из слотов магии: %s" if _magic_mode else "Убрано из быстрого доступа: %s")
+			% ab.ability_name, COLOR_TEXT_DIM)
 		return
 
 	if _ability_system.is_full():
 		_play_ui_sound(SOUND_DENIED)
-		_set_status("Быстрый доступ заполнен (%d/%d) — сначала уберите предмет"
-			% [_ability_system.abilities.size(), AbilitySystem.MAX_SLOTS], COLOR_WARN)
+		if _magic_mode:
+			_set_status("Слоты магии заполнены (%d/%d) — сначала уберите заклинание"
+				% [_ability_system.abilities.size(), AbilitySystem.MAX_SLOTS], COLOR_WARN)
+		else:
+			_set_status("Быстрый доступ заполнен (%d/%d) — сначала уберите предмет"
+				% [_ability_system.abilities.size(), AbilitySystem.MAX_SLOTS], COLOR_WARN)
 		return
 
 	if not _inventory_system.has_charges(ab.ability_name):
@@ -1176,7 +1245,8 @@ func _on_equip_pressed() -> void:
 	_ability_system.add_ability(ab)
 	_play_ui_sound(SOUND_ACCEPT)
 	_select_slot(_selected_index, false)
-	_set_status("В быстром доступе: %s" % ab.ability_name, COLOR_TEXT_GOLD)
+	_set_status(("В слоте магии: %s" if _magic_mode else "В быстром доступе: %s") % ab.ability_name,
+		COLOR_TEXT_GOLD)
 
 
 func _set_status(text: String, color := COLOR_TEXT_DIM) -> void:

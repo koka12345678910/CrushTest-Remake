@@ -11,6 +11,8 @@ extends CharacterBody2D
 const DirectionUtil := preload("res://Player_scene/direction_util.gd")
 const FocusSystemScript := preload("res://Player_scene/focus_system.gd")
 const DepthComponentScript := preload("res://Player_scene/depth_component.gd")
+## Магия рыцаря: Одр и «Благословение богов» (Player_scene/magic/knight_magic.gd)
+const KnightMagicScript := preload("res://Player_scene/magic/knight_magic.gd")
 
 @export var snap_radius := 80.0  # радиус поиска врагов
 @export var focus_break_range := 260.0  # дальше — фокус слетает сам
@@ -42,6 +44,8 @@ const DepthComponentScript := preload("res://Player_scene/depth_component.gd")
 ## создаётся кодом в _ready(), как у лучницы (archer.gd::_setup_inventory):
 ## нового поля в .tscn не требует, а плейлист узлов там и так длинный
 var talisman_system: TalismanSystem
+## Магия: книга заклинаний, слоты магии, Одр, молитва (создаётся в _ready)
+var magic: Node = null
 @onready var health_bar = $HealthStaminaBar
 @onready var inventory_ui = $InventoryUI
 @onready var hurtbox: Area2D = $HurtBox
@@ -516,8 +520,16 @@ func _ready() -> void:
 	talisman_system = TalismanSystem.new()
 	talisman_system.name = "TalismanSystem"
 	add_child(talisman_system)
-	inventory_ui.init(ability_system, inventory_system, self, talisman_system)
+	magic = KnightMagicScript.new()
+	magic.name = "KnightMagic"
+	add_child(magic)
+	magic.setup(self)
+	# Стартовое заклинание: Благословение Тора — в книге и в слоте магии сразу
+	magic.learn("Благословение Тора")
+	inventory_ui.init(ability_system, inventory_system, self, talisman_system,
+			magic.magic_inventory, magic.magic_slots)
 	hud.init(ability_system)
+	magic.build_hud(hud, health_bar)
 	
 	# Только потом загружаем предметы
 	_load_starting_abilities()
@@ -556,6 +568,8 @@ func _unhandled_input(event: InputEvent) -> void:
 	
 	# Переключение слотов только когда не атакуем и не уклоняемся
 	if is_attacking or is_dodging or is_rolling:
+		return
+	if magic and magic.is_praying and not event.is_action_pressed("ui_cancel"):
 		return
 	if event.is_action_pressed("slot_next"):
 		ability_system.next_slot()
@@ -743,6 +757,12 @@ func _physics_process(delta):
 		move_and_slide()
 		return
 	if is_stunned:
+		velocity = Vector2.ZERO
+		move_and_slide()
+		return
+	# Молитва (благословение богов) — рыцарь стоит с поднятым мечом, всё
+	# остальное ждёт. Сбить её может только урон (knight_magic.gd)
+	if magic and magic.is_praying:
 		velocity = Vector2.ZERO
 		move_and_slide()
 		return
@@ -1550,6 +1570,9 @@ func _on_perfect_dodge(_attack_data: Dictionary) -> void:
 func on_perfect_parry(attack_data: Dictionary):
 	can_counter = true
 	counter_timer = counter_window
+	# Смелость под ударом — боги дают Одр
+	if magic:
+		magic.on_parry()
 	# Форсируем позу Parry_ прямо сейчас, а не ждём следующего кадра
 	# _update_block_parry_pose — is_parrying receive_attack() уже погасил
 	# (см. выше по стеку), и без явного форса поза откатилась бы в Block_,
@@ -2106,6 +2129,13 @@ func add_gold(amount: int) -> void:
 ## на случай если amount за раз больше одного деления (перенос остатка).
 ## Блеск/звук — на каждый удар, независимо от того, набралось ли целое очко:
 ## это обратная связь "получил награду", а не "получил именно очко"
+## Удар рыцаря дошёл до врага (enemy.gd::take_damage) — благословение на мече
+## добавляет стихию (knight_magic.gd). blocked — удар пришёлся в щит
+func on_weapon_hit(enemy: Node2D, blocked: bool) -> void:
+	if magic:
+		magic.on_weapon_hit(enemy, blocked)
+
+
 func add_skill_points(amount: int) -> void:
 	skill_progress += amount
 	while skill_progress >= skill_progress_per_point:

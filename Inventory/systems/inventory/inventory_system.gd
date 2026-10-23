@@ -62,6 +62,12 @@ func consume(item_name: String, amount: int = 1) -> bool:
 	return true
 
 
+## Опустошить сумку (восстановление из сейва — SaveManager._restore_inventory)
+func clear() -> void:
+	for item in _items.duplicate():
+		remove_item(item)
+
+
 func get_count(item_name: String) -> int:
 	return _counts.get(item_name, 0)
 

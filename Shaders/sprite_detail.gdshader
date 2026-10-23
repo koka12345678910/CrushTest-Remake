@@ -66,6 +66,13 @@ uniform vec4 magic_core : source_color = vec4(0.88, 0.96, 1.0, 1.0);
 uniform vec4 magic_mid : source_color = vec4(0.42, 0.72, 1.0, 1.0);
 uniform vec4 magic_edge : source_color = vec4(0.14, 0.32, 1.0, 1.0);
 
+// Приглушить насыщенную охру (оттенок ~10..36°, насыщенность > ~0.35) в
+// тёмное старое дерево: круглый рыжий щит скелета-щитовика на земле после
+// смерти читался как монета. Бледную кость (насыщенность ~0.2) и красную
+// ткань (~330°) не трогает. 0 — выключено (остальные персонажи)
+uniform float ochre_mute : hint_range(0.0, 1.0) = 0.0;
+uniform vec4 ochre_tint : source_color = vec4(0.62, 0.58, 0.52, 1.0);
+
 // Цвет вершины (modulate спрайта — вспышки урона, свечение навыков). В
 // fragment COLOR уже умножен на текстуру, поэтому берём его из vertex
 varying vec4 modulate_color;
@@ -133,6 +140,13 @@ void fragment() {
 	vec4 magic = magic_recolor > 0.0 ? magic_of(tex.rgb) : vec4(0.0);
 	if (tex.a >= body_alpha) {
 		vec3 c = tex.rgb;
+		if (ochre_mute > 0.0) {
+			vec3 hsv = rgb2hsv(c);
+			float hue = hsv.x * 360.0;
+			float om = smoothstep(6.0, 12.0, hue) * (1.0 - smoothstep(34.0, 40.0, hue))
+					* smoothstep(0.3, 0.42, hsv.y);
+			c = mix(c, vec3(lum(c)) * ochre_tint.rgb * 1.25, om * ochre_mute);
+		}
 		float h = lum(c);
 		vec2 l = normalize(light_dir);
 

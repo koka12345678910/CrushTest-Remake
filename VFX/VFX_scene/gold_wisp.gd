@@ -192,11 +192,13 @@ func _update_tail() -> void:
 	_tail.modulate.a = 0.15 + 0.4 * k
 
 
+## Герой, к которому лететь. Здоровье НЕ проверяем: смерти героя пока нет
+## (у рыцаря при 0 HP игра идёт дальше — player.gd::_on_player_dead только
+## TODO), и раньше души при нуле здоровья считали героя мёртвым, зависали
+## рядом с ним и гасли. Нет героя только если его нет в дереве
 func _hero() -> Node2D:
 	var h := get_tree().get_first_node_in_group("player") as Node2D
-	if h == null or not is_instance_valid(h):
-		return null
-	if h.has_method("is_dead") and h.is_dead():
+	if h == null or not is_instance_valid(h) or not h.is_inside_tree():
 		return null
 	return h
 

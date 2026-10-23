@@ -13,18 +13,24 @@ extends Node2D
 const MageFx := preload("res://Player_scene/mage_fx.gd")
 
 var near := true
+## Молния Тора (благословение рыцаря, knight_magic.gd): тёплая, желтоватая,
+## и бьёт не в землю, а в поднятый меч — канал короче, вспышка меньше
+var thor := false
 var _target := Vector2.ZERO
 var _glow: Line2D
 var _core: Line2D
+## Внешнее марево вокруг канала — только у большой молнии Тора
+var _haze: Line2D
 var _branches := []
 var _light: PointLight2D
 var _mat: CanvasItemMaterial
 
 
-static func strike(tree: SceneTree, at: Vector2, is_near := true) -> Node2D:
+static func strike(tree: SceneTree, at: Vector2, is_near := true, is_thor := false) -> Node2D:
 	var root := tree.current_scene if tree.current_scene else tree.root
 	var b: Node2D = load("res://VFX/VFX_scene/lightning_bolt.gd").new()
 	b.near = is_near
+	b.thor = is_thor
 	b._target = at
 	root.add_child(b)
 	return b
@@ -39,16 +45,31 @@ func _ready() -> void:
 	_mat.blend_mode = CanvasItemMaterial.BLEND_MODE_ADD
 	_mat.light_mode = CanvasItemMaterial.LIGHT_MODE_UNSHADED
 	var k := 1.0 if near else 0.45
-	_glow = _line(14.0 * k, Color(0.45, 0.6, 1.0, 0.32 * k))
-	_core = _line(2.6 * k, Color(0.92, 0.96, 1.0, 0.95 * k))
-	for i in randi_range(2, 3):
-		_branches.append(_line(1.4 * k, Color(0.75, 0.85, 1.0, 0.7 * k)))
+	if thor and near:
+		# Молния Тора в меч — мощнее грозовой: толще канал, широкий жёлтый
+		# ореол, внешнее марево и больше ветвей
+		_haze = _line(40.0, Color(1.0, 0.7, 0.25, 0.14))
+		_glow = _line(20.0, Color(1.0, 0.8, 0.3, 0.42))
+		_core = _line(4.0, Color(1.0, 0.98, 0.86, 1.0))
+		for i in randi_range(4, 6):
+			_branches.append(_line(1.6, Color(1.0, 0.88, 0.55, 0.8)))
+	elif thor:
+		# Дальний разряд бури, отвечающей на молитву — бледный и тонкий
+		_glow = _line(8.0, Color(1.0, 0.78, 0.3, 0.25))
+		_core = _line(1.6, Color(1.0, 0.95, 0.8, 0.7))
+		for i in randi_range(1, 2):
+			_branches.append(_line(1.0, Color(1.0, 0.88, 0.55, 0.5)))
+	else:
+		_glow = _line(14.0 * k, Color(0.45, 0.6, 1.0, 0.32 * k))
+		_core = _line(2.6 * k, Color(0.92, 0.96, 1.0, 0.95 * k))
+		for i in randi_range(2, 3):
+			_branches.append(_line(1.4 * k, Color(0.75, 0.85, 1.0, 0.7 * k)))
 	_shape()
 
 	_light = PointLight2D.new()
 	_light.texture = MageFx.radial()
-	_light.texture_scale = (260.0 if near else 140.0) * 2.0 / 128.0
-	_light.color = Color(0.78, 0.86, 1.0)
+	_light.texture_scale = ((230.0 if near else 90.0) if thor else (260.0 if near else 140.0)) * 2.0 / 128.0
+	_light.color = Color(1.0, 0.88, 0.55) if thor else Color(0.78, 0.86, 1.0)
 	_light.energy = 0.0
 	_light.blend_mode = Light2D.BLEND_MODE_ADD
 	if near:
@@ -81,9 +102,14 @@ func _line(width: float, col: Color) -> Line2D:
 ## Канал молнии: из-за верхнего края вида к точке удара
 func _shape() -> void:
 	var top := _target + Vector2(randf_range(-90.0, 90.0), -520.0)
-	var pts := _bolt(top, _target, 7, 38.0)
+	if thor:
+		# В меч — сверху почти отвесно, канал ровнее
+		top = _target + Vector2(randf_range(-40.0, 40.0), -420.0)
+	var pts := _bolt(top, _target, 7, 30.0 if thor else 38.0)
 	_core.points = pts
 	_glow.points = pts
+	if _haze:
+		_haze.points = pts
 	for b in _branches:
 		var i := randi_range(int(pts.size() * 0.2), int(pts.size() * 0.7))
 		var from: Vector2 = pts[i]
@@ -112,7 +138,7 @@ func _bolt(a: Vector2, b: Vector2, depth: int, jitter: float) -> PackedVector2Ar
 
 ## Двойной всполох: удар — темно — второй удар по новому каналу — тает
 func _play() -> void:
-	var e := 3.4 if near else 1.2
+	var e := (3.0 if near else 0.9) if thor else (3.4 if near else 1.2)
 	visible = true
 	_light.energy = e
 	await get_tree().create_timer(0.06).timeout
@@ -122,6 +148,16 @@ func _play() -> void:
 	_shape()
 	visible = true
 	_light.energy = e * 0.85
+	# Молния Тора бьёт трижды — третий удар длиннее, канал держится в мече
+	if thor and near:
+		await get_tree().create_timer(0.07).timeout
+		visible = false
+		_light.energy = e * 0.3
+		await get_tree().create_timer(0.04).timeout
+		_shape()
+		visible = true
+		_light.energy = e
+		await get_tree().create_timer(0.1).timeout
 	var t := create_tween().set_parallel(true)
 	t.tween_property(self, "modulate:a", 0.0, 0.32).set_delay(0.07).set_ease(Tween.EASE_IN)
 	t.tween_property(_light, "energy", 0.0, 0.55).set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_QUAD)

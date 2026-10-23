@@ -111,7 +111,8 @@ enum State {
 	PARRY,    # ← добавь
 	COUNTER,
 	STAGGER,  # ← добавь
-	GUARD     # осторожная стойка в стае (см. _state_guard)
+	GUARD,    # осторожная стойка в стае (см. _state_guard)
+	EVADE     # перекат/отскок — своё поведение у подвидов (_state_evade)
 }
 
 # ============== СТАЙНОЕ ПОВЕДЕНИЕ ==============
@@ -148,8 +149,6 @@ var _guard_saw_attack := false
 var health := 0
 var is_dead := false
 
-var _stuck_timer := 0.0
-var _last_position := Vector2.ZERO
 var _direction_change_cooldown := 0.0  # добавь к переменным вверху
 
 var current_state := State.IDLE
@@ -191,10 +190,19 @@ var wander_direction := Vector2.DOWN
 @export var patrol_leash_radius := 360.0
 @export var wander_pause_min := 0.8
 @export var wander_pause_max := 2.5
+## Плавность бродилки: скорость поворота (доля угла в секунду), время
+## разгона/торможения и доля шагов "примерно туда же, куда шёл"
+@export var wander_turn_rate := 3.0
+@export var wander_ease_time := 0.45
+@export_range(0.0, 1.0) var wander_keep_heading := 0.7
 var home_position := Vector2.ZERO
 var _home_set := false
 var wander_target := Vector2.ZERO
 var wander_pause_timer := 0.0
+var _wander_speed := 0.0
+var _wander_look_dir := Vector2.DOWN
+var _stuck_time := 0.0
+var _stuck_from := Vector2.ZERO
 
 var last_anim_direction := "down"
 var posture := 0.0
@@ -346,6 +354,12 @@ func _physics_process(delta: float) -> void:
 		velocity = Vector2.ZERO
 		move_velocity = Vector2.ZERO
 		direction = Vector2.DOWN
+	if not _spawn_checked:
+		_spawn_checked = true
+		_free_from_obstacles()
+		# Ещё раз чуть позже: коллизии тайлов и пропов могли появиться в
+		# мире позже первого кадра врага
+		get_tree().create_timer(0.5).timeout.connect(_free_from_obstacles)
 	state_time += delta
 	think_timer += delta
 	_direction_change_cooldown = max(0.0, _direction_change_cooldown - delta)
@@ -368,7 +382,8 @@ func _physics_process(delta: float) -> void:
 		State.DEAD,
 		State.PARRY,
 		State.COUNTER,
-		State.STAGGER  # ← добавь
+		State.STAGGER,  # ← добавь
+		State.EVADE
 	]:
 		if think_timer >= think_rate:
 			think_timer = 0.0
@@ -388,9 +403,12 @@ func _physics_process(delta: float) -> void:
 	if not velocity.is_finite():
 		velocity = Vector2.ZERO
 	move_and_slide()
-	if current_state == State.WANDER and get_slide_collision_count() > 0:
+	# Упёрлись в препятствие на бродилке — новая точка блуждания. Только если
+	# реально встали: касание угла по пути навигации (враг скользит дальше)
+	# раньше тоже сбивало маршрут каждые 0.8 с
+	if current_state == State.WANDER and get_slide_collision_count() > 0 \
+			and get_real_velocity().length() < _wander_speed * 0.3:
 		if _direction_change_cooldown <= 0.0:
-			# наткнулись на препятствие — выбираем новую точку блуждания
 			_pick_new_wander_direction()
 			_direction_change_cooldown = 0.8
 	# таймеры парирования и контратаки
@@ -432,6 +450,54 @@ func _safe_direction(vec: Vector2, fallback: Vector2 = Vector2.DOWN) -> Vector2:
 	if vec.length() > 0.001 and vec.is_finite():
 		return vec.normalized()
 	return fallback
+
+var _spawn_checked := false
+
+## Враг появился внутри надгробия, ящика или стены (спавн пачкой с разбросом,
+## ручная расстановка) — move_and_slide из такого не выталкивает, и враг
+## навсегда застревал. Переносим в ближайшее свободное место: сперва на
+## навмеш, иначе — поиском по расширяющимся кольцам
+func _free_from_obstacles() -> void:
+	if is_dead or not is_inside_tree() or not _overlaps_world(global_position):
+		return
+	var nav_map := nav_agent.get_navigation_map()
+	if NavigationServer2D.map_get_iteration_id(nav_map) > 0:
+		var p := NavigationServer2D.map_get_closest_point(nav_map, global_position)
+		if p.is_finite() and p != Vector2.ZERO and p.distance_to(global_position) < 200.0 \
+				and not _overlaps_world(p):
+			_move_spawn_to(p)
+			return
+	for r in range(8, 161, 8):
+		for i in 12:
+			var p := global_position + Vector2.RIGHT.rotated(TAU * i / 12.0 + r * 0.37) * float(r)
+			if not _overlaps_world(p):
+				_move_spawn_to(p)
+				return
+
+
+func _move_spawn_to(p: Vector2) -> void:
+	global_position = p
+	# Дом бродилки — уже на свободном месте, а не внутри предмета
+	if _home_set:
+		home_position = p
+		_pick_new_wander_direction()
+
+
+## Пересекается ли тело врага, поставленное в точку at, со стенами и пропами
+## (физический слой 1 — мир)
+func _overlaps_world(at: Vector2) -> bool:
+	var cs: CollisionShape2D = $CollisionShape2D
+	if cs.shape == null:
+		return false
+	var q := PhysicsShapeQueryParameters2D.new()
+	q.shape = cs.shape
+	var t := cs.global_transform
+	t.origin += at - global_position
+	q.transform = t
+	q.collision_mask = 1
+	q.exclude = [get_rid()]
+	return not get_world_2d().direct_space_state.intersect_shape(q, 1).is_empty()
+
 
 # Сдвиг делаем через move_and_collide, а не прямой записью global_position:
 # прямая запись игнорировала стены, и расталкивание вдавливало врага в них
@@ -555,7 +621,7 @@ func _alert_nearby_allies(source: Node2D) -> void:
 			continue
 		if e.current_state in [
 			State.DEAD, State.HIT_STUN, State.ATTACK,
-			State.PARRY, State.COUNTER, State.BLOCK
+			State.PARRY, State.COUNTER, State.BLOCK, State.EVADE
 		]:
 			continue
 		var off: Vector2 = (e.global_position - global_position) / pack_alert_radius
@@ -572,7 +638,8 @@ func _decide_state() -> void:
 		State.HIT_STUN,
 		State.ATTACK,
 		State.PARRY,    # ← добавь
-		State.COUNTER   # ← добавь
+		State.COUNTER,  # ← добавь
+		State.EVADE
 	]:
 		return
 
@@ -704,7 +771,16 @@ func _pushes(source: Node) -> bool:
 ## всех). kind — вид брызг (BloodFx.Kind), по умолчанию — по тому, кто ударил
 func play_blood_vfx(source: Node2D = null, amount := 1.0, kind := -1) -> void:
 	var from: Node2D = source if is_instance_valid(source) else (player as Node2D)
+	if not bleeds:
+		_play_bloodless_hit(from, amount)
+		return
 	BloodFx.hit(self, from, BloodFx.power_for(amount, max_health, health <= 0), kind)
+
+## Крови нет (скелеты) — вместо брызг и лужи свой эффект попадания у подвида
+@export var bleeds := true
+
+func _play_bloodless_hit(_source: Node2D, _amount: float) -> void:
+	pass
 
 func _update_state(delta: float) -> void:
 	match current_state:
@@ -739,6 +815,18 @@ func _update_state(delta: float) -> void:
 			_state_stagger(delta)
 		State.GUARD:
 			_state_guard(delta)
+		State.EVADE:
+			_state_evade(delta)
+
+## Уклонение есть только у подвидов (ловкий скелет) — у базового врага сюда
+## не попадают, но на всякий случай сразу возвращаемся в погоню
+func _state_evade(_delta: float) -> void:
+	_change_state(State.CHASE)
+
+## Какую атаку играть на входе в ATTACK. Подвиды переопределяют — и тут же
+## могут подстроить урон/скорость/момент удара под выбранный замах
+func _pick_attack_anim() -> String:
+	return ["attack", "attack2"].pick_random()
 
 # ============== STATE MACHINE ==============
 
@@ -786,7 +874,10 @@ func _change_state(new_state: State) -> void:
 			move_velocity = Vector2.ZERO
 
 		State.WANDER:
-			pass
+			# Разгон бродилки — с текущей скорости, а не с прошлого раза
+			_wander_speed = move_velocity.length()
+			_stuck_time = 0.0
+			_stuck_from = global_position
 
 		State.CHASE:
 			pass
@@ -804,8 +895,7 @@ func _change_state(new_state: State) -> void:
 			hit_targets.clear()
 			_update_attack_shape()
 			# рандомно выбираем атаку
-			var attacks = ["attack", "attack2"]
-			current_attack_anim = attacks[randi() % attacks.size()]
+			current_attack_anim = _pick_attack_anim()
 			attack_direction_name = _get_direction_name(direction)
 			# Замах показывает НАСТОЯЩИЙ свинг оружия, а не заглушку с цветом —
 			# парирование завязано на чтение движения врага, а не на вспышку
@@ -875,11 +965,22 @@ func _state_wander(delta: float) -> void:
 		_home_set = true
 		_pick_new_wander_direction()
 
-	# Пауза на месте — враг стоит и осматривается
+	var cruise := walk_speed * wander_speed_multiplier
+
+	# Пауза на месте — враг стоит и осматривается. Сначала плавно тормозит
+	# (не встаёт как вкопанный), потом медленно поворачивает голову
 	if wander_pause_timer > 0.0:
 		wander_pause_timer -= delta
-		move_velocity = Vector2.ZERO
-		_play_animation("idle")
+		_wander_speed = move_toward(_wander_speed, 0.0, cruise / wander_ease_time * delta)
+		if _wander_speed > 1.0:
+			move_velocity = direction * _wander_speed
+			_play_animation("walk", _wander_anim_speed())
+		else:
+			move_velocity = Vector2.ZERO
+			_turn_toward(_wander_look_dir, wander_turn_rate * 0.35 * delta)
+			_play_animation("idle")
+		_stuck_time = 0.0
+		_stuck_from = global_position
 		return
 
 	var to_target := wander_target - global_position
@@ -888,21 +989,20 @@ func _state_wander(delta: float) -> void:
 	# Дошли до точки — пауза, затем новая точка
 	if dist < 12.0:
 		wander_pause_timer = randf_range(wander_pause_min, wander_pause_max)
+		_wander_look_dir = direction.rotated(randf_range(-1.2, 1.2))
 		_pick_new_wander_direction()
-		move_velocity = Vector2.ZERO
-		_play_animation("idle")
 		return
 
-	# Застряли (стена/другой враг) — выбираем новую точку
-	var moved := global_position.distance_to(_last_position)
-	_last_position = global_position
-	if moved < 0.5:
-		_stuck_timer += delta
-		if _stuck_timer >= 0.5:
-			_stuck_timer = 0.0
+	# Застряли (стена/дерево) — новая точка. Считаем по окну в полсекунды,
+	# а не по кадру: раньше "застрял" = сдвиг < 0.5 px за кадр, а медленный
+	# враг (~25 px/с = 0.4 px за кадр) считался застрявшим ВСЕГДА и каждые
+	# полсекунды хватал новую случайную точку — отсюда дёрганая бродилка
+	_stuck_time += delta
+	if _stuck_time >= 0.6:
+		if global_position.distance_to(_stuck_from) < _wander_speed * _stuck_time * 0.25:
 			_pick_new_wander_direction()
-	else:
-		_stuck_timer = 0.0
+		_stuck_time = 0.0
+		_stuck_from = global_position
 
 	# Идём по пути навигации, а не по прямой: иначе враг упирается в стену
 	# или дерево между собой и точкой блуждания. Цель агента могла остаться
@@ -910,15 +1010,30 @@ func _state_wander(delta: float) -> void:
 	if nav_agent.target_position != wander_target:
 		nav_agent.target_position = wander_target
 	var target_dir := _nav_direction_to(to_target / dist)
-	direction = direction.lerp(target_dir, 6.0 * delta).normalized()
-	move_velocity = direction * walk_speed * wander_speed_multiplier
-	_play_animation("walk")
+	# Плавный поворот по дуге и плавный разгон — шаг, а не рывок
+	_turn_toward(target_dir, wander_turn_rate * delta)
+	# На крутом повороте сбавляем ход — не скользим боком
+	var align := clampf(direction.dot(target_dir), 0.0, 1.0)
+	var want := cruise * lerpf(0.45, 1.0, align)
+	_wander_speed = move_toward(_wander_speed, want, cruise / wander_ease_time * delta)
+	move_velocity = direction * _wander_speed
+	_play_animation("walk", _wander_anim_speed())
+
+
+## Шаги в такт скорости: медленный враг и переставляет ноги медленнее,
+## иначе ноги "буксуют" по земле
+func _wander_anim_speed() -> float:
+	return clampf(_wander_speed / maxf(walk_speed, 1.0), 0.6, 1.0)
 
 func _pick_new_wander_direction() -> void:
-	# Случайный шаг от ТЕКУЩЕЙ позиции в случайном направлении и на случайную
-	# длину — так враг реально обходит территорию, а не орбитирует вокруг
-	# одной точки (движение непредсказуемо: разный угол и длина каждый раз).
+	# Случайный шаг от ТЕКУЩЕЙ позиции на случайную длину — так враг реально
+	# обходит территорию, а не орбитирует вокруг одной точки. Направление
+	# чаще всего — примерно "куда шёл" (плавная петляющая прогулка), и лишь
+	# иногда совсем новое: полностью случайный угол каждый раз выглядел как
+	# метания туда-сюда
 	var angle := randf() * TAU
+	if randf() < wander_keep_heading:
+		angle = direction.angle() + randf_range(-1.1, 1.1)
 	var step := randf_range(wander_step_min, wander_step_max)
 	var candidate := global_position + Vector2(cos(angle), sin(angle)) * step
 
@@ -1204,14 +1319,41 @@ func _play_animation(state: String, speed := 1.0) -> void:
 		"die": "die"
 	}
 
+	# Ходьба/бег/стойка: сторона из 8 меняется с запасом — враг, идущий почти
+	# по границе двух сторон, не мигает между ними каждый кадр
+	if state in LOCO_ANIMS:
+		dir_name = _sticky_direction_name()
+
 	var mapped = anim_map.get(state, state)
 	var anim_name = mapped + "_" + dir_name
 	if anim.current_animation == anim_name and anim.is_playing():
+		# Тот же клип, другая скорость (разгон бродилки) — меняем темп с того
+		# же места, не перезапуская шаг
+		if absf(anim.get_playing_speed() - speed) > 0.05:
+			var pos := anim.current_animation_position
+			anim.play(anim_name, -1, speed)
+			anim.seek(pos, true)
 		return
 	# custom_speed, а не persistent anim.speed_scale — замедление действует
 	# только на ЭТОТ конкретный проигрыш, не остаётся висеть на следующих
 	# анимациях (idle/walk и т.п.), сбрасывать вручную не нужно
 	anim.play(anim_name, -1, speed)
+
+
+const LOCO_ANIMS := ["idle", "walk", "run", "backwards", "strafe_cw", "strafe_ccw"]
+const DIR_ANGLES := {
+	"right": 0.0, "down_right": PI * 0.25, "down": PI * 0.5, "down_left": PI * 0.75,
+	"left": PI, "up_left": -PI * 0.75, "up": -PI * 0.5, "up_right": -PI * 0.25,
+}
+
+## Сторона для ходьбы с гистерезисом: держим прежнюю, пока взгляд не ушёл
+## за её сектор (±22.5°) с запасом
+func _sticky_direction_name() -> String:
+	var cur: float = DIR_ANGLES.get(last_anim_direction, PI * 0.5)
+	if direction.length() > 0.1 and absf(wrapf(direction.angle() - cur, -PI, PI)) < PI / 8.0 + 0.14:
+		return last_anim_direction
+	last_anim_direction = _get_direction_name(direction)
+	return last_anim_direction
 
 
 func _get_direction_name(dir: Vector2) -> String:
@@ -1324,6 +1466,7 @@ func take_damage(amount: int, source: Node2D = null, unblockable := false) -> vo
 		else:
 			_trigger_stagger()
 		Juice.hit(self, source, amount, is_dead)
+		_notify_weapon_hit(source, false)
 
 		if _pushes(source) and not is_dead:
 			var knockback_dir := _safe_direction(global_position - source.global_position)
@@ -1381,8 +1524,9 @@ func take_damage(amount: int, source: Node2D = null, unblockable := false) -> vo
 			return
 
 		_trigger_block_effect(source)
+		_notify_weapon_hit(source, true)
 		return
-	
+
 	health -= amount
 	hp_bar.visible = true
 	hp_bar.value = health
@@ -1401,15 +1545,32 @@ func take_damage(amount: int, source: Node2D = null, unblockable := false) -> vo
 		# stagger → CHASE), либо, по шансу, вместо этого поднимает блок
 		if is_ranged_alert:
 			_pending_ranged_block = randf() < ranged_block_chance
-		_change_state(State.HIT_STUN)
+		if current_state == State.HIT_STUN:
+			# Уже оглушён (2-й, 3-й удар комбо) — вход в состояние не
+			# повторится, и раньше враг доигрывал старую реакцию как ни в чём
+			# не бывало. Каждый удар — реакция заново
+			var hit_anim := "take_damage_" + _get_direction_name(direction)
+			if anim.has_animation(hit_anim):
+				anim.play(hit_anim)
+				anim.seek(0.0, true)
+		else:
+			_change_state(State.HIT_STUN)
 
 	# Отклик удара — по весу: лёгкий, тяжёлый, убийство, последнее в группе
 	# (VFX/juice.gd)
 	Juice.hit(self, source, amount, is_dead)
+	_notify_weapon_hit(source, false)
 
 	if _pushes(source) and not is_dead:
 		var knockback_dir := _safe_direction(global_position - source.global_position)
 		knockback_velocity = knockback_dir * 150.0
+
+## Удар героя дошёл (по телу или в щит) — у рыцаря с благословением на мече
+## (Player_scene/magic/knight_magic.gd) к нему добавляется стихия
+func _notify_weapon_hit(source: Node2D, blocked: bool) -> void:
+	if is_instance_valid(source) and source.has_method("on_weapon_hit"):
+		source.on_weapon_hit(self, blocked)
+
 
 ## Урон от кровотечения (Кровавое Перо лучницы, Player_scene/archer_fx.gd).
 ## Чистая потеря здоровья: мимо блока/парирования, без стана и нокбэка —
@@ -1505,6 +1666,10 @@ func _execute_by(source: Node2D) -> void:
 		_break_marker.queue_free()
 	player = source
 	Juice.execution(self, source)
+	# Добивание — то, за что боги дают больше всего Одра (магия рыцаря)
+	var magic = source.get("magic") if is_instance_valid(source) else null
+	if magic:
+		magic.on_execution()
 	execute_kill()
 
 
@@ -1624,7 +1789,10 @@ func _trigger_block_effect(source: Node2D = null) -> void:
 
 func _trigger_damage_flash() -> void:
 	var sp = $AnimatedSprite2D
-	sp.material = CanvasItemMaterial.new()
+	# Свой материал (детализация текстуры у скелетов, sprite_detail) не
+	# подменяем — шейдер сам умножает на modulate, вспышка видна и так
+	if not sp.material is ShaderMaterial:
+		sp.material = CanvasItemMaterial.new()
 	sp.modulate = Color(10.0, 10.0, 10.0, 1.0)  # экстремально яркий белый
 	var tween = create_tween()
 	tween.tween_property(sp, "modulate", _rest_modulate, 0.4)
@@ -1675,7 +1843,8 @@ func _on_dead() -> void:
 	_drop_coins()  # ← добавь
 	_award_skill_points()
 	# Лужа крови растекается под павшим и остаётся, когда тело исчезнет
-	BloodFx.death_pool(self)
+	if bleeds:
+		BloodFx.death_pool(self)
 
 	await get_tree().create_timer(death_fade_time).timeout
 
@@ -1702,6 +1871,10 @@ func _drop_coins() -> void:
 func _award_skill_points() -> void:
 	if is_instance_valid(player) and player.has_method("add_skill_points"):
 		player.add_skill_points(skill_points_reward)
+	# Немного Одра за убийство (магия рыцаря)
+	var magic = player.get("magic") if is_instance_valid(player) else null
+	if magic:
+		magic.on_kill(self)
 
 
 # ============== СИГНАЛЫ ==============

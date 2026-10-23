@@ -35,6 +35,17 @@ var created_at := 0
 ## урезанной точностью и из 1787913753.0 на диске получалось 1787910000.0 —
 ## то есть промах почти на час
 var last_played_ms := 0
+## Подобранный лут (Levels/loot/loot_item.gd): id находок, которые больше не
+## появляются. id = путь сцены уровня + путь узла находки в ней
+var taken_loot: Array = []
+## Содержимое сумки: имя способности (Ability.ability_name) -> сколько штук.
+## has_inventory = false — сумку ещё ни разу не сохраняли (новый слот): тогда
+## у героя остаются стартовые предметы, а не пустая сумка
+var inventory: Dictionary = {}
+var has_inventory := false
+## Книга заклинаний рыцаря (Player_scene/magic/knight_magic.gd) — имена
+## выученных благословений
+var spells: Array = []
 
 
 func _ready() -> void:
@@ -98,6 +109,10 @@ func peek_slot(slot: int) -> Dictionary:
 		"playtime": cfg.get_value("progress", "playtime", 0.0),
 		"created_at": cfg.get_value("save", "created_at", 0),
 		"last_played_ms": cfg.get_value("save", "last_played_ms", 0),
+		"taken_loot": cfg.get_value("world", "taken_loot", []),
+		"inventory": cfg.get_value("progress", "inventory", {}),
+		"has_inventory": cfg.has_section_key("progress", "inventory"),
+		"spells": cfg.get_value("progress", "spells", []),
 	}
 
 
@@ -123,6 +138,10 @@ func create_slot(slot: int, new_character_id: String) -> bool:
 	playtime = 0.0
 	created_at = int(Time.get_unix_time_from_system())
 	last_played_ms = int(Time.get_unix_time_from_system() * 1000.0)
+	taken_loot = []
+	inventory = {}
+	has_inventory = false
+	spells = []
 	save()
 	slot_changed.emit()
 	return true
@@ -141,6 +160,10 @@ func load_slot(slot: int) -> bool:
 	playtime = info["playtime"]
 	created_at = info["created_at"]
 	last_played_ms = info["last_played_ms"]
+	taken_loot = info["taken_loot"]
+	inventory = info["inventory"]
+	has_inventory = info["has_inventory"]
+	spells = info["spells"]
 	slot_changed.emit()
 	return true
 
@@ -159,6 +182,10 @@ func save() -> void:
 	cfg.set_value("progress", "skill_progress", skill_progress)
 	cfg.set_value("progress", "unlocked_skills", unlocked_skills)
 	cfg.set_value("progress", "playtime", playtime)
+	if has_inventory:
+		cfg.set_value("progress", "inventory", inventory)
+	cfg.set_value("world", "taken_loot", taken_loot)
+	cfg.set_value("progress", "spells", spells)
 	cfg.save(slot_path(current_slot))
 
 
@@ -183,6 +210,10 @@ func unload() -> void:
 	unlocked_skills = []
 	playtime = 0.0
 	last_played_ms = 0
+	taken_loot = []
+	inventory = {}
+	has_inventory = false
+	spells = []
 
 
 # ----------------------------------------------------------
@@ -223,6 +254,70 @@ func apply_to(character: Node) -> void:
 		# unlocked_skills — пересчитываем ещё раз, теперь по-настоящему
 		if character.has_method("recompute_skill_modifiers"):
 			character.recompute_skill_modifiers()
+	_restore_inventory(character)
+	var magic = character.get("magic")
+	if magic:
+		for spell_name in spells:
+			magic.learn(spell_name)
+
+
+## Сумка: стартовые предметы героя заменяем сохранённым содержимым. Раньше
+## сумка не сохранялась вовсе — купленное и найденное пропадало при перезапуске
+func _restore_inventory(character: Node) -> void:
+	if not has_inventory:
+		return
+	var inv = character.get("inventory_system")
+	if inv == null:
+		return
+	var classes := _ability_classes()
+	if classes.is_empty():
+		push_warning("[SaveManager] Нет магазина на уровне — сумку восстановить не из чего")
+		return
+	inv.clear()
+	for item_name in inventory:
+		var cls = classes.get(item_name)
+		if cls == null:
+			push_warning("[SaveManager] Неизвестный предмет в сейве: %s" % item_name)
+			continue
+		inv.add_item(cls.new(), int(inventory[item_name]))
+	# Быстрые слоты заполнены стартовыми предметами — убираем те, которых в
+	# сумке больше нет (иначе слот висел бы пустым до первого нажатия)
+	var slots = character.get("ability_system")
+	if slots != null:
+		for i in range(slots.abilities.size() - 1, -1, -1):
+			if not inv.has_charges(slots.abilities[i].ability_name):
+				slots.remove_ability(i)
+
+
+## ability_name -> класс способности. Источник — каталог магазина
+## (Shop/shop_menu.gd ability_class_map): всё, что может лежать в сумке, там есть
+func _ability_classes() -> Dictionary:
+	var out := {}
+	var shop := get_tree().get_first_node_in_group("shop_menu")
+	if shop == null:
+		return out
+	for cls in shop.ability_class_map.values():
+		var a: Ability = cls.new()
+		out[a.ability_name] = cls
+	return out
+
+
+# ----------------------------------------------------------
+# ЛУТ
+# ----------------------------------------------------------
+
+func is_loot_taken(id: String) -> bool:
+	return id in taken_loot
+
+
+## Находку подобрали — запоминаем и сразу пишем на диск вместе с тем, что из
+## неё получено (золото, предмет в сумке), чтобы одно не разошлось с другим
+func mark_loot_taken(id: String, character: Node) -> void:
+	if not is_loaded():
+		return
+	if not id in taken_loot:
+		taken_loot.append(id)
+	capture_from(character)
 
 
 ## Забрать прогресс из персонажа и записать на диск
@@ -237,4 +332,15 @@ func capture_from(character: Node) -> void:
 		skill_progress = character.skill_progress
 	if "unlocked_skills" in character:
 		unlocked_skills = character.unlocked_skills.duplicate()
+	var inv = character.get("inventory_system")
+	if inv != null:
+		inventory = {}
+		for it in inv.get_all():
+			var ab := it as Ability
+			if ab:
+				inventory[ab.ability_name] = inv.get_count(ab.ability_name)
+		has_inventory = true
+	var magic = character.get("magic")
+	if magic:
+		spells = magic.known_spell_names()
 	save()

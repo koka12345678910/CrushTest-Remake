@@ -55,6 +55,11 @@ const MEDAL_TOP := 4.0
 ## Общий масштаб слота. Растёт от правого нижнего угла, чтобы не уезжать
 ## за край экрана
 @export var hud_scale := 1.25
+## Слот магии рыцаря (левый верхний угол, Player_scene/magic/knight_magic.gd):
+## вместо зарядов — стоимость в Одре, растёт от левого верхнего угла.
+## Выставляется ДО init()
+var magic_mode := false
+const ODR_TEXT_COLOR := Color(0.58, 0.68, 0.98)
 
 var _ability_system
 var _icon: TextureRect
@@ -78,9 +83,15 @@ func init(system) -> void:
 	if system.inventory:
 		system.inventory.count_changed.connect(func(_n: String, _c: int): _refresh())
 	_build_single_slot()
-	pivot_offset = Vector2(offset_right - offset_left, offset_bottom - offset_top)
+	pivot_offset = Vector2.ZERO if magic_mode else Vector2(offset_right - offset_left, offset_bottom - offset_top)
 	scale = Vector2(hud_scale, hud_scale)
 	_refresh()
+
+
+## Хватает ли Одра на заклинание в слоте — не хватает, иконка тускнеет
+func set_affordable(ok: bool) -> void:
+	if _icon:
+		_icon.modulate = Color.WHITE if ok else Color(0.45, 0.45, 0.55)
 
 
 func _build_single_slot() -> void:
@@ -296,7 +307,14 @@ func _refresh() -> void:
 	var total = _ability_system.abilities.size()
 	var idx = _ability_system.current_index
 
-	if ability:
+	if ability and magic_mode:
+		_icon.texture = ability.icon
+		_set_cooldown(ability.get_cooldown_progress())
+		_charges_label.text = "%d Одр" % int(ability.get("odr_cost"))
+		_charges_label.add_theme_color_override("font_color", ODR_TEXT_COLOR)
+		_charges_box.visible = true
+		_badge_label.text = str(idx + 1)
+	elif ability:
 		_icon.texture = ability.icon
 		_set_cooldown(ability.get_cooldown_progress())
 		var charges = _ability_system.get_charges(ability)

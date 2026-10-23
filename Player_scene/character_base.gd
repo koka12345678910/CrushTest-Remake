@@ -814,18 +814,90 @@ func _flash_hit() -> void:
 	tween.tween_property(sprite, "modulate", Color.WHITE, 0.15)
 
 
-## Короткая тряска камеры на попадание — сильно упрощённая версия
-## player.gd::shake_camera (там — затухающая "trauma"-величина в _process,
-## здесь — один твин на удар, для этого хватает)
-func shake_camera(strength: float, duration := 0.18) -> void:
+# ─────────────────────────────────────────────
+# КАМЕРА: ТРЯСКА, ПОКАЧИВАНИЕ НА БЕГУ, ДРОЖЬ ИСТОЩЕНИЯ — как у рыцаря
+# ─────────────────────────────────────────────
+# Та же система, что в player.gd (_process): тряска — затухающая "травма",
+# а не твин на удар, поэтому повторные удары накладываются без рывков; на
+# беге камера плавно качается восьмёркой; при истощённой стамине — дрожь
+# уставших рук. Числа — рыцарские. Множитель тряски из настроек
+# (GameSettings.shake_multiplier) накрывает тряску и дрожь, но не походку
+
+## Сила тряски на своё попадание по врагу (её дёргает Juice.hit) и на урон
+@export var hit_shake_strength := 3.0
+@export var shake_decay := 6.0   # чем больше — тем быстрее гаснет
+@export var run_bob_amplitude_x := 5.0
+@export var run_bob_amplitude_y := 3.5
+@export var run_bob_cycle_distance := 90.0  # больше = медленнее и спокойнее качает
+@export var run_bob_fade_speed := 7.5
+@export var run_bob_smoothing := 11.0
+@export var exhaust_shake_strength := 2.0
+@export var exhaust_shake_update_rate := 0.09  # как часто меняется цель дрожи
+@export var exhaust_shake_smoothing := 18.0
+## Истощение: начинается на нулевой стамине, кончается, когда она
+## восстановилась до этого (гистерезис, иначе дрожь моргала бы у нуля)
+@export var exhaust_recover_threshold := 50.0
+
+var _shake_strength := 0.0
+var _bob_phase := 0.0
+var _bob_intensity := 0.0
+var _bob_smoothed := Vector2.ZERO
+var _exhausted := false
+var _exhaust_timer := 0.0
+var _exhaust_target := Vector2.ZERO
+var _exhaust_current := Vector2.ZERO
+
+
+## Тряска камеры. duration оставлен для совместимости со старыми вызовами —
+## длительность теперь задаёт сама сила (травма гаснет со скоростью shake_decay)
+func shake_camera(strength: float, _duration := 0.18) -> void:
+	_shake_strength = maxf(_shake_strength, strength)
+
+
+func _process(delta: float) -> void:
+	_update_camera_feel(delta)
+
+
+func _update_camera_feel(delta: float) -> void:
 	if not is_instance_valid(camera):
 		return
-	var tween := create_tween()
-	var steps := 6
-	for i in steps:
-		var offset := Vector2(randf_range(-strength, strength), randf_range(-strength, strength))
-		tween.tween_property(camera, "offset", offset, duration / steps)
-	tween.tween_property(camera, "offset", Vector2.ZERO, duration / steps)
+	var shake_offset := Vector2.ZERO
+	if _shake_strength > 0.01:
+		shake_offset = Vector2(randf_range(-1.0, 1.0), randf_range(-1.0, 1.0)) * _shake_strength
+		_shake_strength = move_toward(_shake_strength, 0.0, shake_decay * _shake_strength * delta + 1.0 * delta)
+	else:
+		_shake_strength = 0.0
+
+	# Покачивание на беге — петля: X на одинарной частоте, Y на двойной;
+	# амплитуда плавно нарастает/гаснет, позиция догоняет цель сглаженно
+	var sprinting := velocity.length() >= 120.0
+	_bob_intensity = move_toward(_bob_intensity, 1.0 if sprinting else 0.0, run_bob_fade_speed * delta)
+	var bob_target := Vector2.ZERO
+	if _bob_intensity > 0.001:
+		_bob_phase += velocity.length() * delta
+		var t := _bob_phase / run_bob_cycle_distance * TAU
+		bob_target = Vector2(sin(t) * run_bob_amplitude_x, sin(t * 2.0) * run_bob_amplitude_y) * _bob_intensity
+	_bob_smoothed = _bob_smoothed.lerp(bob_target, minf(run_bob_smoothing * delta, 1.0))
+
+	# Дрожь истощения: цель меняется редко, камера плавно её догоняет —
+	# дрожание уставших рук, а не шум
+	if is_instance_valid(health_bar):
+		var stamina: float = health_bar.current_stamina
+		if _exhausted and stamina >= exhaust_recover_threshold:
+			_exhausted = false
+		elif not _exhausted and stamina <= 0.0:
+			_exhausted = true
+	_exhaust_timer -= delta
+	if _exhausted:
+		if _exhaust_timer <= 0.0:
+			_exhaust_timer = exhaust_shake_update_rate
+			_exhaust_target = Vector2(randf_range(-1.0, 1.0), randf_range(-1.0, 1.0)) * exhaust_shake_strength
+	else:
+		_exhaust_target = Vector2.ZERO
+	_exhaust_current = _exhaust_current.lerp(_exhaust_target, minf(exhaust_shake_smoothing * delta, 1.0))
+
+	var shake_scale: float = GameSettings.shake_multiplier
+	camera.offset = (shake_offset + _exhaust_current) * shake_scale + _bob_smoothed
 
 
 ## TODO: анимация смерти, game over — то же самое, что у рыцаря

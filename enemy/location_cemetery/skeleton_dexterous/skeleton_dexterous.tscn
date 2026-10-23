@@ -1,0 +1,53 @@
+[gd_scene load_steps=7 format=3]
+
+[ext_resource type="PackedScene" uid="uid://dfw3rfjs5momf" path="res://enemy/Assets/enemy.tscn" id="1_base"]
+[ext_resource type="Script" path="res://enemy/location_cemetery/skeleton_enemy.gd" id="2_skel"]
+[ext_resource type="SpriteFrames" path="res://enemy/location_cemetery/skeleton_dexterous/skeleton_dexterous_frames.tres" id="3_frames"]
+[ext_resource type="AnimationLibrary" path="res://enemy/location_cemetery/skeleton_dexterous/skeleton_dexterous_anims.tres" id="4_anims"]
+[ext_resource type="Material" path="res://enemy/location_cemetery/skeleton_detail_material.tres" id="5_detail"]
+
+[sub_resource type="CapsuleShape2D" id="CapsuleShape2D_body"]
+radius = 11.0
+height = 28.0
+
+[node name="SkeletonDuelist" instance=ExtResource("1_base")]
+script = ExtResource("2_skel")
+kind = 3
+max_health = 7
+walk_speed = 52.0
+run_speed = 98.0
+attack_damage_min = 12
+attack_damage_max = 15
+attack_cooldown = 1.2
+attack_speed_scale = 1.0
+block_chance = 0.0
+parry_chance = 0.0
+max_posture = 120.0
+uses_guard = false
+can_evade = true
+combat_fx = true
+evade_chance = 0.35
+sword_parry_chance = 0.35
+combo_max = 3
+lunge_speed = 60.0
+strafes = true
+run_attack_range = Vector2(70, 130)
+skill_points_reward = 2
+coin_drop_min = 2
+coin_drop_max = 4
+bleeds = false
+death_fade_time = 1.3
+enemy_grunt_chance = 0.0
+
+[node name="CollisionShape2D" parent="."]
+shape = SubResource("CapsuleShape2D_body")
+
+[node name="AnimatedSprite2D" parent="."]
+material = ExtResource("5_detail")
+scale = Vector2(0.95, 0.95)
+sprite_frames = ExtResource("3_frames")
+animation = &"idle2_down"
+
+[node name="EnemyAnim" parent="."]
+libraries/ = ExtResource("4_anims")
+

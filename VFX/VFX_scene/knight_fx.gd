@@ -57,12 +57,12 @@ static func preset(swing: int, facing: Vector2) -> Dictionary:
 ## linear — голова идёт равномерно (успевает ровно за dur, как след на
 ## спрайте), sparks — искры с кончика в конце (тяжёлый удар)
 static func arc(owner: Node2D, from: float, to: float, radius: float, width: float, dur: float, power := 1.0,
-		center := CHEST, linear := false, sparks := false) -> void:
+		center := CHEST, linear := false, sparks := false, edge := Color(0, 0, 0, 0)) -> void:
 	if not is_instance_valid(owner):
 		return
-	_arc(owner, from, to, radius, width, dur, power, 0.0, center, linear)
+	_arc(owner, from, to, radius, width, dur, power, 0.0, center, linear, edge)
 	# Вторая дуга — тоньше, внутри и чуть отстаёт: след не плоский, а слоистый
-	_arc(owner, from, to, radius * 0.8, width * 0.55, dur * 1.08, power * 0.45, minf(0.028, dur * 0.15), center, linear)
+	_arc(owner, from, to, radius * 0.8, width * 0.55, dur * 1.08, power * 0.45, minf(0.028, dur * 0.15), center, linear, edge)
 	if sparks:
 		# Тяжёлый удар срывает с кончика клинка несколько искр — по касательной
 		var end := Vector2(cos(to), sin(to) * DEPTH) * radius
@@ -119,13 +119,16 @@ static func parry(tree: SceneTree, at: Vector2, dir: Vector2) -> void:
 # ── Кирпичики ──────────────────────────────────────────────────────────────
 
 static func _arc(knight: Node2D, from: float, to: float, radius: float, width: float, dur: float, power: float, delay: float,
-		center := CHEST, linear := false) -> void:
+		center := CHEST, linear := false, edge := Color(0, 0, 0, 0)) -> void:
 	var spawn := func():
 		if not is_instance_valid(knight):
 			return
 		var s: Node2D = SlashScript.new()
 		s.setup(from, to, radius, width, dur, power)
 		s.linear = linear
+		# Свой цвет кромки (призрачная у скелета-ловкача); прозрачный — как у рыцаря
+		if edge.a > 0.0:
+			s.color_edge = edge
 		s.position = center
 		knight.add_child(s)
 	if delay <= 0.0:
@@ -223,7 +226,8 @@ static func thrust(owner: Node2D, dir: Vector2, reach := 34.0, center := CHEST) 
 ## Рубящий удар сверху: клинок идёт от головы вниз и вперёд — дуга в
 ## вертикальной плоскости вдоль удара (не вокруг тела), в конце — удар о
 ## землю перед бойцом. dur — за сколько клинок доходит донизу
-static func chop(owner: Node2D, dir: Vector2, radius := 30.0, dur := 0.14, power := 1.25, center := CHEST) -> void:
+static func chop(owner: Node2D, dir: Vector2, radius := 30.0, dur := 0.14, power := 1.25, center := CHEST,
+		edge := Color(0, 0, 0, 0)) -> void:
 	if not is_instance_valid(owner):
 		return
 	var fwd := Vector2(dir.x, dir.y * DEPTH)
@@ -244,6 +248,8 @@ static func chop(owner: Node2D, dir: Vector2, radius := 30.0, dur := 0.14, power
 			s.linear = true
 			s.basis_x = fwd
 			s.basis_y = up
+			if edge.a > 0.0:
+				s.color_edge = edge
 			s.position = center
 			owner.add_child(s)
 		if l[3] <= 0.0:

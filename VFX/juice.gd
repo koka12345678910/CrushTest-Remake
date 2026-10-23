@@ -117,7 +117,7 @@ func hit(victim: Node2D, source: Node2D, amount: int, killed: bool, blocked := f
 		kick(dir, 1.8)
 		if not own_feel:
 			freeze(0.025)
-			shake(1.4)
+			_hero_shake(source, 0.8, 1.4)
 		return
 
 	var w := Weight.LIGHT
@@ -131,7 +131,7 @@ func hit(victim: Node2D, source: Node2D, amount: int, killed: bool, blocked := f
 			kick(dir, 2.2)
 			if not own_feel:
 				freeze(0.032)
-				shake(1.6)
+				_hero_shake(source, 1.0, 1.6)
 		Weight.HEAVY:
 			kick(dir, 4.0)
 			pulse("aberration", 0.3, 0.0)
@@ -139,17 +139,31 @@ func hit(victim: Node2D, source: Node2D, amount: int, killed: bool, blocked := f
 			ground_crack(_feet(victim), 0.6)
 			if not own_feel:
 				freeze(0.065)
-				shake(3.2)
+				_hero_shake(source, 1.2, 3.2)
 		Weight.KILL, Weight.LAST_KILL:
 			kick(dir, 5.0)
 			freeze(0.08 if not own_feel else 0.03)
-			shake(3.8)
+			if own_feel:
+				shake(3.8)
+			else:
+				_hero_shake(source, 1.3, 3.8)
 			pulse("aberration", 0.4, 0.0)
 			shockwave(at, 52.0, 0.34, 0.014)
 			ground_crack(_feet(victim), 0.9)
 			corpse_slide(victim, dir, 18.0)
 			if w == Weight.LAST_KILL:
 				_last_kill_moment(victim, at)
+
+
+## Тряска от своего попадания — у героя на камере, как у рыцаря (затухающая
+## травма, множитель тряски из настроек; character_base.gd::shake_camera).
+## k — множитель к его hit_shake_strength (у рыцаря 3.0). Нет такой системы —
+## своя тряска Juice силой fallback
+func _hero_shake(source: Node2D, k: float, fallback: float) -> void:
+	if is_instance_valid(source) and source.has_method("shake_camera") and "hit_shake_strength" in source:
+		source.shake_camera(source.hit_shake_strength * k)
+	else:
+		shake(fallback)
 
 
 ## Последний враг группы упал: время на миг почти встаёт и плавно отпускает,
@@ -237,7 +251,6 @@ func kick(dir: Vector2, strength: float) -> void:
 
 func shake(strength: float) -> void:
 	_shake = maxf(_shake, strength)
-
 
 ## Наезд камеры (amount — доля зума) с удержанием hold реальных секунд
 func zoom_punch(amount: float, hold := 0.0) -> void:

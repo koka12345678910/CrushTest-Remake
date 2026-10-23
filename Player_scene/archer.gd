@@ -646,6 +646,8 @@ func _has_talisman(item_name: String) -> bool:
 
 
 func _process(delta: float) -> void:
+	# Камера (тряска, покачивание на бегу, дрожь истощения) — в базе
+	super(delta)
 	_last_look_time = maxf(_last_look_time - delta, 0.0)
 	_bleed_time = maxf(_bleed_time - delta, 0.0)
 	_hunt_time = maxf(_hunt_time - delta, 0.0)

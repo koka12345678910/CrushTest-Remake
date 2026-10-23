@@ -74,6 +74,19 @@ var _hp_bar: Control
 var _stam_bar: Control
 var _posture_bar: Control
 
+# ── Одр (связь с богами, магия рыцаря — Player_scene/magic/knight_magic.gd) ──
+# Полоска только у рыцаря: включает enable_odr(), между здоровьем и выносливостью
+const ODR_COLOR := Color(0.11, 0.18, 0.46)
+const ODR_LACK_COLOR := Color(0.36, 0.42, 0.7)
+@export var odr_bar_size := Vector2(325, 13)
+@export var odr_position_y := 72.0
+## Куда уезжает выносливость, когда между ней и здоровьем встаёт Одр
+@export var stamina_position_y_with_odr := 90.0
+var max_odr := 100.0
+var current_odr := 100.0
+var _odr_bar: Control
+var _odr_blink: Tween
+
 
 func _ready() -> void:
 	_build_ui()
@@ -128,6 +141,43 @@ func set_max_posture(value: float) -> void:
 
 func set_posture(value: float) -> void:
 	current_posture = clamp(value, 0.0, max_posture)
+
+
+## Включить полоску Одра (рыцарь). Встаёт между здоровьем и выносливостью,
+## выносливость сдвигается ниже
+func enable_odr() -> void:
+	if is_instance_valid(_odr_bar) or not is_instance_valid(_root):
+		return
+	_odr_bar = _make_bar(Vector2(stamina_offset_x, odr_position_y), odr_bar_size, ODR_COLOR)
+	_odr_bar.modulate.a = bar_alpha
+	_root.add_child(_odr_bar)
+	# Под медальон, как остальные полоски (медальон рисуется поверх их начала)
+	_root.move_child(_odr_bar, _stam_bar.get_index())
+	_stam_bar.position.y = stamina_position_y_with_odr
+
+
+func set_odr(value: float, max_value: float) -> void:
+	max_odr = max_value
+	current_odr = clampf(value, 0.0, max_value)
+
+
+## Не хватает Одра на заклинание — полоска коротко вспыхивает светлее, чтобы
+## было видно, почему ничего не произошло
+func blink_odr() -> void:
+	if not is_instance_valid(_odr_bar):
+		return
+	if _odr_blink:
+		_odr_blink.kill()
+	_odr_bar.set("fill_color", ODR_LACK_COLOR)
+	_odr_bar.modulate.a = 1.0
+	_odr_blink = create_tween()
+	_odr_blink.tween_interval(0.12)
+	_odr_blink.tween_callback(func(): _odr_bar.set("fill_color", ODR_COLOR))
+	_odr_blink.tween_interval(0.08)
+	_odr_blink.tween_callback(func(): _odr_bar.set("fill_color", ODR_LACK_COLOR))
+	_odr_blink.tween_interval(0.12)
+	_odr_blink.tween_callback(func(): _odr_bar.set("fill_color", ODR_COLOR))
+	_odr_blink.tween_property(_odr_bar, "modulate:a", bar_alpha, 0.2)
 # ----------------------------------------------------------
 # ВНУТРЕННЯЯ ЛОГИКА
 # ----------------------------------------------------------
@@ -165,6 +215,8 @@ func _update_visuals() -> void:
 	_hp_bar.set("fill_color", hp_col)
 
 	_stam_bar.set("ratio", current_stamina / max_stamina if max_stamina > 0.0 else 0.0)
+	if is_instance_valid(_odr_bar):
+		_odr_bar.set("ratio", current_odr / max_odr if max_odr > 0.0 else 0.0)
 
 	var p_ratio := current_posture / max_posture if max_posture > 0.0 else 0.0
 	_posture_bar.set("ratio", p_ratio)

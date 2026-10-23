@@ -243,6 +243,40 @@ func _build_items_for(player: Node) -> void:
 	target_scroll = 0.0
 
 
+## ── Для лута ────────────────────────────────────────────────────────────────
+## Товары, которые этот герой может получить (каталог его класса без тех, что
+## уже лежат в сумке по максимуму). Маг своего каталога пока не имеет — пусто
+## (магазин сам показывает ему товары рыцаря, но в лут их отдавать нельзя:
+## у мага нет сумки)
+func loot_catalog(player: Node) -> Array:
+	if player == null or player.get("inventory_ui") == null:
+		return []
+	var cid = player.get("character_id")
+	var catalog: Array
+	if cid == "archer":
+		catalog = _archer_items()
+	elif cid == null or cid == "knight":
+		catalog = _knight_items()
+	else:
+		return []
+	var out := []
+	var inv = player.get("inventory_system")
+	for it in catalog:
+		if not ability_class_map.has(it["name"]):
+			continue
+		if it.has("max") and inv != null and inv.get_count(it["name"]) >= (it["max"] as int):
+			continue
+		out.append(it)
+	return out
+
+
+## Новый экземпляр способности по имени товара (null — такого нет)
+func make_ability(item_name: String) -> Ability:
+	if not ability_class_map.has(item_name):
+		return null
+	return ability_class_map[item_name].new()
+
+
 # ─── STATE ─────────────────────────────────────────────────────────────────────
 var hovered_index: int = -1
 var selected_index: int = -1
@@ -269,6 +303,8 @@ var _glow: Texture2D
 # Всё в координатах макета 1920×1080. _draw() масштабирует их под реальный
 # размер окна (_view_scale/_view_offset), мышь пересчитывается обратно
 const DESIGN := Vector2(1920, 1080)
+## Слой CanvasLayer магазина — выше HUD героя и экранных эффектов (все они 1)
+const SHOP_CANVAS_LAYER := 20
 const LEFT_PANEL := Rect2(34, 110, 590, 925)
 const BANNER := Rect2(64, 22, 400, 92)
 const LIST_TOP := 176.0
@@ -317,6 +353,15 @@ func _play_ui_sound(stream: AudioStream) -> void:
 
 # ─── LIFECYCLE ─────────────────────────────────────────────────────────────────
 func _ready() -> void:
+	# Лут на уровне (Levels/loot/loot_item.gd) находит магазин по группе и
+	# берёт товары оттуда — лут выдаёт ровно то, что продаётся
+	add_to_group("shop_menu")
+	# Магазин — непрозрачный экран поверх всего. HUD героя (здоровье, стамина,
+	# Одр, быстрые слоты, лут) — тоже CanvasLayer слоя 1 и добавляется позже,
+	# поэтому рисовался поверх магазина. Поднимаем слой магазина над ними
+	var shop_layer := get_parent() as CanvasLayer
+	if shop_layer and shop_layer.layer < SHOP_CANVAS_LAYER:
+		shop_layer.layer = SHOP_CANVAS_LAYER
 	items.assign(_knight_items())
 	_load_textures()
 	set_process(false)

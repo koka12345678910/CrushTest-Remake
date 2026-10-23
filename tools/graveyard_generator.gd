@@ -1966,7 +1966,10 @@ func layout() -> void:
 	var chapel_base := R(1155, 212)
 	reserve_rect(Rect2i(chapel_base.x - 9, chapel_base.y - 18, 18, 20))
 
-	wall_block(RX(720), RX(885), RY(458))                         # дом в средней стене
+	# Дом в средней стене (кладка с тремя окошками) убран по просьбе — место
+	# зарезервировано как было, чтобы не сдвинулась остальная карта
+	reserve_rect(Rect2i(RX(720), RY(458), RX(885) - RX(720) + 1, 4))
+	reserve_rect(Rect2i(RX(720) - 1, RY(458) + 4, RX(885) - RX(720) + 3, 1))
 	wall_block(RX(1185), RX(1245), RY(518), false)                # сторожка
 	wall_block(RX(1250), RX(1380), RY(636))                       # склеп у южной стены
 
@@ -2227,16 +2230,51 @@ func finish_scene() -> void:
 	var sr := shop_sprite.get_rect()
 	gp_shop_goods(Rect2(shop.position + shop_sprite.position + sr.position * shop_sprite.scale, sr.size * shop_sprite.scale))
 
-	var enemy_scene: PackedScene = load("res://enemy/Assets/enemy.tscn")
+	# Враги кладбища — скелеты (enemy/location_cemetery): мясо, щитовики,
+	# ловкий и танк с топором. Состав расставленных и пачек спавнера
+	var sk := "res://enemy/location_cemetery/"
+	var sk_grunt: PackedScene = load(sk + "default_skeleton/default_skeleton.tscn")
+	var sk_shield: PackedScene = load(sk + "skeleton_shield_bag/skeleton_shield_bag.tscn")
+	var sk_duelist: PackedScene = load(sk + "skeleton_dexterous/skeleton_dexterous.tscn")
+	var sk_brute: PackedScene = load(sk + "axe_skeleton_2/axe_skeleton_2.tscn")
+	var placed_kinds := [sk_shield, sk_grunt, sk_duelist, sk_grunt, sk_brute, sk_shield, sk_grunt, sk_grunt]
 	var i := 0
 	for p in [Vector2(950, 250), Vector2(1250, 300), Vector2(500, 420), Vector2(285, 530), Vector2(1000, 560), Vector2(1480, 480), Vector2(690, 730), Vector2(400, 260)]:
-		var e: Node2D = enemy_scene.instantiate()
+		var e: Node2D = placed_kinds[i].instantiate()
 		e.name = "Enemy%d" % (i + 1)
 		e.position = world(R(p.x, p.y))
 		add_node(e)
 		i += 1
 	var sp := lvl.get_node("EnemySpawner")
-	var pts := [Vector2(880, 220), Vector2(1200, 300), Vector2(470, 420), Vector2(270, 500), Vector2(1000, 540), Vector2(1470, 500), Vector2(1550, 720), Vector2(300, 720)]
+	sp.enemy_scene = sk_grunt
+	sp.enemy_scenes = [sk_grunt, sk_shield, sk_duelist, sk_brute] as Array[PackedScene]
+	sp.enemy_weights = [6.0, 3.0, 1.2, 1.0] as Array[float]
+	sp.enemy_pack_limits = [0, 2, 1, 1] as Array[int]
+
+	# Лут как в Dark Souls (Levels/loot/loot_item.gd): светящиеся находки под
+	# охраной скелетов. Координаты — мировые; находка сама встаёт на навмеш.
+	# [имя, позиция, награда (0 — случайно, 1 — золото, 2 — способность, 3 — заклинание),
+	#  золото от/до, охрана, [заклинание для награды 3]]
+	var loot_scene: PackedScene = load("res://Levels/loot/loot_item.tscn")
+	for L in [
+		["LootCamp", Vector2(380, 230), 0, 40, 90, [sk_grunt, sk_grunt, sk_shield]],
+		["LootGrove", Vector2(230, 500), 1, 40, 80, [sk_grunt, sk_grunt]],
+		["LootCenter", Vector2(1460, 660), 2, 40, 90, [sk_duelist, sk_grunt]],
+		["LootBarn", Vector2(2540, 500), 3, 40, 90, [sk_brute, sk_grunt], "Благословение Сурта"],
+		["LootEast", Vector2(2430, 800), 0, 40, 90, [sk_shield, sk_shield, sk_grunt]],
+		["LootSouthWest", Vector2(480, 1150), 1, 60, 120, [sk_grunt, sk_grunt, sk_grunt]],
+	]:
+		var loot: Node2D = loot_scene.instantiate()
+		loot.name = L[0]
+		loot.position = L[1]
+		loot.reward = L[2]
+		loot.gold_min = L[3]
+		loot.gold_max = L[4]
+		loot.guards.assign(L[5])
+		if L.size() > 6:
+			loot.spell_name = L[6]
+		add_node(loot)
+	var pts :=[Vector2(880, 220), Vector2(1200, 300), Vector2(470, 420), Vector2(270, 500), Vector2(1000, 540), Vector2(1470, 500), Vector2(1550, 720), Vector2(300, 720)]
 	var k := 0
 	for ch in sp.get_children():
 		if k < pts.size():
