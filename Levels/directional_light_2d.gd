@@ -13,6 +13,10 @@ var lightning_flash: ColorRect = null
 @export var lightning_interval_min := 5.0
 @export var lightning_interval_max := 15.0
 @export var night_energy := 1.0 # обычное ночное освещение — поставь своё значение
+# На кладбище night_energy и цвет ведёт время суток (Levels/weather.gd), а
+# молнии бьют только в грозу (Weather.storm). Вспышка — прибавка поверх
+# базовой яркости, поэтому свет суток и молния не спорят за energy
+var _flash_boost := 0.0
 
 # Сила вспышки. Раньше свет бил до 3.0, а белый слой на экране — до половины
 # непрозрачности: в тёмной сцене это слепило. Теперь вспышка мягче — мир
@@ -51,7 +55,14 @@ func _ready() -> void:
 	next_lightning_time = randf_range(lightning_interval_min, lightning_interval_max)
 
 func _process(delta: float) -> void:
-	lightning_timer += delta
+	energy = night_energy + _flash_boost
+	# Без грозы неба не рвёт; пока гроза нарастает — молнии редкие, в разгар
+	# грозы — с обычной частотой
+	var storm: float = Weather.storm if Weather.is_active() else 1.0
+	if storm < 0.3:
+		lightning_timer = 0.0
+		return
+	lightning_timer += delta * storm
 	if lightning_timer >= next_lightning_time:
 		lightning_timer = 0.0
 		next_lightning_time = randf_range(lightning_interval_min, lightning_interval_max)
@@ -102,8 +113,8 @@ func _flash() -> void:
 	var tween = create_tween()
 	# Каждый всполох в серии чуть разный по силе — так молния живее
 	var k := randf_range(0.6, 1.0)
-	tween.tween_property(self, "energy", flash_energy * k, 0.03)
-	tween.tween_property(self, "energy", night_energy, 0.12)
+	tween.tween_property(self, "_flash_boost", maxf(flash_energy * k - night_energy, 0.0), 0.03)
+	tween.tween_property(self, "_flash_boost", 0.0, 0.12)
 
 	# Засветка экрана — через Juice: она есть у любого героя (раньше — только
 	# у рыцаря, оверлей LightningFlash в его камере)
@@ -127,8 +138,8 @@ func _strike(hero: Node2D) -> void:
 	LightningBolt.strike(get_tree(), at, true)
 	# Мир и экран — вспышкой; гром сразу, без паузы: молния над головой
 	var t := create_tween()
-	t.tween_property(self, "energy", flash_energy * 1.4, 0.03)
-	t.tween_property(self, "energy", night_energy, 0.4)
+	t.tween_property(self, "_flash_boost", maxf(flash_energy * 1.4 - night_energy, 0.0), 0.03)
+	t.tween_property(self, "_flash_boost", 0.0, 0.4)
 	Juice.flash(0.42)
 	Juice.pulse("aberration", 0.45, 0.0)
 	Juice.shake(6.0)

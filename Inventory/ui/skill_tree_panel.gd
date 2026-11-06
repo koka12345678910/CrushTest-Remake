@@ -36,19 +36,72 @@ const RING_C := Vector2(855, 420)
 const INFO := Rect2(1384, 4, 447, 800)
 const POINTS_PILL := Rect2(1548, 846, 206, 40)
 
-const GOLD := Color(0.8, 0.62, 0.34)
-const GOLD_BRIGHT := Color(1.0, 0.8, 0.42)
-const GOLD_DIM := Color(0.55, 0.45, 0.3, 0.7)
-const GOLD_FAINT := Color(0.55, 0.45, 0.3, 0.22)
-const GREY := Color(0.4, 0.38, 0.35)
-const TEXT := Color(0.92, 0.86, 0.74)
-const TEXT_DIM := Color(0.6, 0.55, 0.47)
-const TEXT_LORE := Color(0.7, 0.58, 0.4)
+## Палитра — переменные, а не константы: внутри нарисованного инвентаря героя
+## (Inventory/ui/hero_skills_screen.gd) дерево берёт цвета его темы
+## (apply_palette) — у Хальварда серебро, у мага холодная синева
+var GOLD := Color(0.8, 0.62, 0.34)
+var GOLD_BRIGHT := Color(1.0, 0.8, 0.42)
+var GOLD_DIM := Color(0.55, 0.45, 0.3, 0.7)
+var GOLD_FAINT := Color(0.55, 0.45, 0.3, 0.22)
+var GREY := Color(0.4, 0.38, 0.35)
+var TEXT := Color(0.92, 0.86, 0.74)
+var TEXT_DIM := Color(0.6, 0.55, 0.47)
+var TEXT_LORE := Color(0.7, 0.58, 0.4)
 const WARN := Color(0.85, 0.3, 0.25)
+## Тёплые акценты, что раньше были зашиты прямо в отрисовку: свечение узлов,
+## руна изученного узла, светлый заголовок, плашка цены
+var GLOW := Color(1.0, 0.6, 0.2)
+var ICON_LIT := Color(1.0, 0.82, 0.48)
+var TITLE := Color(1.0, 0.88, 0.62)
+var GOLD_SOFT := Color(0.85, 0.75, 0.55)
 
-const SOUND_CHOICE := preload("res://Sound/UI_button/choice.wav")
-const SOUND_DENIED := preload("res://Sound/UI_button/denied.wav")
-const SOUND_ACCEPT := preload("res://Sound/UI_button/accept.wav")
+## Какую часть экрана рисует панель (в координатах макета DESIGN):
+##   "full"    — всё, как раньше (окно навыков в обычном инвентаре);
+##   "tree"    — только сетка узлов на рунном круге (левая панель экрана
+##               навыков героя), в нём живут выбор и изучение;
+##   "info"    — только карточка выбранного узла (средняя панель), без своей
+##               рамки; выбор читает у source;
+##   "sidebar" — только колонка деревьев (правая панель)
+var mode := "full"
+## Панель режима "tree", от которой "info"/"sidebar" берут выбор и дерево
+var source = null
+## Свои плиты/рамки не рисуются — их даёт рамка темы вокруг
+var bare := false
+const VIEW_TREE := Rect2(430, 0, 850, 900)
+const VIEW_INFO := Rect2(1384, 4, 447, 800)
+const VIEW_SIDEBAR := Rect2(0, 40, 300, 380)
+
+
+## Цвета темы героя (hero_inventory_skin.gd: GOLD, GOLD_HI, TEXT, TEXT_DIM)
+func apply_palette(gold: Color, gold_hi: Color, text: Color, text_dim: Color) -> void:
+	GOLD = gold
+	GOLD_BRIGHT = gold_hi
+	GOLD_DIM = Color(gold.darkened(0.3), 0.7)
+	GOLD_FAINT = Color(gold.darkened(0.3), 0.22)
+	GREY = text_dim.darkened(0.3)
+	TEXT = text
+	TEXT_DIM = text_dim
+	TEXT_LORE = gold.lerp(text_dim, 0.35)
+	GLOW = gold_hi
+	ICON_LIT = gold_hi
+	TITLE = gold_hi.lightened(0.1)
+	GOLD_SOFT = gold.lerp(text, 0.5)
+
+
+func _view() -> Rect2:
+	match mode:
+		"tree":
+			return VIEW_TREE
+		"info":
+			return VIEW_INFO
+		"sidebar":
+			return VIEW_SIDEBAR
+	return Rect2(Vector2.ZERO, DESIGN)
+
+const UiSounds := preload("res://UI/ui_sounds.gd")
+const SOUND_CHOICE := UiSounds.MOVE
+const SOUND_DENIED := UiSounds.ERROR
+const SOUND_ACCEPT := UiSounds.SELECT
 
 ## Руны старшего футарка отрезками в единичных координатах (x ∈ ±0.5,
 ## y ∈ ±1). Узлу достаётся руна по его id — стабильно между запусками
@@ -124,7 +177,7 @@ func _has_skills() -> bool:
 func _play_ui_sound(stream: AudioStream) -> void:
 	var p := AudioStreamPlayer.new()
 	p.stream = stream
-	p.bus = "Master"
+	p.bus = UiSounds.bus()
 	add_child(p)
 	p.finished.connect(p.queue_free)
 	p.play()
@@ -134,6 +187,15 @@ func _process(delta: float) -> void:
 	_t += delta
 	if _flash_t > 0.0:
 		_flash_t = maxf(_flash_t - delta, 0.0)
+	# Карточка и колонка деревьев показывают то же, что выбрано в дереве
+	if is_instance_valid(source):
+		tree_id = source.tree_id
+		_player = source._player
+		_nodes = source._nodes
+		_node_icons = source._node_icons
+		_selected_id = source._selected_id
+		_trees = source._trees
+		_active_tree = source._active_tree
 	queue_redraw()
 
 
@@ -154,7 +216,8 @@ func _gui_input(event: InputEvent) -> void:
 
 
 func _unhandled_input(event: InputEvent) -> void:
-	if not is_visible_in_tree():
+	# E изучает один раз — в панели дерева, у карточки и колонки своего нет
+	if not is_visible_in_tree() or is_instance_valid(source):
 		return
 	if event is InputEventKey and event.pressed and not event.echo and event.keycode == KEY_E:
 		_try_learn(_selected_id)
@@ -220,6 +283,10 @@ func _points() -> int:
 
 
 func _try_learn(node_id: String) -> void:
+	# Кнопка «Изучить» карточки — изучение и вспышка отказа в самом дереве
+	if is_instance_valid(source):
+		source._try_learn(node_id)
+		return
 	if node_id == "" or not _has_skills():
 		return
 	if _node_state(node_id) != "AVAILABLE":
@@ -245,7 +312,7 @@ func _missing_requirements_text(n: Dictionary) -> String:
 	for req_id in n.get("prerequisites", []):
 		if not (req_id in _player.unlocked_skills):
 			var req: Dictionary = SkillTrees.get_node_data(tree_id, req_id)
-			missing.append(String(req.get("name", req_id)).capitalize())
+			missing.append(_title_case(tr(String(req.get("name", req_id)))))
 	var min_count: int = n.get("min_unlocked_in_tree", 0)
 	if min_count > 0:
 		var tree_ids := {}
@@ -256,7 +323,7 @@ func _missing_requirements_text(n: Dictionary) -> String:
 			if id in tree_ids:
 				unlocked_in_tree += 1
 		if unlocked_in_tree < min_count:
-			missing.append("открыто навыков %d/%d" % [unlocked_in_tree, min_count])
+			missing.append(tr("открыто навыков %d/%d") % [unlocked_in_tree, min_count])
 	return ", ".join(missing)
 
 
@@ -275,9 +342,17 @@ static func _points_word(n: int) -> String:
 # ─────────────────────────────────────────────
 
 func _node_center(n: Dictionary) -> Vector2:
-	# Колонки центрируются по самой широкой строке: col 1.5 — середина дерева
-	return Vector2(TREE_CENTER_X + (float(n["col"]) - 1.5) * COL_STEP,
+	# Колонки центрируются по самой широкой строке: середина — половина
+	# самой дальней колонки дерева (у всех деревьев сейчас колонки 0–2)
+	return Vector2(TREE_CENTER_X + (float(n["col"]) - _col_mid()) * COL_STEP,
 			TREE_TOP + int(n["row"]) * ROW_STEP)
+
+
+func _col_mid() -> float:
+	var hi := 0.0
+	for n in _nodes:
+		hi = maxf(hi, float(n["col"]))
+	return hi * 0.5
 
 
 func _node_size(n: Dictionary) -> float:
@@ -300,32 +375,41 @@ func _sidebar_rect(i: int) -> Rect2:
 func _draw() -> void:
 	if _font == null:
 		return
-	_scale = minf(size.x / DESIGN.x, size.y / DESIGN.y)
-	_offset = (size - DESIGN * _scale) * 0.5
+	# Видимая часть макета (_view) вписывается в размер панели по центру
+	var view := _view()
+	_scale = minf(size.x / view.size.x, size.y / view.size.y)
+	_offset = (size - view.size * _scale) * 0.5 - view.position * _scale
 	draw_set_transform(_offset, 0.0, Vector2(_scale, _scale))
 
-	_draw_ring_background()
-	_draw_sidebar()
-	_draw_back_button()
-	if _nodes.is_empty():
-		_text(Vector2(SIDEBAR_W, RING_C.y - 10), _tree_name().to_upper(), 30, GOLD, HORIZONTAL_ALIGNMENT_CENTER, INFO.position.x - SIDEBAR_W)
-		_text(Vector2(SIDEBAR_W, RING_C.y + 26), "Древо навыков в разработке", 18, TEXT_DIM, HORIZONTAL_ALIGNMENT_CENTER, INFO.position.x - SIDEBAR_W)
-	else:
-		_draw_connections()
-		for n in _nodes:
-			_draw_node(n)
-	_draw_info_panel()
-	_draw_points_pill()
+	if mode == "full" or mode == "tree":
+		_draw_ring_background()
+		if _nodes.is_empty():
+			_text(Vector2(SIDEBAR_W, RING_C.y - 10), _tree_name().to_upper(), 30, GOLD, HORIZONTAL_ALIGNMENT_CENTER, INFO.position.x - SIDEBAR_W)
+			_text(Vector2(SIDEBAR_W, RING_C.y + 26), "Древо навыков в разработке", 18, TEXT_DIM, HORIZONTAL_ALIGNMENT_CENTER, INFO.position.x - SIDEBAR_W)
+		else:
+			_draw_connections()
+			for n in _nodes:
+				_draw_node(n)
+	if mode == "full" or mode == "sidebar":
+		_draw_sidebar()
+	if mode == "full":
+		_draw_back_button()
+	if mode == "full" or mode == "info":
+		_draw_info_panel()
+	if mode == "full":
+		_draw_points_pill()
 	draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
 
 
 func _tree_name() -> String:
 	if _active_tree < _trees.size():
-		return String(_trees[_active_tree].get("name", ""))
+		return tr(String(_trees[_active_tree].get("name", "")))
 	return String(SkillTrees.get_tree_data(tree_id).get("name", ""))
 
 
+## Подписи переводятся здесь (tr) — уже переведённые строки tr не меняет
 func _text(pos: Vector2, s: String, sz: int, col: Color, align := HORIZONTAL_ALIGNMENT_LEFT, width := -1.0, font: Font = null) -> void:
+	s = tr(s)
 	draw_string(font if font else _font, pos, s, align, width, sz, col)
 
 
@@ -367,14 +451,14 @@ func _rune_for(node_id: String) -> int:
 ## Фон под деревом: гравированный рунный круг, как на макете
 func _draw_ring_background() -> void:
 	var c := RING_C
-	var faint := Color(0.55, 0.48, 0.38, 0.07)
+	var faint := Color(GOLD, 0.07)
 	for r in [440.0, 400.0, 360.0, 240.0]:
 		draw_arc(c, r, 0.0, TAU, 128, faint, 1.2, true)
 	draw_arc(c, 380.0, 0.0, TAU, 128, Color(faint, 0.05), 18.0, true)
 	for k in 24:
 		var a := k * TAU / 24.0
 		var p := c + Vector2.from_angle(a) * 380.0
-		_draw_rune(p, 8.0, k, Color(0.6, 0.5, 0.38, 0.12), 1.5)
+		_draw_rune(p, 8.0, k, Color(GOLD, 0.12), 1.5)
 	for k in 8:
 		var d := Vector2.from_angle(k * TAU / 8.0 + PI / 8.0)
 		draw_line(c + d * 240.0, c + d * 360.0, faint, 1.0)
@@ -383,8 +467,10 @@ func _draw_ring_background() -> void:
 # ── Колонка деревьев ─────────────────────────────────────────────────────────
 
 func _draw_sidebar() -> void:
-	draw_line(Vector2(SIDEBAR_W, 10), Vector2(SIDEBAR_W, 910), GOLD_FAINT, 1.0)
-	draw_line(Vector2(SIDEBAR_W - 6, 10), Vector2(SIDEBAR_W - 6, 910), Color(GOLD_FAINT, 0.1), 1.0)
+	# Вертикальная черта отделяет колонку от дерева — в своей панели не нужна
+	if not bare:
+		draw_line(Vector2(SIDEBAR_W, 10), Vector2(SIDEBAR_W, 910), GOLD_FAINT, 1.0)
+		draw_line(Vector2(SIDEBAR_W - 6, 10), Vector2(SIDEBAR_W - 6, 910), Color(GOLD_FAINT, 0.1), 1.0)
 	for i in _trees.size():
 		var cy := SIDEBAR_ITEM_Y + i * SIDEBAR_STEP
 		var active := i == _active_tree
@@ -393,27 +479,41 @@ func _draw_sidebar() -> void:
 		if active:
 			# Подсветка строки: тёплая полоса, гаснущая вправо
 			for k in 8:
-				draw_rect(Rect2(8 + k * 30, cy - 50, 30, 100), Color(0.5, 0.3, 0.1, 0.06 * (8 - k) / 8.0))
+				draw_rect(Rect2(8 + k * 30, cy - 50, 30, 100), Color(GLOW.darkened(0.5), 0.06 * (8 - k) / 8.0))
 			draw_line(Vector2(8, cy - 50), Vector2(SIDEBAR_W - 20, cy - 50), Color(GOLD, 0.35), 1.0)
 			draw_line(Vector2(8, cy + 50), Vector2(SIDEBAR_W - 20, cy + 50), Color(GOLD, 0.35), 1.0)
 			_diamond(Vector2(SIDEBAR_W - 6, cy), 6.0, GOLD, true)
 			var pulse := 0.8 + 0.2 * sin(_t * 2.2)
 			for g in 4:
-				_diamond(ec, 46.0 + g * 3.0, Color(1.0, 0.62, 0.22, 0.14 * pulse * (4 - g) / 4.0))
+				_diamond(ec, 46.0 + g * 3.0, Color(GLOW, 0.14 * pulse * (4 - g) / 4.0))
 			_diamond(ec, 46.0, GOLD_BRIGHT, true)
 			_diamond(ec, 38.0, Color(GOLD, 0.5))
 		else:
 			draw_circle(ec, 42.0, Color(0.05, 0.045, 0.04))
-			draw_arc(ec, 42.0, 0.0, TAU, 48, GOLD if hot else Color(0.45, 0.4, 0.34, 0.8), 1.5, true)
-			draw_arc(ec, 35.0, 0.0, TAU, 48, Color(0.45, 0.4, 0.34, 0.35), 1.0, true)
+			draw_arc(ec, 42.0, 0.0, TAU, 48, GOLD if hot else Color(GREY, 0.8), 1.5, true)
+			draw_arc(ec, 35.0, 0.0, TAU, 48, Color(GREY, 0.35), 1.0, true)
 			for k in 4:
 				var d := Vector2.from_angle(k * PI / 2.0)
-				draw_line(ec + d * 42.0, ec + d * 50.0, Color(0.45, 0.4, 0.34, 0.7), 1.2)
+				draw_line(ec + d * 42.0, ec + d * 50.0, Color(GREY, 0.7), 1.2)
 		_draw_tree_emblem(i, ec, 24.0, active or hot)
 		if i < _trees.size() - 1:
 			draw_line(Vector2(110, cy + SIDEBAR_STEP * 0.5), Vector2(SIDEBAR_W - 30, cy + SIDEBAR_STEP * 0.5), GOLD_FAINT, 1.0)
 		var name_col := TEXT if active else (GOLD if hot else TEXT_DIM)
-		_text(Vector2(118, cy + 7), String(_trees[i].get("name", "")).capitalize(), 20, name_col)
+		# Длинное (английское) название ужимается, чтобы не упереться в ромб
+		var tree_s := _title_case(tr(String(_trees[i].get("name", ""))))
+		var tfs := 20
+		while tfs > 15 and _text_w(tree_s, tfs) > SIDEBAR_W - 118.0 - 22.0:
+			tfs -= 1
+		_text(Vector2(118, cy + 7), tree_s, tfs, name_col)
+
+
+## «РУНЫ СТОЙКОСТИ» -> «Руны стойкости», «RUNES OF FORTITUDE» -> «Runes of
+## Fortitude»: capitalize() поднимал бы и служебные слова (Of, The)
+static func _title_case(s: String) -> String:
+	var out := s.capitalize()
+	for w in ["Of", "The", "And"]:
+		out = out.replace(" %s " % w, " %s " % w.to_lower())
+	return out
 
 
 ## Эмблема дерева в колонке: PNG (серым, если не активно) или простая
@@ -458,7 +558,7 @@ func _draw_connections() -> void:
 			if req.is_empty():
 				continue
 			var lit: bool = (n["id"] in _player.unlocked_skills) or (req_id in _player.unlocked_skills)
-			var col := Color(GOLD, 0.7) if lit else Color(0.5, 0.45, 0.36, 0.35)
+			var col := Color(GOLD, 0.7) if lit else Color(GREY, 0.35)
 			draw_line(_node_center(req), _node_center(n), col, 1.6 if lit else 1.2, true)
 
 
@@ -473,14 +573,14 @@ func _draw_node(n: Dictionary) -> void:
 	var pulse := 0.75 + 0.25 * sin(_t * 2.4)
 
 	var frame := GREY
-	var icon_col := Color(0.38, 0.36, 0.33)
+	var icon_col := GREY
 	match state:
 		"UNLOCKED":
 			frame = GOLD_BRIGHT
-			icon_col = Color(1.0, 0.82, 0.48)
+			icon_col = ICON_LIT
 		"AVAILABLE":
 			frame = GOLD
-			icon_col = Color(0.78, 0.72, 0.62)
+			icon_col = GOLD_SOFT
 	if hot:
 		frame = frame.lightened(0.2)
 	if _flash_id == id and _flash_t > 0.0:
@@ -492,7 +592,7 @@ func _draw_node(n: Dictionary) -> void:
 		if state == "LOCKED" and not selected:
 			ga *= 0.4
 		for g in 5:
-			draw_rect(r.grow(3.0 + g * 4.0), Color(1.0, 0.6, 0.2, ga * (5 - g) / 5.0), false, 4.0)
+			draw_rect(r.grow(3.0 + g * 4.0), Color(GLOW, ga * (5 - g) / 5.0), false, 4.0)
 
 	# Коробка узла: тёмная плита, двойная кайма, уголки
 	draw_rect(r, Color(0.045, 0.04, 0.036, 0.98))
@@ -532,7 +632,7 @@ func _draw_node(n: Dictionary) -> void:
 ## Табличка с названием у нижней кромки узла. Длинное название — первое
 ## слово на табличке, остальное строкой ниже (как на макете)
 func _draw_plate(n: Dictionary, r: Rect2, frame: Color, state: String, cap: bool, selected: bool) -> void:
-	var name_s: String = String(n["name"]).to_upper()
+	var name_s: String = tr(String(n["name"])).to_upper()
 	var fs := 16 if cap else 14
 	var line1 := name_s
 	var line2 := ""
@@ -555,7 +655,7 @@ func _draw_plate(n: Dictionary, r: Rect2, frame: Color, state: String, cap: bool
 			_diamond(Vector2(x + s * 16, cy), 3.5, border)
 	var tc := TEXT if state != "LOCKED" else TEXT_DIM
 	if state == "UNLOCKED" or selected:
-		tc = Color(1.0, 0.9, 0.7)
+		tc = TITLE
 	_text(Vector2(pr.position.x, pr.get_center().y + fs * 0.36), line1, fs, tc, HORIZONTAL_ALIGNMENT_CENTER, pw)
 	if line2 != "":
 		_text(Vector2(pr.position.x - 20, pr.end.y + 16), line2, fs - 1, Color(tc, 0.85), HORIZONTAL_ALIGNMENT_CENTER, pw + 40)
@@ -565,11 +665,15 @@ func _draw_plate(n: Dictionary, r: Rect2, frame: Color, state: String, cap: bool
 
 func _draw_info_panel() -> void:
 	var r := INFO
-	draw_rect(r, Color(0.035, 0.032, 0.03, 0.95))
-	draw_rect(r, GOLD_DIM, false, 1.3)
-	draw_rect(r.grow(-8.0), GOLD_FAINT, false, 1.0)
-	for cc in [[r.position, 1.0, 1.0], [Vector2(r.end.x, r.position.y), -1.0, 1.0],
-			[Vector2(r.position.x, r.end.y), 1.0, -1.0], [r.end, -1.0, -1.0]]:
+	# Своя плита карточки — только в обычном окне; в инвентаре героя вокруг
+	# рамка его темы
+	var corners: Array = [] if bare else [[r.position, 1.0, 1.0], [Vector2(r.end.x, r.position.y), -1.0, 1.0],
+			[Vector2(r.position.x, r.end.y), 1.0, -1.0], [r.end, -1.0, -1.0]]
+	if not bare:
+		draw_rect(r, Color(0.035, 0.032, 0.03, 0.95))
+		draw_rect(r, GOLD_DIM, false, 1.3)
+		draw_rect(r.grow(-8.0), GOLD_FAINT, false, 1.0)
+	for cc in corners:
 		var p: Vector2 = cc[0]
 		var sx: float = cc[1]
 		var sy: float = cc[2]
@@ -593,7 +697,7 @@ func _draw_info_panel() -> void:
 	var mc := Vector2(cx, r.position.y + 132)
 	var pulse := 0.75 + 0.25 * sin(_t * 2.0)
 	for g in 6:
-		draw_circle(mc, 96.0 - g * 6.0, Color(1.0, 0.55, 0.2, 0.025 * pulse))
+		draw_circle(mc, 96.0 - g * 6.0, Color(GLOW, 0.025 * pulse))
 	draw_circle(mc, 84.0, Color(0.03, 0.027, 0.024))
 	draw_arc(mc, 92.0, 0.0, TAU, 72, GOLD_FAINT, 1.0, true)
 	draw_arc(mc, 84.0, 0.0, TAU, 72, GOLD, 1.8, true)
@@ -609,12 +713,12 @@ func _draw_info_panel() -> void:
 		draw_texture_rect(_node_icons[_selected_id], Rect2(mc - Vector2(66, 66), Vector2(132, 132)), false,
 				Color.WHITE if lit else Color(0.5, 0.5, 0.5))
 	else:
-		var rc := Color(1.0, 0.82, 0.48) if lit else Color(0.5, 0.48, 0.44)
+		var rc := ICON_LIT if lit else Color(0.5, 0.48, 0.44)
 		_draw_rune(mc, 44.0, _rune_for(_selected_id), Color(0.02, 0.02, 0.02, 0.8), 9.0)
 		_draw_rune(mc, 44.0, _rune_for(_selected_id), rc, 5.0)
 
 	var y := r.position.y + 262.0
-	_text(Vector2(r.position.x, y), String(n["name"]).to_upper(), 26, Color(1.0, 0.88, 0.62), HORIZONTAL_ALIGNMENT_CENTER, r.size.x)
+	_text(Vector2(r.position.x, y), tr(String(n["name"])).to_upper(), 26, TITLE, HORIZONTAL_ALIGNMENT_CENTER, r.size.x)
 	y += 32.0
 	_text(Vector2(r.position.x, y), "Ключевой навык" if cap else "Пассивный навык", 17, TEXT_DIM, HORIZONTAL_ALIGNMENT_CENTER, r.size.x)
 	y += 26.0
@@ -623,7 +727,7 @@ func _draw_info_panel() -> void:
 	# "Требуется: N очков" — плашка с крылышками
 	y += 34.0
 	var cost := int(n.get("cost", 1))
-	var cost_s := "Требуется: %d %s" % [cost, _points_word(cost)]
+	var cost_s := tr("Требуется: %d %s") % [cost, tr(_points_word(cost))]
 	var pw := _text_w(cost_s, 17) + 40.0
 	var pr := Rect2(cx - pw * 0.5, y - 20, pw, 32)
 	draw_rect(pr, Color(0.05, 0.045, 0.04))
@@ -633,12 +737,12 @@ func _draw_info_panel() -> void:
 		draw_line(Vector2(x, pr.get_center().y), Vector2(x + s * 14, pr.get_center().y), GOLD_DIM, 1.0)
 		_diamond(Vector2(x + s * 18, pr.get_center().y), 3.0, GOLD_DIM)
 	_diamond(Vector2(cx, pr.end.y + 8), 3.5, GOLD_DIM)
-	_text(pr.position + Vector2(0, 22), cost_s, 17, Color(0.85, 0.75, 0.55), HORIZONTAL_ALIGNMENT_CENTER, pw)
+	_text(pr.position + Vector2(0, 22), cost_s, 17, GOLD_SOFT, HORIZONTAL_ALIGNMENT_CENTER, pw)
 
 	# Эффект
 	y = pr.end.y + 46.0
 	var tw := r.size.x - 76.0
-	var effect := String(n.get("effect_text", ""))
+	var effect := tr(String(n.get("effect_text", "")))
 	draw_multiline_string(_font, Vector2(r.position.x + 38, y), effect, HORIZONTAL_ALIGNMENT_LEFT, tw, 19, -1, TEXT)
 	y += _font.get_multiline_string_size(effect, HORIZONTAL_ALIGNMENT_LEFT, tw, 19).y + 18.0
 
@@ -662,7 +766,7 @@ func _draw_info_panel() -> void:
 		_:
 			var miss := _missing_requirements_text(n)
 			if miss != "":
-				var ms := "Сначала: " + miss
+				var ms := tr("Сначала: %s") % miss
 				draw_multiline_string(_font, Vector2(r.position.x + 38, y + 8), ms, HORIZONTAL_ALIGNMENT_CENTER, tw, 16, -1, Color(WARN, 0.8))
 				y += _font.get_multiline_string_size(ms, HORIZONTAL_ALIGNMENT_CENTER, tw, 16).y + 8.0
 
@@ -672,7 +776,7 @@ func _draw_info_panel() -> void:
 	var lore := String(n.get("lore", ""))
 	if lore != "":
 		var ly := maxf(y + 60.0, r.position.y + 640.0)
-		var quote := "«%s»" % lore
+		var quote := "«%s»" % tr(lore)
 		draw_multiline_string(_font_italic, Vector2(r.position.x + 44, ly), quote, HORIZONTAL_ALIGNMENT_CENTER,
 				r.size.x - 88.0, 18, -1, TEXT_LORE)
 		var lh := _font_italic.get_multiline_string_size(quote, HORIZONTAL_ALIGNMENT_CENTER, r.size.x - 88.0, 18).y
@@ -681,7 +785,7 @@ func _draw_info_panel() -> void:
 
 func _draw_points_pill() -> void:
 	var r := POINTS_PILL
-	var s := "ОЧКОВ НАВЫКОВ: %d" % _points()
+	var s := tr("ОЧКОВ НАВЫКОВ: %d") % _points()
 	draw_rect(r, Color(0.04, 0.036, 0.032, 0.95))
 	draw_rect(r, GOLD_DIM, false, 1.3)
 	draw_rect(r.grow(-4.0), GOLD_FAINT, false, 1.0)

@@ -35,6 +35,16 @@ const STAT_ICONS := {
 	"Faith": "flame",
 }
 
+## Подписи статов на экране выбора героя (ключи выше — внутренние имена)
+const STAT_NAMES := {
+	"Health": "Здоровье",
+	"Stamina": "Выносливость",
+	"Strength": "Сила",
+	"Dexterity": "Ловкость",
+	"Intelligence": "Интеллект",
+	"Faith": "Вера",
+}
+
 ## portrait_sheet + portrait_region — ряд листа Idle. Ряд y=256 во всех трёх
 ## листах это стойка лицом к камере (Idle_Down), 15 кадров по 128×128:
 ## отдельных портретов у персонажей нет, а экран выбора крутит этот же ряд
@@ -42,11 +52,11 @@ const STAT_ICONS := {
 ## длительностью кадра в самих сценах персонажей
 const DATA := {
 	KNIGHT: {
-		"name": "WARRIOR",
+		"name": "ВОИН",
 		"scene": "res://Player_scene/player.tscn",
-		"tagline": "Sword and Shield",
-		"description": "A disciplined fighter, trained in the art of war. The warrior relies on strength, endurance and unwavering will.",
-		"quote": "Some are born with a sword,\nothers are forged by it.",
+		"tagline": "Меч и щит",
+		"description": "Закалённый боец, выученный ремеслу войны. Полагается на силу, выносливость и несгибаемую волю.",
+		"quote": "Одни рождаются с мечом,\nдругих меч выковывает.",
 		"color": Color(0.85, 0.72, 0.35),
 		"icon": "shield",
 		"portrait_sheet": "res://Character/CharacterAnimationAssets/Knight_Character/IDLE/Idle.png",
@@ -58,11 +68,11 @@ const DATA := {
 		},
 	},
 	ARCHER: {
-		"name": "RANGER",
+		"name": "СЛЕДОПЫТ",
 		"scene": "res://Player_scene/archer.tscn",
-		"tagline": "Bow and Distance",
-		"description": "A patient hunter who ends a fight before it begins. Deadly at range, fragile once the distance closes.",
-		"quote": "The arrow does not argue.\nIt arrives.",
+		"tagline": "Лук и расстояние",
+		"description": "Терпеливая охотница: заканчивает бой раньше, чем он начнётся. Смертоносна издалека, уязвима вблизи.",
+		"quote": "Стрела не спорит.\nОна прилетает.",
 		"color": Color(0.55, 0.78, 0.45),
 		"icon": "bow",
 		"portrait_sheet": "res://Character/Archer/Idle.png",
@@ -74,11 +84,11 @@ const DATA := {
 		},
 	},
 	MAGE: {
-		"name": "MAGE",
+		"name": "МАГ",
 		"scene": "res://Player_scene/mage.tscn",
-		"tagline": "Staff and Runes",
-		"description": "A scholar of the old runes, trading steel for arcane fire. Frail of body, overwhelming in force.",
-		"quote": "Every rune remembers\nthe hand that carved it.",
+		"tagline": "Посох и руны",
+		"description": "Знаток древних рун, сменивший сталь на чародейский огонь. Хрупок телом, но сокрушителен в силе.",
+		"quote": "Каждая руна помнит\nруку, что её вырезала.",
 		"color": Color(0.55, 0.6, 0.9),
 		"icon": "rune",
 		"portrait_sheet": "res://Character/Mage_Frost/Idle.png",

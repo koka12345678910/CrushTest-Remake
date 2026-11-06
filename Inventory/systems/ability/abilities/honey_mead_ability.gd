@@ -15,7 +15,7 @@ func _init() -> void:
 	ability_name = "Мёд Поэзии"
 	cooldown_duration = 12.0
 	description = "Постепенно восстанавливает здоровье"
-	icon = load("res://Shop/icons/jar_honey.png")
+	icon = load_icon("res://Shop/icons/icons_2/jar_honey.png")
 
 func _execute(player: Node) -> void:
 	# Сначала игрок пьёт, и только когда звук доиграет — начинается лечение

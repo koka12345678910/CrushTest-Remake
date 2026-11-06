@@ -11,6 +11,8 @@ extends CharacterBody2D
 const DirectionUtil := preload("res://Player_scene/direction_util.gd")
 const FocusSystemScript := preload("res://Player_scene/focus_system.gd")
 const DepthComponentScript := preload("res://Player_scene/depth_component.gd")
+const MotionFeelScript := preload("res://Player_scene/motion_feel.gd")
+const ExhaustVeinsScript := preload("res://UI/sigrid_exhaust.gd")
 ## Магия рыцаря: Одр и «Благословение богов» (Player_scene/magic/knight_magic.gd)
 const KnightMagicScript := preload("res://Player_scene/magic/knight_magic.gd")
 
@@ -23,6 +25,10 @@ const KnightMagicScript := preload("res://Player_scene/magic/knight_magic.gd")
 # Сколько концентрации заполняет один заблокированный удар — блок не убирает
 # урон бесплатно, вместо этого копится усталость от держания щита
 @export var block_posture_gain := 16.0
+## Каждый принятый на щит удар стоит стамины. Кончилась — щит выбит: стан
+## (guard_break_stun_duration), как и при полной концентрации
+@export var block_stamina_cost := 14.0
+@export var guard_break_stun_duration := 1.4
 @export var block_shake_strength := 3.0
 # Блок работает только спереди — щит не закрывает спину. dot(facing, to_attacker)
 # > 0 — это ровно фронтальная половина (180°); выше — уже конус, ниже —
@@ -63,7 +69,7 @@ var magic: Node = null
 @export var damage_shake_strength := 4.0
 # Тряска при ПОПАДАНИИ своего удара по врагу — слабее, чем от урона: атака
 # должна ощущаться весомо, но не путаться с "меня бьют"
-@export var hit_shake_strength := 3.0
+@export var hit_shake_strength := 3.6
 # Тряска при удачном парировании — короткий металлический "чирк", заметно
 # слабее урона, но чуть сильнее обычного попадания: парировать должно
 # ощущаться весомо (звон металла), а не как лёгкий тычок
@@ -179,7 +185,7 @@ var _bob_smoothed := Vector2.ZERO
 
 # Слой "тела" звучит сильно ниже слоя оружия — это и делает его отдельным
 # событием на слух, а не эхом того же удара
-@export var body_layer_pitch := 0.55
+@export var body_layer_pitch := 0.85
 # Сила удара -> звук. Лёгкий тычок и добивающий вихрь раньше звучали одинаково,
 # хотя тряска камеры и хитстоп у них уже разные. Мощный удар громче И ниже —
 # низкий тон ухо считывает как "тяжелее", это работает сильнее громкости
@@ -271,6 +277,7 @@ const COIN_SOUND := preload("res://Sound/coin_picking.mp3")
 const BloodFx := preload("res://VFX/VFX_scene/blood_fx.gd")
 # Дуги клинка, удар по щиту, парирование (VFX/VFX_scene/knight_fx.gd)
 const KnightFx := preload("res://VFX/VFX_scene/knight_fx.gd")
+const SoundBank := preload("res://Levels/sound_bank.gd")
 
 var max_posture := 100.0
 var current_posture := 0.0
@@ -294,7 +301,8 @@ var input_vector := Vector2.ZERO
 var knockback_velocity := Vector2.ZERO
 
 # Хитстоп — короткая заморозка в момент попадания (даёт «мясистость» удара)
-@export var hitstop_duration := 0.06
+# Удары рыцаря тяжёлые (вес лат) — стоп-кадр чуть длиннее, отдача ощутимее
+@export var hitstop_duration := 0.075
 @export var hitstop_scale := 0.0  # 0.0 = полная заморозка, 0.05 = лёгкий слоу-мо
 # Слоу-мо на идеальный уворот («witch time») — заметно мягче хитстопа и
 # ощутимо дольше: хитстоп — стоп-кадр на миг удара, это — растянутое
@@ -365,7 +373,56 @@ var is_rolling := false
 ## (площадь под синусоидой скорости), поэтому вдвое короче именно через
 ## скорость, а не длительность: сам перекат по времени/анимации не меняется,
 ## меняется только то, насколько далеко за это же время уезжает игрок
-var roll_speed := 112.5
+## Длина переката ≈ roll_speed * roll_duration * 2/π: 150 → ~85 px (было 112.5,
+## ~64 px — вдвое короче, чем у лучницы и мага; они теперь 190, ~110 px)
+@export var roll_speed := 150.0
+## Неуязвимость переката — первые roll_iframes_end секунд (клип ~0.83 с), а
+## не весь перекат. Идеальный уворот (замедление + контратака) — только если
+## удар пришёлся в первые perfect_dodge_window секунд
+@export var roll_iframes_end := 0.45
+@export var perfect_dodge_window := 0.2
+
+## ── Отзывчивость (жалоба тестеров: «деревянное» управление) ──
+## С какого места переката (с) удар/перекат/пинок его обрывают — сразу после
+## конца неуязвимости, а не на последнем кадре клипа (0.83 с)
+@export var roll_cancel_time := 0.55
+## Удар серии: окно клинка (enable/disable_attack_hitbox) у каждого клипа и
+## направления своё — читается из самой анимации (_hit_window). Через
+## attack_chain_after_hit после конца окна следующий удар серии начинается
+## сразу, через attack_move_cancel_after_hit хвост обрывается движением.
+## У третьего удара окно идёт до конца клипа — его не оборвать.
+## Пинок (клип 1 с) — с kick_move_cancel_time
+@export var attack_chain_after_hit := 0.02
+@export var attack_move_cancel_after_hit := 0.05
+
+## ── Вес лат (просьба: «удары слишком быстрые для человека в латах») ──
+## Клип удара идёт с разной скоростью по фазам: тяжёлый медленный замах до
+## окна клинка, быстрый сам удар, тяжёлый отмах. Хитбокс и вспышки висят на
+## метод-треках клипа, поэтому остаются точно с картинкой. Финиш серии —
+## замах ещё тяжелее, рипост — быстрее (наказание за открытого врага)
+@export var attack_windup_speed := 0.6
+@export var attack_finisher_windup_speed := 0.5
+@export var riposte_windup_speed := 0.85
+@export var attack_strike_speed := 1.0
+@export var attack_recovery_speed := 0.75
+## За сколько (с клипа) до окна клинка уже начинается быстрый удар
+@export var attack_strike_lead := 0.03
+@export var run_attack_anim_speed := 0.85
+@export var kick_anim_speed := 0.9
+## Шаг вперёд всем весом — в момент удара, а не на замахе
+@export var attack_step_speed := 125.0
+@export var attack_windup_step_speed := 20.0
+var _strike_fired := false
+static var _hit_window_cache := {}
+@export var kick_move_cancel_time := 0.6
+## Разворот на бегу (Turn_) больше не отнимает управление. true — как было
+@export var turn_locks_movement := false
+## Скорость картинки разворота (клип 0.625 с)
+@export var turn_anim_speed := 1.3
+## Наведение удара: при зажатом направлении бьём туда, а к врагу доворачиваем,
+## только если он в этом конусе (полуугол, градусы). Без направления — к
+## ближайшему, в фокусе — всегда к цели фокуса
+@export var aim_assist_cone_deg := 40.0
 var roll_duration := 0.9
 var roll_timer := 1.5
 var roll_dir := Vector2.ZERO
@@ -418,6 +475,15 @@ const BASE_MAX_STAMINA := 100.0
 ## gold/skill_points (см. apply_to/capture_from), содержимое читается ТОЛЬКО
 ## этим персонажем — сам список ничего не применяет, это делает recompute_skill_modifiers()
 var unlocked_skills: Array[String] = []
+## Сумма эффектов всех открытых узлов трёх деревьев: ключ -> число
+## (SkillTrees.sum_effects). Читать через skill(key)
+var skill_fx: Dictionary = {}
+## Окна после идеального парирования (Ответ стража / Судный взмах) и после
+## полного блока (Клятва стража): бонус расходуется одной атакой
+var _parry_bonus_left := 0.0
+var _block_followup_ready := false
+## После спасения Бальдром — снижение урона на 5 с (Последний луч)
+var _baldur_shield_left := 0.0
 # Накопленные бонусы — пересчитываются целиком в recompute_skill_modifiers(),
 # никогда не изменяются напрямую нигде больше
 var _skill_max_hp_percent := 0.0
@@ -431,6 +497,14 @@ var _skill_stagger_resist_percent := 0.0
 ## get_posture_damage_reduction_factor() и комментарий в try_unlock_skill()
 var _skill_block_damage_reduction_percent := 0.0
 var _skill_block_stamina_cost_reduction_percent := 0.0
+
+# --- Стена трофеев (Player_scene/knight_trophies.gd) ---
+const Trophies := preload("res://Player_scene/knight_trophies.gd")
+const LootUI := preload("res://Levels/loot/loot_ui.gd")
+## Счётчики подвигов: grunt/shield/brute/duelist/kills/executions/parries/
+## prayers -> сколько набрано. Сейв — SaveManager.hero_progress
+## (get_hero_progress/set_hero_progress)
+var trophy_counts: Dictionary = {}
 var _skill_capstone_conditional_posture_resist := false
 
 # --- Стамина: расход по действиям (снижено относительно старых значений) ---
@@ -454,6 +528,17 @@ var coins: int = 0
 var is_starting := true
 var is_stunned := false
 var is_taking_damage := false
+## Реакция на удар: столько секунд рыцарь не ходит, не бьёт и не блокирует —
+## только перекат. Сам клип Take_Damage_ (0.75 с) длиннее, его хвост
+## перебивает обычная анимация движения
+@export var hurt_lock_time := 0.45
+## Неуязвимость сразу после урона — та же, что у лучницы и мага
+## (character_base.gd::post_hit_invulnerability). Свой таймер, а не
+## is_invulnerable: тот же флаг держат баффы (Кровь Фенрира), и таймер урона
+## не должен их снимать
+@export var post_hit_invulnerability := 0.4
+var _hit_invuln_timer := 0.0
+var _hurt_token := 0
 
 var hit_targets: Array = []
 var _nan_reported := false
@@ -476,6 +561,12 @@ func _ready() -> void:
 	var depth := DepthComponentScript.new()
 	depth.name = "DepthComponent"
 	add_child(depth)
+	# Вес в движении: наклон на беге, сжатие на старте/остановке, пыль на
+	# остановке (пыль старта у рыцаря своя — handle_movement_vfx)
+	var feel := MotionFeelScript.new()
+	feel.name = "MotionFeel"
+	feel.start_dust = false
+	add_child(feel)
 	player_hitbox.area_entered.connect(_on_player_hitbox_area_entered)
 	player_hitbox.monitoring = false  # выключен по умолчанию, включается при атаке
 	if not anim.animation_finished.is_connected(_on_anim_finished):
@@ -488,10 +579,22 @@ func _ready() -> void:
 		body_impact_audio, stun_audio, coin_audio, hurt_audio, drink_audio
 	]:
 		_base_volume_db[p] = p.volume_db
+	# Новые звуки меча (Levels/sound_bank.gd) записаны тише прежних
+	# перегруженных — база громче, чем в сцене (там под старые файлы)
+	if SoundBank.pick("knight_hit_light"):
+		_base_volume_db[hit_audio] = -6.0
+		_base_volume_db[body_impact_audio] = -7.0
+		_base_volume_db[block_audio] = -6.0
+		_base_volume_db[parry_audio] = -7.0
+	# Лязг доспеха — отдельный тихий слой поверх шага
+	_armor_audio = AudioStreamPlayer2D.new()
+	_armor_audio.name = "ArmorAudio"
+	_armor_audio.bus = &"Combat"
+	add_child(_armor_audio)
 
 	anim.play("Started_" + last_direction)
 	# Выхватывание меча из ножен в начале игры
-	swing_audio.stream = UNSHEATH_SOUND
+	swing_audio.stream = SoundBank.pick_or("knight_draw", UNSHEATH_SOUND)
 	swing_audio.play()
 	print(anim.get_animation_list())
 	add_to_group("player")
@@ -508,6 +611,15 @@ func _ready() -> void:
 	if dyspnea_stream:
 		dyspnea_stream.loop = true
 	dyspnea_audio.volume_db = HEARTBEAT_SILENT_DB
+	# Истощение — как у Сигрид: багровая рамка с венами в такт сердцу
+	# (UI/sigrid_exhaust.gd) вместо голубой виньетки ExhaustVignette (она в
+	# сцене остаётся, но больше не включается). Первым ребёнком — слой рисуется
+	# ПОД интерфейсом рыцаря (слои одного номера идут в порядке детей)
+	var veins: CanvasLayer = ExhaustVeinsScript.new()
+	veins.name = "ExhaustVeins"
+	add_child(veins)
+	move_child(veins, 0)
+	exhaust_vignette = veins
 	# Сначала инициализируем все системы
 	health_bar.set_max_hp(max_health)
 	health_bar.set_max_stamina(max_stamina)
@@ -526,6 +638,9 @@ func _ready() -> void:
 	magic.setup(self)
 	# Стартовое заклинание: Благословение Тора — в книге и в слоте магии сразу
 	magic.learn("Благословение Тора")
+	# ТЕСТ: Сурт сразу в книге и во втором слоте магии (обычно — лут в амбаре,
+	# LootBarn). Убрать эту строку, когда тест не нужен
+	magic.learn("Благословение Сурта")
 	inventory_ui.init(ability_system, inventory_system, self, talisman_system,
 			magic.magic_inventory, magic.magic_slots)
 	hud.init(ability_system)
@@ -547,6 +662,35 @@ func _input(event: InputEvent) -> void:
 		return
 	if Input.is_action_pressed("run") and _run_bound_to_shift():
 		Input.action_release("run")
+
+
+## ── Буфер ввода — тот же, что в character_base.gd (_pressed/_consume) ──
+## Удар, перекат или пинок, нажатые, пока действие невозможно (перекат, стан,
+## реакция на удар, молитва, последний удар серии), ждут input_buffer_time
+## секунд реального времени и срабатывают, как только станет можно.
+## Блок/парирование не буферизуются — там важен точный тайминг
+@export var input_buffer_time := 0.2
+const BUFFERED_ACTIONS := ["attack", "ui_accept", "kick"]
+var _press_ms := {}
+
+
+func _record_buffered_presses() -> void:
+	for action in BUFFERED_ACTIONS:
+		if InputMap.has_action(action) and Input.is_action_just_pressed(action):
+			_press_ms[action] = Time.get_ticks_msec()
+
+
+func _pressed(action: String) -> bool:
+	if not _press_ms.has(action):
+		return false
+	if Time.get_ticks_msec() - int(_press_ms[action]) > int(input_buffer_time * 1000.0):
+		_press_ms.erase(action)
+		return false
+	return true
+
+
+func _consume(action: String) -> void:
+	_press_ms.erase(action)
 
 
 func _run_bound_to_shift() -> bool:
@@ -571,7 +715,14 @@ func _unhandled_input(event: InputEvent) -> void:
 		return
 	if magic and magic.is_praying and not event.is_action_pressed("ui_cancel"):
 		return
-	if event.is_action_pressed("slot_next"):
+	# Колесо: slot_next — вверх, slot_prev — вниз (project.godot). У рыцаря
+	# с магией колесо делится: вниз — следующая абилка, вверх — следующее
+	# благословение (слот магии слева внизу)
+	if magic and event.is_action_pressed("slot_next"):
+		magic.magic_slots.next_slot()
+	elif magic and event.is_action_pressed("slot_prev"):
+		ability_system.next_slot()
+	elif event.is_action_pressed("slot_next"):
 		ability_system.next_slot()
 	elif event.is_action_pressed("slot_prev"):
 		ability_system.prev_slot()
@@ -585,6 +736,8 @@ func _unhandled_input(event: InputEvent) -> void:
 		inventory_ui.open()
 
 func _process(delta: float) -> void:
+	_parry_bonus_left = maxf(_parry_bonus_left - delta, 0.0)
+	_baldur_shield_left = maxf(_baldur_shield_left - delta, 0.0)
 	# Обновляем состояния "на грани" ДО расчёта тряски — истощение подкачивает
 	# _shake_strength, и так тряска применится уже в этом же кадре
 	_update_condition_fx(delta)
@@ -641,13 +794,33 @@ func _process(delta: float) -> void:
 	# и выключать её вместе с тряской неправильно
 	var shake_scale: float = GameSettings.shake_multiplier
 	camera.offset = (shake_offset + _exhaust_shake_current + _stun_shake_current) * shake_scale \
-		+ _bob_smoothed
+		+ _bob_smoothed + _update_look_ahead(delta)
+
+
+## Камера с упреждением: на бегу чуть уходит вперёд по ходу движения — видно,
+## куда бежишь, и движение ощущается живее. С целью в фокусе — сдвиг к врагу
+## (в кадре и герой, и противник). Плавно, без рывков
+@export var look_ahead_distance := 22.0
+@export var look_ahead_focus_share := 0.3
+@export var look_ahead_focus_max := 36.0
+@export var look_ahead_smoothing := 2.5
+var _look := Vector2.ZERO
+
+func _update_look_ahead(delta: float) -> Vector2:
+	var target := Vector2.ZERO
+	if is_instance_valid(focused_enemy):
+		target = ((focused_enemy as Node2D).global_position - global_position) * look_ahead_focus_share
+		target = target.limit_length(look_ahead_focus_max)
+	elif not is_attacking and not is_rolling:
+		target = (velocity / maxf(run_speed, 1.0)).limit_length(1.0) * look_ahead_distance
+	_look = _look.lerp(target, minf(look_ahead_smoothing * delta, 1.0))
+	return _look
 
 
 func _update_immunity_visual(delta: float) -> void:
 	# то же условие, что и в receive_attack — визуал показывает РЕАЛЬНУЮ
 	# неуязвимость, а не приблизительную (иначе игрок учился бы врать себе)
-	var immune := is_invulnerable or is_dodging or is_rolling
+	var immune := is_invulnerable or is_dodging or _roll_invulnerable()
 	var target := immune_tint if immune else Color.WHITE
 	# вес lerp обязательно ограничиваем: при просадке FPS speed*delta уходит
 	# за 1.0, и цвет проскакивает мимо цели, начиная колебаться вокруг неё
@@ -740,6 +913,10 @@ func _physics_process(delta):
 	# скейлом под скорость. Иначе оставшийся с бега scale тянется на атаку,
 	# додж, парирование и т.д., и они играют в замедлении.
 	anim.speed_scale = 1.0
+	if _hit_invuln_timer > 0.0:
+		_hit_invuln_timer -= delta
+	if not is_in_shop and not inventory_ui.visible:
+		_record_buffered_presses()
 	# Санитизация от NaN — не даём нефинитной позиции/скорости уронить физику
 	# (иначе move_and_slide спамит "cannot be normalized" и игра встаёт)
 	if not (global_position.is_finite() and velocity.is_finite()):
@@ -773,6 +950,12 @@ func _physics_process(delta):
 		return
 	if is_starting:
 		return
+	# Хвост переката (неуязвимость уже кончилась) обрывается ударом, пинком или
+	# новым перекатом — нажатыми хоть заранее (буфер ввода). Раньше герой
+	# катился до последнего кадра клипа, и нажатое ждало ~0.4 с
+	if is_rolling and roll_control >= roll_cancel_time \
+			and (_pressed("attack") or _pressed("ui_accept") or _pressed("kick")):
+		_end_roll()
 	if is_rolling:
 		handle_roll(delta)
 		return
@@ -803,45 +986,74 @@ func _physics_process(delta):
 
 	prev_velocity = velocity
 	handle_focus_input()
+	# Реакция на удар: ни удара, ни пинка, ни блока, пока не отыграла (раньше
+	# ввод атаки шёл ДО этой проверки — бить можно было прямо из реакции)
+	if is_taking_damage:
+		is_blocking = false
+		is_parrying = false
+		velocity = Vector2.ZERO
+		move_and_slide()
+		return
 	handle_attack_input()
 	handle_kick_input()
 	handle_parry_input(delta)
 	check_for_turn()
-	if is_taking_damage or is_parrying or is_blocking:
+	if is_parrying or is_blocking:
 		velocity = Vector2.ZERO
 		move_and_slide()
 		return
 
 	if is_turning:
-	# 🔥 плавно гасим скорость
-		turn_velocity = turn_velocity.lerp(Vector2.ZERO, turn_friction * delta)
-		
-		velocity = turn_velocity
-		move_and_slide()
-		return
-	
+		if turn_locks_movement:
+			# Старое поведение: на время клипа Turn_ управление отнято
+			turn_velocity = turn_velocity.lerp(Vector2.ZERO, turn_friction * delta)
+			velocity = turn_velocity
+			move_and_slide()
+			return
+		# Разворот больше не держит: клип Turn_ — только картинка (с пылью),
+		# а бежать в новую сторону можно сразу. Отпустили клавиши, повернули
+		# ещё раз или клип чем-то перебили — картинка обрывается
+		if input_vector == Vector2.ZERO or input_vector.normalized().dot(facing_dir) < 0.5 \
+				or not String(anim.current_animation).begins_with("Turn_"):
+			is_turning = false
+			turn_lock = false
+
 	# --- RUN ATTACK ---
 	if is_run_attacking:
 		combo_timer -= delta
 		use_stamina(run_attack_stamina_drain * delta)
-		anim.speed_scale = exhausted_attack_speed_scale if is_exhausted() else 1.0
+		anim.speed_scale = (exhausted_attack_speed_scale if is_exhausted() else 1.0) * _attack_phase_speed()
 		attack_velocity = attack_velocity.lerp(Vector2.ZERO, friction * delta)
 		velocity = attack_velocity
 		move_and_slide()
 		return
 
+	# --- окна отмены удара ---
+	# Клинок уже прошёл (хитбокс гаснет на ~0.40 с клипа), а клип ещё
+	# доигрывает отмах. Раньше герой стоял до самого конца (0.6 с), и даже
+	# нажатый следующий удар ждал. Теперь сразу после окна клинка (_hit_window) следующий удар
+	# серии (или новая серия) начинается сразу, а чуть позже
+	# хвост удара обрывается движением
+	if is_attacking and not is_run_attacking and _attack_cancel(delta):
+		pass
 	# --- обычная атака с микро-рывком ---
-	if is_attacking:
+	elif is_attacking:
+		_steer_attack()
 		combo_timer -= delta
 		# выдохся — удары идут медленнее и тяжелее (каждый кадр, а не один раз
 		# в play_attack: speed_scale общий на весь AnimationPlayer и сбрасывается
 		# в 1.0 в начале каждого физического кадра)
-		anim.speed_scale = exhausted_attack_speed_scale if is_exhausted() else 1.0
+		anim.speed_scale = (exhausted_attack_speed_scale if is_exhausted() else 1.0) * _attack_phase_speed()
+		# Замах кончился — пошёл сам удар: свист, вскрик, шаг всем весом
+		var atk_clip := String(anim.current_animation)
+		if not _strike_fired and atk_clip.begins_with("Attack") \
+				and anim.current_animation_position >= _hit_window(atk_clip).x - attack_strike_lead:
+			_on_strike_start()
 		attack_velocity = attack_velocity.lerp(Vector2.ZERO, friction * delta)
 		velocity = attack_velocity
 		move_and_slide()
 		return
-		
+
 	# реген концентрации игрока
 	if current_posture > 0.0:
 		posture_regen_timer -= delta
@@ -875,9 +1087,70 @@ func _physics_process(delta):
 
 	move_and_slide()
 	_update_facing()
-	play_movement_animation()
+	# Пока доигрывает картинка разворота, её не перебиваем бегом
+	if not is_turning:
+		play_movement_animation()
 	handle_movement_vfx(delta)
 	handle_footsteps(delta)
+
+
+## Доворот в начале замаха: первые attack_steer_time секунд удара серии его
+## можно повернуть стрелками (или мышью с «Прицелом мышью») — клип того же
+## удара переключается на новую сторону с того же места, хитбокс и рывок
+## поворачиваются следом. С целью в фокусе, на добивании и рипосте — нет:
+## там удар и так идёт точно во врага
+@export var attack_steer_time := 0.12
+
+func _steer_attack() -> void:
+	if is_instance_valid(focused_enemy) or is_instance_valid(_exec_target) or _is_riposte:
+		return
+	var clip := String(anim.current_animation)
+	if not clip.begins_with("Attack") or anim.current_animation_position > attack_steer_time:
+		return
+	var d := _aim_dir()
+	if d == Vector2.ZERO:
+		return
+	var nd := get_direction(d)
+	if nd == "" or nd == last_direction or not clip.ends_with(last_direction):
+		return
+	var new_clip := clip.substr(0, clip.length() - last_direction.length()) + nd
+	if not anim.has_animation(new_clip):
+		return
+	var pos := anim.current_animation_position
+	facing_dir = d
+	last_direction = nd
+	anim.play(new_clip)
+	anim.seek(pos, true)
+	update_weapon_tip()
+	melee_weapon_tip()
+	attack_velocity = d * attack_velocity.length()
+
+
+## Окна отмены удара (см. _physics_process). true — удар отменён или сменён
+## следующим и этот кадр уже идёт как обычное движение/новый удар
+func _attack_cancel(_delta: float) -> bool:
+	var clip := String(anim.current_animation)
+	var pos := anim.current_animation_position
+	if clip.begins_with("Attack"):
+		var hit_end := _hit_window(clip).y
+		if pos < hit_end + attack_chain_after_hit:
+			return false
+		if combo_queued:
+			# Следующий удар серии — сразу, не дожидаясь конца клипа
+			_advance_combo()
+			return false
+		if combo_step >= 3 and _pressed("attack"):
+			# Последний удар серии отыгран — нажатие начинает новую серию
+			reset_combo()
+			handle_attack_input()
+			return false
+		if input_vector != Vector2.ZERO and pos >= hit_end + attack_move_cancel_after_hit:
+			reset_combo()
+			return true
+	elif clip.begins_with("Kick_") and input_vector != Vector2.ZERO and pos >= kick_move_cancel_time:
+		reset_all_states()
+		return true
+	return false
 
 
 # ----------------------------------------------------------
@@ -990,14 +1263,46 @@ func _execution_target() -> Node2D:
 	return best
 
 
+## Кого «доворачивать» удар без фокуса. Зажато направление — только врага в
+## конусе aim_assist_cone_deg вокруг него (иначе бьём туда, куда жмут: раньше
+## удар уходил к ближайшему врагу, даже если игрок целился в другого).
+## Направления нет — ближайший в радиусе snap_radius
+## Куда целится игрок: с «Прицелом мышью» (GameSettings.mouse_aim) — на курсор,
+## иначе — по стрелкам. ZERO — направления нет
+func _aim_dir() -> Vector2:
+	if GameSettings.mouse_aim:
+		var to := get_global_mouse_position() - global_position
+		return to.normalized() if to.length() > 4.0 else Vector2.ZERO
+	return input_vector.normalized() if input_vector != Vector2.ZERO else Vector2.ZERO
+
+
+func _assist_target() -> Node2D:
+	var dir := _aim_dir()
+	var min_dot := cos(deg_to_rad(aim_assist_cone_deg))
+	var best: Node2D = null
+	var best_d := snap_radius
+	for e in get_tree().get_nodes_in_group("enemy"):
+		if not is_instance_valid(e) or e.get("is_dead") == true:
+			continue
+		var to: Vector2 = (e as Node2D).global_position - global_position
+		var d := to.length()
+		if d > best_d or d < 0.001:
+			continue
+		if dir != Vector2.ZERO and to.normalized().dot(dir) < min_dot:
+			continue
+		best_d = d
+		best = e
+	return best
+
+
 func try_snap_to_enemy() -> void:
 	# Враг в ручном фокусе — приоритетная цель для атаки, а не просто
 	# ближайший из толпы. Без этого удары при зажатом фокусе всё равно
 	# наводились на ближайшего врага, а не на выбранного
-	var enemy = focused_enemy if is_instance_valid(focused_enemy) else get_nearest_enemy()
+	var enemy = focused_enemy if is_instance_valid(focused_enemy) else _assist_target()
 	if enemy == null:
 		return
-	
+
 	var dir = (enemy.global_position - global_position).normalized()
 	var new_dir = get_direction(dir)
 	
@@ -1061,11 +1366,33 @@ func start_turn(new_dir: Vector2):
 	facing_dir = new_facing
 	last_direction = new_last_direction
 
-	# стоп движения (важно для feel)
+	# стоп движения (важно для feel) — только в старом режиме с блокировкой
 	turn_velocity = velocity * 0.4
 
-	anim.play(anim_name)
+	anim.play(anim_name, -1, 1.0 if turn_locks_movement else turn_anim_speed)
 	play_turn_vfx(old_dir, new_facing)
+
+func _roll_invulnerable() -> bool:
+	return is_rolling and roll_control <= roll_iframes_end
+
+
+## Проиграть клип с начала, даже если он уже идёт: перекат, оборванный новым
+## перекатом в ту же сторону, или тот же удар — anim.play() одного и того же
+## клипа просто продолжил бы его с середины
+func _play_restart(clip: String, custom_speed := 1.0) -> void:
+	var same := String(anim.current_animation) == clip
+	anim.play(clip, -1, custom_speed)
+	if same:
+		anim.seek(0.0, true)
+
+
+## Перекат кончился (доиграл клип) или его оборвал удар на хвосте
+func _end_roll() -> void:
+	is_rolling = false
+	set_collision_mask_value(3, true)
+	dodge_velocity = Vector2.ZERO
+	roll_control = 0.0
+
 
 func start_roll():
 	if is_rolling:
@@ -1083,7 +1410,9 @@ func start_roll():
 		dir = input_vector.normalized()
 	roll_dir = dir
 	last_direction = get_direction(dir)
-	anim.play("Rolling_" + last_direction)
+	is_turning = false
+	turn_lock = false
+	_play_restart("Rolling_" + last_direction)
 	dodge_velocity = roll_dir * roll_speed
 	roll_timer = roll_duration
 
@@ -1236,7 +1565,8 @@ func play_idle_animation():
 func handle_roll_input() -> void:
 	if is_rolling:
 		return
-	if Input.is_action_just_pressed("ui_accept"):
+	if _pressed("ui_accept"):
+		_consume("ui_accept")
 		interrupt_all_actions()
 		start_roll()
 
@@ -1248,6 +1578,7 @@ func start_i_frames():
 	is_invulnerable = false
 
 func interrupt_all_actions():
+	_end_riposte()
 	is_attacking = false
 	is_run_attacking = false
 	# Уворот/перекат снимают стан получения урона и нокбэк — это и даёт игроку
@@ -1305,9 +1636,26 @@ func handle_footsteps(delta: float) -> void:
 	_footstep_distance += velocity.length() * delta
 	if _footstep_distance >= footstep_step_distance:
 		_footstep_distance = 0.0
-		footstep_audio.stream = FOOTSTEP_LEFT if _footstep_left_next else FOOTSTEP_RIGHT
+		var step_stream := SoundBank.step(get_tree(), global_position)
+		footstep_audio.stream = step_stream if step_stream else (FOOTSTEP_LEFT if _footstep_left_next else FOOTSTEP_RIGHT)
+		_play_armor_step()
 		_play_varied(footstep_audio)
 		_footstep_left_next = not _footstep_left_next
+
+var _armor_audio: AudioStreamPlayer2D
+
+
+## Пластины доспеха звякают под шаг — тише самого шага и не каждый раз
+func _play_armor_step() -> void:
+	if not is_instance_valid(_armor_audio) or randf() > 0.7:
+		return
+	var st := SoundBank.pick("knight_armor")
+	if st:
+		_armor_audio.stream = st
+		_armor_audio.pitch_scale = randf_range(0.92, 1.08)
+		_armor_audio.volume_db = randf_range(-1.5, 1.5)
+		_armor_audio.play()
+
 
 func play_turn_vfx(_old_dir: Vector2, _new_dir: Vector2):
 	if turn_around_vfx_scene == null:
@@ -1447,13 +1795,19 @@ func receive_attack(attack_data: Dictionary) -> bool:
 	# игрок и не был под угрозой. Проверяем ДО общей is_invulnerable — та же
 	# неуязвимость стоит и в грейс-период после урона, и от баффов (Кровь
 	# Фенрира), а награждать имеет смысл именно активное уклонение
-	if is_dodging or is_rolling:
+	# Награда — только за уворот в самом начале переката (perfect_dodge_window):
+	# раньше неуязвим был весь перекат, и замедление с контрой давал любой
+	# перекат сквозь удар. Дальше — просто неуязвимость (roll_iframes_end), а
+	# на хвосте переката удар уже достаёт
+	if is_dodging or (is_rolling and roll_control <= perfect_dodge_window):
 		_on_perfect_dodge(attack_data)
+		return false
+	if _roll_invulnerable():
 		return false
 
 	# Неуязвимость из других источников (грейс-период после урона, баффы) —
 	# молча гасим, здесь награждать нечего, это не игровой навык
-	if is_invulnerable:
+	if is_invulnerable or _hit_invuln_timer > 0.0:
 		return false
 
 	# --- PERFECT PARRY ---
@@ -1504,14 +1858,23 @@ func _apply_knockback_from(source: Node, force: float) -> void:
 # концентрация заполняется так же, как от обычного попадания (см. take_damage),
 # и при полной шкале срабатывает тот же _posture_break()
 func _on_blocked_attack(attack_data: Dictionary) -> void:
-	# Блок сейчас гасит 100% HP-урона и не тратит стамину — поэтому
-	# _skill_block_damage_reduction_percent/_skill_block_stamina_cost_reduction_percent
-	# (Руна Щита, Железный Обет) здесь применить не к чему; сопротивление
-	# стойкости от блока — реальный, работающий эффект
+	# Блок гасит 100% HP-урона, но каждый удар в щит стоит стамины (навык
+	# block_stamina_cost_reduction_percent — дешевле). Стамины нет — щит
+	# выбит: этот удар ещё принят, но рыцарь в стане и открыт для следующего.
+	# Без этой цены блок был бесконечной неуязвимостью спереди
+	var cost := block_stamina_cost * (1.0 - _skill_block_stamina_cost_reduction_percent / 100.0)
+	if not use_stamina(cost):
+		play_block_hit_sound()
+		_guard_break()
+		return
 	current_posture += block_posture_gain * get_posture_damage_reduction_factor()
 	current_posture = min(current_posture, max_posture)
 	health_bar.set_posture(current_posture)
 	posture_regen_timer = posture_regen_delay
+	# Клятва стража: удар принят щитом целиком — следующая атака тяжелее
+	# бьёт по стойкости
+	if skill("block_followup_posture_bonus_percent") > 0.0:
+		_block_followup_ready = true
 
 	# Щит гасит урон, но не всю инерцию удара — раньше игрок просто стоял на
 	# месте, будто удара и не было
@@ -1573,6 +1936,7 @@ func on_perfect_parry(attack_data: Dictionary):
 	# Смелость под ударом — боги дают Одр
 	if magic:
 		magic.on_parry()
+	trophy_note("parries")
 	# Форсируем позу Parry_ прямо сейчас, а не ждём следующего кадра
 	# _update_block_parry_pose — is_parrying receive_attack() уже погасил
 	# (см. выше по стеку), и без явного форса поза откатилась бы в Block_,
@@ -1586,7 +1950,7 @@ func on_perfect_parry(attack_data: Dictionary):
 	if anim.has_animation(parry_anim):
 		anim.play(parry_anim)
 	play_parry_vfx()
-	parry_audio.stream = PARRY_SOUND
+	parry_audio.stream = SoundBank.pick_or("knight_parry", PARRY_SOUND)
 	# парирование — особый момент, разброс меньше, чтобы звук оставался
 	# узнаваемым и "чистым", а не плавал как рядовые удары. Питч приподнят
 	# сверху (parry_pitch_mult) — так лязг звучит звонче, а не глухо
@@ -1597,7 +1961,10 @@ func on_perfect_parry(attack_data: Dictionary):
 	# урон по концентрации врага
 	var source = attack_data.get("source", null)
 	if source and source.has_method("take_posture_damage"):
-		source.take_posture_damage(35.0)
+		source.take_posture_damage(35.0 * (1.0 + skill("posture_damage_percent") / 100.0))
+	# Ответ стража / Судный взмах: окно 3 с на усиленную следующую атаку
+	if skill("parry_next_sword_damage_percent") > 0.0 or skill("parry_next_posture_percent") > 0.0:
+		_parry_bonus_left = 3.0
 
 func take_damage(amount: int, source: Node = null) -> void:
 	# Снижение урона (Благословение Бальдра и т.п.)
@@ -1610,11 +1977,16 @@ func take_damage(amount: int, source: Node = null) -> void:
 		_baldur_revive()
 		return
 
-	# нокбэк от источника урона — игрок отлетает от врага
-	_apply_knockback_from(source, knockback_force)
+	_hit_invuln_timer = post_hit_invulnerability
+	# Тяжёлый удар (третий в серии, с разбега, добивание) попадание не
+	# сбивает — урон проходит, но без отлёта и без реакции
+	# В стане — тоже без реакции: поза Stunned_ остаётся, стан и так держит
+	var armored := _has_hyper_armor() or is_stunned
+	if not armored:
+		# нокбэк от источника урона — игрок отлетает от врага
+		_apply_knockback_from(source, knockback_force)
+		_interrupt_for_hurt()
 
-	is_taking_damage = true
-	gfx.play("Take_Damage_" + last_direction)
 	_trigger_damage_flash()
 	_play_pool(hurt_audio, HURT_SOUNDS, "hurt")
 	damage_vignette.flash()
@@ -1631,11 +2003,57 @@ func take_damage(amount: int, source: Node = null) -> void:
 	posture_regen_timer = posture_regen_delay
 	health_bar.set_posture(current_posture)
 
-	await gfx.animation_finished
+	if armored:
+		if current_posture >= max_posture:
+			_posture_break()
+		return
+
+	# Реакция — клипом AnimationPlayer, а не gfx.play() мимо него: раньше
+	# флаг снимался по animation_finished самого спрайта, а AnimationPlayer
+	# перебивал его своим клипом (конец удара → Idle_), сигнал не приходил,
+	# и рыцарь стоял до переката. Теперь — таймер; токен отсекает старые
+	# таймеры, если за время реакции прилетел следующий удар
+	is_taking_damage = true
+	_hurt_token += 1
+	var token := _hurt_token
+	var hurt_anim := "Take_Damage_" + last_direction
+	if anim.has_animation(hurt_anim):
+		anim.play(hurt_anim)
+	await get_tree().create_timer(hurt_lock_time).timeout
+	if token != _hurt_token or not is_taking_damage:
+		return
 	is_taking_damage = false
 
 	if current_posture >= max_posture:
 		_posture_break()
+
+
+## Тяжёлые удары рыцаря держат попадание: третий в серии (Attack_3_), удар с
+## разбега и добивание. Лёгкие (1-й, 2-й, пинок, контратака) — сбиваются
+func _has_hyper_armor() -> bool:
+	if not is_attacking:
+		return false
+	return is_run_attacking or combo_step >= 3 or _is_riposte or is_instance_valid(_exec_target)
+
+
+## Удар обрывает начатое действие: анимацию заменит Take_Damage_, и её
+## method-track с disable_attack_hitbox() уже не сработает
+func _interrupt_for_hurt() -> void:
+	# Удар на хвосте переката (после roll_iframes_end): Rolling_ заменится
+	# реакцией и уже не доиграет — без этого is_rolling залип бы навсегда
+	if is_rolling:
+		_end_roll()
+	_end_riposte()
+	is_attacking = false
+	is_run_attacking = false
+	combo_step = 0
+	combo_queued = false
+	_exec_target = null
+	attack_velocity = Vector2.ZERO
+	is_turning = false
+	turn_lock = false
+	turn_velocity = Vector2.ZERO
+	disable_attack_hitbox()
 
 func heal(amount: float) -> void:
 	health_bar.heal(amount)
@@ -1656,20 +2074,59 @@ func _has_free_stamina() -> bool:
 			return true
 	return false
 
+## Концентрация переполнена (удары в щит, пропущенные удары) — стан, как у
+## выбитого щита. Раньше здесь был только print, и срыв ничего не значил
 func _posture_break() -> void:
+	_guard_break()
+
+
+## Стан на guard_break_stun_duration: рыцарь открыт, ни удара, ни блока, ни
+## переката. Та же поза Stunned_, звук и дрожь, что у стана от контратаки
+## врага (receive_parry). После — концентрация обнуляется
+func _guard_break() -> void:
+	if is_stunned:
+		return
+	reset_combo()
+	is_run_attacking = false
+	is_blocking = false
+	is_parrying = false
+	is_taking_damage = false
+	attack_velocity = Vector2.ZERO
+	knockback_velocity = Vector2.ZERO
+	is_stunned = true
 	current_posture = max_posture
 	health_bar.set_posture(current_posture)
-	# игрок открыт — можно добавить анимацию оглушения
-	print("[Player] Концентрация сломана!")
-	await get_tree().create_timer(2.0).timeout
+	_trigger_damage_flash()
+	shake_camera(stun_shake_strength * 0.5)
+	if anim.has_animation("Stunned_" + last_direction):
+		anim.play("Stunned_" + last_direction)
+	stun_audio.stream = STUN_SOUND
+	var stun_stream := stun_audio.stream as AudioStreamMP3
+	if stun_stream:
+		stun_stream.loop = false
+	_play_varied(stun_audio, 0.06)
+	_start_stun_shake()
+	await get_tree().create_timer(guard_break_stun_duration).timeout
+	_stop_stun_shake()
+	is_stunned = false
+	_reset_posture()
+	play_idle_animation()
+
+
+func _reset_posture() -> void:
 	current_posture = 0.0
+	posture_regen_timer = 0.0
 	health_bar.set_posture(0.0)
 
 func handle_attack_input():
 	if is_dodging or is_rolling:
 		return
-	if Input.is_action_just_pressed("attack"):
-		if can_counter:
+	# Нажатие — из буфера ввода (_pressed): нажатое во время переката, стана
+	# или последнего удара серии сработает сразу, как только станет можно.
+	# Гасим (_consume) только когда удар реально начат или встал в очередь
+	if _pressed("attack"):
+		if can_counter and not is_attacking:
+			_consume("attack")
 			can_counter = false
 			start_counter_attack()
 			return
@@ -1680,21 +2137,29 @@ func handle_attack_input():
 		if exec_target:
 			_exec_target = exec_target
 			if is_attacking:
+				_consume("attack")
 				combo_queued = true
 			elif not is_run_attacking:
+				_consume("attack")
 				combo_step = 3
 				play_attack(3)
 			return
 		if is_running and input_vector != Vector2.ZERO and not is_attacking and not is_run_attacking:
+			_consume("attack")
 			start_run_attack()
 			return
-		# ← добавь это
-		if input_vector != Vector2.ZERO:
-			facing_dir = input_vector.normalized()
-			last_direction = get_direction(facing_dir)
 		if is_attacking:
-			combo_queued = true
+			# Последний удар серии — очереди дальше нет: нажатие ждёт в буфере
+			# и начнёт новую серию сразу после
+			if combo_step < 3:
+				_consume("attack")
+				combo_queued = true
 		elif not is_run_attacking:
+			_consume("attack")
+			var aim_dir := _aim_dir()
+			if aim_dir != Vector2.ZERO:
+				facing_dir = aim_dir
+				last_direction = get_direction(facing_dir)
 			try_snap_to_enemy()
 			start_combo()
 
@@ -1703,6 +2168,8 @@ func start_combo():
 	play_attack(combo_step)
 
 func play_attack(step: int):
+	_end_riposte()
+	_take_attack_bonuses()
 	is_attacking = true
 	use_stamina(attack_stamina_cost)
 	combo_timer = combo_window
@@ -1737,36 +2204,112 @@ func play_attack(step: int):
 	if not anim.has_animation(anim_name):
 		anim_name = "Attack_" + last_direction
 
-	anim.play(anim_name)
+	# Удар может начаться, пока прошлый ещё доигрывает (окно отмены) — и тем же
+	# клипом (добивание после Attack_3_): с начала, а не с середины
+	is_turning = false
+	turn_lock = false
+	_play_restart(anim_name)
 
-	# Звук замаха (whoosh) — на каждом ударе серии
-	_play_pool(swing_audio, SWING_SOUNDS, "swing")
+	# Замах тяжёлый и почти на месте; свист, вскрик и шаг вперёд всем весом —
+	# в момент самого удара (_on_strike_start), а не на замахе
+	_strike_fired = false
+	attack_velocity = direction_to_vector(last_direction) * attack_windup_step_speed
 
-	# Боевой вскрик — свой на каждый из первых трёх ударов, 4-й (вихрь) — без вскрика
-	match step:
-		1: _play_pool(voice_audio, GRUNT_1_SOUNDS, "grunt1")
-		2: _play_pool(voice_audio, GRUNT_2_SOUNDS, "grunt2")
-		3: _play_pool(voice_audio, GRUNT_3_SOUNDS, "grunt3")
 
-	# --- микро-рывок вперёд после удара ---
-	attack_velocity = direction_to_vector(last_direction) * 125  # сила рывка подбирается
+## Начался сам удар (клинок пошёл): свист, боевой вскрик (свой на каждый из
+## первых трёх ударов, рипост кричит сам), шаг вперёд всем весом
+func _on_strike_start() -> void:
+	_strike_fired = true
+	_play_pool(swing_audio, SoundBank.pool_or("knight_swing", SWING_SOUNDS), "swing")
+	if not _is_riposte:
+		match combo_step:
+			1: _play_pool(voice_audio, GRUNT_1_SOUNDS, "grunt1")
+			2: _play_pool(voice_audio, GRUNT_2_SOUNDS, "grunt2")
+			3: _play_pool(voice_audio, GRUNT_3_SOUNDS, "grunt3")
+	var dir := facing_dir if facing_dir != Vector2.ZERO else direction_to_vector(last_direction)
+	attack_velocity = dir * maxf(attack_step_speed, attack_velocity.length())
+
+
+## Окно клинка клипа удара (с, по метод-треку enable/disable_attack_hitbox) —
+## у каждого клипа и направления своё. Нет трека — средние значения
+func _hit_window(clip: String) -> Vector2:
+	if _hit_window_cache.has(clip):
+		return _hit_window_cache[clip]
+	var w := Vector2(0.23, 0.43)
+	if anim.has_animation(clip):
+		var a := anim.get_animation(clip)
+		for t in a.get_track_count():
+			if a.track_get_type(t) != Animation.TYPE_METHOD:
+				continue
+			for k in a.track_get_key_count(t):
+				var m := String(a.method_track_get_name(t, k))
+				if m == "enable_attack_hitbox":
+					w.x = a.track_get_key_time(t, k)
+				elif m == "disable_attack_hitbox":
+					w.y = a.track_get_key_time(t, k)
+		w.y = minf(w.y, a.length)
+	_hit_window_cache[clip] = w
+	return w
+
+
+## Скорость клипа по фазам удара (вес лат): замах — медленно, клинок — быстро,
+## отмах — тяжело. Удар на бегу и пинок — просто чуть медленнее
+func _attack_phase_speed() -> float:
+	var clip := String(anim.current_animation)
+	if clip.begins_with("Attack"):
+		var pos := anim.current_animation_position
+		var w := _hit_window(clip)
+		if pos < w.x - attack_strike_lead:
+			if _is_riposte:
+				return riposte_windup_speed
+			return attack_finisher_windup_speed if combo_step >= 3 else attack_windup_speed
+		if pos < w.y:
+			return attack_strike_speed
+		return attack_recovery_speed
+	if clip.begins_with("Run_Attack"):
+		return run_attack_anim_speed
+	if clip.begins_with("Kick_"):
+		return kick_anim_speed
+	return 1.0
+
+## Рипост — контратака после идеального парирования или уворота. Раньше это
+## был голый Attack_ без звука и без позиционирования хитбокса; теперь —
+## первый удар серии (наводка на врага, хитбокс, замах), только тяжелее:
+## урон × riposte_damage_mult, удар по концентрации врага, вес удара
+## riposte_impact_mult (стоп-кадр, тряска, звук), суперброня. Дальше серия
+## продолжается как обычно
+@export var riposte_damage_mult := 2.0
+@export var riposte_posture_damage := 30.0
+@export var riposte_impact_mult := 1.8
+var _is_riposte := false
 
 func start_counter_attack():
-	is_attacking = true
-	combo_step = 0
-	var anim_name = "Attack_" + last_direction
-	anim.play(anim_name)
+	combo_step = 1
+	play_attack(1)
+	_is_riposte = true
+	player_hitbox.set_meta("damage", maxi(1, int(round(attack_damage * riposte_damage_mult))))
+	_play_pool(voice_audio, GRUNT_3_SOUNDS, "grunt3")
 	attack_velocity = direction_to_vector(last_direction) * 200
+
+
+func _end_riposte() -> void:
+	if not _is_riposte:
+		return
+	_is_riposte = false
+	player_hitbox.set_meta("damage", attack_damage)
 
 func handle_kick_input():
 	if is_dodging or is_rolling or is_attacking:
 		return
-	
-	if Input.is_action_just_pressed("kick"):
+
+	if _pressed("kick"):
+		_consume("kick")
 		start_kick()
 
 func start_kick():
 	is_attacking = true
+	is_turning = false
+	turn_lock = false
 	dodge_velocity = Vector2.ZERO
 	attack_velocity = Vector2.ZERO
 	
@@ -1781,8 +2324,11 @@ func start_kick():
 	attack_velocity = direction_to_vector(last_direction) * 100
 
 func start_run_attack():
+	_take_attack_bonuses()
 	is_run_attacking = true
 	is_attacking = true
+	is_turning = false
+	turn_lock = false
 
 	var anim_name = "Run_Attack_" + last_direction
 
@@ -1793,7 +2339,7 @@ func start_run_attack():
 	update_weapon_tip()
 	melee_weapon_tip()  # позиционируем player_hitbox перед игроком, иначе удар на бегу не попадает
 	anim.play(anim_name)
-	_play_pool(swing_audio, RUN_SWING_SOUNDS, "run_swing")
+	_play_pool(swing_audio, SoundBank.pool_or("knight_run_swing", RUN_SWING_SOUNDS), "run_swing")
 	_play_pool(voice_audio, GRUNT_RUN_SOUNDS, "grunt_run")
 	# задаём скорость для скольжения
 	attack_velocity = input_vector.normalized() * 250
@@ -1966,10 +2512,7 @@ func _on_anim_finished(finished_anim: StringName) -> void:
 		play_idle_animation()
 		return
 	if finished_anim.begins_with("Rolling_"):
-		is_rolling = false
-		set_collision_mask_value(3, true) 
-		dodge_velocity = Vector2.ZERO
-		roll_control = 0.0
+		_end_roll()
 		velocity = Vector2.ZERO
 		return
 	# --- TURN SYSTEM ---
@@ -1998,6 +2541,12 @@ func _on_anim_finished(finished_anim: StringName) -> void:
 	# месте) — серия просто больше до него не доходит. Когда навык будет
 	# готов и получит свой отдельный вызов play_attack(4), эту цифру можно
 	# вернуть обратно на 4, если 4-й удар снова понадобится и в обычной серии
+	_advance_combo()
+
+
+## Следующий удар серии (из очереди) или конец серии. Зовётся по концу клипа
+## удара и раньше — из окна отмены (_attack_cancel), как только клинок прошёл
+func _advance_combo() -> void:
 	if combo_queued and is_instance_valid(_exec_target) and not _exec_target.is_dead:
 		# В очереди добивание — следующим идёт Attack_3_, с какого бы шага
 		combo_step = 3
@@ -2010,6 +2559,7 @@ func _on_anim_finished(finished_anim: StringName) -> void:
 		reset_combo()
 
 func reset_combo():
+	_end_riposte()
 	is_attacking = false
 	combo_step = 0
 	combo_queued = false
@@ -2021,6 +2571,7 @@ func reset_combo():
 	play_idle_animation()
 
 func reset_all_states():
+	_end_riposte()
 	is_attacking = false
 	is_run_attacking = false
 	is_turning = false
@@ -2145,10 +2696,49 @@ func add_skill_points(amount: int) -> void:
 	coin_audio.stream = COIN_SOUND
 	_play_varied(coin_audio, 0.08)
 
+
+# ============== ТРОФЕИ ==============
+
+## Подвиг засчитан (counter — см. knight_trophies.gd LIST). Если трофей
+## добыт прямо сейчас — табличка-уведомление справа и пересчёт бонусов
+func trophy_note(counter: String, amount := 1) -> void:
+	var before: int = int(trophy_counts.get(counter, 0))
+	trophy_counts[counter] = before + amount
+	var done := Trophies.newly_done(counter, before, before + amount)
+	if done.is_empty():
+		return
+	for t in done:
+		LootUI.of(get_tree()).show_pickup(null, tr("Трофей: %s") % tr(t["name"]), tr(t["bonus_text"]))
+	# Бонус к максимуму HP/выносливости/Одра — как «уровень» дерева навыков
+	recompute_skill_modifiers()
+	SaveManager.capture_from(self)
+
+
+func trophy_bonus(key: String) -> float:
+	return Trophies.bonus(key, trophy_counts)
+
+
+## Враг погиб от рыцаря (enemy.gd::_award_skill_points): вид скелета и общий счёт
+func on_enemy_killed(enemy: Node) -> void:
+	var kind = enemy.get("kind")
+	if kind is int and kind >= 0 and kind < Trophies.KIND_COUNTERS.size():
+		trophy_note(Trophies.KIND_COUNTERS[kind])
+	trophy_note("kills")
+
+
+## Прогресс героя сверх общих полей сейва (SaveManager.hero_progress)
+func get_hero_progress() -> Dictionary:
+	return {"trophies": trophy_counts.duplicate()}
+
+
+func set_hero_progress(data: Dictionary) -> void:
+	trophy_counts = (data.get("trophies", {}) as Dictionary).duplicate()
+	recompute_skill_modifiers()
+
 # ============== HITBOX ==============
 
 func _on_hurtbox_area_entered(area: Area2D) -> void:
-	if is_invulnerable or is_dodging or is_rolling:
+	if is_invulnerable or is_dodging or _roll_invulnerable() or _hit_invuln_timer > 0.0:
 		return
 	if area.is_in_group("enemy_attack"):
 		var dmg = 50
@@ -2232,8 +2822,15 @@ func _on_player_hitbox_area_entered(area: Area2D) -> void:
 				"source": self
 			}
 			enemy.receive_attack(attack_data)
-		# удар на бегу весомее обычного удара серии
+		# удар на бегу весомее обычного удара серии, рипост — ещё весомее
 		var power := run_attack_impact_mult if is_run_attacking else 1.0
+		if _is_riposte:
+			power = riposte_impact_mult
+			# Отложенно: сначала враг примет сам удар (его hurtbox ловит этот же
+			# контакт), и только потом — по концентрации. Иначе пробитая этим же
+			# касанием концентрация превратила бы рипост в мгновенное добивание
+			if enemy.has_method("take_posture_damage") and not enemy.is_dead:
+				enemy.call_deferred("take_posture_damage", riposte_posture_damage * posture_mult_vs(enemy))
 		_play_hit_sound(power)
 		shake_camera(hit_shake_strength * power)
 		do_hitstop(power)
@@ -2315,16 +2912,16 @@ func _play_hit_sound(power := 1.0) -> void:
 
 	# Слой оружия — лязг, свой семпл под конкретный удар серии
 	if is_run_attacking:
-		_play_pool(hit_audio, RUN_HIT_SOUNDS, "run_hit", -1.0, vol_offset, pitch_mult)
+		_play_pool(hit_audio, SoundBank.pool_or("knight_hit_run", RUN_HIT_SOUNDS), "run_hit", -1.0, vol_offset, pitch_mult)
 	elif combo_step == 1:
-		_play_pool(hit_audio, HIT_1_SOUNDS, "hit1", -1.0, vol_offset, pitch_mult)
+		_play_pool(hit_audio, SoundBank.pool_or("knight_hit_light", HIT_1_SOUNDS), "hit1", -1.0, vol_offset, pitch_mult)
 	elif combo_step == 2 or combo_step == 3:
-		_play_pool(hit_audio, HIT_REST_SOUNDS, "hit_rest", -1.0, vol_offset, pitch_mult)
+		_play_pool(hit_audio, SoundBank.pool_or("knight_hit_heavy", HIT_REST_SOUNDS), "hit_rest", -1.0, vol_offset, pitch_mult)
 
 	# Слой тела — глухой низкий удар, играется ПОД любым попаданием, включая
 	# вихрь (у него нет своего лязга, но вес чувствоваться должен)
 	_play_pool(
-		body_impact_audio, BODY_IMPACT_SOUNDS, "body",
+		body_impact_audio, SoundBank.pool_or("knight_body", BODY_IMPACT_SOUNDS), "body",
 		-1.0, vol_offset, body_layer_pitch * pitch_mult
 	)
 
@@ -2342,7 +2939,7 @@ func _duck_music(power: float) -> void:
 		music_mgr.duck_music(power, spin_impact_mult)
 
 func play_block_hit_sound() -> void:
-	block_audio.stream = BLOCK_HIT_SOUND
+	block_audio.stream = SoundBank.pick_or("knight_block", BLOCK_HIT_SOUND)
 	_play_varied(block_audio)
 
 func get_damage_multiplier() -> float:
@@ -2361,6 +2958,11 @@ func get_damage_reduction_factor() -> float:
 	# Постоянный бонус дерева навыков (physical_defense_percent) — тем же
 	# множителем, что и временные баффы выше, а не отдельной системой
 	factor *= (1.0 - _skill_physical_defense_percent / 100.0)
+	# Трофей «Сломанный клинок»
+	factor *= (1.0 - trophy_bonus("defense"))
+	# Последний луч / Свет неугасших: 5 с после спасения Бальдром
+	if _baldur_shield_left > 0.0:
+		factor *= maxf(1.0 + skill("baldur_after_damage_taken_percent") / 100.0, 0.1)
 	return factor
 
 
@@ -2374,6 +2976,8 @@ func get_posture_damage_reduction_factor() -> float:
 	var factor := 1.0 - (_skill_posture_resist_percent + _skill_stagger_resist_percent) / 100.0
 	if _skill_capstone_conditional_posture_resist and max_health > 0.0 and health / max_health > 0.7:
 		factor *= 0.85
+	# Трофей «Расколотый щит»
+	factor *= (1.0 - trophy_bonus("posture_resist"))
 	return max(factor, 0.0)
 
 
@@ -2381,37 +2985,28 @@ func get_posture_damage_reduction_factor() -> float:
 # ДЕРЕВО НАВЫКОВ
 # ─────────────────────────────────────────────
 
-## Полностью пересчитывает все производные бонусы дерева навыков с нуля из
-## unlocked_skills — а не домножает текущие значения на очередной эффект.
+## Полностью пересчитывает все производные бонусов деревьев навыков с нуля
+## из unlocked_skills — а не домножает текущие значения на очередной эффект.
 ## Идемпотентно: можно звать сколько угодно раз (при покупке узла, при
-## загрузке сейва) без риска задвоить бонус
+## загрузке сейва) без риска задвоить бонус. Все три дерева рыцаря
+## (Save/skill_trees.gd) — одной суммой skill_fx; часто читаемые числа
+## первого дерева дублируются в _skill_* полях
 func recompute_skill_modifiers() -> void:
-	_skill_max_hp_percent = 0.0
-	_skill_max_stamina_percent = 0.0
-	_skill_physical_defense_percent = 0.0
-	_skill_posture_resist_percent = 0.0
-	_skill_stagger_resist_percent = 0.0
-	_skill_block_damage_reduction_percent = 0.0
-	_skill_block_stamina_cost_reduction_percent = 0.0
-	_skill_capstone_conditional_posture_resist = false
+	skill_fx = SkillTrees.sum_effects("knight", unlocked_skills)
+	_skill_max_hp_percent = skill("max_hp_percent")
+	_skill_max_stamina_percent = skill("max_stamina_percent")
+	_skill_physical_defense_percent = skill("physical_defense_percent")
+	_skill_posture_resist_percent = skill("posture_resist_percent")
+	_skill_stagger_resist_percent = skill("stagger_resist_percent")
+	_skill_block_damage_reduction_percent = skill("block_damage_reduction_percent")
+	_skill_block_stamina_cost_reduction_percent = skill("block_stamina_cost_reduction_percent")
+	_skill_capstone_conditional_posture_resist = skill("capstone_conditional_posture_resist") > 0.0
 
-	for node_id in unlocked_skills:
-		var node := SkillTrees.get_node_data(SkillTrees.RUNES_OF_ENDURANCE, node_id)
-		if node.is_empty():
-			continue
-		var effects: Dictionary = node.get("effects", {})
-		_skill_max_hp_percent += effects.get("max_hp_percent", 0.0)
-		_skill_max_stamina_percent += effects.get("max_stamina_percent", 0.0)
-		_skill_physical_defense_percent += effects.get("physical_defense_percent", 0.0)
-		_skill_posture_resist_percent += effects.get("posture_resist_percent", 0.0)
-		_skill_stagger_resist_percent += effects.get("stagger_resist_percent", 0.0)
-		_skill_block_damage_reduction_percent += effects.get("block_damage_reduction_percent", 0.0)
-		_skill_block_stamina_cost_reduction_percent += effects.get("block_stamina_cost_reduction_percent", 0.0)
-		if effects.get("capstone_conditional_posture_resist", false):
-			_skill_capstone_conditional_posture_resist = true
-
-	max_health = BASE_MAX_HEALTH * (1.0 + _skill_max_hp_percent / 100.0)
-	max_stamina = BASE_MAX_STAMINA * (1.0 + _skill_max_stamina_percent / 100.0)
+	# Трофеи прибавляют к максимуму сверх процентов дерева
+	max_health = BASE_MAX_HEALTH * (1.0 + _skill_max_hp_percent / 100.0) + trophy_bonus("max_hp")
+	max_stamina = BASE_MAX_STAMINA * (1.0 + _skill_max_stamina_percent / 100.0) + trophy_bonus("max_stamina")
+	if magic:
+		magic.max_odr = magic.BASE_MAX_ODR + trophy_bonus("max_odr")
 	if is_instance_valid(health_bar):
 		# set_max_hp/set_max_stamina тоже полностью восполняют HP/стамину —
 		# ожидаемо здесь: пересчёт дерева навыков это по сути "level up",
@@ -2421,29 +3016,15 @@ func recompute_skill_modifiers() -> void:
 		health = health_bar.current_hp
 
 
-## true, если узел ещё не куплен и все его prerequisites уже открыты (и, для
-## capstone, набрано min_unlocked_in_tree узлов дерева)
+## Сумма эффекта key по открытым узлам рыцаря (0 — нет такого)
+func skill(key: String) -> float:
+	return float(skill_fx.get(key, 0.0))
+
+
+## true, если узел из дерева рыцаря, ещё не куплен, все prerequisites
+## открыты (и у финала набрано min_unlocked_in_tree узлов дерева)
 func can_unlock_skill(tree_id: String, node_id: String) -> bool:
-	if node_id in unlocked_skills:
-		return false
-	var node := SkillTrees.get_node_data(tree_id, node_id)
-	if node.is_empty():
-		return false
-	for req in node.get("prerequisites", []):
-		if not (req in unlocked_skills):
-			return false
-	var min_count: int = node.get("min_unlocked_in_tree", 0)
-	if min_count > 0:
-		var tree_node_ids := {}
-		for n in SkillTrees.get_nodes(tree_id):
-			tree_node_ids[n["id"]] = true
-		var unlocked_in_tree := 0
-		for id in unlocked_skills:
-			if id in tree_node_ids:
-				unlocked_in_tree += 1
-		if unlocked_in_tree < min_count:
-			return false
-	return true
+	return SkillTrees.can_unlock("knight", unlocked_skills, tree_id, node_id)
 
 
 ## Покупка узла — тратит skill_points, отмечает узел открытым, пересчитывает
@@ -2472,7 +3053,93 @@ func _baldur_revive() -> void:
 	# короткая неуязвимость после воскрешения
 	is_invulnerable = true
 	get_tree().create_timer(1.5).timeout.connect(func(): is_invulnerable = false)
+	# Последний луч / Свет неугасших: ещё 5 с урон снижен
+	if skill("baldur_after_damage_taken_percent") < 0.0:
+		_baldur_shield_left = 5.0
 	print("[БлагословениеБальдра] Воскрешение! HP восстановлено")
+
+
+# ── Навыки рыцаря в бою (Save/skill_trees.gd: Кара рассвета, Свет последнего дня) ──
+
+## Атака началась — бонусы «на следующую атаку» переходят в неё и
+## расходуются: окно после парирования (Ответ стража, Судный взмах) и после
+## полного блока (Клятва стража). Действуют на всех задетых этим ударом
+var _attack_parry_bonus := false
+var _attack_block_followup := false
+
+func _take_attack_bonuses() -> void:
+	_attack_parry_bonus = _parry_bonus_left > 0.0
+	_parry_bonus_left = 0.0
+	_attack_block_followup = _block_followup_ready
+	_block_followup_ready = false
+
+
+## Удар мечом дошёл до врага (enemy.gd::_hero_melee_damage) — итоговый урон.
+## «Четвёртый удар комбинации» — последний, тяжёлый удар серии (их три)
+func melee_damage_to(enemy: Node, dmg: int) -> int:
+	var pct := skill("sword_damage_percent")
+	if _attack_parry_bonus:
+		pct += skill("parry_next_sword_damage_percent")
+	if combo_step >= 3 and not _is_riposte and not is_run_attacking:
+		pct += skill("combo_final_damage_percent")
+	return SkillTrees.scale_int(dmg, pct)
+
+
+## Множитель урона по стойкости врага от удара мечом (удар в щит, рипост)
+func posture_mult_vs(enemy: Node) -> float:
+	var pct := skill("sword_posture_percent") + skill("posture_damage_percent")
+	if enemy.get("is_blocking") == true:
+		pct += skill("vs_blocking_posture_percent")
+	if _attack_parry_bonus:
+		pct += skill("parry_next_posture_percent")
+	if _attack_block_followup:
+		pct += skill("block_followup_posture_bonus_percent")
+	return 1.0 + pct / 100.0
+
+
+## Добивание (enemy.gd::_execute_by): Второе пламя продлевает благословение,
+## Чистый разрез / Последняя черта возвращают выносливость, Приговор Бальдра
+## бьёт ударной волной по врагам рядом
+func on_execution_of(enemy: Node) -> void:
+	if magic:
+		magic.extend_blessing_on_execution()
+	var st := skill("execution_stamina_percent")
+	if st > 0.0 and is_instance_valid(health_bar):
+		health_bar.current_stamina = minf(health_bar.current_stamina + health_bar.max_stamina * st / 100.0,
+				health_bar.max_stamina)
+	if skill("execution_wave_radius") > 0.0 and enemy is Node2D:
+		# Отложенно: сначала сам добиваемый умирает, потом волна идёт по соседям
+		_execution_wave.call_deferred((enemy as Node2D).global_position, enemy)
+
+
+## Ударная волна добивания: соседям урон и удар по стойкости. Врага, у
+## которого стойкость уже сломана, волна не добивает — только рыцарь сам
+## (иначе одна руна снимала бы всю толпу без участия игрока)
+func _execution_wave(at: Vector2, victim: Node) -> void:
+	var radius := skill("execution_wave_radius")
+	var posture := skill("execution_wave_posture") * (1.0 + skill("posture_damage_percent") / 100.0)
+	var dmg := int(skill("execution_wave_damage"))
+	for e in get_tree().get_nodes_in_group("enemy"):
+		if e == victim or not is_instance_valid(e) or e.is_dead or not (e is Node2D):
+			continue
+		var to: Vector2 = (e as Node2D).global_position - at
+		if Vector2(to.x, to.y / 0.8).length() > radius:
+			continue
+		if e.get("is_posture_broken") == true:
+			continue
+		if dmg > 0 and e.has_method("take_damage"):
+			e.take_damage(dmg, self, true)
+		if is_instance_valid(e) and not e.is_dead and e.has_method("take_posture_damage"):
+			e.take_posture_damage(posture)
+	KnightFx.impact(get_tree(), at + Vector2(0, -6), Vector2.UP, 1.4)
+	shake_camera(hit_shake_strength * 1.5)
+	SoundBank.play_at(get_tree(), "execution_wave", at, -4.0)
+
+
+## Брешь в обороне: окно добивания после сломанной стойки врага длиннее
+## (enemy.gd::_posture_break спрашивает героя)
+func execution_window_mult() -> float:
+	return 1.0 + skill("execution_window_percent") / 100.0
 
 func receive_parry(posture_damage: float) -> void:
 	# Неуязвимость (дэш/Кровь Фенрира) снимает и урон, и стан от контратак.
@@ -2484,6 +3151,9 @@ func receive_parry(posture_damage: float) -> void:
 	# handle_roll() с нулевой скоростью (и заодно неуязвимым, раз is_rolling
 	# держит защиту и от обычных атак тоже)
 	if is_invulnerable or is_dodging or is_rolling:
+		return
+	# Уже в стане (выбитый щит) — второй стан поверх запутал бы оба таймера
+	if is_stunned:
 		return
 	current_posture += posture_damage * get_posture_damage_reduction_factor()
 	current_posture = min(current_posture, max_posture)
@@ -2528,7 +3198,8 @@ func receive_parry(posture_damage: float) -> void:
 		_stop_stun_shake()
 		stun_audio.stop()
 		is_stunned = false
-		_posture_break()
+		# Стан уже отбыт — только обнуляем шкалу (_posture_break застанил бы снова)
+		_reset_posture()
 	else:
 		# pummel — короткий стан, тряска держится РОВНО пока играет анимация
 		# Stunned_, а не гаснет раньше неё

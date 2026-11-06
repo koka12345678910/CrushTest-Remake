@@ -1,0 +1,39 @@
+Звуки оружия Сигрид (кинжал-сакс и лук) — источники и лицензии (скачано 2026-11-02).
+Все исходники — CC0 1.0 (общественное достояние), указывать авторов не обязательно,
+но список ведётся для титров.
+
+Still North Media (Ben Jaszczak & Brian Nelson), "Medieval Sound Effects: Weapon Textures"
+  https://opengameart.org/content/medieval-sound-effects-weapon-textures — CC0
+  Длинные записи с несколькими дублями нарезаны по тишине на отдельные звуки
+  (моно, 16 бит, 48 кГц, нормализация):
+  bow_release_*.wav    <- English Longbow Shoot.wav
+  bow_release_b_*.wav  <- Scythian Recurve Shoot.wav
+  bow_nock_*.wav       <- English Longbow Nock Arrow.wav
+  bow_draw_*.wav       <- English Longbow Draw.wav
+  bow_draw_b_*.wav     <- Scythian Recurve Draw.wav
+  arrow_fly_*.wav      <- Scythian Recurve Arrow Pass.wav
+  dagger_swing_*.wav   <- Seax Swing.wav
+  dagger_swing_b_*.wav <- Dagger Swing.wav
+  dagger_draw_*.wav    <- Seax Draw Fast.wav
+  dagger_sheathe_*.wav <- Seax Sheath Fast.wav
+
+Jan Schupke (Vehicle), https://opengameart.org — CC0
+  "Fantasy Sound Effects (tinysized)": dagger_hit_cut_1-3.wav <- apple-cut-01..03
+  "Fantasy Weapons and Apparel SFX Library":
+    dagger_block_1-3.wav <- sword-knife-clash-13..15
+    quiver_1-2.wav       <- quiver-leather-squeeze-05, 07
+    arrow_grab_1-2.wav   <- arrow-grab-from-quiver-03, 06
+
+Kenney (kenney.nl), "50 RPG sound effects" / RPG Audio — CC0
+  dagger_hit_1-2.ogg <- knifeSlice, knifeSlice2
+  roll_cloth_1-4.ogg <- cloth1..4
+
+Iwan "qubodup" Gabovitch, "Impact" — CC0
+  arrow_hit_flesh_1-2.ogg <- qubodupImpactMeat01/02
+  arrow_hit_wood_1.ogg    <- qubodupImpactWood
+  arrow_hit_stone_1.ogg   <- qubodupImpactStone
+  arrow_hit_shield_1.ogg  <- qubodupImpactMetal
+
+rubberduck, "80 CC0 RPG SFX" — CC0
+  arrow_hit_wood_2-3.ogg   <- item_wood_01, 02
+  arrow_hit_shield_2-3.ogg <- metal_01, 02

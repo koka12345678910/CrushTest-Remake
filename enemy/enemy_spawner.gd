@@ -23,6 +23,11 @@ extends Node2D
 # радиус разброса врагов вокруг точки спавна
 @export var pack_spread: float = 60.0
 
+## Досыпать ли врагов по ходу игры. На уровнях с кострами (кладбище) — нет:
+## там мир как в Dark Souls, убитые возвращаются только при отдыхе у костра
+## (Levels/bonfire/bonfire_world.gd), а не появляются за спиной сами
+@export var refill := true
+
 var _timer := 0.0
 
 func _ready() -> void:
@@ -31,6 +36,8 @@ func _ready() -> void:
 			_try_spawn()
 
 func _process(delta: float) -> void:
+	if not refill:
+		return
 	_timer += delta
 	if _timer < check_interval:
 		return

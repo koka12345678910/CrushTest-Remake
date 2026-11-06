@@ -20,7 +20,7 @@ func _init() -> void:
 	ability_name = "Руна Жертвы"
 	cooldown_duration = 25.0
 	description = "Жертвуешь часть HP и сбрасываешь кулдауны всех остальных способностей"
-	icon = load("res://Shop/icons/potion_blood.png")
+	icon = load_icon("res://Shop/icons/icons_2/rune_of_sacrifice.png")
 
 func _execute(player: Node) -> void:
 	# Кровавая жертва — часть текущего HP (никогда не добивает игрока).

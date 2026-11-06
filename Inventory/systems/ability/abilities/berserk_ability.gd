@@ -10,7 +10,7 @@ func _init() -> void:
 	ability_name = "Безумие Берсерка"
 	cooldown_duration = 30.0
 	description = "HP пополам, сила x2, скорость, дальнобойные удары"
-	icon = load("res://Shop/icons/blood_pouch.png")
+	icon = load_icon("res://Shop/icons/icons_2/berserk.png")
 
 func _execute(player: Node) -> void:
 	# Срезаем HP пополам

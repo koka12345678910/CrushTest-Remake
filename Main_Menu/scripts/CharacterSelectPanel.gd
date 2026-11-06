@@ -1,498 +1,369 @@
-extends "res://Main_Menu/scripts/MenuPanel.gd"
-## CharacterSelectPanel.gd — выбор персонажа при создании нового прохождения.
+extends Control
+## CharacterSelectPanel.gd — выбор героя при создании нового прохождения.
 ##
-## Список героев берётся из реестра Characters, а не задан здесь: добавишь
-## четвёртого в Characters.DATA/ORDER — он появится и в списке слева, и во
-## всех панелях справа.
+## Вид — как инвентарь героя (hero_inventory_skin.gd, тема CLEAN): три
+## тёмные панели на затемнённом фоне меню:
+##   слева  — список героев (клетки как разделы настроек инвентаря);
+##   центр  — сам герой: анимация стойки Idle_Down с целым увеличением
+##            (пиксель-арт без мыла), под ним цитата;
+##   справа — имя, описание, характеристики и кнопка «Выбрать».
+## Золото — только у выбранного.
 ##
-## Вёрстка: слева список классов, по центру анимация Idle_Down выбранного
-## героя, справа описание со статами, дальше цитата и CONFIRM. Каркас
-## MenuPanel (затемнение, наплыв, Esc) используем, а вот его _rebuild()
-## переопределяем целиком — там панель с рамкой и заголовком по центру,
-## а здесь нужен полноэкранный экран без рамки.
+## Список героев берётся из реестра Characters: добавишь четвёртого в
+## Characters.DATA/ORDER — он появится здесь сам.
 ##
 ## Панель НИЧЕГО не сохраняет — только сообщает выбор сигналом. Слот заводит
-## MainMenu.gd через SaveManager.create_slot(), и именно там character_id
-## записывается в сейв один-единственный раз.
+## MainMenu.gd через SaveManager.create_slot().
+##
+## Управление: ↑↓ / ←→ — герой, Enter — выбрать, Esc — назад; мышью —
+## клик по герою, двойной клик или кнопка «Выбрать».
 
 signal character_chosen(id: String)
+signal closed
 
-const DiamondMarkerScript := preload("res://Main_Menu/scripts/DiamondMarker.gd")
-const OrnamentSeparatorScript := preload("res://Main_Menu/scripts/OrnamentSeparator.gd")
+const Style := preload("res://Main_Menu/scripts/MenuStyle.gd")
+const HeroSkin := preload("res://Inventory/ui/hero_inventory_skin.gd")
+const CleanHud := preload("res://UI/clean_hud.gd")
 # Скрипты подключаются через set_script, а не через class_name: глобальный
-# кэш классов в этом проекте уже подводил (стыковка "Could not find type X"
-# после правок), да и остальные вспомогательные ноды меню сделаны так же
+# кэш классов в этом проекте уже подводил ("Could not find type X")
 const GlyphIconScript := preload("res://Main_Menu/scripts/GlyphIcon.gd")
 const SpriteSheetAnimationScript := preload("res://Main_Menu/scripts/SpriteSheetAnimation.gd")
 
-# Тот же шрифт, что у навигации: тема меню сюда не доходит — панель лежит под
-# CanvasLayer, а он рвёт наследование темы (см. SettingsPanel.gd)
-const MENU_FONT := preload("res://Font/sikandinarie.ttf")
-# Арт в рамке справа — то же ключевое изображение, что и фон меню; отдельной
-# картинки "региона" в проекте пока нет
-const FRAME_ART := preload("res://Main_Menu/IMG_mainMenu.png")
-
-const COLOR_DIVIDER := Color(0.55, 0.50, 0.40, 0.35)
-
-const SIDEBAR_WIDTH := 330.0
-const INFO_WIDTH := 520.0
-const ASIDE_WIDTH := 400.0
-const STAT_SEGMENTS := 14
+## Как и настройки, экран поднят: вкладок инвентаря здесь нет
+const LIFT := 46.0
+## Целое увеличение кадра 128×128 — пиксели героя остаются чёткими
+const SPRITE_SCALE := 5
+const STAT_SEGMENTS := 10
 
 var _selected_id := ""
-var _hero_rows := {}   # id -> {"btn": Button, "marker": Control, "icon": GlyphIcon}
-var _hints: Control
-
+var _is_open := false
+var _tween: Tween
+var _audio: AudioStreamPlayer
+var _content: Control
+var _cells := {}   # id -> {"frame": HeroCell, "name": Label, "icon": GlyphIcon}
 var _portrait: TextureRect
+var _quote: Label
 var _name_lbl: Label
+var _tag_lbl: Label
 var _desc_lbl: Label
 var _stats_box: VBoxContainer
-var _quote_lbl: Label
+var _info: Control
 
 
 func _ready() -> void:
-	# Экран полноэкранный и почти непрозрачный — затемнение под ним должно
-	# быть плотнее, чем у всплывающих панелей, иначе сквозь него читается меню
-	dim_alpha = 0.55
-	panel_alpha = 0.9
-	super._ready()
+	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	visible = false
+	mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_audio = Style.ui_player(self)
 
 
 func open() -> void:
-	# В отличие от прежних карточек тут всегда кто-то подсвечен: справа живут
-	# описание, статы и цитата, и пустым этот блок показывать нечего. Первый
-	# герой по умолчанию, подтверждает выбор кнопка CONFIRM
-	_selected_id = Characters.ORDER[0]
-	super.open()
+	if _is_open:
+		return
+	_is_open = true
+	if _selected_id == "":
+		_selected_id = Characters.ORDER[0]
+	_build()
+	visible = true
+	mouse_filter = Control.MOUSE_FILTER_STOP
+	modulate.a = 0.0
+	if _tween:
+		_tween.kill()
+	_tween = create_tween().set_parallel(true)
+	_tween.tween_property(self, "modulate:a", 1.0, 0.28).set_ease(Tween.EASE_OUT)
+	_tween.tween_property(_content, "position:y", _content.position.y, 0.34)\
+		.from(_content.position.y + 18.0).set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_CUBIC)
+
+
+func close() -> void:
+	if not _is_open:
+		return
+	_is_open = false
+	mouse_filter = Control.MOUSE_FILTER_IGNORE
+	if _tween:
+		_tween.kill()
+	_tween = create_tween()
+	_tween.tween_property(self, "modulate:a", 0.0, 0.2).set_ease(Tween.EASE_IN)
+	await _tween.finished
+	visible = false
+	closed.emit()
 
 
 func _unhandled_input(event: InputEvent) -> void:
-	super._unhandled_input(event)
 	if not _is_open:
 		return
-	if event.is_action_pressed("ui_left"):
-		get_viewport().set_input_as_handled()
+	var handled := true
+	if event.is_action_pressed("ui_cancel"):
+		Style.play_back(_audio)
+		close()
+	elif event.is_action_pressed("ui_up") or event.is_action_pressed("ui_left"):
 		_cycle_hero(-1)
-	elif event.is_action_pressed("ui_right"):
-		get_viewport().set_input_as_handled()
+	elif event.is_action_pressed("ui_down") or event.is_action_pressed("ui_right"):
 		_cycle_hero(1)
+	elif event.is_action_pressed("ui_accept"):
+		_on_confirm()
+	else:
+		handled = false
+	if handled:
+		get_viewport().set_input_as_handled()
 
 
-# ----------------------------------------------------------
-# ПОСТРОЕНИЕ UI
-# ----------------------------------------------------------
-
-func _rebuild() -> void:
-	if is_instance_valid(_panel):
-		_panel.queue_free()
-	if is_instance_valid(_hints):
-		_hints.queue_free()
-
-	_panel = PanelContainer.new()
-	# Именно ...and_offsets_preset: один set_anchors_preset оставил бы размер
-	# нулевым, и панель схлопнулась бы в левый верхний угол (см. MenuPanel._ready)
-	_panel.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-
-	var style := StyleBoxFlat.new()
-	style.bg_color = Color(0.04, 0.035, 0.03, panel_alpha)
-	_panel.add_theme_stylebox_override("panel", style)
-
-	var panel_theme := Theme.new()
-	panel_theme.default_font = MENU_FONT
-	_panel.theme = panel_theme
-	add_child(_panel)
-
-	var margin := MarginContainer.new()
-	margin.add_theme_constant_override("margin_left", 56)
-	margin.add_theme_constant_override("margin_right", 56)
-	margin.add_theme_constant_override("margin_top", 44)
-	# Снизу оставляем полосу под подсказки клавиш, они лежат отдельно
-	margin.add_theme_constant_override("margin_bottom", 96)
-	_panel.add_child(margin)
-
-	var row := HBoxContainer.new()
-	margin.add_child(row)
-
-	_build_sidebar(row)
-	_build_divider(row)
-	_build_portrait(row)
-	_build_divider(row)
-	_build_info(row)
-	_build_aside(row)
-
-	_build_hints()
-	_refresh_selection()
+## Нужен HeroSkin.plaque (заголовок колонки) — как у inventory_ui
+func _make_label(text: String, font_size: int) -> Label:
+	var l := Label.new()
+	l.text = text
+	l.add_theme_font_size_override("font_size", font_size)
+	l.add_theme_color_override("font_color", Style.TEXT)
+	return l
 
 
-# --- Слева: заголовок и список классов ------------------------------------
+# ═════════════════════ Вёрстка ═════════════════════
 
-func _build_sidebar(parent: Control) -> void:
-	var sidebar := VBoxContainer.new()
-	sidebar.custom_minimum_size = Vector2(SIDEBAR_WIDTH, 0)
-	sidebar.add_theme_constant_override("separation", 2)
-	parent.add_child(sidebar)
+func _build() -> void:
+	for c in get_children():
+		if c != _audio:
+			c.queue_free()
+	_cells.clear()
+	Style.make_dim(self)
+	HeroSkin.use_theme(HeroSkin.CLEAN)
+	var stage := Style.make_stage(self)
+	_content = Control.new()
+	_content.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_content.position = Vector2(0, -LIFT)
+	_content.size = Style.BASE
+	stage.add_child(_content)
 
-	var title_row := HBoxContainer.new()
-	title_row.add_theme_constant_override("separation", 12)
-	sidebar.add_child(title_row)
+	var lay: Dictionary = HeroSkin.T["layout"]
+	var top := float(HeroSkin.TOP)
+	var h := float(HeroSkin.FRAME_H)
+	var x0 := float(lay["x0"])
+	var list_w := float(lay["right_w"])
+	var stage_w := float(lay["grid_w"])
+	var info_w := float(lay["detail_w"])
+	_build_list(Rect2(x0, top, list_w, h))
+	_build_stage(Rect2(x0 + list_w + 14, top, stage_w, h))
+	_build_info(Rect2(x0 + list_w + 14 + stage_w + 14, top, info_w, h))
 
-	var mark := Control.new()
-	mark.set_script(DiamondMarkerScript)
-	mark.custom_minimum_size = Vector2(22, 22)
-	title_row.add_child(mark)
+	var hints := Style.hint_row([["↑ ↓", "Герой"], ["Enter", "Выбрать"], ["Esc", "Назад"]])
+	hints.position = Vector2(0, top + h + 22.0)
+	hints.size = Vector2(Style.BASE.x, 32)
+	hints.alignment = BoxContainer.ALIGNMENT_CENTER
+	_content.add_child(hints)
 
-	var title := _make_label("SELECT HERO", 42, COLOR_BRIGHT)
-	title.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	title_row.add_child(title)
+	_refresh_selection(false)
 
-	_add_rule(sidebar, 22)
 
-	_hero_rows.clear()
+func _build_list(r: Rect2) -> void:
+	var f := HeroSkin.build_frame(_content, r, null)
+	var ty: float = f.position.y + float(HeroSkin.T["layout"]["title_dy"])
+	HeroSkin.plaque(self, _content, "ВЫБОР ГЕРОЯ", f.position.x, f.size.x, ty)
+	var cw := f.size.x - 40.0
+	var y := f.position.y + HeroSkin.column_top()
 	for id in Characters.ORDER:
-		sidebar.add_child(_make_hero_row(id))
+		_make_cell(id, Rect2(f.position.x + 20.0, y, cw, 104))
+		y += 118.0
 
 
-func _make_hero_row(id: String) -> Button:
-	var btn := Button.new()
-	btn.text = Characters.display_name(id)
-	btn.flat = true
-	btn.focus_mode = Control.FOCUS_NONE
-	btn.alignment = HORIZONTAL_ALIGNMENT_LEFT
-	btn.custom_minimum_size = Vector2(0, 60)
-	btn.add_theme_font_size_override("font_size", 32)
-	btn.add_theme_color_override("font_hover_color", COLOR_BRIGHT)
-	btn.add_theme_color_override("font_pressed_color", COLOR_ACCENT)
-	_outline(btn)
-
-	# Пустой стиль с отступом слева: место под ромбик и иконку класса, они
-	# лежат отдельными нодами поверх кнопки (Button — не контейнер, детей он
-	# сам не раскладывает, поэтому они заанкорены вручную)
-	var empty := StyleBoxEmpty.new()
-	empty.content_margin_left = 96
-	empty.content_margin_top = 10
-	empty.content_margin_bottom = 10
-	btn.add_theme_stylebox_override("normal", empty)
-	btn.add_theme_stylebox_override("hover", empty)
-	btn.add_theme_stylebox_override("pressed", empty)
-	btn.add_theme_stylebox_override("focus", empty)
-
-	var marker := Control.new()
-	marker.set_script(DiamondMarkerScript)
-	marker.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	marker.modulate.a = 0.0
-	_pin_left(marker, 2.0, 18.0)
-	btn.add_child(marker)
+func _make_cell(id: String, r: Rect2) -> void:
+	var holder := Control.new()
+	holder.position = r.position.round()
+	holder.size = r.size
+	holder.mouse_filter = Control.MOUSE_FILTER_STOP
+	_content.add_child(holder)
+	HeroSkin.cell_plate(holder, r.size)
+	var frame := HeroSkin.make_cell_frame()
+	frame.size = r.size
+	holder.add_child(frame)
 
 	var icon := Control.new()
 	icon.set_script(GlyphIconScript)
 	icon.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	icon.call("set_glyph",
-		Characters.get_data(id).get("icon", "rune"), Characters.get_color(id))
-	_pin_left(icon, 40.0, 34.0)
-	btn.add_child(icon)
+	icon.position = Vector2(26, r.size.y * 0.5 - 20)
+	icon.size = Vector2(40, 40)
+	holder.add_child(icon)
 
-	btn.pressed.connect(func():
-		if _selected_id == id:
-			return
-		_selected_id = id
-		_play(SOUND_CHOICE)
-		_refresh_selection()
-	)
+	var data := Characters.get_data(id)
+	var name_l := Style.label(String(data.get("name", "?")), 24, Style.TEXT, true)
+	name_l.position = Vector2(92, 22)
+	name_l.size = Vector2(r.size.x - 104, 32)
+	holder.add_child(name_l)
+	var sub := Style.label(String(data.get("tagline", "")), 16, Style.TEXT_DIM)
+	sub.position = Vector2(92, 56)
+	sub.size = Vector2(r.size.x - 104, 24)
+	holder.add_child(sub)
 
-	_hero_rows[id] = {"btn": btn, "marker": marker, "icon": icon}
-	return btn
-
-
-## Прижимает ноду к левому краю кнопки по центру высоты — так она не зависит
-## от того, когда контейнер выставит кнопке финальный размер
-func _pin_left(node: Control, offset_x: float, box: float) -> void:
-	node.anchor_left = 0.0
-	node.anchor_right = 0.0
-	node.anchor_top = 0.5
-	node.anchor_bottom = 0.5
-	node.offset_left = offset_x
-	node.offset_right = offset_x + box
-	node.offset_top = -box / 2.0
-	node.offset_bottom = box / 2.0
-
-
-func _build_divider(parent: Control) -> void:
-	var wrap := MarginContainer.new()
-	wrap.add_theme_constant_override("margin_left", 28)
-	wrap.add_theme_constant_override("margin_right", 28)
-	parent.add_child(wrap)
-
-	var line := ColorRect.new()
-	line.custom_minimum_size = Vector2(1.5, 0)
-	line.color = COLOR_DIVIDER
-	wrap.add_child(line)
+	holder.gui_input.connect(func(ev: InputEvent):
+		if ev is InputEventMouseButton and ev.pressed and ev.button_index == MOUSE_BUTTON_LEFT:
+			if ev.double_click and id == _selected_id:
+				_on_confirm()
+			elif id != _selected_id:
+				_selected_id = id
+				Style.play_move(_audio)
+				_refresh_selection(true))
+	holder.mouse_entered.connect(func():
+		if id != _selected_id:
+			frame.highlight = 0.45)
+	holder.mouse_exited.connect(func():
+		frame.highlight = 1.0 if id == _selected_id else 0.0)
+	_cells[id] = {"frame": frame, "name": name_l, "icon": icon}
 
 
-# --- По центру: анимация Idle_Down выбранного героя ------------------------
-
-func _build_portrait(parent: Control) -> void:
-	# Обычный Control, а не контейнер: подложка и спрайт должны лежать друг
-	# на друге, а контейнер растащил бы их по своей раскладке
-	var stage := Control.new()
-	stage.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	stage.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	parent.add_child(stage)
-
+func _build_stage(r: Rect2) -> void:
+	var f := HeroSkin.build_frame(_content, r, null)
+	# Тёплый свет сверху вниз и пятно пола под героем — чтобы фигура стояла,
+	# а не висела в пустоте
 	var glow := TextureRect.new()
-	glow.texture = _make_stage_gradient()
+	var g := Gradient.new()
+	g.offsets = PackedFloat32Array([0.0, 1.0])
+	g.colors = PackedColorArray([Color(1.0, 0.86, 0.6, 0.07), Color(1.0, 0.86, 0.6, 0.0)])
+	var gt := GradientTexture2D.new()
+	gt.gradient = g
+	gt.fill = GradientTexture2D.FILL_RADIAL
+	gt.fill_from = Vector2(0.5, 0.45)
+	gt.fill_to = Vector2(1.0, 0.45)
+	glow.texture = gt
 	glow.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	glow.stretch_mode = TextureRect.STRETCH_SCALE
+	glow.position = f.position
+	glow.size = f.size
 	glow.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	glow.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	stage.add_child(glow)
+	_content.add_child(glow)
+
+	var box := Vector2(128, 128) * SPRITE_SCALE
+	var center := Vector2(f.get_center().x, f.position.y + f.size.y * 0.44)
+	var floor_y := center.y + box.y * 0.5 - box.y * 0.09
+	var shadow := Control.new()
+	shadow.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	shadow.position = Vector2(center.x - 160, floor_y - 20)
+	shadow.size = Vector2(320, 40)
+	shadow.draw.connect(func():
+		for i in 8:
+			var k := 1.0 - i / 8.0
+			shadow.draw_set_transform(Vector2(160, 20), 0.0, Vector2(1.0, 0.22))
+			shadow.draw_circle(Vector2.ZERO, 150.0 * k, Color(0, 0, 0, 0.09)))
+	_content.add_child(shadow)
+	HeroSkin.hline(_content, center.x - 260, 520, floor_y + 14)
 
 	_portrait = TextureRect.new()
 	_portrait.set_script(SpriteSheetAnimationScript)
-	_portrait.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	stage.add_child(_portrait)
+	_portrait.position = (center - box * 0.5).round()
+	_portrait.size = box
+	_content.add_child(_portrait)
+
+	_quote = Style.label("", 20, Style.TEXT_DIM)
+	_quote.add_theme_font_override("font", Style.italic_font())
+	_quote.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_quote.position = Vector2(f.position.x + 40, f.end.y - 120)
+	_quote.size = Vector2(f.size.x - 80, 80)
+	_content.add_child(_quote)
 
 
-func _make_stage_gradient() -> GradientTexture2D:
-	## Вертикальный "столб света" за героем: сверху чуть теплее, к низу уходит
-	## в прозрачность, чтобы спрайт не висел в пустоте
-	var g := Gradient.new()
-	g.offsets = PackedFloat32Array([0.0, 0.45, 1.0])
-	g.colors = PackedColorArray([
-		Color(0.16, 0.13, 0.09, 0.0),
-		Color(0.16, 0.13, 0.09, 0.45),
-		Color(0.05, 0.04, 0.03, 0.0),
-	])
-	var tex := GradientTexture2D.new()
-	tex.gradient = g
-	tex.fill = GradientTexture2D.FILL_LINEAR
-	tex.fill_from = Vector2(0.5, 0.0)
-	tex.fill_to = Vector2(0.5, 1.0)
-	tex.width = 4
-	tex.height = 256
-	return tex
+func _build_info(r: Rect2) -> void:
+	var f := HeroSkin.build_frame(_content, r, null)
+	var ty: float = f.position.y + float(HeroSkin.T["layout"]["title_dy"])
+	HeroSkin.plaque(self, _content, "О ГЕРОЕ", f.position.x, f.size.x, ty)
 
+	_info = Control.new()
+	_info.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_info.position = Vector2(f.position.x + 34, f.position.y + HeroSkin.column_top())
+	_info.size = Vector2(f.size.x - 68, f.size.y - HeroSkin.column_top() - 140)
+	_content.add_child(_info)
 
-# --- Справа: имя, описание, статы -----------------------------------------
+	var v := VBoxContainer.new()
+	v.add_theme_constant_override("separation", 10)
+	v.size = _info.size
+	v.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_info.add_child(v)
 
-func _build_info(parent: Control) -> void:
-	var info := VBoxContainer.new()
-	info.custom_minimum_size = Vector2(INFO_WIDTH, 0)
-	info.add_theme_constant_override("separation", 8)
-	parent.add_child(info)
-
-	_name_lbl = _make_label("", 54, COLOR_BRIGHT)
-	info.add_child(_name_lbl)
-
-	var sep := Control.new()
-	sep.set_script(OrnamentSeparatorScript)
-	sep.custom_minimum_size = Vector2(0, 20)
-	info.add_child(sep)
-
-	_desc_lbl = _make_label("", 25, COLOR_TEXT)
-	_desc_lbl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	info.add_child(_desc_lbl)
-
+	_name_lbl = Style.label("", 36, Style.GOLD_HI, true)
+	v.add_child(_name_lbl)
+	_tag_lbl = Style.label("", 17, Style.TEXT_DIM, true)
+	v.add_child(_tag_lbl)
+	var line := Style.FadeLine.new()
+	line.color = Color(Style.GOLD, 0.3)
+	line.custom_minimum_size = Vector2(0, 1)
+	v.add_child(line)
 	var gap := Control.new()
-	gap.custom_minimum_size = Vector2(0, 28)
-	info.add_child(gap)
-
+	gap.custom_minimum_size = Vector2(0, 4)
+	v.add_child(gap)
+	_desc_lbl = Style.label("", 19, Style.TEXT)
+	_desc_lbl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_desc_lbl.custom_minimum_size = Vector2(_info.size.x, 0)
+	v.add_child(_desc_lbl)
+	var gap2 := Control.new()
+	gap2.custom_minimum_size = Vector2(0, 18)
+	v.add_child(gap2)
+	var cap := Style.label("ХАРАКТЕРИСТИКИ", 15, Style.TEXT_DIM, true)
+	v.add_child(cap)
 	_stats_box = VBoxContainer.new()
-	_stats_box.add_theme_constant_override("separation", 14)
-	info.add_child(_stats_box)
+	_stats_box.add_theme_constant_override("separation", 12)
+	v.add_child(_stats_box)
 
-	var tail := Control.new()
-	tail.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	info.add_child(tail)
+	var btn := Style.chip_button("ВЫБРАТЬ", 22)
+	btn.focus_mode = Control.FOCUS_NONE
+	btn.position = Vector2(f.position.x + 34, f.end.y - 96)
+	btn.size = Vector2(f.size.x - 68, 56)
+	btn.pressed.connect(_on_confirm)
+	btn.mouse_entered.connect(func(): Style.play_move(_audio))
+	_content.add_child(btn)
 
 
 func _fill_stats(id: String) -> void:
 	for c in _stats_box.get_children():
 		c.queue_free()
-
 	for stat in Characters.STAT_ORDER:
 		var row := HBoxContainer.new()
 		row.add_theme_constant_override("separation", 12)
+		row.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		_stats_box.add_child(row)
 
 		var icon := Control.new()
 		icon.set_script(GlyphIconScript)
-		icon.custom_minimum_size = Vector2(26, 26)
-		icon.call("set_glyph", Characters.STAT_ICONS.get(stat, "rune"), COLOR_ACCENT)
+		icon.custom_minimum_size = Vector2(20, 20)
 		icon.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+		icon.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		icon.call("set_glyph", Characters.STAT_ICONS.get(stat, "rune"), Color(Style.GOLD, 0.8))
 		row.add_child(icon)
 
-		var lbl := _make_label(stat, 25, COLOR_TEXT)
-		lbl.custom_minimum_size = Vector2(195, 0)
+		var lbl := Style.label(String(Characters.STAT_NAMES.get(stat, stat)), 18, Style.TEXT)
+		lbl.custom_minimum_size = Vector2(160, 0)
 		lbl.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 		row.add_child(lbl)
 
-		row.add_child(_make_stat_bar(Characters.get_stat(id, stat)))
+		var value := clampf(Characters.get_stat(id, stat), 0.0, 1.0)
+		var bar := StatBar.new()
+		bar.value = value
+		bar.custom_minimum_size = Vector2(220, 10)
+		bar.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+		row.add_child(bar)
+
+		# Число рядом с полоской: длину не надо угадывать на глаз
+		var num := Style.label("%d" % roundi(value * STAT_SEGMENTS), 17, Style.TEXT_DIM)
+		num.custom_minimum_size = Vector2(28, 0)
+		num.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+		num.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+		row.add_child(num)
 
 
-func _make_stat_bar(value: float) -> Control:
-	## Полоска набрана из сегментов, а не сплошная — так читается "сколько из
-	## скольких", как на референсе
-	var bar := HBoxContainer.new()
-	bar.add_theme_constant_override("separation", 4)
-	bar.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+## Полоска характеристики в духе полосок HUD: тёмный канал, светлая
+## заливка, деления по 1/10
+class StatBar extends Control:
+	var value := 0.0
 
-	var filled := int(round(clampf(value, 0.0, 1.0) * STAT_SEGMENTS))
-	for i in STAT_SEGMENTS:
-		var seg := ColorRect.new()
-		seg.custom_minimum_size = Vector2(13, 11)
-		seg.color = COLOR_ACCENT if i < filled else Color(0.18, 0.16, 0.14, 0.9)
-		bar.add_child(seg)
-	return bar
+	func _init() -> void:
+		mouse_filter = Control.MOUSE_FILTER_IGNORE
 
-
-# --- Крайняя правая колонка: арт, цитата, CONFIRM -------------------------
-
-func _build_aside(parent: Control) -> void:
-	var aside := VBoxContainer.new()
-	aside.custom_minimum_size = Vector2(ASIDE_WIDTH, 0)
-	aside.add_theme_constant_override("separation", 22)
-	parent.add_child(aside)
-
-	var art_frame := PanelContainer.new()
-	var frame_style := StyleBoxFlat.new()
-	frame_style.bg_color = Color(0.06, 0.05, 0.04, 0.9)
-	frame_style.border_color = Color(COLOR_ACCENT.r, COLOR_ACCENT.g, COLOR_ACCENT.b, 0.55)
-	frame_style.set_border_width_all(1)
-	frame_style.set_content_margin_all(5)
-	art_frame.add_theme_stylebox_override("panel", frame_style)
-	aside.add_child(art_frame)
-
-	var art := TextureRect.new()
-	art.texture = FRAME_ART
-	art.custom_minimum_size = Vector2(0, 200)
-	art.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-	art.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED
-	art.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	art_frame.add_child(art)
-
-	_quote_lbl = _make_label("", 24, COLOR_DIM)
-	_quote_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	_quote_lbl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	aside.add_child(_quote_lbl)
-
-	var tail := Control.new()
-	tail.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	aside.add_child(tail)
-
-	aside.add_child(_make_confirm_button())
+	func _draw() -> void:
+		var r := Rect2(Vector2(0, roundf((size.y - 8) * 0.5)), Vector2(size.x, 8))
+		draw_rect(r, CleanHud.TRACK)
+		draw_rect(Rect2(r.position, Vector2(roundf(r.size.x * value), r.size.y)), Color(CleanHud.TEXT, 0.82))
+		for i in range(1, 10):
+			var x := roundf(r.size.x * i / 10.0)
+			draw_rect(Rect2(x, r.position.y, 1, r.size.y), Color(0, 0, 0, 0.55))
+		draw_rect(r, CleanHud.BORDER, false, 1.0)
 
 
-func _make_confirm_button() -> Control:
-	# Двойная рамка: внешний контейнер даёт тонкий контур, внутри — сама
-	# кнопка со своей рамкой. Одним StyleBox такого канта не собрать
-	var outer := PanelContainer.new()
-	var outer_style := StyleBoxFlat.new()
-	outer_style.bg_color = Color(0, 0, 0, 0)
-	outer_style.border_color = Color(COLOR_ACCENT.r, COLOR_ACCENT.g, COLOR_ACCENT.b, 0.45)
-	outer_style.set_border_width_all(1)
-	outer_style.set_content_margin_all(5)
-	outer.add_theme_stylebox_override("panel", outer_style)
-
-	var btn := Button.new()
-	btn.text = "CONFIRM"
-	btn.focus_mode = Control.FOCUS_NONE
-	btn.add_theme_font_size_override("font_size", 32)
-	btn.add_theme_color_override("font_color", COLOR_BRIGHT)
-	btn.add_theme_color_override("font_hover_color", Color(1, 0.95, 0.82))
-	btn.add_theme_color_override("font_pressed_color", COLOR_ACCENT)
-	_outline(btn)
-
-	var normal := StyleBoxFlat.new()
-	normal.bg_color = Color(0.11, 0.09, 0.06, 0.9)
-	normal.border_color = Color(COLOR_ACCENT.r, COLOR_ACCENT.g, COLOR_ACCENT.b, 0.85)
-	normal.set_border_width_all(1)
-	normal.set_content_margin_all(14)
-	var hover := normal.duplicate()
-	hover.bg_color = Color(0.18, 0.14, 0.08, 0.95)
-	hover.border_color = COLOR_BRIGHT
-
-	btn.add_theme_stylebox_override("normal", normal)
-	btn.add_theme_stylebox_override("hover", hover)
-	btn.add_theme_stylebox_override("pressed", normal)
-	btn.add_theme_stylebox_override("focus", normal)
-
-	btn.pressed.connect(_on_confirm)
-	outer.add_child(btn)
-	return outer
-
-
-# --- Подсказки клавиш по нижним углам экрана ------------------------------
-
-func _build_hints() -> void:
-	_hints = Control.new()
-	_hints.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	_hints.mouse_filter = Control.MOUSE_FILTER_IGNORE
-
-	var hints_theme := Theme.new()
-	hints_theme.default_font = MENU_FONT
-	_hints.theme = hints_theme
-	add_child(_hints)
-
-	var back := HBoxContainer.new()
-	back.add_theme_constant_override("separation", 12)
-	back.anchor_top = 1.0
-	back.anchor_bottom = 1.0
-	back.offset_left = 56.0
-	back.offset_top = -82.0
-	back.offset_right = 400.0
-	back.offset_bottom = -26.0
-	_hints.add_child(back)
-
-	back.add_child(_make_key_chip("ESC"))
-	var back_btn := _make_text_button("BACK", 25)
-	back_btn.pressed.connect(func(): _play(SOUND_CHOICE); close())
-	back.add_child(back_btn)
-
-	var change := HBoxContainer.new()
-	change.add_theme_constant_override("separation", 10)
-	change.alignment = BoxContainer.ALIGNMENT_END
-	change.anchor_left = 1.0
-	change.anchor_top = 1.0
-	change.anchor_right = 1.0
-	change.anchor_bottom = 1.0
-	change.offset_left = -470.0
-	change.offset_top = -82.0
-	change.offset_right = -56.0
-	change.offset_bottom = -26.0
-	_hints.add_child(change)
-
-	change.add_child(_make_key_chip("<"))
-	change.add_child(_make_key_chip(">"))
-	var change_lbl := _make_label("CHANGE CLASS", 25, COLOR_TEXT)
-	change_lbl.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	change.add_child(change_lbl)
-
-
-func _make_key_chip(key: String) -> Control:
-	var box := PanelContainer.new()
-	box.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	box.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-
-	var style := StyleBoxFlat.new()
-	style.bg_color = Color(0.12, 0.11, 0.09, 0.9)
-	style.border_color = Color(COLOR_ACCENT.r, COLOR_ACCENT.g, COLOR_ACCENT.b, 0.7)
-	style.set_border_width_all(1)
-	style.set_corner_radius_all(3)
-	style.content_margin_left = 12
-	style.content_margin_right = 12
-	style.content_margin_top = 4
-	style.content_margin_bottom = 4
-	box.add_theme_stylebox_override("panel", style)
-
-	var lbl := _make_label(key, 21, COLOR_BRIGHT)
-	lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	box.add_child(lbl)
-	return box
-
-
-# ----------------------------------------------------------
-# ВЫБОР
-# ----------------------------------------------------------
+# ═════════════════════ Выбор ═════════════════════
 
 func _cycle_hero(step: int) -> void:
 	var order := Characters.ORDER
@@ -500,40 +371,41 @@ func _cycle_hero(step: int) -> void:
 	if idx == -1:
 		idx = 0
 	_selected_id = order[(idx + step + order.size()) % order.size()]
-	_play(SOUND_CHOICE)
-	_refresh_selection()
+	Style.play_move(_audio)
+	_refresh_selection(true)
 
 
-func _refresh_selection() -> void:
+func _refresh_selection(animate: bool) -> void:
 	var data := Characters.get_data(_selected_id)
-	var accent := Characters.get_color(_selected_id)
-
-	for id in _hero_rows:
-		var parts: Dictionary = _hero_rows[id]
+	for id in _cells:
+		var parts: Dictionary = _cells[id]
 		var active: bool = id == _selected_id
-		parts["btn"].add_theme_color_override(
-			"font_color", Characters.get_color(id) if active else COLOR_TEXT)
-		parts["marker"].modulate.a = 1.0 if active else 0.0
-		parts["icon"].modulate.a = 1.0 if active else 0.55
+		parts["frame"].highlight = 1.0 if active else 0.0
+		(parts["name"] as Label).add_theme_color_override("font_color", Style.GOLD_HI if active else Style.TEXT)
+		# Цвет класса — только у значка выбранного, остальные серые
+		parts["icon"].call("set_glyph", Characters.get_data(id).get("icon", "rune"),
+			Characters.get_color(id) if active else Color(Style.TEXT_DIM, 0.7))
 
 	if is_instance_valid(_portrait):
 		var region := Characters.get_idle_region(_selected_id)
-		_portrait.call("setup",
-			Characters.get_idle_sheet(_selected_id),
-			region.position.y, region.size,
-			Characters.get_idle_frame_time(_selected_id))
+		_portrait.call("setup", Characters.get_idle_sheet(_selected_id),
+			region.position.y, region.size, Characters.get_idle_frame_time(_selected_id))
+	_name_lbl.text = String(data.get("name", "?"))
+	_tag_lbl.text = String(data.get("tagline", ""))
+	_desc_lbl.text = String(data.get("description", ""))
+	# Цитату переводим до склейки строк: ключ перевода — с переносом \n
+	_quote.text = "«%s»" % tr(String(data.get("quote", ""))).replace("\n", " ")
+	_fill_stats(_selected_id)
 
-	if is_instance_valid(_name_lbl):
-		_name_lbl.text = data.get("name", "?")
-		_name_lbl.add_theme_color_override("font_color", accent)
-		_desc_lbl.text = data.get("description", "")
-		_quote_lbl.text = "\"%s\"" % data.get("quote", "")
-		_fill_stats(_selected_id)
+	if animate:
+		for c: CanvasItem in [_portrait, _info, _quote]:
+			c.modulate.a = 0.0
+			create_tween().tween_property(c, "modulate:a", 1.0, 0.22).set_ease(Tween.EASE_OUT)
 
 
 func _on_confirm() -> void:
 	if _selected_id == "":
-		_play(SOUND_DENIED)
+		Style.play(_audio, Style.SOUND_DENIED)
 		return
-	_play(SOUND_ACCEPT)
+	Style.play(_audio, Style.SOUND_ACCEPT)
 	character_chosen.emit(_selected_id)

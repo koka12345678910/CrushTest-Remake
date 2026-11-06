@@ -1,179 +1,450 @@
 extends Node
 ## SkillTrees.gd — реестр деревьев навыков (автозагрузка), тот же приём, что
-## у Characters.gd: один файл с чистыми данными, ничего не спавнит и не
-## считает сам. UI (Inventory/ui/skill_tree_panel.gd) строит экран из этих
-## данных, а применяет эффекты сам персонаж (см. player.gd::recompute_skill_modifiers) —
-## этот файл только ХРАНИТ, что вообще существует и как узлы связаны друг с другом.
+## у Characters.gd: один файл с чистыми данными и правилами покупки, ничего не
+## спавнит. UI (Inventory/ui/skill_tree_panel.gd) строит экран из этих данных,
+## а применяют эффекты сами герои: рыцарь — player.gd::recompute_skill_modifiers,
+## лучница и маг — character_base.gd::recompute_skill_modifiers (+ свои хуки
+## в archer.gd / mage.gd). Здесь только ХРАНИТСЯ, что существует, как узлы
+## связаны и что даёт открытый набор узлов.
 ##
-## Схема одного узла:
+## У каждого героя ровно три дерева (HERO_TREES), у каждого дерева 10 узлов по
+## одной схеме (SCHEMA): ряды 1-3-3-2-1, узел 9 — финал за 3 очка, открывается
+## при 6+ открытых узлах дерева. Схема одна на все девять деревьев, поэтому
+## ряд/колонка/пререквизиты/цена считаются из номера узла, а не пишутся руками.
+##
+## Схема одного узла (после сборки в _ready):
 ##   id                    — уникальный строковый id внутри ВСЕХ деревьев сразу
 ##   name                  — заголовок узла (кириллица, как в игре)
 ##   lore                  — короткая lore-строка для тултипа
-##   effect_text           — человекочитаемое описание эффекта для тултипа
+##   effect_text           — описание эффекта для игрока
 ##   cost                  — сколько skill_points стоит открыть
 ##   prerequisites         — Array[String] id узлов, ВСЕ должны быть открыты
-##   min_unlocked_in_tree  — доп. условие (только у capstone): сколько узлов
-##                           этого дерева суммарно уже должно быть открыто
+##   min_unlocked_in_tree  — только у финала: сколько узлов дерева уже открыто
 ##   is_capstone           — отдельный визуальный стиль в UI
-##   row / col             — позиция в сетке дерева (col — дробный, от 0 до
-##                           ширины самого широкого ряда минус 1, для центровки
-##                           узлов над своими потомками)
-##   effects               — Dictionary с ключами, которые понимает
-##                           player.gd::recompute_skill_modifiers(). Только
-##                           заранее известные ключи, никакой строковой магии
+##   row / col             — позиция в сетке (col дробный — центровка)
+##   effects               — Dictionary ключ -> число, ключи читают герои
+##                           через skill(key) (сумма по всем открытым узлам)
+##   mechanic              — "" или короткое описание новой механики узла
+##
+## Сохранения: в сейв пишутся только id узлов (SaveManager.unlocked_skills),
+## без id деревьев. Десять id первого дерева рыцаря (stone_heart…jotun_heart)
+## остались прежними — старые сейвы открывают те же узлы с тем же эффектом.
 
-## Единственное реализованное дерево — Руны Стойкости (Рыцарь). Клык Берсерка
-## и Воля Эйнхерия — задел на будущее, намеренно пустые (см. договорённость:
-## не реализовывать их на этом этапе)
-const RUNES_OF_ENDURANCE := "runes_of_endurance"
-const BERSERKER_FANG := "berserker_fang"
-const WILL_OF_EINHERJAR := "will_of_einherjar"
+## Числа в процентах: 8 = +8%. *_points — процентные пункты (шанс крита).
+## Суммы по одному ключу складываются, разные ключи — разные этапы расчёта.
 
-const TREES := {
-	RUNES_OF_ENDURANCE: {
-		"name": "РУНЫ СТОЙКОСТИ",
-		"tagline": "Путь несокрушимого рыцаря",
-		"description": "Укрепляй тело, защищайся от любых ударов и стой там, где другие падают.",
+const HALVARD_OATH := "halvard_unbroken_oath"
+const HALVARD_DAWN := "halvard_dawn_judgment"
+const HALVARD_LIGHT := "halvard_last_light"
+const SIGRID_BOW := "sigrid_true_bowstring"
+const SIGRID_SHADOW := "sigrid_knife_in_shadow"
+const SIGRID_WILD := "sigrid_law_of_the_wild"
+const EIRIK_RUNES := "eirik_word_of_runes"
+const EIRIK_ELEMENTS := "eirik_will_of_elements"
+const EIRIK_CYCLE := "eirik_law_of_cycles"
+
+## Прежние id деревьев рыцаря (до 2026-11) — на случай, если где-то ещё
+## спросят по старому имени
+const RUNES_OF_ENDURANCE := HALVARD_OATH
+const OLD_TREE_IDS := {
+	"runes_of_endurance": HALVARD_OATH,
+	"berserker_fang": HALVARD_DAWN,
+	"will_of_einherjar": HALVARD_LIGHT,
+}
+
+## Деревья героя по character_id (у рыцаря поля нет — "knight")
+const HERO_TREES := {
+	"knight": [HALVARD_OATH, HALVARD_DAWN, HALVARD_LIGHT],
+	"archer": [SIGRID_BOW, SIGRID_SHADOW, SIGRID_WILD],
+	"mage": [EIRIK_RUNES, EIRIK_ELEMENTS, EIRIK_CYCLE],
+}
+
+## Общая схема всех деревьев: номер узла -> ряд, колонка, номера пререквизитов
+const SCHEMA := [
+	{"row": 0, "col": 1.0, "req": []},
+	{"row": 1, "col": 0.0, "req": [0]},
+	{"row": 1, "col": 1.0, "req": [0]},
+	{"row": 1, "col": 2.0, "req": [0]},
+	{"row": 2, "col": 0.0, "req": [1]},
+	{"row": 2, "col": 1.0, "req": [1, 2]},
+	{"row": 2, "col": 2.0, "req": [2, 3]},
+	{"row": 3, "col": 0.5, "req": [4, 5]},
+	{"row": 3, "col": 1.5, "req": [5, 6]},
+	{"row": 4, "col": 1.0, "req": [7, 8]},
+]
+const CAPSTONE_INDEX := 9
+const CAPSTONE_COST := 3
+const CAPSTONE_MIN_UNLOCKED := 6
+
+## Данные деревьев. Узел: [id, НАЗВАНИЕ, lore, эффект для игрока, effects,
+## механика ("" — нет)]; порядок узлов = номера 0–9 схемы
+const DATA := {
+	# ═══════════════════════ ХАЛЬВАРД ═══════════════════════
+	HALVARD_OATH: {
+		"name": "ОБЕТ НЕСОКРУШИМЫХ",
+		"tagline": "Путь щита, обета и непреклонной воли.",
+		"description": "Тяжёлый рыцарь выдерживает удары, сохраняет стойкость и защищается щитом.",
+		# Бывшие «Руны стойкости»: id и эффекты прежние, новые только имена
 		"nodes": [
-			{
-				"id": "stone_heart",
-				"name": "КАМЕННОЕ СЕРДЦЕ",
-				"lore": "Фундамент стойкости рыцаря. Сердце твёрже камня.",
-				"effect_text": "+8% к максимальному здоровью",
-				"cost": 1,
-				"prerequisites": [],
-				"min_unlocked_in_tree": 0,
-				"is_capstone": false,
-				"row": 0, "col": 1.5,
-				"effects": {"max_hp_percent": 8.0},
-			},
-			{
-				"id": "rock_breath",
-				"name": "ДЫХАНИЕ СКАЛЫ",
-				"lore": "Учись дышать глубоко и спокойно, пока буря бьёт о твой щит.",
-				"effect_text": "+10% к максимальной выносливости",
-				"cost": 1,
-				"prerequisites": ["stone_heart"],
-				"min_unlocked_in_tree": 0,
-				"is_capstone": false,
-				"row": 1, "col": 0.5,
-				"effects": {"max_stamina_percent": 10.0},
-			},
-			{
-				"id": "iron_blood",
-				"name": "ЖЕЛЕЗНАЯ КРОВЬ",
-				"lore": "Кровь в жилах становится густой, как расплавленное железо.",
-				"effect_text": "+8% к физической защите",
-				"cost": 1,
-				"prerequisites": ["stone_heart"],
-				"min_unlocked_in_tree": 0,
-				"is_capstone": false,
-				"row": 1, "col": 2.5,
-				"effects": {"physical_defense_percent": 8.0},
-			},
-			{
-				"id": "shield_rune",
-				"name": "РУНА ЩИТА",
-				"lore": "Древние руны усиливают твой щит, заставляя удары скользить по нему.",
-				"effect_text": "-10% получаемого урона во время блока",
-				"cost": 1,
-				"prerequisites": ["rock_breath"],
-				"min_unlocked_in_tree": 0,
-				"is_capstone": false,
-				"row": 2, "col": 0.0,
-				"effects": {"block_damage_reduction_percent": 10.0},
-			},
-			{
-				"id": "stone_stance",
-				"name": "КАМЕННАЯ СТОЙКА",
-				"lore": "Ты становишься неподвижен, как скала, когда враг пытается сломить тебя.",
-				"effect_text": "+15% сопротивления урону стойкости",
-				"cost": 1,
-				"prerequisites": ["rock_breath"],
-				"min_unlocked_in_tree": 0,
-				"is_capstone": false,
-				"row": 2, "col": 1.0,
-				"effects": {"posture_resist_percent": 15.0},
-			},
-			{
-				"id": "unyielding",
-				"name": "НЕСГИБАЕМЫЙ",
-				"lore": "Никакая сила не заставит тебя отступить или пошатнуться.",
-				"effect_text": "+25% сопротивления ошеломлению",
-				"cost": 1,
-				"prerequisites": ["iron_blood"],
-				"min_unlocked_in_tree": 0,
-				"is_capstone": false,
-				"row": 2, "col": 2.0,
-				"effects": {"stagger_resist_percent": 25.0},
-			},
-			{
-				"id": "giant_bones",
-				"name": "КОСТИ ВЕЛИКАНА",
-				"lore": "Твои кости уплотняются, словно кости древних великанов.",
-				"effect_text": "+12% к максимальному здоровью",
-				"cost": 1,
-				"prerequisites": ["iron_blood"],
-				"min_unlocked_in_tree": 0,
-				"is_capstone": false,
-				"row": 2, "col": 3.0,
-				"effects": {"max_hp_percent": 12.0},
-			},
-			{
-				"id": "iron_oath",
-				"name": "ЖЕЛЕЗНЫЙ ОБЕТ",
-				"lore": "Каждый раз, когда ты поднимаешь щит, ты даёшь обет выстоять любой ценой.",
-				"effect_text": "-15% траты выносливости при блоке. После полного блока следующая атака наносит +10% урона стойкости",
-				"cost": 1,
-				"prerequisites": ["shield_rune", "stone_stance"],
-				"min_unlocked_in_tree": 0,
-				"is_capstone": false,
-				"row": 3, "col": 0.5,
-				"effects": {
-					"block_stamina_cost_reduction_percent": 15.0,
-					"block_followup_posture_bonus_percent": 10.0,
-				},
-			},
-			{
-				"id": "mountain_stance",
-				"name": "ГОРНАЯ СТОЙКА",
-				"lore": "Ты стоишь, как гора. Враги бьются о тебя, но не могут сдвинуть.",
-				"effect_text": "+30% сопротивления урону стойкости",
-				"cost": 1,
-				"prerequisites": ["unyielding", "giant_bones"],
-				"min_unlocked_in_tree": 0,
-				"is_capstone": false,
-				"row": 3, "col": 2.5,
-				"effects": {"posture_resist_percent": 30.0},
-			},
-			{
-				"id": "jotun_heart",
-				"name": "СЕРДЦЕ ЙОТУНА",
-				"lore": "Твоё сердце бьётся в такт с горами. Ты — стена между врагом и всем, что тебе дорого.",
-				"effect_text": "+15% макс. здоровья, +10% физ. защиты, +20% сопротивления ошеломлению. Пока здоровье выше 70% — получаемый урон стойкости дополнительно -15%",
-				"cost": 3,
-				"prerequisites": ["iron_oath", "mountain_stance"],
-				"min_unlocked_in_tree": 6,
-				"is_capstone": true,
-				"row": 4, "col": 1.5,
-				"effects": {
-					"max_hp_percent": 15.0,
-					"physical_defense_percent": 10.0,
-					"stagger_resist_percent": 20.0,
-					"capstone_conditional_posture_resist": true,
-				},
-			},
+			["stone_heart", "СЕРДЦЕ КЛЯТВЫ", "Клятва крепче плоти.",
+				"Максимальное здоровье +8%.", {"max_hp_percent": 8.0}, ""],
+			["rock_breath", "ДЫХАНИЕ ВОИНА", "Он стоял, когда прочие падали.",
+				"Максимальная выносливость +10%.", {"max_stamina_percent": 10.0}, ""],
+			["iron_blood", "ЛАТЫ ВЕРЫ", "Вера не заменяет сталь, но укрепляет её.",
+				"Физическая защита +8%.", {"physical_defense_percent": 8.0}, ""],
+			["shield_rune", "ЩИТ БАЛЬДРА", "За щитом его никто не увидит дрожащим.",
+				"Получаемый урон во время блока −10%.", {"block_damage_reduction_percent": 10.0}, ""],
+			["stone_stance", "ТВЁРДЫЙ ОБЕТ", "Земля под ним дрожит прежде, чем он сам.",
+				"Сопротивление урону стойкости +15%.", {"posture_resist_percent": 15.0}, ""],
+			["unyielding", "ВОЛЯ НЕПАВШИХ", "Согнуть его можно, сломить — нет.",
+				"Сопротивление ошеломлению +25%.", {"stagger_resist_percent": 25.0}, ""],
+			["giant_bones", "ПЛОТЬ ХРАНИТЕЛЯ", "Его раны заживут; клятва останется.",
+				"Максимальное здоровье +12%.", {"max_hp_percent": 12.0}, ""],
+			["iron_oath", "КЛЯТВА СТРАЖА", "Принятый удар станет ответом.",
+				"Стоимость блока −15% выносливости; после полного блока следующая атака наносит +10% урона по стойкости.",
+				{"block_stamina_cost_reduction_percent": 15.0, "block_followup_posture_bonus_percent": 10.0}, ""],
+			["mountain_stance", "НЕПОКОЛЕБИМЫЙ СВЕТ", "Рассвет встретит его стоящим.",
+				"Сопротивление урону стойкости +30%.", {"posture_resist_percent": 30.0}, ""],
+			["jotun_heart", "ПОСЛЕДНИЙ ОПЛОТ", "Пока он жив, за его спиной не наступит тьма.",
+				"Максимальное здоровье +15%, физическая защита +10%, сопротивление ошеломлению +20%; при здоровье выше 70% получаемый урон стойкости −15%.",
+				{"max_hp_percent": 15.0, "physical_defense_percent": 10.0, "stagger_resist_percent": 20.0,
+					"capstone_conditional_posture_resist": 1.0}, ""],
 		],
 	},
-	# Задел на будущее — те же деревья, что обсуждали, но без узлов, пока не
-	# дизайним их отдельно (см. договорённость в чате)
-	BERSERKER_FANG: {"name": "КЛЫК БЕРСЕРКА", "tagline": "", "description": "", "nodes": []},
-	WILL_OF_EINHERJAR: {"name": "ВОЛЯ ЭЙНХЕРИЯ", "tagline": "", "description": "", "nodes": []},
+	HALVARD_DAWN: {
+		"name": "КАРА РАССВЕТА",
+		"tagline": "Путь тяжёлого клинка и справедливого воздаяния.",
+		"description": "Наступление через точный удар, парирование, разрушение стойкости и добивания.",
+		"nodes": [
+			["h_atk_0", "ПЕРВЫЙ УДАР", "Клинок выходит из ножен лишь по нужде.",
+				"Физический урон мечом +8%.", {"sword_damage_percent": 8.0}, ""],
+			["h_atk_1", "ТЯЖЕСТЬ СТАЛИ", "Каждый удар оставляет след глубже раны.",
+				"Урон по стойкости от атак мечом +10%.", {"sword_posture_percent": 10.0}, ""],
+			["h_atk_2", "ОТВЕТ СТРАЖА", "Чужая ошибка не останется без кары.",
+				"После идеального парирования следующая атака мечом наносит +12% урона; окно 3 секунды, бонус расходуется одной атакой.",
+				{"parry_next_sword_damage_percent": 12.0}, ""],
+			["h_atk_3", "ГРАНЬ ПРИГОВОРА", "Смерть приходит с последним взмахом.",
+				"Последний, тяжёлый удар серии +12% урона.", {"combo_final_damage_percent": 12.0}, ""],
+			["h_atk_4", "СЛОМЛЕННЫЙ ЩИТ", "Ни один щит не выдержит вечного натиска.",
+				"Урон по стойкости блокирующих врагов от меча +12%.", {"vs_blocking_posture_percent": 12.0}, ""],
+			["h_atk_5", "БРЕШЬ В ОБОРОНЕ", "Открытый враг уже наполовину мёртв.",
+				"Окно добивания после сломанной стойки врага +15% (3 с → 3,45 с).", {"execution_window_percent": 15.0}, ""],
+			["h_atk_6", "ЧИСТЫЙ РАЗРЕЗ", "Ни злобы, ни сомнения — один удар.",
+				"Добивание восстанавливает 10% выносливости.", {"execution_stamina_percent": 10.0}, ""],
+			["h_atk_7", "СУДНЫЙ ВЗМАХ", "Первый шаг к гибели врага сделан им самим.",
+				"После идеального парирования урон по стойкости следующей атаки +15%; окно 3 секунды.",
+				{"parry_next_posture_percent": 15.0}, ""],
+			["h_atk_8", "ПОСЛЕДНЯЯ ЧЕРТА", "Перед концом не бывает второго предупреждения.",
+				"Добивание восстанавливает ещё 12% выносливости, последний удар серии +8% урона.",
+				{"execution_stamina_percent": 12.0, "combo_final_damage_percent": 8.0}, ""],
+			["h_atk_9", "ПРИГОВОР БАЛЬДРА", "Даже во тьме найдётся тот, кто принесёт суд.",
+				"Урон по стойкости +15%. Добивание бьёт ударной волной: врагам в радиусе 70 px — 1 урон и 20 урона по стойкости.",
+				{"posture_damage_percent": 15.0, "execution_wave_radius": 70.0, "execution_wave_damage": 1.0,
+					"execution_wave_posture": 20.0},
+				"Ударная волна добивания: урон и стойкость врагам рядом."],
+		],
+	},
+	HALVARD_LIGHT: {
+		"name": "СВЕТ ПОСЛЕДНЕГО ДНЯ",
+		"tagline": "Путь веры, божественной силы и последнего рассвета.",
+		"description": "Одр, благословения Тора и Сурта, спасение от смерти силой Бальдра.",
+		"nodes": [
+			["h_faith_0", "ИСКРА ВЕРЫ", "Не всякий свет рождается из пламени.",
+				"Получаемый Одр +10%.", {"odr_gain_percent": 10.0}, ""],
+			["h_faith_1", "ДАР ДОБЛЕСТИ", "Богам слышны удары достойных.",
+				"Одр за идеальное парирование +12%.", {"odr_parry_percent": 12.0}, ""],
+			["h_faith_2", "ТЁПЛЫЙ ПЕПЕЛ", "Даже чужой огонь может служить клятве.",
+				"Урон поджога Благословения Сурта +10%.", {"surt_burn_damage_percent": 10.0}, ""],
+			["h_faith_3", "ГРОМОВОЙ ОБЕТ", "Гром слышен там, где молчит молитва.",
+				"Урон цепных молний Благословения Тора +10%.", {"thor_chain_damage_percent": 10.0}, ""],
+			["h_faith_4", "СЛАВА ПАВШИХ", "Даже смерть врага может напомнить о долге.",
+				"Одр за добивание +12%.", {"odr_execution_percent": 12.0}, ""],
+			["h_faith_5", "ДОЛГИЙ РАССВЕТ", "Клятва не меряется числом ударов.",
+				"Базовая длительность благословений Тора и Сурта +12%.", {"blessing_duration_percent": 12.0}, ""],
+			["h_faith_6", "СВЯТОЙ ПРЕДЕЛ", "Свет становится чище у края смерти.",
+				"При HP ниже 30% получение Одра +15%.", {"odr_low_hp_percent": 15.0}, ""],
+			["h_faith_7", "ВТОРОЕ ПЛАМЯ", "Погасшее пламя не всегда становится пеплом.",
+				"Добивание при активном благословении Тора/Сурта продлевает его на 2 секунды; максимум +6 секунд суммарно за одно применение.",
+				{"blessing_extend_seconds": 2.0, "blessing_extend_max_seconds": 6.0},
+				"Продление благословения после добивания, максимум +6 секунд за одно применение."],
+			["h_faith_8", "ПОСЛЕДНИЙ ЛУЧ", "Бальдр не обещал бессмертия, лишь ещё один рассвет.",
+				"После спасения Бальдром получаемый урон −15% на 5 секунд.", {"baldur_after_damage_taken_percent": -15.0}, ""],
+			["h_faith_9", "СВЕТ НЕУГАСШИХ", "Когда мир погаснет, останется обет.",
+				"Получаемый Одр +15%, длительность благословений Тора/Сурта +10%; после спасения Бальдром получаемый урон ещё −15% на 5 секунд.",
+				{"odr_gain_percent": 15.0, "blessing_duration_percent": 10.0, "baldur_after_damage_taken_percent": -15.0}, ""],
+		],
+	},
+	# ═══════════════════════ СИГРИД ═══════════════════════
+	SIGRID_BOW: {
+		"name": "ВЕРНАЯ ТЕТИВА",
+		"tagline": "Путь спокойного глаза и натянутой тетивы.",
+		"description": "Точность, натяжение, заряженные стрелы и критический урон.",
+		"nodes": [
+			["s_bow_0", "ТИХАЯ РУКА", "Зверь не услышит дрожи тетивы.",
+				"Урон из лука +8%.", {"bow_damage_percent": 8.0}, ""],
+			["s_bow_1", "ДАЛЬНИЙ ВЗГЛЯД", "След заканчивается там, где начинается выстрел.",
+				"Скорость полёта стрел +10%.", {"arrow_speed_percent": 10.0}, ""],
+			["s_bow_2", "ПОЛНЫЙ НАТЯГ", "У терпения острый наконечник.",
+				"Урон полностью заряженных выстрелов +12%.", {"charged_shot_damage_percent": 12.0}, ""],
+			["s_bow_3", "ОСТРЫЙ ГЛАЗ", "Промах начинается задолго до выстрела.",
+				"Шанс крита из лука +5 процентных пунктов.", {"bow_crit_chance_points": 5.0}, ""],
+			["s_bow_4", "РОВНЫЙ ВЫДОХ", "Ветер не ждёт, и рука не должна.",
+				"Время полного натяжения −10%.", {"charge_time_percent": -10.0}, ""],
+			["s_bow_5", "ТЯЖЁЛОЕ ОПЕРЕНИЕ", "Чем тише полёт, тем глубже рана.",
+				"Урон по стойкости полностью заряженной стрелы +12%.", {"charged_posture_percent": 12.0}, ""],
+			["s_bow_6", "УЗКОЕ ОКНО", "На верный выстрел нужен лишь миг.",
+				"Критический урон стрел +10%.", {"bow_crit_damage_percent": 10.0}, ""],
+			["s_bow_7", "НЕПОДВИЖНАЯ ЦЕЛЬ", "Ноги устанут раньше глаза.",
+				"Если Сигрид неподвижна при выпуске полностью заряженной стрелы, её урон +12%.",
+				{"still_charged_damage_percent": 12.0}, ""],
+			["s_bow_8", "СЛЕД СТРЕЛЫ", "Смерть находит дорогу дважды.",
+				"После попадания заряженной стрелой следующие атаки Сигрид по этому врагу наносят +15% урона 3 секунды.",
+				{"charged_mark_damage_percent": 15.0}, ""],
+			["s_bow_9", "ВЕРНЫЙ ВЫСТРЕЛ", "Лишние стрелы нужны лишь неуверенным.",
+				"Урон заряженных выстрелов +15%, время натяжения −10%, критический урон стрел +10%.",
+				{"charged_shot_damage_percent": 15.0, "charge_time_percent": -10.0, "bow_crit_damage_percent": 10.0}, ""],
+		],
+	},
+	SIGRID_SHADOW: {
+		"name": "НОЖ В ТЕНИ",
+		"tagline": "Путь тихого шага и чужой ошибки.",
+		"description": "Кинжал, удары в спину, скрытность и воровские навыки.",
+		"nodes": [
+			["s_shadow_0", "ЛЁГКАЯ ЛАДОНЬ", "Всё, что плохо держат, рано или поздно исчезнет.",
+				"Урон кинжалом +8%.", {"dagger_damage_percent": 8.0}, ""],
+			["s_shadow_1", "НОЖ ПОД РЕБРО", "Спина не носит щита.",
+				"Урон кинжалом сзади +12%.", {"backstab_dagger_damage_percent": 12.0}, ""],
+			["s_shadow_2", "ТИХИЙ ШАГ", "Даже мёртвые не услышат её следа.",
+				"Радиус обнаружения врагами −12%.", {"detection_radius_percent": -12.0}, ""],
+			["s_shadow_3", "ЛОВКИЕ ПАЛЬЦЫ", "Чужой кошель легче пустого желудка.",
+				"Удар кинжалом сзади по не подозревающему врагу: 10% шанс дополнительной награды в 10% базового золота врага, минимум 1 золото, лишь одна проверка на врага.",
+				{"steal_chance_percent": 10.0, "steal_gold_percent": 10.0, "steal_min_gold": 1.0},
+				"Однократная дополнительная награда за незаметный удар кинжалом сзади."],
+			["s_shadow_4", "ПЕРВЫЙ ПОРЕЗ", "Не бойся второго удара, если первый верен.",
+				"Первая атака кинжалом по не обнаружившему Сигрид врагу наносит +15% урона.",
+				{"first_unaware_dagger_damage_percent": 15.0}, ""],
+			["s_shadow_5", "СЛЕПОЙ УГОЛ", "Не все опасности приходят спереди.",
+				"При ударе кинжалом в спину крит-шанс +10 процентных пунктов.", {"backstab_dagger_crit_points": 10.0}, ""],
+			["s_shadow_6", "ЧУЖАЯ ДОБЫЧА", "На мёртвых ничего не должно пропадать.",
+				"Золото за врагов, добитых кинжалом, +15%.", {"dagger_kill_gold_percent": 15.0}, ""],
+			["s_shadow_7", "БЫСТРАЯ РУКА", "После первого разреза следует второй.",
+				"После переключения с лука на кинжал урон кинжалом +12% на 3 секунды.",
+				{"switch_dagger_damage_percent": 12.0}, ""],
+			["s_shadow_8", "ТИХАЯ РАСПЛАТА", "Тот, кто не видел ножа, не успел пожалеть.",
+				"Критический урон по не обнаружившим Сигрид врагам +15%.", {"unaware_crit_damage_percent": 15.0}, ""],
+			["s_shadow_9", "БЕЗ СВИДЕТЕЛЕЙ", "Имена тех, кого она убила, остаются невысказанными.",
+				"Кинжал по не обнаружившим Сигрид врагам +15% урона; критический урон кинжалом в спину +15%; радиус обнаружения −10%.",
+				{"unaware_dagger_damage_percent": 15.0, "backstab_dagger_crit_damage_percent": 15.0,
+					"detection_radius_percent": -10.0}, ""],
+		],
+	},
+	SIGRID_WILD: {
+		"name": "ЗАКОН ДИКОГО ЛЕСА",
+		"tagline": "Путь голода, следа и выживания.",
+		"description": "Перекаты, кровотечение, лечебные расходники и ловушки.",
+		"nodes": [
+			["s_wild_0", "ЖИЛЫ ЗВЕРЯ", "Голод учит бежать дольше страха.",
+				"Максимальная выносливость +10%.", {"max_stamina_percent": 10.0}, ""],
+			["s_wild_1", "ЛИСИЙ ШАГ", "Лиса уходит прежде, чем волк бросится.",
+				"Расход выносливости на перекат −10%.", {"roll_cost_percent": -10.0}, ""],
+			["s_wild_2", "СВЕЖАЯ РАНА", "Кровь указывает дорогу лучше следов.",
+				"Любое попадание Сигрид с шансом 12% открывает кровотечение (1 урона × 3 тика).",
+				{"bleed_chance_percent": 12.0}, "Кровотечение от любого попадания с шансом."],
+			["s_wild_3", "ГОРЬКИЙ КОРЕНЬ", "Лекарство редко бывает сладким.",
+				"Лечение от расходников +12%.", {"consumable_heal_percent": 12.0}, ""],
+			["s_wild_4", "БЕЗ СЛЕДА", "Земля не помнит лёгких ног.",
+				"После переката следующий перекат расходует на 15% меньше выносливости, окно 3 секунды.",
+				{"chain_roll_cost_percent": -15.0}, ""],
+			["s_wild_5", "ДОЛГАЯ ОХОТА", "Раненый зверь тратит силы на каждый шаг.",
+				"Длительность наложенного Сигрид кровотечения +12%.", {"bleed_duration_percent": 12.0}, ""],
+			["s_wild_6", "УЗЕЛ ЛОВЧЕГО", "Поспешный охотник сам попадёт в петлю.",
+				"Устанавливает ловушку: клавиша G по умолчанию, цена 15 выносливости, замедление первого врага 30% на 3 секунды, перезарядка 20 секунд, не более одной активной, радиус 24 px, существует до 30 секунд.",
+				{"trap_enabled": 1.0, "trap_stamina_cost": 15.0, "trap_slow_percent": 30.0, "trap_slow_seconds": 3.0,
+					"trap_cooldown_seconds": 20.0, "trap_radius": 24.0, "trap_lifetime_seconds": 30.0},
+				"Ловушка с ценой установки, замедлением и перезарядкой."],
+			["s_wild_7", "ЗВЕРИНЫЙ ВЫДОХ", "После прыжка даже хищник должен вдохнуть.",
+				"После переката скорость восстановления выносливости +15% на 3 секунды.",
+				{"after_roll_stamina_regen_percent": 15.0}, ""],
+			["s_wild_8", "КРОВАВЫЙ СЛЕД", "Раненая добыча редко уходит далеко.",
+				"Урон врагам с активным кровотечением +10%.", {"vs_bleeding_damage_percent": 10.0}, ""],
+			["s_wild_9", "ТА, ЧТО ВЫЖИЛА", "Лес не милостив, но он учит.",
+				"Расход выносливости на перекаты −15%, шанс кровотечения от попаданий ещё +15%, лечение расходниками +10%.",
+				{"roll_cost_percent": -15.0, "bleed_chance_percent": 15.0, "consumable_heal_percent": 10.0}, ""],
+		],
+	},
+	# ═══════════════════════ ЭЙРИК ═══════════════════════
+	EIRIK_RUNES: {
+		"name": "СЛОВО ДРЕВНИХ РУН",
+		"tagline": "Путь знания, знаков и точной воли.",
+		"description": "Заклинания, их стоимость и сочетания разных чар.",
+		"nodes": [
+			["e_rune_0", "ПЕРВЫЙ ЗНАК", "Камень помнит слово дольше человека.",
+				"Урон заклинаний +8%.", {"spell_damage_percent": 8.0}, ""],
+			["e_rune_1", "ТИХОЕ СЛОВО", "Не всякая сила требует громкого голоса.",
+				"Стоимость заклинаний в Сейде −8%.", {"spell_cost_percent": -8.0}, ""],
+			["e_rune_2", "РУНА КЕНАЗ", "Искра открывает то, что скрыто во тьме.",
+				"Урон огненного шара +12%.", {"fireball_damage_percent": 12.0}, ""],
+			["e_rune_3", "РУНА ТУРИСАЗ", "Сила без направления разрушит и хозяина.",
+				"Урон импульс-волны +10%.", {"pulse_damage_percent": 10.0}, ""],
+			["e_rune_4", "РОВНАЯ ЧЕРТА", "Лишний знак ослабляет истинное слово.",
+				"Время применения огненного шара −10%.", {"fireball_cast_time_percent": -10.0}, ""],
+			["e_rune_5", "СВЯЗАННЫЙ ЗНАК", "Две черты могут сказать больше, чем одна.",
+				"Если подряд за 4 секунды применить два разных заклинания, второе наносит +12% урона.",
+				{"combo_window_seconds": 4.0, "combo_damage_percent": 12.0},
+				"Бонус второго отличающегося заклинания в окне 4 секунды."],
+			["e_rune_6", "ГЛУБОКАЯ РЕЗЬ", "Руна, вырезанная глубоко, не боится дождя.",
+				"Огненные столпы поражают на 1 цель больше.", {"pillar_extra_targets": 1.0}, ""],
+			["e_rune_7", "КОРОТКОЕ ЗАКЛЯТИЕ", "Опытный резчик не делает лишних движений.",
+				"Стоимость огненного шара и импульс-волны −12%.",
+				{"fireball_cost_percent": -12.0, "pulse_cost_percent": -12.0}, ""],
+			["e_rune_8", "ВЕРНАЯ ПОСЛЕДОВАТЕЛЬНОСТЬ", "Порядок знаков решает судьбу заклятия.",
+				"Второе из двух разных заклинаний за 4 секунды наносит ещё +10% урона; складывается с базовым бонусом комбинации.",
+				{"combo_damage_percent": 10.0}, ""],
+			["e_rune_9", "СЛОВО БЕЗ ОШИБКИ", "Кто понял знак, тому не нужна молитва.",
+				"Урон заклинаний +12%, стоимость Сейда −10%, второе из двух разных заклинаний за 4 секунды ещё +10% урона.",
+				{"spell_damage_percent": 12.0, "spell_cost_percent": -10.0, "combo_damage_percent": 10.0}, ""],
+		],
+	},
+	EIRIK_ELEMENTS: {
+		"name": "ВОЛЯ СТИХИЙ",
+		"tagline": "Путь огня, корней, камня и свободного ветра.",
+		"description": "Стихийный урон, отталкивание, корни и контроль поля боя.",
+		"nodes": [
+			["e_elem_0", "ГОЛОС ЗЕМЛИ", "Мир отвечает тому, кто умеет слушать.",
+				"Урон стихийных заклинаний +8%.", {"elemental_damage_percent": 8.0}, ""],
+			["e_elem_1", "ЖИВОЙ УГОЛЬ", "Угасший огонь может вновь обрести силу.",
+				"Урон поджога от заклинаний +12%.", {"spell_burn_damage_percent": 12.0}, ""],
+			["e_elem_2", "ВОЛЬНЫЙ ВЕТЕР", "Воздух не терпит тесных стен.",
+				"Сила отталкивания импульс-волной +10%.", {"pulse_knockback_percent": 10.0}, ""],
+			["e_elem_3", "ПАМЯТЬ КАМНЯ", "Камень терпит то, что ломает плоть.",
+				"Получаемый физический урон −8%.", {"physical_damage_taken_percent": -8.0}, ""],
+			["e_elem_4", "ДОЛГИЙ ЖАР", "Огонь не торопится пожрать сухое дерево.",
+				"Длительность огненного облака +12%.", {"cloud_duration_percent": 12.0}, ""],
+			["e_elem_5", "ЦЕПЬ КОРНЕЙ", "Корни держат крепче железа.",
+				"После импульс-волны появляется область корней радиусом 64 px на 3 секунды; враги внутри замедляются на 25%; урон 0.",
+				{"roots_enabled": 1.0, "roots_radius": 64.0, "roots_seconds": 3.0, "roots_slow_percent": 25.0},
+				"Зона корней после импульс-волны с замедлением."],
+			["e_elem_6", "КАМЕННЫЙ ОТВЕТ", "Земля встречает силу сопротивлением.",
+				"Урон импульс-волны по стойкости +12%.", {"pulse_posture_percent": 12.0}, ""],
+			["e_elem_7", "НЕГАСНУЩИЙ ЖАР", "Пламя переживёт того, кто его зажёг.",
+				"Длительность огненного облака +15%, стоимость огненных столпов −8%.",
+				{"cloud_duration_percent": 15.0, "pillar_cost_percent": -8.0}, ""],
+			["e_elem_8", "ТЯЖЁЛАЯ ЗЕМЛЯ", "Камень не гонится за врагом — он ждёт его.",
+				"Импульс-волна наносит +15% урона стойкости; во время её применения получаемый физический урон −10%.",
+				{"pulse_posture_percent": 15.0, "casting_pulse_damage_taken_percent": -10.0}, ""],
+			["e_elem_9", "ВОЛЯ ДРЕВНЕЙ ЗЕМЛИ", "Ни огонь, ни ветер не властвуют над миром в одиночку.",
+				"Урон стихийных заклинаний +15%, длительность огненного облака +12%, урон импульс-волны по стойкости +10%.",
+				{"elemental_damage_percent": 15.0, "cloud_duration_percent": 12.0, "pulse_posture_percent": 10.0}, ""],
+		],
+	},
+	EIRIK_CYCLE: {
+		"name": "ЗАКОН КРУГОВОРОТА",
+		"tagline": "Путь утраты, возвращения и равновесия.",
+		"description": "Сейд, души, восстановление и обмен жизненной силы на магию.",
+		"nodes": [
+			["e_cycle_0", "ТИХИЙ ИСТОК", "Даже высохший ручей хранит влагу под камнями.",
+				"Максимальный Сейд +10%.", {"max_seid_percent": 10.0}, ""],
+			["e_cycle_1", "ОБРАТНЫЙ ПОТОК", "Вода всегда находит путь домой.",
+				"Восстановление Сейда +12%.", {"seid_regen_percent": 12.0}, ""],
+			["e_cycle_2", "СЛЕД УШЕДШИХ", "Ничто живое не исчезает бесследно.",
+				"Получаемые души +10%.", {"soul_gain_percent": 10.0}, ""],
+			["e_cycle_3", "ТОНКАЯ КОРА", "Не всякая защита должна быть железной.",
+				"Максимальное здоровье +8%.", {"max_hp_percent": 8.0}, ""],
+			["e_cycle_4", "ТИХОЕ ДЫХАНИЕ", "Природа не спешит восполнять утраченное.",
+				"Пока маг не применяет заклинания, скорость восстановления Сейда +12%.",
+				{"idle_seid_regen_percent": 12.0}, ""],
+			["e_cycle_5", "ДАР УШЕДШИХ", "Смерть одного кормит жизнь другого.",
+				"Убийство заклинанием возвращает 12% цены этого заклинания в Сейде.",
+				{"seid_on_kill_percent": 12.0}, "Возврат Сейда за убийство заклинанием."],
+			["e_cycle_6", "ЦЕНА ЖИЗНИ", "Кровь питает корни так же, как дождь.",
+				"Активно обменять 10% текущего HP на 15% максимального Сейда, кулдаун 20 секунд; нельзя оставить меньше 1 HP или применять при полном Сейде.",
+				{"life_exchange_enabled": 1.0, "life_exchange_hp_percent": 10.0, "life_exchange_seid_percent": 15.0,
+					"life_exchange_cooldown_seconds": 20.0},
+				"Обмен текущего здоровья на Сейд с ограничениями."],
+			["e_cycle_7", "ГЛУБОКИЙ РОДНИК", "У земли больше сил, чем кажется на первый взгляд.",
+				"Максимальный Сейд +15%.", {"max_seid_percent": 15.0}, ""],
+			["e_cycle_8", "РАВНАЯ ДОЛЯ", "Мир возвращает не всё, но достаточно.",
+				"При здоровье ниже 30% скорость восстановления Сейда +15%.", {"low_hp_seid_regen_percent": 15.0}, ""],
+			["e_cycle_9", "ВЕЧНЫЙ ВОЗВРАТ", "Все реки вновь станут дождём.",
+				"Максимальный Сейд +15%, скорость восстановления +15%, стоимость заклинаний −10%.",
+				{"max_seid_percent": 15.0, "seid_regen_percent": 15.0, "spell_cost_percent": -10.0}, ""],
+		],
+	},
 }
+
+## Ключи, которые складываются не как проценты, а берутся максимумом
+## (флаги, радиусы, длительности и кулдауны новых механик): два узла с
+## одним флагом не должны давать «вдвое включённую» ловушку
+const MAX_KEYS := ["capstone_conditional_posture_resist", "blessing_extend_seconds", "blessing_extend_max_seconds",
+	"execution_wave_radius", "execution_wave_damage", "execution_wave_posture",
+	"steal_gold_percent", "steal_min_gold", "trap_enabled", "trap_stamina_cost", "trap_slow_percent",
+	"trap_slow_seconds", "trap_cooldown_seconds", "trap_radius", "trap_lifetime_seconds",
+	"combo_window_seconds", "roots_enabled", "roots_radius", "roots_seconds", "roots_slow_percent",
+	"life_exchange_enabled", "life_exchange_hp_percent", "life_exchange_seid_percent",
+	"life_exchange_cooldown_seconds"]
+
+## Собранные деревья: tree_id -> {name, tagline, description, hero, nodes: [..]}
+var TREES := {}
+## node_id -> tree_id (для быстрых проверок и сейвов)
+var _tree_of := {}
+
+
+func _init() -> void:
+	_build()
+
+
+func _build() -> void:
+	TREES.clear()
+	_tree_of.clear()
+	for hero in HERO_TREES:
+		for tree_id in HERO_TREES[hero]:
+			var d: Dictionary = DATA[tree_id]
+			var ids: Array = []
+			for n in d["nodes"]:
+				ids.append(n[0])
+			var nodes: Array = []
+			for i in d["nodes"].size():
+				var src: Array = d["nodes"][i]
+				var sch: Dictionary = SCHEMA[i] if i < SCHEMA.size() else {"row": 0, "col": 0.0, "req": []}
+				var reqs: Array[String] = []
+				for r in sch["req"]:
+					if r < ids.size():
+						reqs.append(String(ids[r]))
+				var cap: bool = i == CAPSTONE_INDEX
+				nodes.append({
+					"id": src[0],
+					"name": src[1],
+					"lore": src[2],
+					"effect_text": src[3],
+					"effects": src[4],
+					"mechanic": src[5],
+					"cost": CAPSTONE_COST if cap else 1,
+					"prerequisites": reqs,
+					"min_unlocked_in_tree": CAPSTONE_MIN_UNLOCKED if cap else 0,
+					"is_capstone": cap,
+					"row": sch["row"],
+					"col": sch["col"],
+				})
+				_tree_of[src[0]] = tree_id
+			TREES[tree_id] = {
+				"name": d["name"],
+				"tagline": d["tagline"],
+				"description": d["description"],
+				"hero": hero,
+				"nodes": nodes,
+			}
+
+
+# ─────────────────────────────────────────────
+# ДОСТУП К ДАННЫМ
+# ─────────────────────────────────────────────
+
+func _resolve(tree_id: String) -> String:
+	return OLD_TREE_IDS.get(tree_id, tree_id)
 
 
 func get_tree_data(tree_id: String) -> Dictionary:
-	return TREES.get(tree_id, {})
+	return TREES.get(_resolve(tree_id), {})
 
 
 func get_nodes(tree_id: String) -> Array:
@@ -185,3 +456,155 @@ func get_node_data(tree_id: String, node_id: String) -> Dictionary:
 		if n["id"] == node_id:
 			return n
 	return {}
+
+
+## Узел по одному id (дерево находится само); пусто — такого узла нет
+func find_node(node_id: String) -> Dictionary:
+	var t: String = _tree_of.get(node_id, "")
+	return get_node_data(t, node_id) if t != "" else {}
+
+
+func tree_of(node_id: String) -> String:
+	return _tree_of.get(node_id, "")
+
+
+## character_id героя (у рыцаря поля нет) -> "knight"/"archer"/"mage"
+static func hero_key(character_id) -> String:
+	if character_id == null or String(character_id) == "" or String(character_id) == "knight":
+		return "knight"
+	return String(character_id)
+
+
+## Три дерева героя по порядку вкладок
+func trees_for(character_id) -> Array:
+	return HERO_TREES.get(hero_key(character_id), [])
+
+
+# ─────────────────────────────────────────────
+# ПРАВИЛА ПОКУПКИ (игровая логика, UI только спрашивает)
+# ─────────────────────────────────────────────
+
+## Сколько узлов дерева открыто (финал тоже считается, но к моменту его
+## покупки он ещё не открыт — значит, это число обычных узлов)
+func unlocked_in_tree(unlocked: Array, tree_id: String) -> int:
+	var count := 0
+	for n in get_nodes(tree_id):
+		if n["id"] in unlocked:
+			count += 1
+	return count
+
+
+## Можно ли открыть узел: он есть в дереве ЭТОГО героя, ещё не открыт, все
+## пререквизиты открыты, у финала набрано нужное число узлов
+func can_unlock(character_id, unlocked: Array, tree_id: String, node_id: String) -> bool:
+	tree_id = _resolve(tree_id)
+	if not (tree_id in trees_for(character_id)):
+		return false
+	if node_id in unlocked:
+		return false
+	var node := get_node_data(tree_id, node_id)
+	if node.is_empty():
+		return false
+	for req in node.get("prerequisites", []):
+		if not (req in unlocked):
+			return false
+	var min_count: int = node.get("min_unlocked_in_tree", 0)
+	if min_count > 0 and unlocked_in_tree(unlocked, tree_id) < min_count:
+		return false
+	return true
+
+
+## Сумма эффектов всех открытых узлов героя: ключ -> число. Узлы чужих
+## героев (кривой сейв) пропускаются — у одного героя не бывает чужих бонусов
+func sum_effects(character_id, unlocked: Array) -> Dictionary:
+	var own := {}
+	for t in trees_for(character_id):
+		own[t] = true
+	var out := {}
+	for node_id in unlocked:
+		var t: String = _tree_of.get(node_id, "")
+		if not own.has(t):
+			continue
+		var effects: Dictionary = get_node_data(t, node_id).get("effects", {})
+		for k in effects:
+			var v: float = float(effects[k])
+			if k in MAX_KEYS:
+				out[k] = maxf(float(out.get(k, 0.0)), v)
+			else:
+				out[k] = float(out.get(k, 0.0)) + v
+	return out
+
+
+## Целый урон с процентным бонусом. Урон в игре — единицы (1–3), и +8% от 1
+## при обычном округлении терялся бы совсем. Поэтому дробная часть — шанс
+## добавить ещё единицу: в среднем урон растёт ровно на percent
+static func scale_int(base: int, percent: float) -> int:
+	if percent == 0.0 or base <= 0:
+		return base
+	var v := float(base) * (1.0 + percent / 100.0)
+	var whole := int(floor(v))
+	if randf() < v - float(whole):
+		whole += 1
+	return maxi(whole, 1)
+
+
+# ─────────────────────────────────────────────
+# ПРОВЕРКА ДАННЫХ
+# ─────────────────────────────────────────────
+
+## Ошибки в данных деревьев (пустой массив — всё в порядке): три дерева на
+## героя, 10 узлов в дереве, уникальные id, пререквизиты внутри дерева, нет
+## циклов, один финал с правильной ценой
+func validate() -> Array[String]:
+	var errors: Array[String] = []
+	var seen := {}
+	for hero in HERO_TREES:
+		var trees: Array = HERO_TREES[hero]
+		if trees.size() != 3:
+			errors.append("%s: деревьев %d, нужно 3" % [hero, trees.size()])
+		for tree_id in trees:
+			var nodes := get_nodes(tree_id)
+			if nodes.size() != 10:
+				errors.append("%s: узлов %d, нужно 10" % [tree_id, nodes.size()])
+			var ids := {}
+			var capstones := 0
+			for n in nodes:
+				var id: String = n["id"]
+				if seen.has(id):
+					errors.append("id %s повторяется (%s и %s)" % [id, seen[id], tree_id])
+				seen[id] = tree_id
+				ids[id] = true
+				if n["is_capstone"]:
+					capstones += 1
+					if n["cost"] != CAPSTONE_COST or n["min_unlocked_in_tree"] != CAPSTONE_MIN_UNLOCKED:
+						errors.append("%s: финал %s с неверной ценой/условием" % [tree_id, id])
+				elif n["cost"] != 1:
+					errors.append("%s: узел %s стоит %d" % [tree_id, id, n["cost"]])
+				if String(n["name"]) == "" or String(n["effect_text"]) == "" or (n["effects"] as Dictionary).is_empty():
+					errors.append("%s: у узла %s нет имени/эффекта" % [tree_id, id])
+			if capstones != 1:
+				errors.append("%s: финалов %d" % [tree_id, capstones])
+			for n in nodes:
+				for req in n["prerequisites"]:
+					if not ids.has(req):
+						errors.append("%s: %s требует %s не из этого дерева" % [tree_id, n["id"], req])
+			# Циклы: обход в глубину по пререквизитам
+			var state := {}
+			for n in nodes:
+				if _has_cycle(tree_id, n["id"], state):
+					errors.append("%s: цикл через %s" % [tree_id, n["id"]])
+					break
+	return errors
+
+
+func _has_cycle(tree_id: String, id: String, state: Dictionary) -> bool:
+	if state.get(id, 0) == 2:
+		return false
+	if state.get(id, 0) == 1:
+		return true
+	state[id] = 1
+	for req in get_node_data(tree_id, id).get("prerequisites", []):
+		if _has_cycle(tree_id, req, state):
+			return true
+	state[id] = 2
+	return false

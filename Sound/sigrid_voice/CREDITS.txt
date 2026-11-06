@@ -1,0 +1,26 @@
+Голос Сигрид — источники и лицензии (скачано 2026-11-02)
+
+attack1-3.wav, hurt1-3.wav, roll1-3.wav
+  "RPG Voice Starter Pack", голос Type 3 (зрелый), автор cicifyre
+  https://opengameart.org/content/female-rpg-voice-starter-pack
+  Лицензия: CC0 1.0 (общественное достояние; указание автора желательно, но не обязательно)
+  Переименованы: damaged* -> hurt*, jump* -> roll*
+
+hurt_heavy_1-7.wav
+  "Female Hurt Grunts & Groans", автор AuraVoice (Nocturnal_Vanguard)
+  https://opengameart.org/content/female-hurt-grunts-groans
+  Лицензия: CC0 1.0
+  Один файл с несколькими стонами нарезан на отдельные (моно, 16 бит, 44.1 кГц).
+  (Прежний крик "Female Scream 1" убран по просьбе — слишком резкий.)
+
+breath_exhausted.wav (одышка при истощении, играет по кругу)
+  "Exhausted Post-Sprint Pant", BudgetPixel AI — звук СГЕНЕРИРОВАН ИИ
+  https://budgetpixel.com/sfx/exhausted-post-sprint-pant-e111afc1
+  Лицензия: CC BY 4.0 — В ТИТРАХ ИГРЫ ОБЯЗАТЕЛЬНО УКАЗАТЬ:
+  "Exhausted Post-Sprint Pant" by BudgetPixel AI (https://budgetpixel.com/sfx/exhausted-post-sprint-pant-e111afc1) — CC BY 4.0
+  Сведено в моно (16 бит, 44.1 кГц), больше не изменялось
+
+death.ogg
+  "Death/Dying Female Fighter/Warrior Voice Over", автор JeanMyna_VA
+  https://opengameart.org/content/deathdying-female-fighterwarrior-voice-over-vocal-sound-for-character
+  Лицензия: CC-BY 3.0 — В ТИТРАХ ИГРЫ ОБЯЗАТЕЛЬНО УКАЗАТЬ: "Dying voice: JeanMyna_VA (CC-BY 3.0)"

@@ -20,8 +20,12 @@ extends Node2D
 ## Под крышей дом гасит дождь через modulate (house_interior.gd, группа
 ## rain_fx).
 
-## Базовая сила дождя (0..1) — плотность пелены и капель без порывов
+## Базовая сила дождя (0..1) — плотность пелены и капель без порывов.
+## На кладбище её плавно ведёт погода (Levels/weather.gd)
 @export_range(0.0, 1.0) var intensity := 0.6
+## Есть ли дождь вообще (0..1): погода плавно поднимает и опускает её, все
+## слои редеют и тают вместе — без резкого включения и выключения
+@export_range(0.0, 1.0) var amount := 1.0
 ## Насколько порывы добавляют к силе и как часто (с)
 @export_range(0.0, 1.0) var gust_strength := 0.2
 @export var gust_period := 9.0
@@ -137,6 +141,15 @@ func _process(delta: float) -> void:
 	var power := clampf(intensity + gust_strength * g + _boost, 0.0, 1.0)
 	var s := slant - gust_slant * g
 
+	# Дождя нет — слои не рисуем и не пускаем частицы
+	var on := amount > 0.001
+	_sheet.visible = on
+	if _drops.emitting != on:
+		for p in [_drops, _big, _ripples, _crowns]:
+			p.emitting = on
+	if not on:
+		return
+
 	# Пелена — с запасом за края вида
 	_sheet.scale = _view * 1.25
 	_sheet_mat.set_shader_parameter("cam_pos", global_position)
@@ -144,7 +157,7 @@ func _process(delta: float) -> void:
 	_sheet_mat.set_shader_parameter("density", 0.12 + 0.38 * power)
 	_sheet_mat.set_shader_parameter("slant", s)
 	_sheet_mat.set_shader_parameter("rain_color", rain_color)
-	_sheet_mat.set_shader_parameter("strength", sheet_strength)
+	_sheet_mat.set_shader_parameter("strength", sheet_strength * amount)
 
 	# Капли рождаются по всему виду (+ запас против ветра)
 	var dir := Vector2(s, 1.0).normalized()
@@ -154,10 +167,10 @@ func _process(delta: float) -> void:
 	# Касания земли — по всему виду, чуть с запасом
 	for p in [_ripples, _crowns]:
 		(p.process_material as ParticleProcessMaterial).emission_box_extents = Vector3(_view.x * 0.55, _view.y * 0.55, 0.0)
-	_ripples.amount_ratio = clampf(0.3 + 0.7 * power, 0.0, 1.0)
-	_crowns.amount_ratio = clampf(power * power, 0.0, 1.0)
-	_drops.amount_ratio = clampf(0.35 + 0.65 * power, 0.0, 1.0)
-	_big.amount_ratio = clampf(power * power, 0.0, 1.0)
+	_ripples.amount_ratio = clampf((0.3 + 0.7 * power) * amount, 0.0, 1.0)
+	_crowns.amount_ratio = clampf(power * power * amount, 0.0, 1.0)
+	_drops.amount_ratio = clampf((0.35 + 0.65 * power) * amount, 0.0, 1.0)
+	_big.amount_ratio = clampf(power * power * amount, 0.0, 1.0)
 
 
 func _make_particles(amount: int, life: float, tex: Texture2D, z: int) -> GPUParticles2D:

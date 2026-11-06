@@ -15,7 +15,7 @@ func _init() -> void:
 	ability_name = "Эликсир Вальгаллы"
 	cooldown_duration = 8.0
 	description = "Моментально восстанавливает здоровье"
-	icon = load("res://Shop/icons/flask_red.png")
+	icon = load_icon("res://Shop/icons/icons_2/valhalla_elixir.png")
 
 func _execute(player: Node) -> void:
 	# Сначала игрок пьёт, и только когда звук доиграет — приходит лечение

@@ -27,7 +27,13 @@ const TAB_SETTINGS  := 3
 ## Магия рыцаря (Player_scene/magic/knight_magic.gd): та же сетка, описание и
 ## три слота, что у предметов, только над книгой заклинаний и слотами магии
 const TAB_MAGIC     := 4
+## Гримуар мага: заклинания и их прокачка за души (Inventory/ui/mage_grimoire.gd)
+const TAB_GRIMOIRE  := 5
 const COLOR_ODR     = Color(0.58, 0.68, 0.98, 1.0)
+
+## Зелья — для фильтра сетки (item_category); остальное, что не талисман, —
+## навыки/дары богов
+const POTIONS := ["Мёд Поэзии", "Песнь Валькирии", "Песнь валькирии", "Эликсир Вальгаллы"]
 
 # Настройки — та же панель, что и в главном меню, а не её копия: значения живут
 # в автозагрузке GameSettings, и второй реализации взяться неоткуда
@@ -42,13 +48,23 @@ const OrnamentSeparatorScript := preload("res://Main_Menu/scripts/OrnamentSepara
 const GlyphIconScript := preload("res://Main_Menu/scripts/GlyphIcon.gd")
 
 # ─── UI-ЗВУКИ ──────────────────────────────────────────────────────────────────
-const SOUND_ACCEPT := preload("res://Sound/UI_button/accept.wav")
-const SOUND_DENIED := preload("res://Sound/UI_button/denied.wav")
-const SOUND_CHOICE := preload("res://Sound/UI_button/choice.wav")
-const SOUND_OPEN := preload("res://Sound/openUI_sound.mp3")
+# Звуки интерфейса — общие для всей игры (UI/ui_sounds.gd), на шине "UI"
+const UiSounds := preload("res://UI/ui_sounds.gd")
+const SOUND_ACCEPT := UiSounds.SELECT
+const SOUND_DENIED := UiSounds.ERROR
+const SOUND_CHOICE := UiSounds.MOVE
+## Переключатели и ползунки (вкладка настроек, hero_settings_screen.gd)
+const SOUND_TOGGLE := UiSounds.TOGGLE
+const SOUND_OPEN := UiSounds.OPEN
+const SOUND_CLOSE := UiSounds.CLOSE
 
 const SkillTreePanelScript := preload("res://Inventory/ui/skill_tree_panel.gd")
 const TalismanPanelScript := preload("res://Inventory/ui/talisman_panel.gd")
+const HeroSkin := preload("res://Inventory/ui/hero_inventory_skin.gd")
+## Вид инвентаря героя (hero_inventory_skin.gd): тёмные полупрозрачные панели
+var _skin = null
+## Его тема (HeroSkin.theme_for); null — обычный инвентарь (без героя)
+var _skin_theme = null
 var _ui_audio: AudioStreamPlayer
 
 func _play_ui_sound(stream: AudioStream) -> void:
@@ -87,7 +103,20 @@ var _hover_index: int = -1
 var _settings_panel: Control
 var _skills_panel: Control
 var _talismans_panel: Control
+## Стена трофеев рыцаря и Гримуар мага — встают на место содержимого, как
+## экран талисманов
+var _trophies_panel: Control
+var _grimoire_panel: Control
 var _is_closing := false
+
+## Фильтр сетки: "" — всё, иначе категория (item_category)
+var _filter := ""
+## Только что полученные предметы/заклинания (имя -> true): ромб «НОВОЕ»
+## на ячейке, пока на неё не наведут. Стартовый набор и восстановление из
+## сейва новыми не считаются — отметка включается после первого кадра
+var _new_items := {}
+var _new_spells := {}
+var _track_new := false
 
 ## Экипированные талисманы — до 4 штук, эффект действует только пока
 ## талисман в одной из секций (Inventory/ui/talisman_panel.gd), а не просто
@@ -95,23 +124,37 @@ var _is_closing := false
 ## has_talisman() у владельца эффекта всегда честно возвращает false
 var _talisman_system: TalismanSystem
 
-# Экран выбора дерева навыков (три панели) и экран самого дерева — второй
-# пока заглушка (см. _build_skills_panel), сами деревья отдельной задачей
-const SKILL_TREE_NAMES := [
-	"РУНЫ СТОЙКОСТИ",
-	"КЛЫК БЕРСЕРКА",
-	"ВОЛЯ ЭЙНХЕРИЯ",
-]
-## Параллельно SKILL_TREE_NAMES — путь к иконке или "", если своей ещё нет
-## (тогда карточка остаётся текстовой, как раньше)
-const SKILL_TREE_ICONS := [
-	"res://UI/icons/runes_of_endurance.png",
-	"",
-	"",
-]
-## Эмблема, нарисованная кодом, пока у дерева нет своей картинки в
-## SKILL_TREE_ICONS (см. Inventory/ui/skill_tree_card.gd)
-const SKILL_TREE_EMBLEMS := ["", "fang", "swirl"]
+# Экран выбора дерева навыков (три панели) и экран самого дерева. У каждого
+# героя свои три дерева (Save/skill_trees.gd: HERO_TREES)
+## Картинка-эмблема дерева (пока есть только у первого дерева рыцаря); у
+## остальных — эмблема, нарисованная кодом (Inventory/ui/skill_tree_card.gd)
+const SKILL_TREE_ICONS := {
+	"halvard_unbroken_oath": "res://UI/icons/runes_of_endurance.png",
+}
+const SKILL_TREE_EMBLEMS := {
+	"halvard_dawn_judgment": "fang",
+	"halvard_last_light": "swirl",
+	"sigrid_true_bowstring": "fang",
+	"sigrid_knife_in_shadow": "fang",
+	"sigrid_law_of_the_wild": "swirl",
+	"eirik_word_of_runes": "swirl",
+	"eirik_will_of_elements": "swirl",
+	"eirik_law_of_cycles": "fang",
+}
+
+
+## Деревья текущего героя по порядку вкладок: [{id, name, icon, emblem}]
+func skill_trees() -> Array:
+	var out: Array = []
+	for tree_id in SkillTrees.trees_for(_player.get("character_id") if is_instance_valid(_player) else null):
+		var icon_path: String = SKILL_TREE_ICONS.get(tree_id, "")
+		out.append({
+			"id": tree_id,
+			"name": SkillTrees.get_tree_data(tree_id).get("name", ""),
+			"icon": load(icon_path) if icon_path != "" and ResourceLoader.exists(icon_path) else null,
+			"emblem": SKILL_TREE_EMBLEMS.get(tree_id, ""),
+		})
+	return out
 const SkillTreeCardScript := preload("res://Inventory/ui/skill_tree_card.gd")
 const OrnateButtonScript := preload("res://Inventory/ui/ornate_button.gd")
 var _tree_cards: Array[Control] = []
@@ -171,6 +214,7 @@ func _ready() -> void:
 	# продолжаем работать во время паузы, чтобы инвентарь оставался интерактивным
 	process_mode = Node.PROCESS_MODE_ALWAYS
 	_ui_audio = AudioStreamPlayer.new()
+	_ui_audio.bus = UiSounds.bus()
 	add_child(_ui_audio)
 
 
@@ -199,6 +243,9 @@ func init(ability_system: AbilitySystem, inventory_system: InventorySystem, play
 	_ability_system.inventory = inventory_system
 	_inventory_system.count_changed.connect(_on_count_changed)
 	_build_ui()
+	# Стартовые предметы герой кладёт сразу после init() в том же кадре —
+	# новыми они не считаются
+	set_deferred("_track_new", true)
 
 
 func open() -> void:
@@ -210,7 +257,12 @@ func open() -> void:
 	_hover_index = -1
 	_play_ui_sound(SOUND_OPEN)
 	visible = true
+	_hide_game_hud(true)
 	_refresh_grid()
+	# Живые панели (сага, колчан, алтарь) — со свежими значениями героя
+	if _skin != null:
+		_skin.refresh_side()
+		_skin.refresh_new_marks()
 	_backdrop.modulate.a = 0.0
 	_root.modulate = Color(1, 1, 1, 0)
 	_root.scale = Vector2(0.96, 0.96)
@@ -227,7 +279,7 @@ func close() -> void:
 	if _is_closing or not visible:
 		return
 	_is_closing = true
-	_play_ui_sound(SOUND_OPEN)
+	_play_ui_sound(SOUND_CLOSE)
 	_root.pivot_offset = _screen / 2.0
 	var tw = create_tween().set_parallel()
 	tw.tween_property(_backdrop, "modulate:a", 0.0, 0.16)
@@ -235,10 +287,34 @@ func close() -> void:
 	tw.tween_property(_root, "scale", Vector2(0.96, 0.96), 0.14)
 	await tw.finished
 	visible = false
+	_hide_game_hud(false)
 	_is_closing = false
 	# снимаем паузу — мир снова оживает
 	get_tree().paused = false
 	emit_signal("closed")
+
+
+## Фон «мир»: за инвентарём героя виден сам мир, затемнённый, — но не
+## игровой HUD (полоски, кольца слотов, счётчики): пока окно открыто, все
+## прочие слои интерфейса (CanvasLayer с layer >= 1) прячутся, при закрытии
+## возвращаются те же самые
+var _hidden_layers: Array[CanvasLayer] = []
+
+func _hide_game_hud(on: bool) -> void:
+	if not on:
+		for l in _hidden_layers:
+			if is_instance_valid(l):
+				l.visible = true
+		_hidden_layers.clear()
+		return
+	if _skin_theme == null:
+		return
+	for n in get_tree().root.find_children("*", "CanvasLayer", true, false):
+		var l := n as CanvasLayer
+		if l == self or not l.visible or l.layer < 1:
+			continue
+		l.visible = false
+		_hidden_layers.append(l)
 
 
 func add_item(ability: Ability) -> void:
@@ -246,9 +322,72 @@ func add_item(ability: Ability) -> void:
 	if _inventory_system == null:
 		push_warning("[Инвентарь] add_item до init() — предмет потерян: %s" % ability.ability_name)
 		return
-	_inventory_system.add_item(ability)
+	_bag_inventory.add_item(ability)
+	if _track_new:
+		notify_new(ability.ability_name)
 	if visible:
 		_refresh_grid()
+
+
+## Отметить предмет (spell = true — заклинание книги рыцаря) как новый:
+## ромб «НОВОЕ» на ячейке, на фильтре и на вкладке
+func notify_new(item_name: String, spell := false) -> void:
+	if spell:
+		_new_spells[item_name] = true
+	else:
+		_new_items[item_name] = true
+	if _skin != null and visible:
+		_skin.refresh_new_marks()
+
+
+func _new_set() -> Dictionary:
+	return _new_spells if _magic_mode else _new_items
+
+
+## Категория предмета для фильтров: talisman / potion / skill
+static func item_category(ab: Ability) -> String:
+	if ab.is_passive:
+		return "talisman"
+	if ab.ability_name in POTIONS:
+		return "potion"
+	return "skill"
+
+
+## Что видно в сетке: в режиме магии — вся книга, иначе — по фильтру
+func _visible_items() -> Array[Resource]:
+	var all := _inventory_system.get_all()
+	if _magic_mode or _filter == "":
+		return all
+	var out: Array[Resource] = []
+	for it in all:
+		if item_category(it as Ability) == _filter:
+			out.append(it)
+	return out
+
+
+func _count_in_category(cat: String) -> int:
+	var n := 0
+	for it in _bag_inventory.get_all():
+		if cat == "" or item_category(it as Ability) == cat:
+			n += 1
+	return n
+
+
+func _category_has_new(cat: String) -> bool:
+	for it in _bag_inventory.get_all():
+		var ab := it as Ability
+		if _new_items.has(ab.ability_name) and item_category(ab) == cat:
+			return true
+	return false
+
+
+func _set_filter(cat: String) -> void:
+	if cat == _filter:
+		return
+	_filter = cat
+	_play_ui_sound(SOUND_CHOICE)
+	_hover_index = -1
+	_select_slot(-1, false)
 
 
 ## Открыт ли поверх инвентаря какой-то подраздел — по этому же признаку player.gd
@@ -259,6 +398,10 @@ func has_overlay_open() -> bool:
 	if is_instance_valid(_talismans_panel) and _talismans_panel.visible:
 		return true
 	if is_instance_valid(_settings_panel) and _settings_panel.visible:
+		return true
+	if is_instance_valid(_trophies_panel) and _trophies_panel.visible:
+		return true
+	if is_instance_valid(_grimoire_panel) and _grimoire_panel.visible:
 		return true
 	return false
 
@@ -283,8 +426,37 @@ func _unhandled_input(event: InputEvent) -> void:
 		if is_instance_valid(_talismans_panel) and _talismans_panel.visible:
 			_close_talismans()
 			return
+		# Экран настроек героя (своего Esc у него нет, в отличие от панели меню)
+		if _skin != null and is_instance_valid(_settings_panel) and _settings_panel.visible:
+			_close_settings_screen()
+			return
+		if is_instance_valid(_trophies_panel) and _trophies_panel.visible:
+			_close_content_panel(_trophies_panel)
+			return
+		if is_instance_valid(_grimoire_panel) and _grimoire_panel.visible:
+			_close_content_panel(_grimoire_panel)
+			return
 		close()
 		return
+
+	# T — стена трофеев (рыцарь), G — Гримуар (маг); повторное нажатие закрывает
+	if event is InputEventKey and event.pressed and not event.echo \
+			and (event.keycode == KEY_T or event.keycode == KEY_G) and _skin != null:
+		var cid = _player.get("character_id") if _player else null
+		if event.keycode == KEY_T and cid != "archer" and cid != "mage":
+			get_viewport().set_input_as_handled()
+			if is_instance_valid(_trophies_panel) and _trophies_panel.visible:
+				_close_content_panel(_trophies_panel)
+			else:
+				_open_trophies()
+			return
+		if event.keycode == KEY_G and cid == "mage":
+			get_viewport().set_input_as_handled()
+			if is_instance_valid(_grimoire_panel) and _grimoire_panel.visible:
+				_close_content_panel(_grimoire_panel)
+			else:
+				_on_tab_pressed(TAB_GRIMOIRE)
+			return
 
 	# Экран выбора дерева: ←/→ переключают подсветку, Enter открывает дерево
 	if is_instance_valid(_skills_panel) and _skills_panel.visible \
@@ -346,6 +518,9 @@ func _build_ui() -> void:
 		floor((grid_w - _slot_gap * (GRID_COLS - 1)) / GRID_COLS),
 		floor((grid_h - _slot_gap * (GRID_ROWS - 1)) / GRID_ROWS))
 
+	# Тема нарисованного вида — до фона: у героя может быть свой фон экрана
+	if _player != null:
+		_skin_theme = HeroSkin.theme_for(_player.get("character_id"))
 	_build_backdrop()
 
 	_root = Control.new()
@@ -364,6 +539,14 @@ func _build_ui() -> void:
 	font_theme.default_font = serif
 	_root.theme = font_theme
 	add_child(_root)
+
+	# Герой с нарисованным листом UI (Inventory/ui/hero_inventory_skin.gd):
+	# те же узлы и та же логика, другая раскладка и текстуры
+	if _skin_theme != null:
+		_skin = HeroSkin.new(_skin_theme)
+		_skin.build(self)
+		_select_slot(-1, false)
+		return
 
 	var frame := _make_panel(_frame_pos, _frame_size)
 	frame.set("corner_length", 38.0)
@@ -403,6 +586,17 @@ func _build_backdrop() -> void:
 	# ColorRect по умолчанию MOUSE_FILTER_STOP — ловит клики мимо интерфейса,
 	# чтобы они не уходили в мир под инвентарём
 	_backdrop.add_child(base)
+
+	# Инвентарь героя (hero_inventory_skin.gd): картинки нет — за панелями сам
+	# мир вокруг героя (игра на паузе, кадр стоит), слегка затемнённый, края
+	# экрана чуть темнее
+	if _skin_theme != null:
+		HeroSkin.use_theme(_skin_theme)
+		base.color = Color(0.0, 0.0, 0.0, _skin_theme.get("world_dim", 0.32))
+		_backdrop.add_child(_make_radial(Rect2(Vector2.ZERO, _screen),
+			PackedFloat32Array([0.0, 0.55, 1.0]),
+			PackedColorArray([Color(0, 0, 0, 0.0), Color(0, 0, 0, 0.08), Color(0, 0, 0, 0.45)])))
+		return
 
 	# Мягкое тёплое свечение по центру — окну есть на чём "стоять"
 	_backdrop.add_child(_make_radial(Rect2(Vector2.ZERO, _screen),
@@ -586,7 +780,12 @@ func _update_tab_visuals() -> void:
 	for i in _tab_buttons.size():
 		var btn := _tab_buttons[i]
 		var active := i < _tab_ids.size() and _tab_ids[i] == _current_tab
-		btn.add_theme_color_override("font_color", COLOR_TEXT_GOLD if active else COLOR_TEXT_DIM)
+		# Значок навигации (hero_inventory_skin) сам плавно красит и надпись
+		var nav := btn.get_node_or_null("NavIcon")
+		if nav != null:
+			nav.set("active", active)
+		else:
+			btn.add_theme_color_override("font_color", COLOR_TEXT_GOLD if active else COLOR_TEXT_DIM)
 		(btn.get_node("Indicator") as Control).visible = active
 
 
@@ -620,9 +819,31 @@ func _set_magic_mode(on: bool) -> void:
 
 
 func _on_tab_pressed(id: int) -> void:
+	# Стена трофеев/Гримуар — на месте содержимого; любая вкладка их убирает,
+	# в том числе текущая (трофеи открываются поверх Инвентаря/Магии)
+	var hid_panel := false
+	for p in [_trophies_panel, _grimoire_panel]:
+		if is_instance_valid(p) and p.visible and not (p == _grimoire_panel and id == TAB_GRIMOIRE):
+			p.visible = false
+			hid_panel = true
 	if id == _current_tab:
+		if hid_panel:
+			_play_ui_sound(SOUND_CHOICE)
 		return
 	match id:
+		TAB_GRIMOIRE:
+			for p in [_skills_panel, _talismans_panel]:
+				if is_instance_valid(p) and p.visible:
+					p.visible = false
+			if is_instance_valid(_settings_panel) and _settings_panel.visible:
+				_settings_panel.close()
+			_set_magic_mode(false)
+			_play_ui_sound(SOUND_ACCEPT)
+			if not is_instance_valid(_grimoire_panel):
+				_grimoire_panel = _skin.build_grimoire(self)
+				_root.add_child(_grimoire_panel)
+			_show_content_panel(_grimoire_panel)
+			_set_current_tab(TAB_GRIMOIRE)
 		TAB_INVENTORY, TAB_MAGIC:
 			_play_ui_sound(SOUND_CHOICE)
 			if is_instance_valid(_skills_panel) and _skills_panel.visible:
@@ -1002,7 +1223,16 @@ func _build_hints() -> void:
 	row.size = Vector2(520.0, 38.0)
 	_root.add_child(row)
 
-	for h in [["ЛКМ", "ВЫБРАТЬ"], ["ESC", "ЗАКРЫТЬ"]]:
+	var hints := [["ЛКМ", "ВЫБРАТЬ"], ["ESC", "ЗАКРЫТЬ"]]
+	if _skin != null:
+		match _player.get("character_id") if _player else null:
+			"mage":
+				hints.insert(1, ["G", "ГРИМУАР"])
+			"archer":
+				pass
+			_:
+				hints.insert(1, ["T", "ТРОФЕИ"])
+	for h in hints:
 		var pair := HBoxContainer.new()
 		pair.add_theme_constant_override("separation", 10)
 		pair.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -1035,7 +1265,7 @@ func _build_hints() -> void:
 # ─────────────────────────────────────────────
 
 func _refresh_grid() -> void:
-	var items := _inventory_system.get_all()
+	var items := _visible_items()
 	for i in _grid_slots.size():
 		var slot    := _grid_slots[i]
 		var frame   := slot.get_node("Frame")
@@ -1050,7 +1280,7 @@ func _refresh_grid() -> void:
 			var cnt := _inventory_system.get_count(ab.ability_name)
 			if _magic_mode:
 				# Заклинание не тратится — вместо количества его цена в Одре
-				count_l.text = "%d Одр" % int(ab.get("odr_cost"))
+				count_l.text = tr("%d Одр") % int(_odr_cost(ab))
 				count_l.add_theme_color_override("font_color", COLOR_ODR)
 			else:
 				count_l.text = "x%d" % cnt
@@ -1066,6 +1296,9 @@ func _refresh_grid() -> void:
 			frame.set("show_cross", true)
 
 		frame.set("highlight", _slot_highlight(i, items.size()))
+		var nm := slot.get_node_or_null("NewMark")
+		if nm:
+			nm.visible = i < items.size() and _new_set().has((items[i] as Ability).ability_name)
 
 	_refresh_quick_slot_preview()
 
@@ -1088,7 +1321,7 @@ func _refresh_quick_slot_preview() -> void:
 
 	var used := _ability_system.abilities.size()
 	if is_instance_valid(_quick_slot_header):
-		_quick_slot_header.text = ("Магия  %d/%d" if _magic_mode else "Быстрый доступ  %d/%d") \
+		_quick_slot_header.text = tr("Магия  %d/%d" if _magic_mode else "Быстрый доступ  %d/%d") \
 				% [used, AbilitySystem.MAX_SLOTS]
 
 	# Рисуем ВСЕ ячейки, включая пустые — так видно, сколько места осталось,
@@ -1113,7 +1346,7 @@ func _apply_quick_slot(slot: Control, ab: Ability, active: bool, cross_when_empt
 # play_sound=false — для перерисовки после действия (экипировка, трата заряда):
 # карточка справа пересобирается тем же кодом, но щелчок выбора звучать не должен
 func _select_slot(idx: int, play_sound := true) -> void:
-	var items := _inventory_system.get_all()
+	var items := _visible_items()
 	_selected_index = idx
 
 	if idx >= 0 and idx < items.size():
@@ -1130,18 +1363,18 @@ func _select_slot(idx: int, play_sound := true) -> void:
 		_detail_name.add_theme_color_override("font_color", COLOR_TEXT)
 		var equipped_talisman := is_instance_valid(_talisman_system) \
 			and _talisman_system.has_talisman(ab.ability_name)
-		var type_name := ab.item_type if ab.item_type != "" else "Расходуемое"
+		var type_name := tr(ab.item_type if ab.item_type != "" else "Расходуемое")
 		if ab.is_passive:
-			type_name += "  •  экипирован" if equipped_talisman else "  •  снят"
+			type_name += "  •  " + tr("экипирован" if equipped_talisman else "снят")
 		else:
-			type_name += "  •  в слоте" if equipped else ""
+			type_name += ("  •  " + tr("в слоте")) if equipped else ""
 		_detail_type.text        = type_name
 		_detail_effect.text      = ab.description
 		_detail_count.text       = "%d / %d" % [cnt, max_cnt]
 		_detail_max_count.text   = "%d" % max_cnt
 		if _magic_mode:
-			_detail_count.text     = "%d Одр" % int(ab.get("odr_cost"))
-			_detail_max_count.text = "%d сек" % int(ab.get("duration"))
+			_detail_count.text     = tr("%d Одр") % int(_odr_cost(ab))
+			_detail_max_count.text = tr("%d сек") % int(ab.get("duration"))
 		# Кнопка работает как переключатель: повторное нажатие на предмет,
 		# который уже в быстром доступе, освобождает слот. Без этого при трёх
 		# занятых ячейках поменять набор было бы нечем
@@ -1169,6 +1402,8 @@ func _select_slot(idx: int, play_sound := true) -> void:
 
 	_update_equip_deco()
 	_refresh_grid()
+	if _skin != null:
+		_skin.on_select(items[idx] if idx >= 0 and idx < items.size() else null)
 
 
 func _get_max_count(ability_name: String) -> int:
@@ -1191,23 +1426,48 @@ func _on_slot_hover(idx: int, entered: bool) -> void:
 		_hover_index = idx
 	elif _hover_index == idx:
 		_hover_index = -1
+	var items := _visible_items()
 	var frame := _grid_slots[idx].get_node("Frame")
-	frame.set("highlight", _slot_highlight(idx, _inventory_system.get_all().size()))
+	frame.set("highlight", _slot_highlight(idx, items.size()))
+	# Навели на новинку — она осмотрена: ромб «НОВОЕ» гаснет
+	if entered and idx < items.size():
+		var item_name := (items[idx] as Ability).ability_name
+		var news := _new_set()
+		if news.has(item_name):
+			news.erase(item_name)
+			var nm := _grid_slots[idx].get_node_or_null("NewMark")
+			if nm:
+				nm.visible = false
+			if _skin != null:
+				_skin.refresh_new_marks()
+
+
+## Цена заклинания в Одре с трофейной скидкой (knight_magic.spell_cost)
+func _odr_cost(ab: Ability) -> float:
+	var magic = _player.get("magic") if _player else null
+	if magic != null and magic.has_method("spell_cost"):
+		return magic.spell_cost(ab)
+	return float(ab.get("odr_cost"))
 
 
 func _on_quick_slot_clicked(slot_index: int) -> void:
 	if _ability_system == null or slot_index >= _ability_system.abilities.size():
 		return
 	var ab := _ability_system.abilities[slot_index]
-	var items := _inventory_system.get_all()
-	for i in items.size():
-		if (items[i] as Ability).ability_name == ab.ability_name:
-			_select_slot(i)
+	# Предмет скрыт фильтром — фильтр снимается, чтобы его показать
+	for attempt in 2:
+		var items := _visible_items()
+		for i in items.size():
+			if (items[i] as Ability).ability_name == ab.ability_name:
+				_select_slot(i)
+				return
+		if _filter == "":
 			return
+		_filter = ""
 
 
 func _on_equip_pressed() -> void:
-	var items := _inventory_system.get_all()
+	var items := _visible_items()
 	if _selected_index < 0 or _selected_index >= items.size():
 		return
 	var ab: Ability = items[_selected_index] as Ability
@@ -1223,17 +1483,17 @@ func _on_equip_pressed() -> void:
 		_play_ui_sound(SOUND_CHOICE)
 		# Перерисовку делаем ДО статуса: _select_slot чистит строку сообщения
 		_select_slot(_selected_index, false)
-		_set_status(("Убрано из слотов магии: %s" if _magic_mode else "Убрано из быстрого доступа: %s")
-			% ab.ability_name, COLOR_TEXT_DIM)
+		_set_status(tr("Убрано из слотов магии: %s" if _magic_mode else "Убрано из быстрого доступа: %s")
+			% tr(ab.ability_name), COLOR_TEXT_DIM)
 		return
 
 	if _ability_system.is_full():
 		_play_ui_sound(SOUND_DENIED)
 		if _magic_mode:
-			_set_status("Слоты магии заполнены (%d/%d) — сначала уберите заклинание"
+			_set_status(tr("Слоты магии заполнены (%d/%d) — сначала уберите заклинание")
 				% [_ability_system.abilities.size(), AbilitySystem.MAX_SLOTS], COLOR_WARN)
 		else:
-			_set_status("Быстрый доступ заполнен (%d/%d) — сначала уберите предмет"
+			_set_status(tr("Быстрый доступ заполнен (%d/%d) — сначала уберите предмет")
 				% [_ability_system.abilities.size(), AbilitySystem.MAX_SLOTS], COLOR_WARN)
 		return
 
@@ -1245,7 +1505,7 @@ func _on_equip_pressed() -> void:
 	_ability_system.add_ability(ab)
 	_play_ui_sound(SOUND_ACCEPT)
 	_select_slot(_selected_index, false)
-	_set_status(("В слоте магии: %s" if _magic_mode else "В быстром доступе: %s") % ab.ability_name,
+	_set_status(tr("В слоте магии: %s" if _magic_mode else "В быстром доступе: %s") % tr(ab.ability_name),
 		COLOR_TEXT_GOLD)
 
 
@@ -1272,6 +1532,15 @@ func _on_count_changed(_item_name: String, _count: int) -> void:
 
 func _open_settings() -> void:
 	_play_ui_sound(SOUND_ACCEPT)
+	# Нарисованный инвентарь героя: настройки — его же три панели на месте
+	# содержимого (hero_settings_screen.gd), а не панель главного меню поверх
+	if _skin != null:
+		if not is_instance_valid(_settings_panel):
+			_settings_panel = _skin.build_settings(self)
+			_root.add_child(_settings_panel)
+		_show_content_panel(_settings_panel)
+		_set_current_tab(TAB_SETTINGS)
+		return
 	if not is_instance_valid(_settings_panel):
 		# Панель из главного меню создаётся скриптом, без .tscn — поэтому new()
 		# по самому скрипту, а не instantiate() по сцене
@@ -1289,6 +1558,15 @@ func _open_settings() -> void:
 
 func _open_skills() -> void:
 	_play_ui_sound(SOUND_ACCEPT)
+	# Нарисованный инвентарь героя: дерево, карточка навыка и список деревьев
+	# в тех же трёх панелях (hero_skills_screen.gd)
+	if _skin != null:
+		if not is_instance_valid(_skills_panel):
+			_skills_panel = _skin.build_skills(self)
+			_root.add_child(_skills_panel)
+		_show_content_panel(_skills_panel)
+		_set_current_tab(TAB_SKILLS)
+		return
 	if not is_instance_valid(_skills_panel):
 		_skills_panel = _build_skills_panel()
 		_root.add_child(_skills_panel)
@@ -1313,8 +1591,17 @@ func _open_skills() -> void:
 func _close_skills() -> void:
 	if not is_instance_valid(_skills_panel):
 		return
-	_play_ui_sound(SOUND_OPEN)
+	_play_ui_sound(SOUND_CLOSE)
 	_skills_panel.visible = false
+	_set_current_tab(TAB_INVENTORY)
+
+
+## «Назад» / Esc на экране настроек героя (сохранение — в самом экране)
+func _close_settings_screen() -> void:
+	if not is_instance_valid(_settings_panel):
+		return
+	_play_ui_sound(SOUND_CLOSE)
+	_settings_panel.visible = false
 	_set_current_tab(TAB_INVENTORY)
 
 
@@ -1333,9 +1620,45 @@ func _open_talismans() -> void:
 func _close_talismans() -> void:
 	if not is_instance_valid(_talismans_panel):
 		return
-	_play_ui_sound(SOUND_OPEN)
+	_play_ui_sound(SOUND_CLOSE)
 	_talismans_panel.visible = false
 	_set_current_tab(TAB_INVENTORY)
+
+
+## Стена трофеев рыцаря (кнопка в правой колонке или T). Вкладки своей у неё
+## нет (полоса Хальварда нарисована ровно под пять вкладок) — подсвечена
+## остаётся вкладка, с которой её открыли
+func _open_trophies() -> void:
+	if _skin == null:
+		return
+	for p in [_skills_panel, _talismans_panel, _grimoire_panel]:
+		if is_instance_valid(p) and p.visible:
+			p.visible = false
+	if is_instance_valid(_settings_panel) and _settings_panel.visible:
+		_settings_panel.close()
+	if not is_instance_valid(_trophies_panel):
+		_trophies_panel = _skin.build_trophies(self)
+		_root.add_child(_trophies_panel)
+	_play_ui_sound(SOUND_ACCEPT)
+	_show_content_panel(_trophies_panel)
+	_set_current_tab(TAB_MAGIC if _magic_mode else TAB_INVENTORY)
+
+
+func _show_content_panel(p: Control) -> void:
+	if p.has_method("refresh"):
+		p.call("refresh")
+	p.visible = true
+	p.modulate = Color(1, 1, 1, 0)
+	create_tween().tween_property(p, "modulate", Color.WHITE, 0.18)
+
+
+func _close_content_panel(p: Control) -> void:
+	_play_ui_sound(SOUND_CLOSE)
+	p.visible = false
+	if _current_tab == TAB_GRIMOIRE:
+		_set_current_tab(TAB_INVENTORY)
+	if _skin != null:
+		_skin.refresh_side()
 
 
 ## Тот же каркас, что у окна навыков (_build_skills_panel): затемнение +
@@ -1343,6 +1666,9 @@ func _close_talismans() -> void:
 ## Содержимое (сетка талисманов / карточка / четыре секции-слота) строит
 ## TalismanPanelScript — там же вся игровая логика экипировки
 func _build_talismans_panel() -> Control:
+	# Сигрид — свой экран талисманов в стиле её инвентаря
+	if _skin != null:
+		return _skin.build_talismans(self)
 	var root := Control.new()
 	root.set_anchors_preset(Control.PRESET_FULL_RECT)
 	root.mouse_filter = Control.MOUSE_FILTER_STOP
@@ -1475,20 +1801,20 @@ func _build_tree_selector(pw: float, ph: float) -> Control:
 	var bottom_margin := 112.0
 	var side_margin := 50.0
 	var gap := 40.0
-	var tree_w := (pw - side_margin * 2.0 - gap * (SKILL_TREE_NAMES.size() - 1)) / SKILL_TREE_NAMES.size()
+	var list := skill_trees()
+	var tree_w := (pw - side_margin * 2.0 - gap * maxi(list.size() - 1, 0)) / maxi(list.size(), 1)
 	var tree_h := ph - top_margin - bottom_margin
 
 	_tree_cards.clear()
-	for i in SKILL_TREE_NAMES.size():
+	for i in list.size():
 		var card := Control.new()
 		card.set_script(SkillTreeCardScript)
-		card.set("title", SKILL_TREE_NAMES[i])
+		card.set("title", list[i]["name"])
 		card.set("seed_value", i)
-		var icon_path: String = SKILL_TREE_ICONS[i]
-		if icon_path != "" and ResourceLoader.exists(icon_path):
-			card.set("emblem_texture", load(icon_path))
+		if list[i]["icon"]:
+			card.set("emblem_texture", list[i]["icon"])
 		else:
-			card.set("emblem_kind", SKILL_TREE_EMBLEMS[i])
+			card.set("emblem_kind", list[i]["emblem"])
 		card.position = Vector2(side_margin + i * (tree_w + gap), top_margin)
 		card.size = Vector2(tree_w, tree_h)
 		card.connect("pressed", _on_tree_selected.bind(i))
@@ -1560,10 +1886,6 @@ func _make_ornate_button(text: String, pos: Vector2, sz: Vector2) -> Button:
 	return b
 
 
-## Id деревьев в SkillTrees — параллельно SKILL_TREE_NAMES
-const SKILL_TREE_IDS := ["runes_of_endurance", "berserker_fang", "will_of_einherjar"]
-
-
 func _on_tree_selected(index: int) -> void:
 	_play_ui_sound(SOUND_CHOICE)
 	_tree_hl = index
@@ -1578,14 +1900,7 @@ func _on_tree_selected(index: int) -> void:
 
 	# Колонка слева на экране дерева — все деревья, с теми же эмблемами,
 	# что и на карточках выбора
-	var trees: Array = []
-	for i in SKILL_TREE_NAMES.size():
-		var icon_path: String = SKILL_TREE_ICONS[i]
-		trees.append({
-			"name": SKILL_TREE_NAMES[i],
-			"icon": load(icon_path) if icon_path != "" and ResourceLoader.exists(icon_path) else null,
-			"emblem": SKILL_TREE_EMBLEMS[i],
-		})
+	var trees := skill_trees()
 
 	# Пустые деревья (и персонажи без прокачки) панель показывает заглушкой
 	# "в разработке" сама — колонка слева при этом остаётся рабочей
@@ -1593,7 +1908,7 @@ func _on_tree_selected(index: int) -> void:
 	tree_panel.position = Vector2(20, 96)
 	tree_panel.size = Vector2(_skills_pw - 40.0, _skills_ph - 96.0 - 16.0)
 	_skill_tree_detail.add_child(tree_panel)
-	tree_panel.init(SKILL_TREE_IDS[index], _player, trees, index)
+	tree_panel.init(trees[index]["id"], _player, trees, index)
 	tree_panel.back_requested.connect(_on_tree_detail_back)
 	tree_panel.tree_switch_requested.connect(_on_tree_selected)
 

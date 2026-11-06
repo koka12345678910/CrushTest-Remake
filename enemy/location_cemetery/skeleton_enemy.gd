@@ -119,6 +119,7 @@ static var _muted_materials := {}
 
 func _ready() -> void:
 	super()
+	_setup_sound()
 	var sp: AnimatedSprite2D = $AnimatedSprite2D
 	_sprite_rest_pos = sp.position
 	if ochre_mute > 0.0 and sp.material is ShaderMaterial:
@@ -517,3 +518,127 @@ func _fall_down() -> void:
 	var t := create_tween().set_parallel()
 	t.tween_property(sp, "rotation", side * 1.35, 0.45).set_ease(Tween.EASE_IN).set_trans(Tween.TRANS_QUAD)
 	t.tween_property(sp, "position", sp.position + Vector2(side * 10.0, 12.0), 0.45).set_ease(Tween.EASE_IN)
+
+
+# ===================== ЗВУК (Levels/sound_bank.gd) =====================
+# У скелетов свои звуки вместо человеческих: кости при шаге и ударе, хрип на
+# замахе, рык при виде героя, редкий стон издалека, обвал костей при смерти.
+# Голос зависит от вида: тяжёлый ниже, ловкий выше
+
+const SoundBank := preload("res://Levels/sound_bank.gd")
+## Тон голоса и костей по видам
+const KIND_PITCH := {Kind.GRUNT: 1.0, Kind.SHIELD: 0.92, Kind.BRUTE: 0.74, Kind.DUELIST: 1.1}
+## Ближе — слышны кости и стон; дальше звуки не запускаем вовсе
+const SOUND_RANGE := 520.0
+## Шаг: через сколько пикселей пути стучат кости
+const BONE_STEP := 58.0
+
+var _bones_audio: AudioStreamPlayer2D
+var _bone_distance := 0.0
+var _moan_timer := 0.0
+var _saw_player := false
+
+
+func _setup_sound() -> void:
+	enemy_pitch_down = KIND_PITCH.get(kind, 1.0)
+	enemy_grunt_chance = 0.4
+	# Громкости под новые файлы; шина Combat — чтобы слушались настройки SFX
+	attack_audio.bus = &"Combat"
+	impact_audio.bus = &"Combat"
+	voice_audio.bus = &"Combat"
+	death_audio.bus = &"Combat"
+	voice_audio.volume_db = -11.0
+	death_audio.volume_db = -5.0
+	_bones_audio = AudioStreamPlayer2D.new()
+	_bones_audio.name = "BonesAudio"
+	_bones_audio.bus = &"Combat"
+	_bones_audio.volume_db = -8.0
+	_bones_audio.max_distance = 520.0
+	_bones_audio.attenuation = 1.6
+	add_child(_bones_audio)
+	_moan_timer = randf_range(6.0, 26.0)
+
+
+func _process(delta: float) -> void:
+	if is_dead:
+		return
+	var hero := get_tree().get_first_node_in_group("player") as Node2D
+	if hero == null or global_position.distance_squared_to(hero.global_position) > SOUND_RANGE * SOUND_RANGE:
+		_saw_player = see_player
+		return
+	# Заметил героя — рык один раз за встречу
+	if see_player and not _saw_player and current_state != State.ATTACK:
+		_voice("skel_aggro")
+	_saw_player = see_player
+	# Кости стучат на ходу
+	var spd := velocity.length()
+	if spd > 12.0:
+		_bone_distance += spd * delta
+		if _bone_distance >= BONE_STEP:
+			_bone_distance = 0.0
+			_rattle(-3.0 if spd > run_speed * 0.8 else -8.0)
+	# Пока не заметил — изредка стонет
+	if not see_player:
+		_moan_timer -= delta
+		if _moan_timer <= 0.0:
+			_moan_timer = randf_range(14.0, 34.0)
+			if not voice_audio.playing:
+				_voice("skel_moan", -7.0)
+
+
+func _rattle(db := 0.0) -> void:
+	var st := SoundBank.pick("skel_rattle")
+	if st == null or not is_instance_valid(_bones_audio):
+		return
+	_bones_audio.stream = st
+	_bones_audio.volume_db = -8.0 + db
+	_bones_audio.pitch_scale = enemy_pitch_down * randf_range(0.9, 1.15)
+	_bones_audio.play()
+
+
+func _voice(key: String, db := 0.0) -> void:
+	var st := SoundBank.pick(key)
+	if st == null:
+		return
+	voice_audio.stream = st
+	voice_audio.volume_db = -11.0 + db
+	voice_audio.pitch_scale = enemy_pitch_down * randf_range(0.93, 1.07)
+	voice_audio.play()
+
+
+func _play_attack_sound() -> void:
+	var st := SoundBank.pick("skel_swing")
+	if st == null:
+		super()
+		return
+	_play_enemy_sound(attack_audio, st)
+	_rattle(-2.0)
+	if randf() < enemy_grunt_chance:
+		_voice("skel_grunt")
+
+
+func _play_impact_sound() -> void:
+	var st := SoundBank.pick("skel_hit")
+	if st == null:
+		super()
+		return
+	_play_enemy_sound(impact_audio, st)
+
+
+## Ранен: удар по костям, и не каждый раз — хрип
+func _play_hurt_sound() -> void:
+	if SoundBank.pick("skel_rattle") == null:
+		super()
+		return
+	_rattle(4.0)
+	if randf() < 0.35:
+		_voice("skel_grunt", -2.0)
+
+
+func _play_death_sound() -> void:
+	var st := SoundBank.pick("skel_collapse")
+	if st == null:
+		super()
+		return
+	_play_enemy_sound(death_audio, st)
+	_voice("skel_aggro", -5.0)

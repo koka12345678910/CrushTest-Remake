@@ -21,6 +21,8 @@ var current_slot := -1
 
 var character_id := ""
 var gold := 0
+## Души — валюта мага (character_base.gd::souls), тот же контракт, что у gold
+var souls := 0
 var skill_points := 0
 var skill_progress := 0
 ## id открытых узлов дерева навыков (см. Save/skill_trees.gd,
@@ -38,6 +40,10 @@ var last_played_ms := 0
 ## Подобранный лут (Levels/loot/loot_item.gd): id находок, которые больше не
 ## появляются. id = путь сцены уровня + путь узла находки в ней
 var taken_loot: Array = []
+## Костры (Levels/bonfire/bonfire.gd): зажжённые и последний, у которого
+## отдыхали — там герой появляется при загрузке
+var lit_bonfires: Array = []
+var last_bonfire := ""
 ## Содержимое сумки: имя способности (Ability.ability_name) -> сколько штук.
 ## has_inventory = false — сумку ещё ни разу не сохраняли (новый слот): тогда
 ## у героя остаются стартовые предметы, а не пустая сумка
@@ -46,6 +52,9 @@ var has_inventory := false
 ## Книга заклинаний рыцаря (Player_scene/magic/knight_magic.gd) — имена
 ## выученных благословений
 var spells: Array = []
+## Своё у каждого героя (get_hero_progress/set_hero_progress на персонаже):
+## у рыцаря — счётчики трофеев, у мага — ранги заклинаний и сосуд душ
+var hero_progress: Dictionary = {}
 
 
 func _ready() -> void:
@@ -103,6 +112,7 @@ func peek_slot(slot: int) -> Dictionary:
 	return {
 		"character_id": cfg.get_value("save", "character_id", Characters.FALLBACK),
 		"gold": cfg.get_value("progress", "gold", 0),
+		"souls": cfg.get_value("progress", "souls", 0),
 		"skill_points": cfg.get_value("progress", "skill_points", 0),
 		"skill_progress": cfg.get_value("progress", "skill_progress", 0),
 		"unlocked_skills": cfg.get_value("progress", "unlocked_skills", []),
@@ -110,9 +120,12 @@ func peek_slot(slot: int) -> Dictionary:
 		"created_at": cfg.get_value("save", "created_at", 0),
 		"last_played_ms": cfg.get_value("save", "last_played_ms", 0),
 		"taken_loot": cfg.get_value("world", "taken_loot", []),
+		"lit_bonfires": cfg.get_value("world", "lit_bonfires", []),
+		"last_bonfire": cfg.get_value("world", "last_bonfire", ""),
 		"inventory": cfg.get_value("progress", "inventory", {}),
 		"has_inventory": cfg.has_section_key("progress", "inventory"),
 		"spells": cfg.get_value("progress", "spells", []),
+		"hero_progress": cfg.get_value("progress", "hero_progress", {}),
 	}
 
 
@@ -132,6 +145,7 @@ func create_slot(slot: int, new_character_id: String) -> bool:
 	current_slot = slot
 	character_id = new_character_id
 	gold = 0
+	souls = 0
 	skill_points = 0
 	skill_progress = 0
 	unlocked_skills = []
@@ -139,9 +153,12 @@ func create_slot(slot: int, new_character_id: String) -> bool:
 	created_at = int(Time.get_unix_time_from_system())
 	last_played_ms = int(Time.get_unix_time_from_system() * 1000.0)
 	taken_loot = []
+	lit_bonfires = []
+	last_bonfire = ""
 	inventory = {}
 	has_inventory = false
 	spells = []
+	hero_progress = {}
 	save()
 	slot_changed.emit()
 	return true
@@ -154,6 +171,7 @@ func load_slot(slot: int) -> bool:
 	current_slot = slot
 	character_id = info["character_id"]
 	gold = info["gold"]
+	souls = info["souls"]
 	skill_points = info["skill_points"]
 	skill_progress = info["skill_progress"]
 	unlocked_skills = info["unlocked_skills"]
@@ -161,9 +179,12 @@ func load_slot(slot: int) -> bool:
 	created_at = info["created_at"]
 	last_played_ms = info["last_played_ms"]
 	taken_loot = info["taken_loot"]
+	lit_bonfires = info["lit_bonfires"]
+	last_bonfire = info["last_bonfire"]
 	inventory = info["inventory"]
 	has_inventory = info["has_inventory"]
 	spells = info["spells"]
+	hero_progress = info["hero_progress"]
 	slot_changed.emit()
 	return true
 
@@ -178,6 +199,7 @@ func save() -> void:
 	cfg.set_value("save", "created_at", created_at)
 	cfg.set_value("save", "last_played_ms", last_played_ms)
 	cfg.set_value("progress", "gold", gold)
+	cfg.set_value("progress", "souls", souls)
 	cfg.set_value("progress", "skill_points", skill_points)
 	cfg.set_value("progress", "skill_progress", skill_progress)
 	cfg.set_value("progress", "unlocked_skills", unlocked_skills)
@@ -185,7 +207,10 @@ func save() -> void:
 	if has_inventory:
 		cfg.set_value("progress", "inventory", inventory)
 	cfg.set_value("world", "taken_loot", taken_loot)
+	cfg.set_value("world", "lit_bonfires", lit_bonfires)
+	cfg.set_value("world", "last_bonfire", last_bonfire)
 	cfg.set_value("progress", "spells", spells)
+	cfg.set_value("progress", "hero_progress", hero_progress)
 	cfg.save(slot_path(current_slot))
 
 
@@ -205,15 +230,19 @@ func unload() -> void:
 	current_slot = -1
 	character_id = ""
 	gold = 0
+	souls = 0
 	skill_points = 0
 	skill_progress = 0
 	unlocked_skills = []
 	playtime = 0.0
 	last_played_ms = 0
 	taken_loot = []
+	lit_bonfires = []
+	last_bonfire = ""
 	inventory = {}
 	has_inventory = false
 	spells = []
+	hero_progress = {}
 
 
 # ----------------------------------------------------------
@@ -236,6 +265,8 @@ func apply_to(character: Node) -> void:
 		return
 	if "gold" in character:
 		character.gold = gold
+	if "souls" in character:
+		character.souls = souls
 	if "skill_points" in character:
 		character.skill_points = skill_points
 	if "skill_progress" in character:
@@ -255,6 +286,8 @@ func apply_to(character: Node) -> void:
 		if character.has_method("recompute_skill_modifiers"):
 			character.recompute_skill_modifiers()
 	_restore_inventory(character)
+	if character.has_method("set_hero_progress"):
+		character.set_hero_progress(hero_progress)
 	var magic = character.get("magic")
 	if magic:
 		for spell_name in spells:
@@ -320,12 +353,38 @@ func mark_loot_taken(id: String, character: Node) -> void:
 	capture_from(character)
 
 
+# ----------------------------------------------------------
+# КОСТРЫ (Levels/bonfire/bonfire.gd)
+# ----------------------------------------------------------
+# Без загруженного слота (уровень запущен из редактора) костры всё равно
+# помнятся до конца запуска — на диск не пишется только сам сейв
+
+func is_bonfire_lit(id: String) -> bool:
+	return id in lit_bonfires
+
+
+func mark_bonfire_lit(id: String, character: Node) -> void:
+	if not id in lit_bonfires:
+		lit_bonfires.append(id)
+	capture_from(character)
+
+
+## Отдых у костра: он — точка появления, и игра сохраняется целиком
+func set_last_bonfire(id: String, character: Node) -> void:
+	last_bonfire = id
+	if not id in lit_bonfires:
+		lit_bonfires.append(id)
+	capture_from(character)
+
+
 ## Забрать прогресс из персонажа и записать на диск
 func capture_from(character: Node) -> void:
 	if not is_loaded() or not is_instance_valid(character):
 		return
 	if "gold" in character:
 		gold = character.gold
+	if "souls" in character:
+		souls = character.souls
 	if "skill_points" in character:
 		skill_points = character.skill_points
 	if "skill_progress" in character:
@@ -343,4 +402,6 @@ func capture_from(character: Node) -> void:
 	var magic = character.get("magic")
 	if magic:
 		spells = magic.known_spell_names()
+	if character.has_method("get_hero_progress"):
+		hero_progress = character.get_hero_progress()
 	save()

@@ -38,6 +38,9 @@ func _process(delta: float) -> void:
 	if _timer > 0.0:
 		return
 	_timer = randf_range(spawn_interval_min, spawn_interval_max)
+	# Погода (Levels/weather.gd): слабый дождь — редкие всплески, без дождя — нет
+	if Weather.is_active() and randf() >= Weather.rain:
+		return
 	_spawn_splash()
 
 

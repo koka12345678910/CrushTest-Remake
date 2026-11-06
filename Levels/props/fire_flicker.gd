@@ -41,14 +41,46 @@ func _ready() -> void:
 
 
 func _process(delta: float) -> void:
+	_update_fire_sound(delta)
 	_t += delta * speed
 	# Два слоя шума: медленное "дыхание" + быстрая дрожь языков пламени
 	var n := _noise.get_noise_1d(_t) * 0.7 + _noise.get_noise_1d(_t * 3.1 + 50.0) * 0.3
 	if _light:
-		_light.energy = base_energy * (1.0 + n * energy_jitter)
+		# Днём огонь светит слабее, ночью — в полную силу (Levels/weather.gd)
+		_light.energy = base_energy * Weather.fire_scale * (1.0 + n * energy_jitter)
 		_light.texture_scale = _base_scale * (1.0 + n * scale_jitter)
 		if _body_light:
 			_body_light.energy = _light.energy
 			_body_light.texture_scale = _light.texture_scale
 	if _glow is Node2D:
 		(_glow as Node2D).scale = _glow_base * (1.0 + n * 0.12)
+
+
+# ── Треск огня: слышен только вблизи, плеер живёт, пока герой рядом ──
+const SoundBank := preload("res://Levels/sound_bank.gd")
+const FIRE_HEAR_DISTANCE := 300.0
+var _fire_audio: AudioStreamPlayer2D
+var _fire_check := 0.0
+
+
+func _update_fire_sound(delta: float) -> void:
+	_fire_check -= delta
+	if _fire_check > 0.0:
+		return
+	_fire_check = 0.5
+	var hero := get_tree().get_first_node_in_group("player") as Node2D
+	var near := hero != null and global_position.distance_to(hero.global_position) < FIRE_HEAR_DISTANCE
+	if near and not is_instance_valid(_fire_audio):
+		var st := SoundBank.loop_stream("ambience/fire_loop.wav")
+		if st == null:
+			return
+		_fire_audio = AudioStreamPlayer2D.new()
+		_fire_audio.stream = st
+		_fire_audio.volume_db = -3.0
+		_fire_audio.max_distance = FIRE_HEAR_DISTANCE
+		_fire_audio.attenuation = 1.4
+		add_child(_fire_audio)
+		_fire_audio.play(randf() * st.get_length() * 0.8)
+	elif not near and is_instance_valid(_fire_audio):
+		_fire_audio.queue_free()
+		_fire_audio = null

@@ -1,115 +1,101 @@
 extends Button
-## MenuButton.gd
-## Кастомное поведение кнопок меню:
-## — при наведении слева появляется ромбик-маркер (как в референсе меню) и текст светлеет
-## — при нажатии лёгкий сдвиг вправо
-## — звуковые эффекты hover/click
+## MenuButton.gd — пункт главного меню в ключе инвентаря.
+##
+## Одно состояние «выбран» на мышь, клавиатуру и геймпад: наведение мышью
+## забирает фокус, а фокус рисуется так же, как выбранное в инвентаре —
+## золотая черта слева, полоса света, гаснущая вправо, текст в светлое
+## золото. Остальное время текст тёплый почти белый (TEXT), а не бежевый.
+##
+## subtitle — серая подпись под пунктом (у «Продолжить» — чем продолжаем).
+## Звуки и действия — в MainMenu.gd.
 
-const DiamondMarkerScript := preload("res://Main_Menu/scripts/DiamondMarker.gd")
+const Style := preload("res://Main_Menu/scripts/MenuStyle.gd")
 
-const COLOR_NORMAL  := Color(0.70, 0.62, 0.52, 1.0)
-const COLOR_HOVER   := Color(0.92, 0.85, 0.72, 1.0)
-const COLOR_PRESSED := Color(0.78, 0.50, 0.19, 1.0)
+const FONT_SIZE := 29
+const SUB_SIZE := 16
+const PAD_LEFT := 26.0
+## Насколько текст выбранного пункта отъезжает вправо
+const SHIFT := 10.0
 
-const MARKER_SIZE := 16.0
-const MARKER_OFFSET_X := -32.0
+var subtitle := "":
+	set(v):
+		subtitle = v
+		_apply_margins()
+		queue_redraw()
 
-var _marker: Control
+var _hl := 0.0
 var _tween: Tween
-var _base_x: float
+var _sb: StyleBoxEmpty
 
 
 func _ready() -> void:
-	# Ромбик-маркер слева от кнопки — заанкорен на левый край по центру
-	# высоты, поэтому не зависит от того, когда именно контейнер выставит
-	# финальный size.y (та же ловушка тайминга, что и с _base_x ниже)
-	_marker = Control.new()
-	_marker.set_script(DiamondMarkerScript)
-	_marker.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_marker.modulate.a = 0.0
-	_marker.anchor_left = 0.0
-	_marker.anchor_right = 0.0
-	_marker.anchor_top = 0.5
-	_marker.anchor_bottom = 0.5
-	_marker.offset_left = MARKER_OFFSET_X
-	_marker.offset_right = MARKER_OFFSET_X + MARKER_SIZE
-	_marker.offset_top = -MARKER_SIZE / 2.0
-	_marker.offset_bottom = MARKER_SIZE / 2.0
-	add_child(_marker)
+	alignment = HORIZONTAL_ALIGNMENT_LEFT
+	focus_mode = Control.FOCUS_ALL
+	add_theme_font_override("font", Style.caps_font())
+	add_theme_font_size_override("font_size", FONT_SIZE)
+	add_theme_color_override("font_disabled_color", Color(Style.TEXT_DIM, 0.45))
+	add_theme_color_override("font_shadow_color", Color(0, 0, 0, 0.85))
+	add_theme_constant_override("shadow_offset_x", 1)
+	add_theme_constant_override("shadow_offset_y", 2)
+	_set_text_color(Style.TEXT)
 
-	# Кнопка теперь центрируется контейнером (size_flags_horizontal = SHRINK_CENTER),
-	# а не растягивается на всю ширину — реальный x выставляется отложенным
-	# layout-пересчётом ПОСЛЕ _ready(). Если запомнить position.x прямо тут,
-	# получим 0 (позицию до центрирования), и наведение будет анимировать
-	# кнопку обратно к этой неверной точке у левого края. Ждём кадр, чтобы
-	# контейнер успел расставить детей по местам
-	await get_tree().process_frame
-	_base_x = position.x
+	# Один пустой стиль на все состояния: всё рисует _draw, а отступ слева
+	# анимируется (сдвиг выбранного пункта)
+	_sb = StyleBoxEmpty.new()
+	for st in ["normal", "hover", "pressed", "focus", "disabled", "hover_pressed"]:
+		add_theme_stylebox_override(st, _sb)
+	_apply_margins()
 
-	mouse_entered.connect(_on_hover_enter)
-	mouse_exited.connect(_on_hover_exit)
-	button_down.connect(_on_press)
-	button_up.connect(_on_release)
-
-	# Начальный цвет
-	add_theme_color_override("font_color", COLOR_NORMAL)
+	mouse_entered.connect(func():
+		if not disabled and is_visible_in_tree():
+			grab_focus())
+	focus_entered.connect(_light.bind(true))
+	focus_exited.connect(_light.bind(false))
+	button_down.connect(_on_down)
 
 
-func _on_hover_enter() -> void:
+func _apply_margins() -> void:
+	if _sb == null:
+		return
+	_sb.content_margin_left = PAD_LEFT + SHIFT * _hl
+	_sb.content_margin_right = 16
+	_sb.content_margin_top = 8
+	_sb.content_margin_bottom = 8 + (24 if subtitle != "" else 0)
+
+
+func _set_text_color(c: Color) -> void:
+	for n in ["font_color", "font_focus_color", "font_hover_color", "font_pressed_color", "font_hover_pressed_color"]:
+		add_theme_color_override(n, c)
+
+
+func _set_hl(v: float) -> void:
+	_hl = v
+	_set_text_color(Style.TEXT.lerp(Style.GOLD_HI, clampf(v, 0.0, 1.0)))
+	_apply_margins()
+	queue_redraw()
+
+
+func _light(on: bool) -> void:
 	if _tween:
 		_tween.kill()
-	_tween = create_tween().set_parallel(true)
-
-	# Текст светлеет
-	_tween.tween_method(
-		func(c: Color): add_theme_color_override("font_color", c),
-		COLOR_NORMAL, COLOR_HOVER, 0.18
-	)
-
-	# Сдвиг вправо
-	_tween.tween_property(self, "position:x", _base_x + 10.0, 0.18)\
+	_tween = create_tween()
+	_tween.tween_method(_set_hl, _hl, 1.0 if on else 0.0, 0.16 if on else 0.24)\
 		.set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_CUBIC)
 
-	# Ромбик проявляется
-	_tween.tween_property(_marker, "modulate:a", 1.0, 0.2)
 
-	# Звук hover (если есть AudioManager)
-	if Engine.has_singleton("AudioManager"):
-		Engine.get_singleton("AudioManager").play_sfx("menu_hover")
-
-
-func _on_hover_exit() -> void:
-	if _tween:
-		_tween.kill()
-	_tween = create_tween().set_parallel(true)
-
-	_tween.tween_method(
-		func(c: Color): add_theme_color_override("font_color", c),
-		COLOR_HOVER, COLOR_NORMAL, 0.25
-	)
-	_tween.tween_property(self, "position:x", _base_x, 0.25)\
-		.set_ease(Tween.EASE_OUT)
-	_tween.tween_property(_marker, "modulate:a", 0.0, 0.25)
-
-
-func _on_press() -> void:
+## Нажатие — короткая вспышка полосы
+func _on_down() -> void:
 	if _tween:
 		_tween.kill()
 	_tween = create_tween()
-	_tween.tween_method(
-		func(c: Color): add_theme_color_override("font_color", c),
-		COLOR_HOVER, COLOR_PRESSED, 0.08
-	)
-
-	if Engine.has_singleton("AudioManager"):
-		Engine.get_singleton("AudioManager").play_sfx("menu_click")
+	_tween.tween_method(_set_hl, 1.7, 1.0 if has_focus() else 0.0, 0.3).set_ease(Tween.EASE_OUT)
 
 
-func _on_release() -> void:
-	if _tween:
-		_tween.kill()
-	_tween = create_tween()
-	_tween.tween_method(
-		func(c: Color): add_theme_color_override("font_color", c),
-		COLOR_PRESSED, COLOR_HOVER, 0.15
-	)
+func _draw() -> void:
+	Style.draw_row_highlight(self, Rect2(Vector2.ZERO, size), minf(_hl, 1.7))
+	if subtitle != "":
+		var f := Style.font()
+		var y := size.y - _sb.content_margin_bottom + 18.0
+		draw_string(f, Vector2(_sb.content_margin_left + 2, y), subtitle,
+			HORIZONTAL_ALIGNMENT_LEFT, size.x - _sb.content_margin_left, SUB_SIZE,
+			Color(Style.TEXT_DIM, 0.6 if disabled else 1.0))

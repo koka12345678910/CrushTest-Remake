@@ -321,7 +321,73 @@ func _on_hitbox_area_entered(area: Area2D) -> void:
 	if _is_player_attack(area):
 		var dmg = _get_damage_from(area)
 		var source = area.get_parent()
+		dmg = _hero_melee_damage(source, dmg)
 		take_damage(dmg, source)
+
+
+# ===================== НАВЫКИ ГЕРОЯ (Save/skill_trees.gd) =====================
+# Герой сам считает свои бонусы — враг только спрашивает его в нужный момент и
+# отдаёт своё состояние (не видит героя, удар в спину, блок, кровотечение).
+# Нет у героя метода — всё как было
+
+## Удар ближнего боя (меч рыцаря, кинжал Сигрид): итоговый урон по этому врагу.
+## Зовётся ДО take_damage — пока враг ещё «не знает» о герое
+func _hero_melee_damage(source, dmg: int) -> int:
+	if is_instance_valid(source) and source.has_method("melee_damage_to"):
+		return int(source.melee_damage_to(self, dmg))
+	return dmg
+
+
+## Множитель урона по стойкости от героя (удар в щит, парирование)
+func _hero_posture_mult(source) -> float:
+	if is_instance_valid(source) and source.has_method("posture_mult_vs"):
+		return float(source.posture_mult_vs(self))
+	return 1.0
+
+
+## Враг ещё не заметил героя — для навыков скрытности (Нож в тени)
+func is_unaware_of(hero: Node) -> bool:
+	return not see_player or player != hero
+
+
+## Герой бьёт со спины: он позади направления взгляда врага
+func is_behind(hero: Node2D) -> bool:
+	var to_hero := hero.global_position - global_position
+	if to_hero == Vector2.ZERO or direction == Vector2.ZERO:
+		return false
+	return direction.normalized().dot(to_hero.normalized()) < -0.35
+
+
+## Замедление (ловушка Сигрид, корни мага): не складывается — действует
+## самое сильное, длительность берётся большая
+var _slow_left := 0.0
+var _slow_percent := 0.0
+
+func apply_slow(percent: float, seconds: float) -> void:
+	if is_dead:
+		return
+	if _slow_left <= 0.0 or percent >= _slow_percent:
+		_slow_percent = percent
+	_slow_left = maxf(_slow_left, seconds)
+
+
+func _slow_mult() -> float:
+	return 1.0 - clampf(_slow_percent, 0.0, 90.0) / 100.0 if _slow_left > 0.0 else 1.0
+
+
+## Радиус обнаружения героя с его навыками (Тихий шаг). Зона зрения
+## масштабируется прямо — Area2D сама пересчитает, кто в ней
+var _detect_mult := 1.0
+
+func _update_detection_scale() -> void:
+	var hero := get_tree().get_first_node_in_group("player")
+	var m := 1.0
+	if hero and hero.has_method("detection_mult"):
+		m = clampf(float(hero.detection_mult()), 0.2, 2.0)
+	if not is_equal_approx(m, _detect_mult):
+		_detect_mult = m
+		if vision_area:
+			vision_area.scale = Vector2.ONE * m
 
 # И в атаке врага по игроку — используй receive_attack:
 func _deal_damage_to_player() -> void:
@@ -397,7 +463,9 @@ func _physics_process(delta: float) -> void:
 		knockback_velocity = knockback_velocity.move_toward(Vector2.ZERO, friction * 2 * delta)
 		velocity = knockback_velocity
 	else:
-		velocity = move_velocity
+		velocity = move_velocity * _slow_mult()
+	if _slow_left > 0.0:
+		_slow_left = maxf(_slow_left - delta, 0.0)
 	_separate_from_player(delta)
 	_separate_from_enemies(delta)
 	if not velocity.is_finite():
@@ -565,7 +633,7 @@ func _separate_from_enemies(delta: float) -> void:
 # ============== AI ==============
 
 func _effective_vision_range() -> float:
-	var r := vision_range
+	var r := vision_range * _detect_mult
 	if is_ranged_alert:
 		r = max(r, ranged_alert_range)
 	if pack_role == PackRole.RUSH:
@@ -646,6 +714,7 @@ func _decide_state() -> void:
 	if current_state == State.BLOCK:
 		return
 
+	_update_detection_scale()
 	_update_pack_role()
 
 	# пробуем заблокировать если игрок атакует рядом. В осторожной стойке
@@ -1415,7 +1484,7 @@ func _try_hit_body(body: Node2D) -> void:
 			}
 			body.receive_attack(attack_data)
 			hit_targets.append(body)  # ← добавь
-			_play_enemy_sound(impact_audio, ENEMY_HIT_SOUND)
+			_play_impact_sound()
 
 
 # ===================== HIT DAMAGE =====================
@@ -1457,7 +1526,7 @@ func take_damage(amount: int, source: Node2D = null, unblockable := false) -> vo
 		_trigger_damage_flash()
 		play_blood_vfx(source, amount)
 		_play_blade_impact(source)
-		_play_enemy_sound(voice_audio, ENEMY_HURT_SOUNDS.pick_random())
+		_play_hurt_sound()
 
 		if health <= 0:
 			health = 0
@@ -1494,7 +1563,7 @@ func take_damage(amount: int, source: Node2D = null, unblockable := false) -> vo
 	
 	# Проверяем блок
 	if is_blocking and not is_posture_broken and not unblockable:
-		posture += block_posture_damage
+		posture += block_posture_damage * _hero_posture_mult(source)
 		posture_bar.visible = true
 		posture_bar.value = posture
 		posture_regen_timer = 0.0
@@ -1533,7 +1602,7 @@ func take_damage(amount: int, source: Node2D = null, unblockable := false) -> vo
 	_trigger_damage_flash()
 	play_blood_vfx(source, amount)
 	_play_blade_impact(source)
-	_play_enemy_sound(voice_audio, ENEMY_HURT_SOUNDS.pick_random())
+	_play_hurt_sound()
 
 	if health <= 0:
 		health = 0
@@ -1648,7 +1717,12 @@ func _posture_break() -> void:
 	_change_state(State.HIT_STUN)
 	# Щит раскололся: звонкий отклик и руна над головой — "его можно добить"
 	_break_marker = Juice.guard_break(self)
-	await get_tree().create_timer(execution_window).timeout
+	# Навык героя (Брешь в обороне) — окно добивания длиннее
+	var window := execution_window
+	var hero := get_tree().get_first_node_in_group("player")
+	if hero and hero.has_method("execution_window_mult"):
+		window *= float(hero.execution_window_mult())
+	await get_tree().create_timer(window).timeout
 	if is_instance_valid(_break_marker):
 		_break_marker.queue_free()
 	if is_dead:
@@ -1670,6 +1744,9 @@ func _execute_by(source: Node2D) -> void:
 	var magic = source.get("magic") if is_instance_valid(source) else null
 	if magic:
 		magic.on_execution()
+	# Навыки героя на добивание (Второе пламя рыцаря)
+	if is_instance_valid(source) and source.has_method("on_execution_of"):
+		source.on_execution_of(self)
 	execute_kill()
 
 
@@ -1833,7 +1910,7 @@ func _on_dead() -> void:
 
 	move_velocity = Vector2.ZERO
 	anim.play("die_" + _get_direction_name(direction))
-	_play_enemy_sound(death_audio, ENEMY_DEATH_SOUND)
+	_play_death_sound()
 
 	if hitbox:
 		hitbox.set_deferred("monitoring", false)
@@ -1855,22 +1932,38 @@ func _on_dead() -> void:
 	queue_free()
 
 func _drop_coins() -> void:
-	# Герой без золота (маг копит души, а не монеты) — монеты не выпадают
+	# Герой без золота (маг копит души, а не монеты): вместо золотых душ из
+	# врага вылетают его души — бледно-голубые, засчитываются в души
 	var hero := get_tree().get_first_node_in_group("player")
-	if hero and "collects_gold" in hero and not hero.collects_gold:
+	var souls: bool = hero != null and hero.get("collects_souls") == true
+	if hero and "collects_gold" in hero and not hero.collects_gold and not souls:
 		return
 	# Золото — не монеты на земле, а золотые души: сами взлетают и летят к
 	# игроку (VFX/VFX_scene/gold_wisp.gd). Номиналы как у прежних монет:
 	# 30% — крупная, ярче и дороже
+	# Навыки героя на добычу (Чужая добыча: добит кинжалом — золота больше)
+	var gold_mult := 1.0
+	if hero and hero.has_method("gold_mult_for") and not souls:
+		gold_mult = float(hero.gold_mult_for(self))
 	var count = randi_range(coin_drop_min, coin_drop_max)
 	for i in count:
 		var big := randf() < 0.3
-		GoldWisp.spawn(get_tree(), global_position + Vector2(0, -10), randi_range(10, 15) if big else 5, big)
+		var value := randi_range(10, 15) if big else 5
+		GoldWisp.spawn(get_tree(), global_position + Vector2(0, -10), maxi(1, roundi(value * gold_mult)), big, souls)
+
+
+## Сколько золота враг даёт в среднем — база для кражи (Ловкие пальцы)
+func base_gold_value() -> float:
+	# 70% мелких по 5, 30% крупных по 10–15
+	return (coin_drop_min + coin_drop_max) * 0.5 * (0.7 * 5.0 + 0.3 * 12.5)
 
 
 func _award_skill_points() -> void:
 	if is_instance_valid(player) and player.has_method("add_skill_points"):
 		player.add_skill_points(skill_points_reward)
+	# Подвиги для стены трофеев рыцаря (player.gd::on_enemy_killed)
+	if is_instance_valid(player) and player.has_method("on_enemy_killed"):
+		player.on_enemy_killed(self)
 	# Немного Одра за убийство (магия рыцаря)
 	var magic = player.get("magic") if is_instance_valid(player) else null
 	if magic:
@@ -1922,7 +2015,8 @@ func _on_hitbox_hit(body: Node2D) -> void:
 		return
 	if _is_player_attack(body):
 		var dmg = _get_damage_from(body)
-		take_damage(dmg, body) 
+		dmg = _hero_melee_damage(body, dmg)
+		take_damage(dmg, body)
 
 # ============== УТИЛИТЫ ==============
 
@@ -1986,6 +2080,20 @@ func _play_attack_sound() -> void:
 	_play_enemy_sound(attack_audio, ENEMY_SWING_SOUND)
 	if randf() < enemy_grunt_chance:
 		_play_enemy_sound(voice_audio, ENEMY_GRUNT_SOUNDS.pick_random())
+
+
+## Удар дошёл до героя, враг ранен, враг погиб. У скелетов свои звуки
+## (skeleton_enemy.gd), у остальных — боевые сэмплы игрока ниже по тону
+func _play_impact_sound() -> void:
+	_play_enemy_sound(impact_audio, ENEMY_HIT_SOUND)
+
+
+func _play_hurt_sound() -> void:
+	_play_enemy_sound(voice_audio, ENEMY_HURT_SOUNDS.pick_random())
+
+
+func _play_death_sound() -> void:
+	_play_enemy_sound(death_audio, ENEMY_DEATH_SOUND)
 
 
 func _get_attack_dir_name(dir: Vector2) -> String:

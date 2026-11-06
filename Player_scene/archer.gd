@@ -5,7 +5,9 @@ extends "res://Player_scene/character_base.gd"
 
 const ArrowScript := preload("res://Player_scene/arrow.gd")
 const ArcherFx := preload("res://Player_scene/archer_fx.gd")
-const SHOOT_SOUND := preload("res://Sound/archer_sound/arrow.mp3")
+## Звуки кинжала и лука (накладывание стрелы, скрип тетивы, спуск, свист,
+## попадания) — Player_scene/sigrid_sfx.gd, файлы в Sound/sigrid_sfx/
+const Sfx := preload("res://Player_scene/sigrid_sfx.gd")
 
 const HudScript := preload("res://Inventory/ui/hud.gd")
 const QuickSlotScript := preload("res://Inventory/ui/quick_slot_ui.gd")
@@ -49,6 +51,12 @@ func _ready() -> void:
 	strafe_names_swapped = true
 	_setup_inventory()
 	_load_starting_items()
+	_ensure_trap_action()
+	_voice = AudioStreamPlayer2D.new()
+	_voice.name = "VoiceAudio"
+	_voice.bus = "Combat"
+	add_child(_voice)
+	_tune_breath()
 
 
 func _setup_inventory() -> void:
@@ -123,6 +131,8 @@ func _unhandled_input(event: InputEvent) -> void:
 		ability_system.prev_slot()
 	elif event.is_action_pressed("ability_use"):
 		ability_system.use_current(self)
+	elif event.is_action_pressed(TRAP_ACTION):
+		_try_place_trap()
 
 ## Базовый враг (enemy.gd) — 5 HP, рыцарь бьёт 1 уроном за удар. Было 12 —
 ## враг гарантированно умирал с одной стрелы. Держим ту же цену удара, что
@@ -214,6 +224,14 @@ func handle_attack_input() -> void:
 	_spin_cooldown_timer = maxf(_spin_cooldown_timer - dt, 0.0)
 	_lunge_cooldown_timer = maxf(_lunge_cooldown_timer - dt, 0.0)
 
+	# Прошлый приём уже отыгран (стрела ушла, клинок прошёл) — новое нажатие
+	# обрывает его хвост и начинается сразу. Кроме удара мечом посреди серии:
+	# его подхватит очередь серии (character_base, _attack_recovery)
+	if is_attacking and _attack_recovery and (_pressed("attack") or _pressed("parry") or _pressed("kick")):
+		var chains := weapon == Weapon.SWORD and _pressed("attack") and combo_step >= 1 and combo_step < combo_length
+		if not chains:
+			_cancel_attack()
+
 	# 1 — лук, 2 — меч. Меняется только в свободной стойке (не посреди удара,
 	# переката или натяжения)
 	if _try_switch_weapon():
@@ -224,10 +242,14 @@ func handle_attack_input() -> void:
 
 	# Пинок и быстрый выстрел проверяем первыми и отдельно от серии обычных
 	# выстрелов — свои кнопки, не участвуют в комбо/is_attacking-очереди лука
-	if Input.is_action_just_pressed("kick") and not is_attacking and _kick_cooldown_timer <= 0.0:
+	# Нажатия — из буфера ввода базы (_pressed/_consume): нажатое чуть раньше,
+	# чем кончился прошлый приём или кулдаун, сработает, как только станет можно
+	if _pressed("kick") and not is_attacking and _kick_cooldown_timer <= 0.0:
+		_consume("kick")
 		_start_kick()
 		return
-	if Input.is_action_just_pressed("parry") and not is_attacking and _quick_shot_cooldown_timer <= 0.0:
+	if _pressed("parry") and not is_attacking and _quick_shot_cooldown_timer <= 0.0:
+		_consume("parry")
 		_start_quick_shot()
 		return
 
@@ -254,12 +276,13 @@ func handle_attack_input() -> void:
 				return
 			_start_charge()
 		return
-	if not Input.is_action_just_pressed("attack"):
+	if not _pressed("attack"):
 		return
 	if is_attacking:
 		return
 	if _shoot_cooldown_timer > 0.0:
 		return
+	_consume("attack")
 	# Выстрел на бегу — быстрый, без натяжения (как раньше): полная цена
 	# сразу, другая анимация и рывок вместо остановки. Логика рывка и отката на
 	# Attack_, если Run_Attack_ ещё не нарисована — в базе (character_base.gd)
@@ -301,11 +324,34 @@ func _start_charge() -> void:
 	_charge_time = 0.0
 	_charge_full_flashed = false
 	_aim_charge(true)
+	# Стрела из колчана на тетиву, лук начинает скрипеть
+	Sfx.play_on(self, "arrow_grab")
+	_creak_stage = 0
+	_creak(1.0, 0.0)
 
 
-## Последний взор — тетива натягивается вдвое быстрее
+## Скрип натягиваемой тетивы — по нарастающей: на старте, на середине и на
+## полном натяжении (ниже и тяжелее). Прошлый скрип обрывается
+var _creak_player: AudioStreamPlayer2D
+var _creak_stage := 0
+
+func _creak(pitch: float, db: float) -> void:
+	_stop_creak()
+	_creak_player = Sfx.play_on(self, "bow_draw", db, pitch, 0.03)
+
+
+func _stop_creak() -> void:
+	if is_instance_valid(_creak_player):
+		_creak_player.stop()
+		_creak_player.queue_free()
+	_creak_player = null
+
+
+## Последний взор — тетива натягивается вдвое быстрее. Навыки (Ровный выдох,
+## Верный выстрел) укорачивают время полного натяжения
 func _charge_rate() -> float:
-	return 1.0 / LAST_LOOK_RATE if _last_look_time > 0.0 else 1.0
+	var rate := 1.0 / LAST_LOOK_RATE if _last_look_time > 0.0 else 1.0
+	return rate / maxf(1.0 + skill("charge_time_percent") / 100.0, 0.3)
 
 
 ## 0..1 — насколько натянута тетива. Выстрел Валькирии всегда в полную силу
@@ -324,8 +370,8 @@ func _aim_charge(restart := false) -> void:
 	var dir: Vector2
 	if is_instance_valid(aim):
 		dir = (aim.global_position - global_position).normalized()
-	elif input_vector != Vector2.ZERO:
-		dir = input_vector.normalized()
+	elif _aim_dir() != Vector2.ZERO:
+		dir = _aim_dir()
 	else:
 		dir = facing_dir
 	var dir_name := get_direction(dir)
@@ -350,6 +396,7 @@ func _update_charge(delta: float) -> void:
 	# Натяжение перебили: перекат, удар (Take_Damage_ заменил клип), смерть
 	if is_rolling or is_dead() or not String(anim.assigned_animation).begins_with("Tension_"):
 		_charging = false
+		_stop_creak()
 		if not is_rolling:
 			is_attacking = false
 		return
@@ -360,9 +407,13 @@ func _update_charge(delta: float) -> void:
 		var drain := charge_stamina_drain * delta * _charge_rate()
 		if not is_instance_valid(health_bar) or health_bar.use_stamina(drain):
 			_charge_time += delta * _charge_rate()
+	if _creak_stage == 0 and _charge_power() >= 0.5:
+		_creak_stage = 1
+		_creak(0.93, 1.0)
 	if not _charge_full_flashed and _charge_power() >= 1.0:
 		_charge_full_flashed = true
 		_flash_skill(COLOR_FULL_DRAW)
+		_creak(0.85, 2.0)
 	_aim_charge()
 	if not Input.is_action_pressed("attack"):
 		_release_shot()
@@ -372,12 +423,16 @@ func _release_shot() -> void:
 	var power := _charge_power()
 	_charging = false
 	_shoot_cooldown_timer = _current_cooldown()
-	shoot_audio.stream = SHOOT_SOUND
-	shoot_audio.play()
+	_stop_creak()
+	# Тетива натянута как следует — выдох-выкрик на выстреле
+	if power >= 0.6:
+		_say("attack")
 	var dir := facing_dir
 	if is_instance_valid(_charge_aim):
 		dir = (_charge_aim.global_position - global_position).normalized()
 	_fire_arrow(dir, _charge_aim, power)
+	# Стрела ушла — доводка лука (Shot_) обрывается движением или новым выстрелом
+	_attack_recovery = true
 	var clip := "Shot_" + last_direction
 	if anim.has_animation(clip):
 		anim.play(clip, -1, shot_anim_speed)
@@ -394,10 +449,10 @@ func _on_attack_started(_step: int, aim: Node2D) -> void:
 	if weapon == Weapon.SWORD:
 		_sword_strike(_step)
 		return
-	# Звук — здесь, ДО паузы: "перед выстрелом" значит до того, как стрела
-	# реально появится (натяжение), а не в момент её вылета
-	shoot_audio.stream = SHOOT_SOUND
-	shoot_audio.play()
+	# Стрела ложится на тетиву — ДО паузы; щелчок спуска — уже в _fire_arrow,
+	# в момент вылета
+	Sfx.play_on(self, "bow_nock")
+	var clip := anim.current_animation
 	await get_tree().create_timer(_current_shoot_delay()).timeout
 	# Пока стрела натягивалась, лучник мог умереть — стрелять уже некому.
 	# aim/цель отдельно проверять не нужно: _shoot_arrow сам откатывается на
@@ -405,6 +460,9 @@ func _on_attack_started(_step: int, aim: Node2D) -> void:
 	if is_dead():
 		return
 	_shoot_arrow(aim)
+	# Стрела ушла — хвост клипа больше не держит (character_base._attack_recovery)
+	if is_attacking and _same_attack(clip):
+		_attack_recovery = true
 
 
 func _shoot_arrow(aim: Node2D) -> void:
@@ -414,7 +472,7 @@ func _shoot_arrow(aim: Node2D) -> void:
 	else:
 		# Целей рядом нет — стреляем туда, куда смотрим (тот же вектор, что
 		# приняла анимация в start_attack)
-		dir = direction_to_vector(last_direction)
+		dir = facing_dir
 		if dir == Vector2.ZERO:
 			dir = facing_dir
 	_fire_arrow(dir, aim)
@@ -436,6 +494,15 @@ func _fire_arrow(dir: Vector2, aim: Node2D = null, power := -1.0) -> void:
 	if power >= 0.0:
 		dmg = roundi(lerpf(charge_min_damage, charge_max_damage, power))
 		spd *= lerpf(charge_min_speed_mult, charge_max_speed_mult, power)
+	# Навыки лука (Верная тетива): урон, скорость полёта, полный натяг
+	var pct := skill("bow_damage_percent")
+	if power >= 1.0:
+		arrow.tags["charged"] = true
+		pct += skill("charged_shot_damage_percent")
+		if velocity.length() < 5.0 and input_vector == Vector2.ZERO:
+			pct += skill("still_charged_damage_percent")
+	dmg = SkillTrees.scale_int(dmg, pct)
+	spd *= 1.0 + skill("arrow_speed_percent") / 100.0
 	var trail := Color(0, 0, 0, 0)
 
 	if _last_look_time > 0.0:
@@ -463,6 +530,10 @@ func _fire_arrow(dir: Vector2, aim: Node2D = null, power := -1.0) -> void:
 		trail = COLOR_VALKYRIE
 
 	arrow.trail_color = trail
+	# Спуск тетивы: чем сильнее натянута, тем громче и ниже (тяжелее) щелчок.
+	# Без натяжения (залп, на бегу, быстрый) — средний
+	var pw := power if power >= 0.0 else 0.4
+	Sfx.play_on(self, "bow_release", lerpf(-3.0, 2.0, pw), lerpf(1.1, 0.9, pw))
 	get_tree().current_scene.add_child(arrow)
 	arrow.speed = spd
 	arrow.launch(global_position + dir * shoot_offset, dir, self, dmg)
@@ -584,25 +655,38 @@ func resolve_arrow_hit(enemy: Node2D, arrow: Node) -> void:
 			_hunt_stacks += 2 if (marked and _has_talisman(TALISMAN_HUGINN)) else 1
 			ArcherFx.Mark.attach(enemy, "HuntMark", COLOR_HUNT, _hunt_time, -46.0)
 
-	var chance := BASE_CRIT_CHANCE
+	var chance := BASE_CRIT_CHANCE + skill("bow_crit_chance_points") / 100.0
 	if _last_look_time > 0.0:
 		chance += LAST_LOOK_CRIT_BONUS
 	if _hit_before.has(id) and _has_talisman(TALISMAN_NORN):
 		chance += NORN_CRIT_BONUS
+	var unaware: bool = enemy.has_method("is_unaware_of") and enemy.is_unaware_of(self)
+	var charged: bool = arrow.tags.get("charged", false)
+	# Навыки на цель (След стрелы, Кровавый след) — до крита
+	dmg = SkillTrees.scale_int(dmg, _target_damage_percent(enemy))
 	var crit: bool = arrow.tags.get("guaranteed_crit", false) or randf() < chance
 	if crit:
-		dmg *= CRIT_MULT
+		var crit_pct := skill("bow_crit_damage_percent")
+		if unaware:
+			crit_pct += skill("unaware_crit_damage_percent")
+		dmg = SkillTrees.scale_int(dmg * CRIT_MULT, crit_pct)
 		ArcherFx.Burst.spawn(get_tree().current_scene, enemy.global_position + Vector2(0, -20), COLOR_VALKYRIE)
 		shake_camera(2.5, 0.12)
 
+	enemy.set_meta("last_hit_dagger", false)
+	# Тяжёлое оперение: заряженная стрела в щит сильнее бьёт по стойкости
+	_posture_shot_charged = charged
 	enemy.take_damage(dmg, self)
+	_posture_shot_charged = false
 	_hit_before[id] = true
+	if charged and skill("charged_mark_damage_percent") > 0.0:
+		_charged_marks[id] = 3.0
 
 	if enemy.is_dead:
 		_marked.erase(id)
 		return
-	if crit and _bleed_time > 0.0:
-		ArcherFx.Bleed.apply(enemy, BLEED_TICKS, 1, BLEED_INTERVAL, self)
+	if (crit and _bleed_time > 0.0) or _roll_bleed():
+		_apply_bleed(enemy)
 	if _has_talisman(TALISMAN_HUGINN):
 		_marked[id] = HUGINN_MARK_TIME
 		ArcherFx.Mark.attach(enemy, "HuginnMark", COLOR_HUGINN, HUGINN_MARK_TIME)
@@ -635,7 +719,9 @@ func _pick_aim() -> Node2D:
 				best = e
 		if best:
 			return best
-	return _focus.get_nearest_enemy()
+	# Иначе — ближайший в конусе направления (или просто ближайший без
+	# направления), character_base._assist_target
+	return _assist_target()
 
 
 ## Эффект талисмана действует только пока тот экипирован в одну из четырёх
@@ -662,6 +748,12 @@ func _process(delta: float) -> void:
 		_marked[id] -= delta
 		if _marked[id] <= 0.0 or not is_instance_valid(instance_from_id(id)):
 			_marked.erase(id)
+	for id in _charged_marks.keys():
+		_charged_marks[id] -= delta
+		if _charged_marks[id] <= 0.0 or not is_instance_valid(instance_from_id(id)):
+			_charged_marks.erase(id)
+	_switch_bonus_left = maxf(_switch_bonus_left - delta, 0.0)
+	_trap_cooldown = maxf(_trap_cooldown - delta, 0.0)
 
 	# Золото меняют монеты, магазин и сейв (SaveManager.apply_to) — проще
 	# сверять раз в кадр, чем ловить каждое место
@@ -724,8 +816,8 @@ func _start_kick() -> void:
 	var dir: Vector2
 	if is_instance_valid(aim):
 		dir = (aim.global_position - global_position).normalized()
-	elif input_vector != Vector2.ZERO:
-		dir = input_vector.normalized()
+	elif _aim_dir() != Vector2.ZERO:
+		dir = _aim_dir()
 	else:
 		dir = facing_dir
 	var dir_name := get_direction(dir)
@@ -756,6 +848,8 @@ func _start_kick() -> void:
 	await get_tree().create_timer(kick_active_time).timeout
 	if is_instance_valid(kick_hitbox):
 		_disable_kick_hitbox()
+	if is_attacking and String(anim.current_animation).begins_with("Kick_"):
+		_attack_recovery = true
 
 
 func _enable_kick_hitbox(dir: Vector2) -> void:
@@ -812,8 +906,8 @@ func _start_quick_shot() -> void:
 	var dir: Vector2
 	if is_instance_valid(aim):
 		dir = (aim.global_position - global_position).normalized()
-	elif input_vector != Vector2.ZERO:
-		dir = input_vector.normalized()
+	elif _aim_dir() != Vector2.ZERO:
+		dir = _aim_dir()
 	else:
 		dir = facing_dir
 	var dir_name := get_direction(dir)
@@ -828,6 +922,9 @@ func _start_quick_shot() -> void:
 	facing_dir = dir
 	last_direction = dir_name
 	_play("QuickShot_" + dir_name)
+	_say("attack", 0.8)
+	# Горсть стрел из колчана — залп
+	Sfx.play_on(self, "arrow_grab", 2.0, 1.1)
 
 	await get_tree().create_timer(quick_shot_windup).timeout
 	for i in quick_shot_count:
@@ -835,8 +932,6 @@ func _start_quick_shot() -> void:
 		# дальше, если is_attacking уже сбросили за нас
 		if not is_attacking:
 			return
-		shoot_audio.stream = SHOOT_SOUND
-		shoot_audio.play()
 		_fire_arrow(dir, aim)
 		if i < quick_shot_count - 1:
 			await get_tree().create_timer(quick_shot_interval).timeout
@@ -857,8 +952,6 @@ enum Weapon { BOW, SWORD }
 var weapon: int = Weapon.BOW
 
 const SWORD_PREFIX := "Sword_"
-const SWING_SOUND := preload("res://Sound/melee_sound/swing.mp3")
-const UNSHEATH_SOUND := preload("res://Sound/melee_sound/unsneath_sword.wav")
 const KnightFx := preload("res://VFX/VFX_scene/knight_fx.gd")
 
 @export var sword_damage := 1
@@ -956,8 +1049,17 @@ func _set_weapon(w: int) -> void:
 		add_to_group("ranged_player")
 	else:
 		remove_from_group("ranged_player")
-	shoot_audio.stream = UNSHEATH_SOUND
-	shoot_audio.play()
+	# Кинжал из ножен — или обратно в ножны, а лук снимается со спины (колчан)
+	if w == Weapon.SWORD:
+		Sfx.play_on(self, "dagger_draw")
+		# Быстрая рука: с лука на кинжал — 3 с кинжал бьёт сильнее
+		if skill("switch_dagger_damage_percent") > 0.0:
+			_switch_bonus_left = 3.0
+	else:
+		Sfx.play_on(self, "dagger_sheathe")
+		get_tree().create_timer(0.18).timeout.connect(func():
+			if is_instance_valid(self) and weapon == Weapon.BOW:
+				Sfx.play_on(self, "quiver"))
 	_flash_skill(Color(0.85, 0.88, 1.0))
 	play_movement_animation()
 
@@ -980,12 +1082,16 @@ func _handle_sword_input() -> void:
 	# держим его открытым, иначе шаг серии сбросился бы посреди замаха
 	if is_attacking and combo_step > 0:
 		combo_timer = maxf(combo_timer, 0.2)
-	if Input.is_action_just_pressed("attack"):
+	if _pressed("attack"):
 		if is_attacking:
-			# Следующий удар серии в очередь — база начнёт его, когда этот доиграет
+			# Следующий удар серии в очередь — база начнёт его, когда этот доиграет.
+			# Не встало в очередь (последний удар серии, выпад) — нажатие ждёт в
+			# буфере и начнёт новую серию сразу после
 			if combo_step >= 1 and combo_step < combo_length and not combo_queued and _pay(sword_stamina_cost):
 				combo_queued = true
+				_consume("attack")
 			return
+		_consume("attack")
 		if not _pay(sword_stamina_cost):
 			return
 		if is_running and input_vector != Vector2.ZERO:
@@ -995,10 +1101,27 @@ func _handle_sword_input() -> void:
 		return
 	if is_attacking:
 		return
-	if Input.is_action_just_pressed("parry") and _spin_cooldown_timer <= 0.0:
+	if _pressed("parry") and _spin_cooldown_timer <= 0.0:
+		_consume("parry")
 		_start_sword_move("Spin")
-	elif Input.is_action_just_pressed("kick") and _lunge_cooldown_timer <= 0.0:
+	elif _pressed("kick") and _lunge_cooldown_timer <= 0.0:
+		_consume("kick")
 		_start_sword_move("Lunge")
+
+
+## Удар/перекат оборвал приём: натяжение сгорает, клинок гаснет
+func _cancel_attack() -> void:
+	super()
+	_charging = false
+	_disable_kick_hitbox()
+
+
+## Финиш серии мечом (рубящий Attack4) и выпад — тяжёлые приёмы, попадание их
+## не сбивает (урон проходит)
+func _has_hyper_armor() -> bool:
+	if weapon != Weapon.SWORD or not is_attacking:
+		return false
+	return combo_step == 3 or String(anim.current_animation).begins_with(SWORD_PREFIX + "Lunge")
 
 
 func _pay(cost: float) -> bool:
@@ -1043,16 +1166,24 @@ func _sword_strike(step: int) -> void:
 	# Удар на бегу (step 0) уже несёт свой рывок (_run_dash_velocity)
 	if step > 0:
 		var step_speed: float = [sword_step_speed, sword_thrust_step_speed, sword_finisher_step_speed][clampi(step, 1, 3) - 1]
-		_step_into_swing(clip, maxf(events[0].t0 - sword_step_lead, 0.0), dir * step_speed)
+		_step_into_swing(clip, maxf(events[0].t0 - sword_step_lead, 0.0), step_speed)
 	var t := 0.0
 	for ev in events:
 		var vfx_at := maxf(ev.t0 - SWING_LEAD, t)
 		await get_tree().create_timer(vfx_at - t).timeout
 		t = vfx_at
 		# Перекат, удар по Сигрид или смерть оборвали замах
-		if not is_attacking or anim.current_animation != clip:
+		if not is_attacking or not _same_attack(clip):
 			_disable_kick_hitbox()
 			return
+		# Удар могли довернуть в начале замаха (character_base._steer_attack) —
+		# дуга и хитбокс идут туда, куда Сигрид смотрит сейчас
+		if facing_dir != Vector2.ZERO and not facing_dir.is_equal_approx(dir):
+			dir = facing_dir
+			if not ev.has("thrust") and not ev.has("chop"):
+				var cur := _swing(info[0], last_direction, info[1], dir)
+				for k in ["from", "to", "radius", "width", "power"]:
+					ev[k] = cur[k]
 		if ev.has("thrust"):
 			KnightFx.thrust(self, dir, 36.0, SIGRID_CHEST)
 		elif ev.has("chop"):
@@ -1060,11 +1191,13 @@ func _sword_strike(step: int) -> void:
 		else:
 			KnightFx.arc(self, ev.from, ev.to, ev.radius, ev.width, ev.t1 - ev.t0 + SWING_LEAD, ev.power,
 					SIGRID_CHEST, true, false)
-		shoot_audio.stream = SWING_SOUND
-		shoot_audio.play()
+		# Свист сакса: финиш серии — ниже и громче (рубящий, всем весом)
+		Sfx.play_on(self, "dagger_swing", 2.0 if step == 3 else 0.0, 0.9 if step == 3 else 1.0)
+		# Финиш серии — всегда с выкриком, остальные удары — через раз
+		_say("attack", 1.0 if step == 3 else attack_voice_chance)
 		await get_tree().create_timer(maxf(ev.t0 - t, 0.0)).timeout
 		t = maxf(ev.t0, t)
-		if not is_attacking or anim.current_animation != clip:
+		if not is_attacking or not _same_attack(clip):
 			return
 		var dmg := sword_finisher_damage if step == 3 else sword_damage
 		_open_sword_hitbox(dir * sword_reach, sword_hit_scale, dmg)
@@ -1072,16 +1205,21 @@ func _sword_strike(step: int) -> void:
 		await get_tree().create_timer(maxf(close_at - t, 0.01)).timeout
 		t = close_at
 		_disable_kick_hitbox()
+	# Клинок прошёл — отмах больше не держит: следующий удар серии сразу,
+	# движение обрывает хвост (character_base._attack_recovery)
+	if is_attacking and _same_attack(clip):
+		_attack_recovery = true
 
 
 ## Шаг на ударе серии — отложенный до замаха (см. sword_step_lead). Если
 ## удар успели оборвать (перекат, урон), шагать уже некуда
-func _step_into_swing(clip: String, delay: float, step_velocity: Vector2) -> void:
+func _step_into_swing(clip: String, delay: float, step_speed: float) -> void:
 	if delay > 0.0:
 		await get_tree().create_timer(delay).timeout
-	if not is_attacking or anim.current_animation != clip:
+	if not is_attacking or not _same_attack(clip):
 		return
-	attack_step(step_velocity)
+	# Куда смотрит сейчас — удар могли довернуть в начале замаха
+	attack_step(facing_dir * step_speed)
 
 
 func _physics_process(delta: float) -> void:
@@ -1151,8 +1289,8 @@ func _start_sword_move(kind: String) -> void:
 	var dir: Vector2
 	if is_instance_valid(aim):
 		dir = (aim.global_position - global_position).normalized()
-	elif input_vector != Vector2.ZERO:
-		dir = input_vector.normalized()
+	elif _aim_dir() != Vector2.ZERO:
+		dir = _aim_dir()
 	else:
 		dir = facing_dir
 	var dir_name := get_direction(dir)
@@ -1180,29 +1318,198 @@ func _start_sword_move(kind: String) -> void:
 		var sw := _swing("Attack2", dir_name, KnightFx.Swing.SPIN, dir)
 		var p := KnightFx.preset(KnightFx.Swing.SPIN, dir)
 		await get_tree().create_timer(maxf(sw.t0 - SWING_LEAD, 0.0)).timeout
-		if not is_attacking or anim.current_animation != clip:
+		if not is_attacking or not _same_attack(clip):
 			return
 		KnightFx.arc(self, p.from, p.to, p.radius * 0.85, p.width, sw.t1 - sw.t0 + SWING_LEAD, p.power, SIGRID_CHEST, true)
-		shoot_audio.stream = SWING_SOUND
-		shoot_audio.play()
+		# Разворот — длинный свист по кругу: два замаха внахлёст
+		Sfx.play_on(self, "dagger_swing", 1.0, 0.88)
+		get_tree().create_timer(0.09).timeout.connect(func():
+			if is_instance_valid(self):
+				Sfx.play_on(self, "dagger_swing", -1.0, 0.95))
+		_say("attack")
 		await get_tree().create_timer(SWING_LEAD).timeout
-		if not is_attacking or anim.current_animation != clip:
+		if not is_attacking or not _same_attack(clip):
 			return
 		_open_sword_hitbox(Vector2.ZERO, Vector2(3.4, 3.0), spin_damage)
 		await get_tree().create_timer(sw.t1 - sw.t0 + SWING_TAIL_HIT).timeout
 		_disable_kick_hitbox()
+		if is_attacking and _same_attack(clip):
+			_attack_recovery = true
 		return
 
 	await get_tree().create_timer(LUNGE_HIT[0]).timeout
-	if not is_attacking or anim.current_animation != clip:
+	if not is_attacking or not _same_attack(clip):
 		return
-	shoot_audio.stream = SWING_SOUND
-	shoot_audio.play()
+	# Выпад — короткий резкий свист укола
+	Sfx.play_on(self, "dagger_swing", 1.0, 1.08)
+	_say("attack")
 	knockback_velocity = dir * lunge_speed
 	KnightFx.thrust(self, dir, 40.0, SIGRID_CHEST)
 	_open_sword_hitbox(dir * (sword_reach + 8.0), sword_hit_scale * Vector2(1.2, 0.9), lunge_damage)
 	await get_tree().create_timer(LUNGE_HIT[1] - LUNGE_HIT[0]).timeout
 	_disable_kick_hitbox()
+	if is_attacking and _same_attack(clip):
+		_attack_recovery = true
+
+
+# ─────────────────────────────────────────────
+# ГОЛОС
+# ─────────────────────────────────────────────
+## Женский голос Сигрид (Sound/sigrid_voice/, авторы и лицензии — там же в
+## CREDITS.txt): выкрик на тяжёлых ударах и натянутом выстреле, выдох на
+## перекате, стон от урона (от сильного — глухой сдержанный, сквозь зубы), предсмертный стон. Один
+## голосовой канал: важное (урон, смерть) перебивает выкрик, но не наоборот.
+## Файлы грузятся лениво — если какого-то нет, Сигрид просто промолчит
+const VOICE_DIR := "res://Sound/sigrid_voice/"
+const VOICE_POOLS := {
+	"attack": ["attack1.wav", "attack2.wav", "attack3.wav"],
+	"roll": ["roll1.wav", "roll2.wav", "roll3.wav"],
+	"hurt": ["hurt1.wav", "hurt2.wav", "hurt3.wav"],
+	# Сильный удар — сдержанный стон сквозь зубы (крик убран по просьбе)
+	"hurt_heavy": ["hurt_heavy_1.wav", "hurt_heavy_2.wav", "hurt_heavy_3.wav", "hurt_heavy_4.wav",
+			"hurt_heavy_5.wav", "hurt_heavy_6.wav", "hurt_heavy_7.wav"],
+	"death": ["death.ogg"],
+}
+const VOICE_PRIO := {"roll": 0, "attack": 1, "hurt": 2, "hurt_heavy": 3, "death": 4}
+@export var voice_volume_db := -8.0
+@export var hurt_volume_db := -5.0
+## Выкрик не на каждом ударе — иначе приедается. Финиш серии, разворот,
+## выпад и полностью натянутый лук — всегда
+@export var attack_voice_chance := 0.5
+@export var roll_voice_chance := 0.6
+## Удар, снявший больше этой доли здоровья, — тяжёлый сдержанный стон, а не короткий
+@export var heavy_hurt_fraction := 0.25
+var _voice: AudioStreamPlayer2D
+var _voice_prio := -1
+var _voice_last := {}
+static var _voice_cache := {}
+
+
+func _voice_pick(key: String) -> AudioStream:
+	var files: Array = VOICE_POOLS[key]
+	var idx := randi() % files.size()
+	if files.size() > 1 and idx == _voice_last.get(key, -1):
+		idx = (idx + 1 + randi() % (files.size() - 1)) % files.size()
+	_voice_last[key] = idx
+	var path: String = VOICE_DIR + files[idx]
+	if not _voice_cache.has(path):
+		_voice_cache[path] = load(path) if ResourceLoader.exists(path) else null
+	return _voice_cache[path]
+
+
+func _say(key: String, chance := 1.0) -> void:
+	if not is_instance_valid(_voice) or randf() > chance:
+		return
+	var prio: int = VOICE_PRIO[key]
+	if _voice.playing and prio < _voice_prio:
+		return
+	var stream := _voice_pick(key)
+	if stream == null:
+		return
+	var pain: bool = prio >= int(VOICE_PRIO["hurt"])
+	_voice.stream = stream
+	_voice.volume_db = hurt_volume_db if pain else voice_volume_db
+	# Стон — через то же эхо, что у рыцаря (шина HurtEcho), если она есть
+	_voice.bus = "HurtEcho" if pain and AudioServer.get_bus_index("HurtEcho") >= 0 else "Combat"
+	_voice.pitch_scale = randf_range(0.95, 1.05)
+	_voice.play()
+	_voice_prio = prio
+
+
+## Истощение у Сигрид своё: багровая рамка с венами, бьющаяся в такт сердцу
+## (UI/sigrid_exhaust.gd), а не общая голубая виньетка
+const SigridExhaust := preload("res://UI/sigrid_exhaust.gd")
+
+func _make_exhaust_layer() -> CanvasLayer:
+	var l: CanvasLayer = SigridExhaust.new()
+	l.name = "ExhaustVeins"
+	add_child(l)
+	# Слои одного номера рисуются в порядке детей: первым ребёнком — ПОД
+	# полосками здоровья и прочим интерфейсом героя (иначе их бы стягивало
+	# и затемняло вместе с миром)
+	move_child(l, 0)
+	return l
+
+
+## Женская одышка (Sound/sigrid_voice/breath_exhausted.*). Файла нет —
+## Сигрид дышит молча, но не мужским голосом из общей одышки
+const BREATH_FILES := ["breath_exhausted.ogg", "breath_exhausted.wav"]
+
+func _dyspnea_stream() -> AudioStream:
+	for f in BREATH_FILES:
+		var path: String = VOICE_DIR + f
+		if ResourceLoader.exists(path):
+			return load(path)
+	return null
+
+
+## Скачанная одышка звучала «мужской»: шум дыхания низкий и грудной. Поэтому
+## она идёт выше тоном (pitch_scale — заодно чуть чаще, как у запыхавшейся)
+## и через свою шину с обрезкой низов: без «груди» дыхание звучит легче,
+## по-женски. Обе ручки — в инспекторе
+## Темп и тон разделены: breath_tempo — скорость дыхания (1.0 — как в файле;
+## меньше — реже и спокойнее), breath_tone — итоговая высота (выше — легче,
+## женственнее). Тон держит эффект PitchShift на шине, поэтому замедление не
+## делает голос ниже. Обе ручки — в инспекторе
+@export_range(0.6, 1.8, 0.01) var breath_tempo := 1.1
+@export_range(0.8, 1.8, 0.01) var breath_tone := 1.28
+@export_range(50.0, 1500.0, 10.0) var breath_low_cut_hz := 380.0
+## Громкость одышки (дБ). Было -3 — на слух слишком громко
+@export_range(-30.0, 6.0, 0.5) var breath_volume_db := -10.0
+const BREATH_BUS := "SigridBreath"
+
+
+func _tune_breath() -> void:
+	dyspnea_volume = breath_volume_db
+	if not is_instance_valid(_dyspnea) or _dyspnea.stream == null:
+		return
+	var idx := AudioServer.get_bus_index(BREATH_BUS)
+	if idx < 0:
+		AudioServer.add_bus()
+		idx = AudioServer.bus_count - 1
+		AudioServer.set_bus_name(idx, BREATH_BUS)
+		AudioServer.set_bus_send(idx, "Master")
+	var cut: AudioEffectHighPassFilter = null
+	var shift: AudioEffectPitchShift = null
+	for i in AudioServer.get_bus_effect_count(idx):
+		var fx := AudioServer.get_bus_effect(idx, i)
+		if fx is AudioEffectHighPassFilter:
+			cut = fx
+		elif fx is AudioEffectPitchShift:
+			shift = fx
+	if cut == null:
+		cut = AudioEffectHighPassFilter.new()
+		AudioServer.add_bus_effect(idx, cut)
+	if shift == null:
+		shift = AudioEffectPitchShift.new()
+		AudioServer.add_bus_effect(idx, shift)
+	cut.cutoff_hz = breath_low_cut_hz
+	# Плеер играет в темпе breath_tempo (это заодно сдвигает тон), а сдвиг на
+	# шине доводит тон до breath_tone
+	shift.pitch_scale = breath_tone / maxf(breath_tempo, 0.01)
+	_dyspnea.bus = BREATH_BUS
+	_dyspnea.pitch_scale = breath_tempo
+
+
+func receive_attack(attack_data: Dictionary) -> bool:
+	var hp_before: float = health
+	var got: bool = super(attack_data)
+	if got and not is_dead():
+		_say("hurt_heavy" if hp_before - health >= max_health * heavy_hurt_fraction else "hurt")
+	return got
+
+
+func _die() -> void:
+	super()
+	_say("death")
+
+
+func start_roll() -> void:
+	var was := is_rolling
+	super()
+	if is_rolling and not was:
+		_say("roll", roll_voice_chance)
+		Sfx.play_on(self, "roll")
 
 
 ## Хитбокс клинка — тот же узел, что у пинка (KickHitbox): enemy.gd узнаёт
@@ -1217,5 +1524,226 @@ func _open_sword_hitbox(pos: Vector2, scl: Vector2, dmg: int) -> void:
 
 ## Клинок задел врага — лёгкая тряска камеры, как у рыцаря
 func _on_blade_contact(area: Area2D) -> void:
-	if weapon == Weapon.SWORD and area.is_in_group("enemy_hurtbox"):
+	if not area.is_in_group("enemy_hurtbox"):
+		return
+	if weapon == Weapon.SWORD:
 		shake_camera(2.5, 0.12)
+	# Звук попадания: сталь о щит (враг закрылся и смотрит на Сигрид) или
+	# клинок в тело. Состояние врага читаем ДО того, как он сам обработает удар
+	var e := area.get_parent()
+	if not is_instance_valid(e) or e.get("is_dead") == true:
+		return
+	var guarded: bool = (e.get("is_blocking") == true or e.get("is_parrying") == true) \
+			and (not e.has_method("_is_guarding_against") or bool(e.call("_is_guarding_against", self)))
+	var at := area.global_position
+	if guarded:
+		Sfx.play_at(get_tree(), "dagger_block", at)
+		return
+	# Сочный удар — три слоя разом: рез, шлепок по плоти, глухой удар по
+	# телу. Финиш серии и выпад тяжелее — слой тела громче и ниже
+	var heavy := combo_step == 3 or String(anim.current_animation).begins_with(SWORD_PREFIX + "Lunge")
+	Sfx.play_at(get_tree(), "dagger_hit", at)
+	Sfx.play_at(get_tree(), "dagger_flesh", at, 2.0 if heavy else 0.0, 0.92)
+	Sfx.play_at(get_tree(), "dagger_body", at, 4.0 if heavy else 0.0, 0.5 if heavy else 0.6, 0.05)
+
+
+# ═════════════════ НАВЫКИ СИГРИД (Save/skill_trees.gd) ═════════════════
+# Верная тетива — в _fire_arrow/_charge_rate/resolve_arrow_hit; кинжал,
+# скрытность, кража и ловушка — здесь. Враг спрашивает лучницу сам
+# (enemy.gd: melee_damage_to, posture_mult_vs, gold_mult_for, detection_mult)
+
+## Заряженная стрела попала: instance_id врага -> сколько ещё держится
+## «След стрелы» (атаки по нему сильнее)
+var _charged_marks := {}
+## Сейчас в take_damage летит заряженная стрела (для удара в щит)
+var _posture_shot_charged := false
+## Быстрая рука: секунды усиленного кинжала после смены лука на кинжал
+var _switch_bonus_left := 0.0
+## Враги, по которым кинжал уже бил (Первый порез) и у которых уже пробовали
+## украсть (Ловкие пальцы — одна попытка на врага, даже неудачная)
+var _dagger_hit := {}
+var _steal_tried := {}
+
+
+## Бонус ко ВСЕМ атакам Сигрид по этой цели: След стрелы, Кровавый след
+func _target_damage_percent(enemy: Node) -> float:
+	var pct := 0.0
+	if _charged_marks.has(enemy.get_instance_id()):
+		pct += skill("charged_mark_damage_percent")
+	var bleed := enemy.get_node_or_null("ArcherBleed")
+	if bleed and int(bleed.get("ticks_left")) > 0:
+		pct += skill("vs_bleeding_damage_percent")
+	return pct
+
+
+## Свежая рана, Та, что выжила: шанс открыть кровотечение любым попаданием
+func _roll_bleed() -> bool:
+	var chance := skill("bleed_chance_percent")
+	return chance > 0.0 and randf() < chance / 100.0
+
+
+func _bleed_after_hit(enemy: Node) -> void:
+	if is_instance_valid(enemy) and not enemy.get("is_dead"):
+		_apply_bleed(enemy)
+
+
+## Кровотечение Кровавого Пера, дольше с Долгой охотой
+func _apply_bleed(enemy: Node) -> void:
+	var ticks := SkillTrees.scale_int(BLEED_TICKS, skill("bleed_duration_percent"))
+	ArcherFx.Bleed.apply(enemy, ticks, 1, BLEED_INTERVAL, self)
+
+
+## Удар ближнего боя дошёл (enemy.gd::_hero_melee_damage): кинжал или пинок.
+## Враг ещё не обработал удар — «не заметил» и «со спины» честные
+func melee_damage_to(enemy: Node, dmg: int) -> int:
+	var pct := _target_damage_percent(enemy)
+	# Свежая рана: кровотечение — после самого удара (враг мог и умереть)
+	if _roll_bleed():
+		_bleed_after_hit.call_deferred(enemy)
+	if weapon != Weapon.SWORD:
+		enemy.set_meta("last_hit_dagger", false)
+		return SkillTrees.scale_int(dmg, pct)
+	var id := enemy.get_instance_id()
+	var unaware: bool = enemy.has_method("is_unaware_of") and enemy.is_unaware_of(self)
+	var behind: bool = enemy.has_method("is_behind") and enemy.is_behind(self)
+	pct += skill("dagger_damage_percent")
+	if behind:
+		pct += skill("backstab_dagger_damage_percent")
+	if unaware:
+		pct += skill("unaware_dagger_damage_percent")
+		if not _dagger_hit.has(id):
+			pct += skill("first_unaware_dagger_damage_percent")
+	if _switch_bonus_left > 0.0:
+		pct += skill("switch_dagger_damage_percent")
+	dmg = SkillTrees.scale_int(dmg, pct)
+	# Крит кинжала есть только в спину (Слепой угол)
+	var crit_chance := skill("backstab_dagger_crit_points") / 100.0 if behind else 0.0
+	if crit_chance > 0.0 and randf() < crit_chance:
+		var crit_pct := skill("backstab_dagger_crit_damage_percent")
+		if unaware:
+			crit_pct += skill("unaware_crit_damage_percent")
+		dmg = SkillTrees.scale_int(dmg * CRIT_MULT, crit_pct)
+		ArcherFx.Burst.spawn(get_tree().current_scene, (enemy as Node2D).global_position + Vector2(0, -20), COLOR_VALKYRIE)
+	if behind and unaware:
+		_try_steal(enemy)
+	_dagger_hit[id] = true
+	enemy.set_meta("last_hit_dagger", true)
+	return dmg
+
+
+## Ловкие пальцы: незаметный удар кинжалом в спину — одна попытка на врага
+func _try_steal(enemy: Node) -> void:
+	var id := enemy.get_instance_id()
+	if skill("steal_chance_percent") <= 0.0 or _steal_tried.has(id):
+		return
+	_steal_tried[id] = true
+	if randf() >= skill("steal_chance_percent") / 100.0:
+		return
+	var base: float = enemy.base_gold_value() if enemy.has_method("base_gold_value") else 10.0
+	var amount := maxi(int(skill("steal_min_gold")), roundi(base * skill("steal_gold_percent") / 100.0))
+	add_gold(amount)
+	Sfx.play_on(self, "quiver")
+	load("res://Levels/loot/loot_ui.gd").of(get_tree()).show_pickup(null, tr("Украдено: %d золота") % amount, "")
+
+
+## Урон по стойкости врага в щит: Тяжёлое оперение для заряженной стрелы
+func posture_mult_vs(_enemy: Node) -> float:
+	return 1.0 + (skill("charged_posture_percent") if _posture_shot_charged else 0.0) / 100.0
+
+
+## Тихий шаг, Без свидетелей: зона зрения врагов меньше
+func detection_mult() -> float:
+	return maxf(1.0 + skill("detection_radius_percent") / 100.0, 0.2)
+
+
+## Чужая добыча: враг, добитый кинжалом, даёт больше золота
+func gold_mult_for(enemy: Node) -> float:
+	if enemy.get_meta("last_hit_dagger", false):
+		return 1.0 + skill("dagger_kill_gold_percent") / 100.0
+	return 1.0
+
+
+# ─────────── Узел ловчего: ловушка (новая механика) ───────────
+
+## Действие ловушки — своё, заводится при старте, если его нет в настройках
+## проекта (G по умолчанию, переназначается как любое другое)
+const TRAP_ACTION := "trap_place"
+var _trap_cooldown := 0.0
+var _trap: Node2D
+
+
+func _ensure_trap_action() -> void:
+	if InputMap.has_action(TRAP_ACTION):
+		return
+	InputMap.add_action(TRAP_ACTION)
+	var ev := InputEventKey.new()
+	ev.physical_keycode = KEY_G
+	InputMap.action_add_event(TRAP_ACTION, ev)
+
+
+func _try_place_trap() -> void:
+	if skill("trap_enabled") <= 0.0 or _trap_cooldown > 0.0:
+		return
+	if is_instance_valid(health_bar) and not health_bar.use_stamina(skill("trap_stamina_cost")):
+		return
+	# Не больше одной: новая заменяет старую
+	if is_instance_valid(_trap):
+		_trap.queue_free()
+	_trap = SnareTrap.new()
+	_trap.radius = skill("trap_radius")
+	_trap.slow_percent = skill("trap_slow_percent")
+	_trap.slow_seconds = skill("trap_slow_seconds")
+	_trap.lifetime = skill("trap_lifetime_seconds")
+	get_tree().current_scene.add_child(_trap)
+	_trap.global_position = global_position + Vector2(0, 14)
+	_trap_cooldown = skill("trap_cooldown_seconds")
+	SoundBank.play_at(get_tree(), "trap_place", global_position, -8.0)
+
+
+## Силок на земле: первый враг в радиусе замедляется и силок исчезает.
+## Нарисован линиями в тусклых тонах — тёмное железо и верёвка
+class SnareTrap extends Node2D:
+	var radius := 24.0
+	var slow_percent := 30.0
+	var slow_seconds := 3.0
+	var lifetime := 30.0
+	var _t := 0.0
+	var _sprung := false
+
+	func _process(delta: float) -> void:
+		_t += delta
+		if _sprung:
+			return
+		if _t >= lifetime:
+			_vanish()
+			return
+		for e in get_tree().get_nodes_in_group("enemy"):
+			if not is_instance_valid(e) or e.get("is_dead") == true or not (e is Node2D):
+				continue
+			if (e as Node2D).global_position.distance_to(global_position) <= radius:
+				if e.has_method("apply_slow"):
+					e.apply_slow(slow_percent, slow_seconds)
+				preload("res://Levels/sound_bank.gd").play_at(get_tree(), "trap_snap", global_position, -4.0)
+				_sprung = true
+				_vanish()
+				return
+		queue_redraw()
+
+	func _vanish() -> void:
+		var tw := create_tween()
+		tw.tween_property(self, "modulate:a", 0.0, 0.35)
+		tw.tween_callback(queue_free)
+
+	func _draw() -> void:
+		# Последние 3 с мигает — силок вот-вот рассыплется
+		var a := 0.85
+		if lifetime - _t < 3.0:
+			a *= 0.5 + 0.5 * absf(sin(_t * 6.0))
+		var iron := Color(0.42, 0.4, 0.37, a)
+		var rope := Color(0.55, 0.45, 0.3, a * 0.8)
+		draw_arc(Vector2.ZERO, radius * 0.55, 0.0, TAU, 32, rope, 1.5, true)
+		for i in 8:
+			var ang := TAU * i / 8.0
+			var d := Vector2.from_angle(ang)
+			draw_line(d * radius * 0.35, d * radius * 0.7, iron, 1.5, true)
+		draw_circle(Vector2.ZERO, 2.0, iron)

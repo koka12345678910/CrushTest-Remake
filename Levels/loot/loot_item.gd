@@ -20,8 +20,21 @@ extends Node2D
 
 const MageFx := preload("res://Player_scene/mage_fx.gd")
 const LootUI := preload("res://Levels/loot/loot_ui.gd")
-const ABILITY_SOUND := preload("res://Sound/UI_button/accept.wav")
+## Подобран предмет — кожаная сумка (общий набор звуков UI/ui_sounds.gd)
+const ABILITY_SOUND := preload("res://UI/ui_sounds.gd").PICKUP
 const COIN_SOUND := preload("res://Sound/coin_picking.mp3")
+const Spells := preload("res://Player_scene/magic/spells.gd")
+
+## Подробности золота и душ для панели находки (Levels/loot/loot_ui.gd, Tab):
+## предание — откуда это в мире, назначение — зачем в игре
+const GOLD_INFO := {
+	"lore": "Тусклые монеты из курганов и разорённых святилищ. Северяне клали золото в могилу вместе с воином: верили, что в Вальгалле оно служит ему так же, как служило в Мидгарде. Потому мёртвые так неохотно с ним расстаются.",
+	"desc": "Валюта. Тратится у торговца на зелья, руны, навыки и талисманы.",
+}
+const SOULS_INFO := {
+	"lore": "Обрывки тех, кто не дошёл ни до Вальгаллы, ни до чертогов Хель. Вёльвы собирали их, как другие копят серебро: в шёпоте мёртвых — сила сейда.",
+	"desc": "Валюта мага. Тратится у торговца на зелья и талисманы.",
+}
 
 ## SPELL — заклинание рыцаря (благословение, Player_scene/magic/spells.gd);
 ## поднял не рыцарь или уже знает — внутри золото
@@ -67,6 +80,7 @@ var _motes: GPUParticles2D
 var _light: PointLight2D
 
 static var _gold_icon: Texture2D
+static var _soul_icon_tex: Texture2D
 
 
 func _ready() -> void:
@@ -156,6 +170,7 @@ func _process(delta: float) -> void:
 	if _taken:
 		return
 	_animate()
+	_compensate_for_ambient_tint()
 
 	var hero := get_tree().get_first_node_in_group("player") as Node2D
 	# Расстояние — от ног героя (его точка — в середине фигуры)
@@ -245,6 +260,8 @@ func _can_reward(hero: Node) -> bool:
 	var shop := get_tree().get_first_node_in_group("shop_menu")
 	if shop and not shop.loot_catalog(hero).is_empty():
 		return true
+	if hero.get("collects_souls") == true:
+		return true
 	return hero.has_method("add_gold") and hero.get("collects_gold") != false
 
 
@@ -261,7 +278,11 @@ func _pick_up(hero: Node2D) -> void:
 	if reward == Reward.SPELL and magic and magic.learn(spell_name):
 		var spell: Ability = magic.magic_inventory.get_all().filter(
 				func(s): return s.ability_name == spell_name).front()
-		ui.show_pickup(spell.icon, spell_name, "Магия  •  Благословение")
+		ui.show_pickup(spell.icon, spell_name, "Магия  •  Благословение", {
+			"lore": Spells.DATA[spell_name].get("lore", ""),
+			"desc": tr("%s\nЦена: %d Одра.") % [tr(spell.description), int(spell.odr_cost)]})
+		if hero.inventory_ui.has_method("notify_new"):
+			hero.inventory_ui.notify_new(spell_name, true)
 		_play(ABILITY_SOUND, -6.0, hero)
 		SaveManager.mark_loot_taken(loot_id(), hero)
 		_vanish(hero)
@@ -279,12 +300,19 @@ func _pick_up(hero: Node2D) -> void:
 		var ab: Ability = shop.make_ability(item["name"])
 		hero.inventory_ui.add_item(ab)
 		var icon: Texture2D = load(item["icon"]) if ResourceLoader.exists(item["icon"]) else null
-		ui.show_pickup(icon, item["name"], item.get("subtitle", "Способность"))
+		ui.show_pickup(icon, item["name"], item.get("subtitle", "Способность"),
+				{"lore": item.get("lore", ""), "desc": item.get("description", "")})
 		_play(ABILITY_SOUND, -6.0, hero)
+	elif hero.get("collects_souls") == true:
+		# Маг вместо золота получает души (его валюта)
+		var amount := randi_range(gold_min, gold_max)
+		hero.add_souls(amount, global_position)
+		ui.show_pickup(_soul_icon(), tr("%d душ") % amount, "Сейд  •  Валюта", SOULS_INFO)
+		_play(COIN_SOUND, -12.0, hero, 0.55)
 	else:
 		var amount := randi_range(gold_min, gold_max)
 		hero.add_gold(amount)
-		ui.show_pickup(_coin_icon(), "%d золота" % amount, "")
+		ui.show_pickup(_coin_icon(), tr("%d золота") % amount, "Мидгард  •  Валюта", GOLD_INFO)
 		_play(COIN_SOUND, -10.0, hero)
 	# Больше не появится — и сразу на диск вместе с полученным
 	SaveManager.mark_loot_taken(loot_id(), hero)
@@ -325,14 +353,33 @@ func _vanish(hero: Node2D) -> void:
 	get_tree().create_timer(_motes.lifetime + 0.3).timeout.connect(queue_free)
 
 
-func _play(stream: AudioStream, db: float, hero: Node2D) -> void:
+func _play(stream: AudioStream, db: float, hero: Node2D, pitch := 1.0) -> void:
 	var p := AudioStreamPlayer2D.new()
 	p.stream = stream
+	p.pitch_scale = pitch
 	p.volume_db = db
 	hero.get_parent().add_child(p)
 	p.global_position = hero.global_position
 	p.finished.connect(p.queue_free)
 	p.play()
+
+
+## Иконка душ для окна "Получено" — бледно-голубой огонёк
+static func _soul_icon() -> Texture2D:
+	if _soul_icon_tex == null:
+		var g := Gradient.new()
+		g.offsets = PackedFloat32Array([0.0, 0.3, 0.65, 1.0])
+		g.colors = PackedColorArray([Color(0.9, 0.96, 1.0), Color(0.5, 0.72, 1.0), Color(0.18, 0.3, 0.8, 0.6),
+				Color(0.18, 0.3, 0.8, 0.0)])
+		var t := GradientTexture2D.new()
+		t.gradient = g
+		t.fill = GradientTexture2D.FILL_RADIAL
+		t.fill_from = Vector2(0.5, 0.5)
+		t.fill_to = Vector2(1.0, 0.5)
+		t.width = 64
+		t.height = 64
+		_soul_icon_tex = t
+	return _soul_icon_tex
 
 
 ## Иконка золота для окна "Получено" — золотой кружок (своей картинки монет нет)
@@ -354,13 +401,8 @@ static func _coin_icon() -> Texture2D:
 
 
 # Ночь красит весь мир через CanvasModulate — без компенсации белое свечение
-# ушло бы в зелень. Тот же приём, что у золотых душ (gold_wisp.gd)
+# ушло бы в зелень. Тот же приём, что у золотых душ (gold_wisp.gd). Цвет мира
+# меняется со временем суток (Levels/weather.gd), поэтому — каждый кадр
 func _compensate_for_ambient_tint() -> void:
-	var scene := get_tree().current_scene
-	if scene == null:
-		return
-	for child in scene.get_children():
-		if child is CanvasModulate and child.visible:
-			var c: Color = child.color
-			modulate = Color(1.0 / maxf(c.r, 0.05), 1.0 / maxf(c.g, 0.05), 1.0 / maxf(c.b, 0.05), 1.0)
-			return
+	var c := Weather.ambient_comp()
+	modulate = Color(c.r, c.g, c.b, modulate.a)

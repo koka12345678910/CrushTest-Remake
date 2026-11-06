@@ -16,7 +16,7 @@ func _init() -> void:
 	ability_name = "Кровь Фенрира"
 	cooldown_duration = 60.0
 	description = "Неуязвимость к урону и контролю, сила растёт по ходу действия"
-	icon = load("res://Shop/icons/demon_flask.png")
+	icon = load_icon("res://Shop/icons/icons_2/fenrir.png")
 
 func _execute(player: Node) -> void:
 	# Неуязвимость через существующую систему i-frames — теперь снимает и стан от контратак

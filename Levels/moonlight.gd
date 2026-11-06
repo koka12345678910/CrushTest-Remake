@@ -15,6 +15,9 @@ extends Node2D
 @export var energy := 0.3
 ## Ветер, px/с: куда и как быстро плывут облака
 @export var wind := Vector2(14.0, 6.0)
+## Цвет, яркость и ветер в течение суток ведёт погода (Levels/weather.gd):
+## днём этот же свет — солнце сквозь облака. wind_scale — сила ветра погоды
+var wind_scale := 1.0
 ## Размер одной плитки облаков в пикселях мира (= период шума)
 @export var period := 4096.0
 ## Частота шума: больше — облака мельче и чаще
@@ -70,7 +73,11 @@ func _ready() -> void:
 
 
 func _process(delta: float) -> void:
-	_drift = Vector2(fposmod(_drift.x + wind.x * delta, period), fposmod(_drift.y + wind.y * delta, period))
+	var w := wind * wind_scale
+	_drift = Vector2(fposmod(_drift.x + w.x * delta, period), fposmod(_drift.y + w.y * delta, period))
+	for l in _lights:
+		l.color = color
+		l.energy = energy
 	_place()
 
 

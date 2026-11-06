@@ -41,6 +41,7 @@ extends Marker2D
 
 const BODY_LIGHT_BIT := 8
 const SHADOW_OCCLUDER_BIT := 16
+const BonfireScript := preload("res://Levels/bonfire/bonfire.gd")
 
 ## Как часто скидывать прогресс на диск. Пишем редко: сохранение — это запись
 ## файла, а дёргать её каждый кадр незачем
@@ -79,7 +80,22 @@ func _ready() -> void:
 
 func _apply_progress() -> void:
 	SaveManager.apply_to(character)
+	_spawn_at_bonfire()
 	_apply_camera_limits()
+
+
+## Отдыхали у костра этого уровня — появляемся у него, а не на старте
+## (Levels/bonfire/bonfire.gd, SaveManager.last_bonfire)
+func _spawn_at_bonfire() -> void:
+	if SaveManager.last_bonfire == "" or not is_instance_valid(character):
+		return
+	var b := BonfireScript.find(get_tree(), SaveManager.last_bonfire)
+	if b == null:
+		return
+	character.global_position = b.rest_position()
+	var cam := character.get_node_or_null("Camera2D") as Camera2D
+	if cam:
+		cam.reset_smoothing.call_deferred()
 
 
 func _add_glow() -> void:

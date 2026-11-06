@@ -15,6 +15,7 @@ extends CharacterBody2D
 const DirectionUtil := preload("res://Player_scene/direction_util.gd")
 const FocusSystemScript := preload("res://Player_scene/focus_system.gd")
 const DepthComponentScript := preload("res://Player_scene/depth_component.gd")
+const MotionFeelScript := preload("res://Player_scene/motion_feel.gd")
 ## Пыль из-под ног на резком развороте (Turn_) — тот же VFX, что у рыцаря
 ## (player.gd::turn_around_vfx_scene), общий на все классы, не копия
 const TurnDustScene := preload("res://VFX/VFX_scene/turn_around_vfx_scene.tscn")
@@ -64,9 +65,38 @@ var _attack_step_velocity := Vector2.ZERO
 ## только в вводе: у рыцаря на пробел завязаны ДВА действия через окно
 ## двойного тапа (один тап — короткий додж, два — перекат), лучнику додж не
 ## нужен, поэтому один тап сразу запускает перекат
-@export var roll_speed := 225.0
+## Длина переката ≈ roll_speed * roll_duration * 2/π: 190 → ~110 px. У рыцаря
+## 150 (~85 px) — он в доспехе, лёгкие классы катятся чуть дальше
+@export var roll_speed := 190.0
 @export var roll_duration := 0.9
 @export var roll_stamina_cost := 22.0
+## Неуязвимость переката — только первые roll_iframes_end секунд (клип
+## ~0.9-1 с), а не весь перекат: на хвосте удар уже достаёт и обрывает его
+@export var roll_iframes_end := 0.45
+## С какого места переката (с) его обрывает любое действие (удар, приём,
+## заклинание, новый перекат) — сразу после конца неуязвимости
+@export var roll_cancel_time := 0.55
+## Наведение: при зажатом направлении удар/выстрел/заклинание идёт туда, а к
+## врагу доворачивает, только если он в этом конусе (полуугол, градусы).
+## Без направления — к ближайшему в радиусе, в фокусе — всегда к цели
+@export var aim_assist_cone_deg := 40.0
+## Удар «отыгран» (клинок прошёл, стрела/заклинание вылетели): наследник
+## ставит _attack_recovery = true, и хвост клипа больше не держит — следующий
+## удар серии начинается сразу, а движение обрывает отмах
+var _attack_recovery := false
+
+## Бег тратит стамину, как у рыцаря (player.gd::run_stamina_drain). На нуле —
+## бежать нельзя, ходьба медленнее (тот же штраф истощения, что у рыцаря)
+@export var run_stamina_drain := 10.0
+@export var exhausted_speed_multiplier := 0.5
+## Разгон/торможение — те же резкие коэффициенты, что у рыцаря
+## (player.gd: accel/friction_run 30): до полной скорости и до остановки ≈0.1 с
+@export var move_accel := 30.0
+@export var move_friction := 30.0
+## Реакция на удар: столько секунд нельзя ни идти, ни бить — только
+## перекатиться (вырваться перекатом можно всегда)
+@export var hurt_lock_time := 0.3
+var _hurt_timer := 0.0
 
 var anim: AnimationPlayer
 
@@ -106,11 +136,16 @@ var turn_velocity := Vector2.ZERO
 @export var turn_friction := 6.0
 
 var gold := 0
-## Копит ли класс золото. У мага валюта другая — души (логика душ будет
-## позже), монеты ему не нужны: при игре за него они не выпадают ни из
-## врагов, ни из разбитых ящиков (enemy.gd / breakable_prop.gd спрашивают
-## это поле), а подобранные (если вдруг) в золото не идут
+## Копит ли класс золото. У мага валюта другая — души, монеты ему не нужны:
+## при игре за него они не выпадают ни из врагов, ни из разбитых ящиков
+## (enemy.gd / breakable_prop.gd спрашивают это поле), а подобранные (если
+## вдруг) в золото не идут
 @export var collects_gold := true
+## Души — валюта мага (collects_souls в mage.tscn). Из врагов вместо золотых
+## выпадают души (gold_wisp.gd в режиме души), сами летят к герою; хранятся
+## в сейве, как золото
+var souls := 0
+@export var collects_souls := false
 ## Копится на прокачку выбранного класса (см. UI/skill_points_bar.gd и
 ## SaveManager.gd), тот же контракт, что у gold. Растёт НЕ за каждое убийство —
 ## только когда skill_progress долился до skill_progress_per_point (см. ниже)
@@ -121,6 +156,23 @@ var skill_points := 0
 ## конвертируется в +1 skill_points
 var skill_progress := 0
 @export var skill_progress_per_point := 10
+
+# --- Деревья навыков (Save/skill_trees.gd: у каждого героя свои три) ---
+## id открытых узлов. Персистится через SaveManager (apply_to/capture_from),
+## бонусы считает recompute_skill_modifiers() — сам список ничего не применяет
+var unlocked_skills: Array[String] = []
+## Сумма эффектов открытых узлов: ключ -> число (SkillTrees.sum_effects).
+## Читать через skill(key); пересчитывается целиком, никогда не правится
+var skill_fx: Dictionary = {}
+## Базовые максимумы ДО бонусов дерева — от них пересчёт, а не от текущих,
+## иначе повторная загрузка задваивала бы бонус
+const BASE_MAX_STAMINA := 100.0
+var _base_max_health := -1.0
+var _base_stamina_regen := -1.0
+## Перекат: окно «следующий перекат дешевле» и ускоренный реген выносливости
+## после переката (Закон дикого леса)
+var _chain_roll_left := 0.0
+var _roll_regen_left := 0.0
 
 ## Открыт магазин (Shop/shop_menu.gd ставит/снимает) — персонаж стоит и не
 ## реагирует на ввод, как рыцарь (player.gd::is_in_shop)
@@ -176,12 +228,20 @@ func _ready() -> void:
 	var depth := DepthComponentScript.new()
 	depth.name = "DepthComponent"
 	add_child(depth)
+	# Вес в движении: наклон на беге, сжатие и пыль на старте/остановке
+	var feel := MotionFeelScript.new()
+	feel.name = "MotionFeel"
+	add_child(feel)
 
 	sprite = _find_child_of_type(AnimatedSprite2D) as AnimatedSprite2D
 	camera = _find_child_of_type(Camera2D) as Camera2D
 	health_bar = get_node_or_null("HealthStaminaBar")
 	if health_bar:
 		health_bar.set_max_hp(max_health)
+	# unlocked_skills сейчас пуст (SaveManager.apply_to зальёт его позже и
+	# пересчитает ещё раз) — здесь только запоминаются базовые значения
+	recompute_skill_modifiers()
+	_build_condition_fx()
 
 	anim = _find_animation_player()
 	if anim == null:
@@ -205,11 +265,22 @@ func _find_child_of_type(type) -> Node:
 func _physics_process(delta: float) -> void:
 	if anim == null or is_dead():
 		return
+	_guard_finite()
 
 	if _invuln_timer > 0.0:
 		_invuln_timer -= delta
 		if _invuln_timer <= 0.0:
 			is_invulnerable = false
+	if _hurt_timer > 0.0:
+		_hurt_timer -= delta
+	if not is_in_shop:
+		_record_buffered_presses()
+
+	# Хвост переката (неуязвимость кончилась) обрывается любым действием —
+	# нажатым хоть заранее (буфер). Раньше нажатое ждало конца клипа
+	if is_rolling and roll_control >= roll_cancel_time and _any_action_pressed():
+		_end_roll()
+		velocity = Vector2.ZERO
 
 	if is_rolling:
 		_handle_roll(delta)
@@ -242,6 +313,13 @@ func _physics_process(delta: float) -> void:
 		move_and_slide()
 		return
 
+	# Реакция на удар: стоим, пока не отыграла (Take_Damage_ не перебивается
+	# ходьбой), только перекат выше может её прервать
+	if _hurt_timer > 0.0:
+		velocity = velocity.lerp(Vector2.ZERO, minf(move_friction * delta, 1.0))
+		move_and_slide()
+		return
+
 	_focus.poll_input()
 	check_for_turn()
 	if is_turning:
@@ -259,7 +337,18 @@ func _physics_process(delta: float) -> void:
 			combo_step = 0
 			combo_queued = false
 
+	# Удар отыгран — хвост клипа не держит: в очереди следующий удар серии —
+	# сразу он; жмут направление — отмах обрывается и герой идёт
+	if is_attacking and _attack_recovery and not is_run_attacking:
+		if combo_queued and combo_step < combo_length:
+			start_attack(combo_step + 1)
+		elif input_vector != Vector2.ZERO and not combo_queued:
+			_cancel_attack()
+			play_movement_animation()
+
 	if is_attacking:
+		if not is_run_attacking:
+			_steer_attack()
 		if is_run_attacking and run_attack_keeps_moving:
 			# Выстрел на бегу не тормозит — бежал и продолжает бежать с той же
 			# скоростью, что и без атаки (см. run_attack_keeps_moving). Только
@@ -281,6 +370,44 @@ func _physics_process(delta: float) -> void:
 	move_and_slide()
 	_update_facing()
 	play_movement_animation()
+	_handle_footsteps(delta)
+
+
+var _last_finite_pos := Vector2.ZERO
+var _nan_reported := false
+
+## Санитизация от NaN — та же, что у врагов (enemy.gd::_physics_process).
+## Если центр героя почти совпал с центром врага (шаг удара в крупного
+## топорника, нокбэк вплотную), move_and_slide при расталкивании может
+## получить вырожденную нормаль, и позиция/скорость становятся NaN. Дальше NaN
+## расползается сам: move_and_slide каждый кадр спамит "Vector2 cannot be
+## normalized", камера улетает — игра выглядит зависшей. Здесь: вернуть на
+## последнюю нормальную позицию (+полпикселя в сторону, чтобы центры снова не
+## совпали) и обнулить все скорости. Подробности — один раз в лог
+func _guard_finite() -> void:
+	if global_position.is_finite() and velocity.is_finite() and facing_dir.is_finite() \
+			and _attack_step_velocity.is_finite() and _run_dash_velocity.is_finite() \
+			and knockback_velocity.is_finite() and turn_velocity.is_finite() and roll_dir.is_finite():
+		_last_finite_pos = global_position
+		return
+	if not _nan_reported:
+		_nan_reported = true
+		push_warning("[%s NaN] pos=%s vel=%s step=%s dash=%s kb=%s turn=%s roll=%s facing=%s attacking=%s run_attack=%s rolling=%s last_pos=%s" % [
+			name, global_position, velocity, _attack_step_velocity, _run_dash_velocity, knockback_velocity,
+			turn_velocity, roll_dir, facing_dir, is_attacking, is_run_attacking, is_rolling, _last_finite_pos])
+	if not global_position.is_finite():
+		global_position = _last_finite_pos + Vector2(randf_range(-0.5, 0.5), randf_range(-0.5, 0.5))
+	velocity = Vector2.ZERO
+	_attack_step_velocity = Vector2.ZERO
+	_run_dash_velocity = Vector2.ZERO
+	knockback_velocity = Vector2.ZERO
+	turn_velocity = Vector2.ZERO
+	if not roll_dir.is_finite():
+		roll_dir = Vector2.ZERO
+	if not facing_dir.is_finite():
+		facing_dir = direction_to_vector(last_direction)
+		if facing_dir == Vector2.ZERO:
+			facing_dir = Vector2.DOWN
 
 
 ## Страховка от "залипшего" бега: Windows иногда съедает отпускание Shift
@@ -299,6 +426,46 @@ func _input(event: InputEvent) -> void:
 		Input.action_release("run")
 
 
+## ── Буфер ввода ──
+## Нажатие, пришедшееся на момент, когда действие невозможно (перекат, реакция
+## на удар, отлёт, ещё идущий удар), не теряется: живёт input_buffer_time
+## секунд реального времени (не игрового — под замедлением Juice окно не
+## растягивается) и срабатывает, как только действие станет доступно.
+## Обработчики ввода читают нажатие через _pressed() вместо
+## Input.is_action_just_pressed и гасят его _consume(), когда действие
+## реально началось. Блок/парирование не буферизуются — там важен точный тайминг
+@export var input_buffer_time := 0.2
+const BUFFERED_ACTIONS := ["attack", "ui_accept", "parry", "kick", "special"]
+var _press_ms := {}
+
+
+func _record_buffered_presses() -> void:
+	for action in BUFFERED_ACTIONS:
+		if InputMap.has_action(action) and Input.is_action_just_pressed(action):
+			_press_ms[action] = Time.get_ticks_msec()
+
+
+## Было ли нажатие за последние input_buffer_time секунд (и ещё не потрачено)
+func _pressed(action: String) -> bool:
+	if not _press_ms.has(action):
+		return false
+	if Time.get_ticks_msec() - int(_press_ms[action]) > int(input_buffer_time * 1000.0):
+		_press_ms.erase(action)
+		return false
+	return true
+
+
+func _consume(action: String) -> void:
+	_press_ms.erase(action)
+
+
+func _any_action_pressed() -> bool:
+	for action in BUFFERED_ACTIONS:
+		if _pressed(action):
+			return true
+	return false
+
+
 func _run_bound_to_shift() -> bool:
 	for e in InputMap.action_get_events("run"):
 		if e is InputEventKey and (e.physical_keycode == KEY_SHIFT or e.keycode == KEY_SHIFT):
@@ -310,13 +477,25 @@ func _run_bound_to_shift() -> bool:
 ## же кодом мог пользоваться выстрел на бегу (run_attack_keeps_moving): там
 ## нужна ровно та же скорость и тот же разгон/торможение, что и без атаки
 func _apply_free_movement(delta: float) -> void:
-	var target_speed := run_speed if is_running else walk_speed
+	var target_speed := walk_speed
+	if is_exhausted():
+		target_speed = walk_speed * exhausted_speed_multiplier
+	elif is_running and input_vector != Vector2.ZERO:
+		if is_instance_valid(health_bar):
+			health_bar.use_stamina(run_stamina_drain * delta)
+		target_speed = run_speed
 	var target_velocity := input_vector.normalized() * target_speed
 
 	if input_vector != Vector2.ZERO:
-		velocity = velocity.lerp(target_velocity, 6.0 * delta)
+		velocity = velocity.lerp(target_velocity, minf(move_accel * delta, 1.0))
 	else:
-		velocity = velocity.lerp(Vector2.ZERO, 9.0 * delta)
+		velocity = velocity.lerp(Vector2.ZERO, minf(move_friction * delta, 1.0))
+
+
+## Стамина на нуле — то же условие, что у рыцаря (player.gd::is_exhausted).
+## Без HUD стамины нет — и истощения тоже
+func is_exhausted() -> bool:
+	return is_instance_valid(health_bar) and health_bar.current_stamina <= 0.0
 
 
 ## Куда смотрит персонаж. Взгляд и движение — разные вещи: пока цель в фокусе,
@@ -560,7 +739,8 @@ func _play_turn_dust() -> void:
 func handle_roll_input() -> void:
 	if is_rolling:
 		return
-	if Input.is_action_just_pressed("ui_accept"):
+	if _pressed("ui_accept"):
+		_consume("ui_accept")
 		start_roll()
 
 
@@ -577,19 +757,21 @@ func start_roll() -> void:
 	# анимации нажатие тихо съедало бы стамину без всякого видимого эффекта
 	if not anim.has_animation("Rolling_" + dir_name):
 		return
-	if is_instance_valid(health_bar) and not health_bar.use_stamina(roll_stamina_cost):
+	if is_instance_valid(health_bar) and not health_bar.use_stamina(_roll_cost()):
 		return
+	# Без следа: следующий перекат в окне дешевле; Звериный выдох — реген
+	if skill("chain_roll_cost_percent") != 0.0:
+		_chain_roll_left = 3.0
+	if skill("after_roll_stamina_regen_percent") > 0.0:
+		_roll_regen_left = 3.0
 
 	roll_control = 0.0
 	is_rolling = true
 	# Перекат прерывает начатую атаку — как двойной тап у рыцаря
 	# (interrupt_all_actions): иначе можно застрять между Attack_ и Rolling_
-	is_attacking = false
-	is_run_attacking = false
-	combo_step = 0
-	combo_queued = false
+	_cancel_attack()
 	knockback_velocity = Vector2.ZERO
-	_attack_step_velocity = Vector2.ZERO
+	_hurt_timer = 0.0
 	# Слой 3 = "enemy" (project.godot/layer_names) — на время переката
 	# проходим сквозь врагов физически, как и рыцарь
 	set_collision_mask_value(3, false)
@@ -597,8 +779,24 @@ func start_roll() -> void:
 	roll_dir = dir
 	facing_dir = dir
 	last_direction = dir_name
+	# Перекат, оборванный новым в ту же сторону, — клип с начала, а не с середины
+	var roll_clip := _clip_name("Rolling_" + dir_name)
+	var same_clip := String(anim.current_animation) == roll_clip
 	_play("Rolling_" + dir_name)
+	if same_clip:
+		anim.seek(0.0, true)
 	dodge_velocity = roll_dir * roll_speed
+
+
+func _roll_invulnerable() -> bool:
+	return is_rolling and roll_control <= roll_iframes_end
+
+
+func _end_roll() -> void:
+	is_rolling = false
+	set_collision_mask_value(3, true)
+	dodge_velocity = Vector2.ZERO
+	roll_control = 0.0
 
 
 ## Перекат доигран до конца. Для наследников — Танец Валькирии у лучницы
@@ -624,12 +822,14 @@ func _handle_roll(delta: float) -> void:
 # ─────────────────────────────────────────────
 
 func handle_attack_input() -> void:
-	if not Input.is_action_just_pressed("attack"):
+	if not _pressed("attack"):
 		return
 	if is_attacking:
 		if combo_step < combo_length:
 			combo_queued = true
+			_consume("attack")
 		return
+	_consume("attack")
 	if is_running and input_vector != Vector2.ZERO:
 		start_run_attack()
 		return
@@ -640,6 +840,7 @@ func handle_attack_input() -> void:
 ## (combo_step/combo_queued тут не участвуют), запускается и заканчивается
 ## сама по себе, как рывок мечом у рыцаря
 func start_run_attack() -> void:
+	_attack_recovery = false
 	is_attacking = true
 	combo_step = 0
 	combo_queued = false
@@ -650,7 +851,7 @@ func start_run_attack() -> void:
 	# Анимации ещё может не быть (has_animation-паттерн, как и везде в этом
 	# файле) — тогда тихо откатываемся на обычный удар стоя, а не на пустое
 	# нажатие без всякой реакции
-	if not _play("Run_Attack_" + last_direction):
+	if not _play_restart("Run_Attack_" + last_direction):
 		is_attacking = false
 		start_attack(1)
 		return
@@ -663,6 +864,7 @@ func start_run_attack() -> void:
 
 
 func start_attack(step: int) -> void:
+	_attack_recovery = false
 	is_attacking = true
 	is_run_attacking = false
 	combo_step = step
@@ -682,8 +884,8 @@ func start_attack(step: int) -> void:
 	# может не быть — тогда переигрываем первый, а не обрываем всю серию (тот
 	# же подход, что у рыцаря в player.gd: комбо не должно молча ломаться)
 	var prefix := "Attack_" if step == 1 else "Attack_%d_" % step
-	if not _play(prefix + last_direction):
-		if not _play("Attack_" + last_direction):
+	if not _play_restart(prefix + last_direction):
+		if not _play_restart("Attack_" + last_direction):
 			is_attacking = false
 			return
 
@@ -698,8 +900,8 @@ func _turn_to_aim(aim: Node2D) -> void:
 		if aim_dir != "":
 			facing_dir = to_aim
 			last_direction = aim_dir
-	elif input_vector != Vector2.ZERO:
-		facing_dir = input_vector.normalized()
+	elif _aim_dir() != Vector2.ZERO:
+		facing_dir = _aim_dir()
 		last_direction = get_direction(facing_dir)
 
 
@@ -707,7 +909,38 @@ func _turn_to_aim(aim: Node2D) -> void:
 ## враг. Наследник может переопределить — лучница с Пером Хугина сначала
 ## ищет помеченных врагов (archer.gd)
 func _pick_aim() -> Node2D:
-	return _focus.target if _focus.has_target() else _focus.get_nearest_enemy()
+	return _focus.target if _focus.has_target() else _assist_target()
+
+
+## Цель без фокуса. Зажато направление — ближайший враг в конусе
+## aim_assist_cone_deg вокруг него (иначе бьём/стреляем туда, куда жмут).
+## Направления нет — ближайший в радиусе snap_radius
+## Куда целится игрок: с «Прицелом мышью» (GameSettings.mouse_aim) — на курсор,
+## иначе — по стрелкам. ZERO — направления нет
+func _aim_dir() -> Vector2:
+	if GameSettings.mouse_aim:
+		var to := get_global_mouse_position() - global_position
+		return to.normalized() if to.length() > 4.0 else Vector2.ZERO
+	return input_vector.normalized() if input_vector != Vector2.ZERO else Vector2.ZERO
+
+
+func _assist_target() -> Node2D:
+	var dir := _aim_dir()
+	var min_dot := cos(deg_to_rad(aim_assist_cone_deg))
+	var best: Node2D = null
+	var best_d := snap_radius
+	for e in get_tree().get_nodes_in_group("enemy"):
+		if not is_instance_valid(e) or e.get("is_dead") == true:
+			continue
+		var to: Vector2 = (e as Node2D).global_position - global_position
+		var d := to.length()
+		if d > best_d or d < 0.001:
+			continue
+		if dir != Vector2.ZERO and to.normalized().dot(dir) < min_dot:
+			continue
+		best_d = d
+		best = e
+	return best
 
 
 ## Шаг вперёд на ударе: скорость velocity гаснет attack_step_friction (см. там же)
@@ -732,10 +965,7 @@ func _on_animation_finished(finished_anim: String) -> void:
 		play_movement_animation()
 		return
 	if finished_anim.begins_with("Rolling_"):
-		is_rolling = false
-		set_collision_mask_value(3, true)
-		dodge_velocity = Vector2.ZERO
-		roll_control = 0.0
+		_end_roll()
 		velocity = Vector2.ZERO
 		play_movement_animation()
 		_on_roll_finished()
@@ -767,17 +997,28 @@ func _on_animation_finished(finished_anim: String) -> void:
 ## реакция анимацией — но метод обязан существовать и возвращать true, иначе
 ## враг считает, что промахнулся, и бьёт снова и снова
 func receive_attack(attack_data: Dictionary) -> bool:
-	if is_dead() or is_invulnerable or is_rolling:
+	if is_dead() or is_invulnerable or _roll_invulnerable():
 		return false
-	var amount: float = attack_data.get("damage", 0)
+	# Удар на хвосте переката: Rolling_ заменится реакцией и не доиграет
+	if is_rolling:
+		_end_roll()
+	var amount: float = float(attack_data.get("damage", 0)) * _incoming_damage_mult(attack_data)
 	health = maxf(health - amount, 0.0)
 	if is_instance_valid(health_bar):
 		health_bar.take_damage(amount)
-	play_take_damage()
+	# Тяжёлый приём (суперброня, _has_hyper_armor) удар не обрывает: урон
+	# проходит, но ни отлёта, ни реакции. Иначе удар обрывает начатую атаку —
+	# Take_Damage_ заменяет её клип, и без сброса is_attacking персонаж так и
+	# стоял бы в атаке, которая уже никогда не доиграет
+	if not _has_hyper_armor():
+		_cancel_attack()
+		play_take_damage()
+		_apply_knockback(attack_data.get("source", null))
+		_hurt_timer = hurt_lock_time
 	_flash_hit()
 	BloodFx.hit(self, attack_data.get("source", null) as Node2D, BloodFx.power_for(amount, max_health, is_dead()))
 	shake_camera(4.0)
-	_apply_knockback(attack_data.get("source", null))
+	_flash_damage_screen()
 	is_invulnerable = true
 	_invuln_timer = post_hit_invulnerability
 	if is_dead():
@@ -787,6 +1028,27 @@ func receive_attack(attack_data: Dictionary) -> bool:
 
 func is_dead() -> bool:
 	return health <= 0.0
+
+
+## Оборвать текущий удар (урон, перекат). Наследники дочищают своё: натяжение
+## и хитбокс клинка у лучницы
+func _cancel_attack() -> void:
+	_attack_recovery = false
+	is_attacking = false
+	is_run_attacking = false
+	combo_step = 0
+	combo_queued = false
+	_attack_step_velocity = Vector2.ZERO
+	_run_dash_velocity = Vector2.ZERO
+	# Turn_ тоже заменяется клипом урона/переката и уже не доиграет
+	is_turning = false
+	turn_lock = false
+
+
+## Тяжёлый приём, который не сбивается попаданием (у Сигрид — финиш серии
+## мечом и выпад). В базе — никакой
+func _has_hyper_armor() -> bool:
+	return false
 
 
 ## source — Node2D-атакующий из attack_data. Если враг его не передал (не
@@ -855,7 +1117,184 @@ func shake_camera(strength: float, _duration := 0.18) -> void:
 
 
 func _process(delta: float) -> void:
+	_update_condition_fx(delta)
 	_update_camera_feel(delta)
+	_update_skill_timers(delta)
+
+
+## Таймеры навыков переката: окно дешёвого переката и ускоренный реген
+## выносливости (реген живёт в полоске — множитель ставится туда же)
+func _update_skill_timers(delta: float) -> void:
+	_chain_roll_left = maxf(_chain_roll_left - delta, 0.0)
+	_roll_regen_left = maxf(_roll_regen_left - delta, 0.0)
+	if is_instance_valid(health_bar) and _base_stamina_regen >= 0.0:
+		var bonus := skill("after_roll_stamina_regen_percent") if _roll_regen_left > 0.0 else 0.0
+		health_bar.stamina_regen = _base_stamina_regen * (1.0 + bonus / 100.0)
+
+
+# ─────────────────────────────────────────────
+# СОСТОЯНИЕ НА ГРАНИ — как у рыцаря (player.gd::_update_condition_fx)
+# ─────────────────────────────────────────────
+# Красная виньетка + белая вспышка на урон, голубая виньетка и одышка при
+# истощении, сердцебиение на низком HP и при истощении. У рыцаря это ноды в
+# player.tscn — здесь те же скрипты/шейдер/звуки собираются кодом, чтобы не
+# трогать archer.tscn/mage.tscn. Шаги — те же семплы, что у рыцаря
+
+const DamageVignetteScript := preload("res://UI/damage_vignette.gd")
+const SustainedVignetteScript := preload("res://UI/sustained_vignette.gd")
+const HitFlashScript := preload("res://UI/hit_flash.gd")
+const VIGNETTE_SHADER := preload("res://UI/damage_vignette.gdshader")
+const HEARTBEAT_SOUND := preload("res://Sound/pulse.mp3")
+const DYSPNEA_SOUND := preload("res://Sound/ambient_sound/dyspnea.mp3")
+const SoundBank := preload("res://Levels/sound_bank.gd")
+const FOOTSTEP_LEFT := preload("res://Sound/Run/left-leg.wav")
+const FOOTSTEP_RIGHT := preload("res://Sound/Run/right-leg.wav")
+const HEARTBEAT_SILENT_DB := -40.0
+
+@export var low_health_threshold := 20.0
+@export var heartbeat_volume_low_hp := -18.0
+@export var heartbeat_volume_exhausted := 3.0
+@export var heartbeat_fade_speed := 25.0
+@export var dyspnea_volume := -3.0
+@export var footstep_step_distance := 42.0
+
+var _damage_vignette: CanvasLayer
+var _hit_flash: CanvasLayer
+var _exhaust_vignette: CanvasLayer
+var _heartbeat: AudioStreamPlayer
+var _dyspnea: AudioStreamPlayer
+var _footstep: AudioStreamPlayer2D
+var _footstep_distance := 0.0
+var _footstep_left_next := true
+
+
+func _build_condition_fx() -> void:
+	_damage_vignette = _make_screen_layer("DamageVignette", DamageVignetteScript,
+			_vignette_material(Color(0.75, 0, 0, 1), 0.55, 0.55))
+	_exhaust_vignette = _make_exhaust_layer()
+	_hit_flash = _make_screen_layer("HitFlash", HitFlashScript, null)
+	_heartbeat = _make_loop_player("HeartbeatAudio", HEARTBEAT_SOUND)
+	_dyspnea = _make_loop_player("DyspneaAudio", _dyspnea_stream())
+	_footstep = AudioStreamPlayer2D.new()
+	_footstep.name = "FootstepAudio"
+	add_child(_footstep)
+
+
+## Эффект истощения на экране. По умолчанию — голубая виньетка, как у рыцаря;
+## наследник может дать свой слой с тем же set_active(on) (Сигрид — вены в
+## такт сердцу, UI/sigrid_exhaust.gd)
+func _make_exhaust_layer() -> CanvasLayer:
+	return _make_screen_layer("ExhaustVignette", SustainedVignetteScript,
+			_vignette_material(Color(0.15, 0.45, 0.85, 1), 0.5, 0.6))
+
+
+## Одышка при истощении. По умолчанию — общая (мужская, как у рыцаря);
+## наследник может вернуть свою или null — тогда без одышки
+func _dyspnea_stream() -> AudioStream:
+	return DYSPNEA_SOUND
+
+
+func _vignette_material(col: Color, radius: float, softness: float) -> ShaderMaterial:
+	var mat := ShaderMaterial.new()
+	mat.shader = VIGNETTE_SHADER
+	mat.set_shader_parameter("strength", 0.0)
+	mat.set_shader_parameter("vignette_color", col)
+	mat.set_shader_parameter("radius", radius)
+	mat.set_shader_parameter("softness", softness)
+	return mat
+
+
+## Слой на весь экран со своим ColorRect — скрипты слоёв берут $ColorRect в
+## @onready, поэтому ребёнок кладётся ДО добавления слоя в дерево
+func _make_screen_layer(layer_name: String, script: Script, mat: ShaderMaterial) -> CanvasLayer:
+	var layer := CanvasLayer.new()
+	layer.name = layer_name
+	var rect := ColorRect.new()
+	rect.name = "ColorRect"
+	rect.set_anchors_preset(Control.PRESET_FULL_RECT)
+	rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	if mat:
+		rect.material = mat
+	else:
+		rect.color = Color(1, 1, 1, 0)
+	layer.add_child(rect)
+	layer.set_script(script)
+	add_child(layer)
+	return layer
+
+
+func _make_loop_player(player_name: String, stream: AudioStream) -> AudioStreamPlayer:
+	var p := AudioStreamPlayer.new()
+	p.name = player_name
+	p.stream = stream
+	if stream is AudioStreamMP3:
+		(stream as AudioStreamMP3).loop = true
+	elif stream is AudioStreamOggVorbis:
+		(stream as AudioStreamOggVorbis).loop = true
+	elif stream != null:
+		# WAV зацикливаем перезапуском, а не loop_mode на лету: с неверным
+		# loop_end поток замолкает (см. память проекта про дождь уровня)
+		p.finished.connect(func():
+			if p.volume_db > HEARTBEAT_SILENT_DB + 0.01:
+				p.play())
+	p.volume_db = HEARTBEAT_SILENT_DB
+	add_child(p)
+	return p
+
+
+func _flash_damage_screen() -> void:
+	if is_instance_valid(_damage_vignette):
+		_damage_vignette.flash()
+	if is_instance_valid(_hit_flash):
+		_hit_flash.flash()
+
+
+## Сердцебиение тихо на низком HP и громко при истощении, одышка и голубая
+## виньетка — только при истощении (_exhausted — с гистерезисом, см. ниже)
+func _update_condition_fx(delta: float) -> void:
+	if not is_instance_valid(_heartbeat):
+		return
+	if is_instance_valid(_exhaust_vignette):
+		_exhaust_vignette.set_active(_exhausted and not is_dead())
+	var low_hp := health > 0.0 and health <= low_health_threshold
+	var exhausted := _exhausted and not is_dead()
+	var heart_db := HEARTBEAT_SILENT_DB
+	if exhausted:
+		heart_db = heartbeat_volume_exhausted
+	elif low_hp:
+		heart_db = heartbeat_volume_low_hp
+	_fade_loop(_heartbeat, exhausted or low_hp, heart_db, delta)
+	_fade_loop(_dyspnea, exhausted, dyspnea_volume, delta)
+
+
+## Плавно ведёт громкость к цели, стартуя с тишины — без щелчков на входе
+func _fade_loop(p: AudioStreamPlayer, want: bool, target_db: float, delta: float) -> void:
+	if p.stream == null:
+		return
+	if want and not p.playing:
+		p.volume_db = HEARTBEAT_SILENT_DB
+		p.play()
+	if not p.playing:
+		return
+	p.volume_db = move_toward(p.volume_db, target_db if want else HEARTBEAT_SILENT_DB, heartbeat_fade_speed * delta)
+	if not want and p.volume_db <= HEARTBEAT_SILENT_DB + 0.01:
+		p.stop()
+
+
+## Шаги по пройденному пути — тот же приём, что у рыцаря (player.gd::handle_footsteps)
+func _handle_footsteps(delta: float) -> void:
+	if not is_instance_valid(_footstep) or velocity.length() < 10.0:
+		_footstep_distance = 0.0
+		return
+	_footstep_distance += velocity.length() * delta
+	if _footstep_distance >= footstep_step_distance:
+		_footstep_distance = 0.0
+		var step_stream := SoundBank.step(get_tree(), global_position)
+		_footstep.stream = step_stream if step_stream else (FOOTSTEP_LEFT if _footstep_left_next else FOOTSTEP_RIGHT)
+		_footstep.pitch_scale = randf_range(0.88, 1.12)
+		_footstep.volume_db = randf_range(-1.8, 1.8)
+		_footstep.play()
+		_footstep_left_next = not _footstep_left_next
 
 
 func _update_camera_feel(delta: float) -> void:
@@ -897,7 +1336,27 @@ func _update_camera_feel(delta: float) -> void:
 	_exhaust_current = _exhaust_current.lerp(_exhaust_target, minf(exhaust_shake_smoothing * delta, 1.0))
 
 	var shake_scale: float = GameSettings.shake_multiplier
-	camera.offset = (shake_offset + _exhaust_current) * shake_scale + _bob_smoothed
+	camera.offset = (shake_offset + _exhaust_current) * shake_scale + _bob_smoothed \
+			+ _update_look_ahead(delta)
+
+
+## Камера с упреждением — как у рыцаря (player.gd::_update_look_ahead): на
+## бегу чуть вперёд по ходу, с целью в фокусе — к врагу
+@export var look_ahead_distance := 22.0
+@export var look_ahead_focus_share := 0.3
+@export var look_ahead_focus_max := 36.0
+@export var look_ahead_smoothing := 2.5
+var _look := Vector2.ZERO
+
+func _update_look_ahead(delta: float) -> Vector2:
+	var target := Vector2.ZERO
+	if is_instance_valid(_focus) and _focus.has_target():
+		target = ((_focus.target as Node2D).global_position - global_position) * look_ahead_focus_share
+		target = target.limit_length(look_ahead_focus_max)
+	elif not is_attacking and not is_rolling:
+		target = (velocity / maxf(run_speed, 1.0)).limit_length(1.0) * look_ahead_distance
+	_look = _look.lerp(target, minf(look_ahead_smoothing * delta, 1.0))
+	return _look
 
 
 ## TODO: анимация смерти, game over — то же самое, что у рыцаря
@@ -931,6 +1390,63 @@ func add_gold(amount: int) -> void:
 	gold += amount
 
 
+## ── Зелья (Мёд Поэзии, Песнь валькирии, Эликсир Вальгаллы — их _execute
+## зовёт эти методы; у рыцаря свои, в player.gd) ──
+
+const DRINK_SOUND := preload("res://Sound/abilities_sound/drink_potion_sound.mp3")
+
+
+func heal(amount: float) -> void:
+	if is_dead():
+		return
+	# Зовут только расходники (зелья, их тики) — костёр лечит мимо, полоской
+	amount *= 1.0 + skill("consumable_heal_percent") / 100.0
+	health = minf(health + amount, max_health)
+	if is_instance_valid(health_bar):
+		health_bar.heal(amount)
+
+
+## Лечение тиками с ровной паузой; tint — вспышка спрайта на каждый тик
+func start_heal_over_time(amount_per_tick: float, interval: float, ticks: int,
+		tint := Color(0.6, 1.5, 0.8, 1.0)) -> void:
+	for i in ticks:
+		if not is_instance_valid(self) or is_dead():
+			return
+		heal(amount_per_tick)
+		flash_tint(tint)
+		await get_tree().create_timer(interval).timeout
+
+
+func clear_negative_effects() -> void:
+	pass
+
+
+func flash_tint(tint: Color, in_time := 0.08, out_time := 0.22) -> void:
+	if not is_instance_valid(sprite):
+		return
+	var tween := create_tween()
+	tween.tween_property(sprite, "modulate", tint, in_time)
+	tween.tween_property(sprite, "modulate", Color.WHITE, out_time)
+
+
+## Звук питья — и ЖДЁМ, пока доиграет: зелье действует, когда "допил"
+func play_drink_sound() -> void:
+	var p := AudioStreamPlayer2D.new()
+	p.stream = DRINK_SOUND
+	p.pitch_scale = randf_range(0.96, 1.04)
+	add_child(p)
+	p.play()
+	await p.finished
+	p.queue_free()
+
+
+## Душа долетела (gold_wisp.gd). at — где она впиталась (для огонька на HUD)
+func add_souls(amount: int, _at := Vector2.ZERO) -> void:
+	if not collects_souls:
+		return
+	souls += amount
+
+
 ## Награда за убийство (enemy.gd::_on_dead) — без физического подбора, в
 ## отличие от золота. Копит именно skill_progress (заливку полоски); реальный
 ## skill_points растёт только когда полоска долилась целиком — while, а не if,
@@ -940,6 +1456,72 @@ func add_skill_points(amount: int) -> void:
 	while skill_progress >= skill_progress_per_point:
 		skill_progress -= skill_progress_per_point
 		skill_points += 1
+
+
+# ─────────────────────────────────────────────
+# ДЕРЕВЬЯ НАВЫКОВ (Save/skill_trees.gd)
+# ─────────────────────────────────────────────
+
+## Сумма эффекта key по открытым узлам (0 — нет такого)
+func skill(key: String) -> float:
+	return float(skill_fx.get(key, 0.0))
+
+
+## Полный пересчёт бонусов с нуля из unlocked_skills — идемпотентно, можно
+## звать сколько угодно раз (покупка узла, загрузка сейва)
+func recompute_skill_modifiers() -> void:
+	skill_fx = SkillTrees.sum_effects(get("character_id"), unlocked_skills)
+	if _base_max_health < 0.0:
+		_base_max_health = max_health
+	max_health = _base_max_health * (1.0 + skill("max_hp_percent") / 100.0)
+	if is_instance_valid(health_bar):
+		if _base_stamina_regen < 0.0:
+			_base_stamina_regen = health_bar.stamina_regen
+		# Как у рыцаря: пересчёт дерева — «новый уровень», полоски полные
+		health_bar.set_max_hp(max_health)
+		health_bar.set_max_stamina(BASE_MAX_STAMINA * (1.0 + skill("max_stamina_percent") / 100.0))
+		health = health_bar.current_hp
+	else:
+		health = minf(health, max_health)
+	_on_skills_changed()
+
+
+## Для наследников: эффекты, которые живут в их собственных полях (Сейд мага)
+func _on_skills_changed() -> void:
+	pass
+
+
+func can_unlock_skill(tree_id: String, node_id: String) -> bool:
+	return SkillTrees.can_unlock(get("character_id"), unlocked_skills, tree_id, node_id)
+
+
+## Покупка узла: проверка правил и очков здесь, а не в UI; тратит очки,
+## пересчитывает бонусы и сохраняет. false — отказ, ничего не изменилось
+func try_unlock_skill(tree_id: String, node_id: String) -> bool:
+	if not can_unlock_skill(tree_id, node_id):
+		return false
+	var cost: int = SkillTrees.get_node_data(tree_id, node_id).get("cost", 1)
+	if skill_points < cost:
+		return false
+	skill_points -= cost
+	unlocked_skills.append(node_id)
+	recompute_skill_modifiers()
+	SaveManager.capture_from(self)
+	return true
+
+
+## Цена переката с навыками (Лисий шаг, Та, что выжила, Без следа)
+func _roll_cost() -> float:
+	var pct := skill("roll_cost_percent")
+	if _chain_roll_left > 0.0:
+		pct += skill("chain_roll_cost_percent")
+	return roll_stamina_cost * maxf(1.0 + pct / 100.0, 0.1)
+
+
+## Множитель входящего урона от навыков (маг: Память камня и т.п.).
+## Не ниже 0.1 — навыки не дают бессмертия
+func _incoming_damage_mult(_attack_data: Dictionary) -> float:
+	return maxf(1.0 + skill("physical_damage_taken_percent") / 100.0, 0.1)
 
 
 func play_take_damage() -> void:
@@ -957,6 +1539,72 @@ func _play(anim_name: String) -> bool:
 		return false
 	if anim.current_animation != anim_name:
 		anim.play(anim_name)
+	return true
+
+
+## Тот же ли удар сейчас играет, что начинался клипом clip — без учёта
+## стороны: доворот в начале замаха (_steer_attack) меняет «Attack_2_Down» на
+## «Attack_2_Left», но это всё ещё тот же удар, и его хитбокс/снаряд должны
+## сработать. Сменился сам удар (другой шаг, урон, перекат) — false
+func _same_attack(clip: String) -> bool:
+	return _strip_dir(String(anim.current_animation)) == _strip_dir(clip)
+
+
+## Имя клипа без суффикса стороны: «Sword_Attack_2_Down_Left» -> «Sword_Attack_2_»
+static func _strip_dir(clip: String) -> String:
+	for d in DIRS_LONGEST_FIRST:
+		if clip.ends_with(d):
+			return clip.substr(0, clip.length() - d.length())
+	return clip
+
+
+const DIRS_LONGEST_FIRST := ["Down_Right", "Down_Left", "Up_Left", "Up_Right", "Right", "Down", "Left", "Up"]
+
+## Доворот в начале замаха: первые attack_steer_time секунд удара/каста героя
+## можно повернуть стрелками (или мышью с «Прицелом мышью») — клип того же
+## удара переключается на новую сторону с того же места. С целью в фокусе
+## не доворачивает: удар и так идёт в неё
+@export var attack_steer_time := 0.12
+
+func _steer_attack() -> void:
+	if _focus.has_target() or _attack_recovery:
+		return
+	var clip := String(anim.current_animation)
+	if clip == "" or anim.current_animation_position > attack_steer_time:
+		return
+	# Только удары серии и касты: натяжение лука доворачивает себя само
+	# (archer._aim_charge), а выпад/разворот уже несут своё направление
+	var kind := clip.trim_prefix("Sword_")
+	if not (kind.begins_with("Attack") or kind.begins_with("SpecialAttack")):
+		return
+	var d := _aim_dir()
+	if d == Vector2.ZERO:
+		return
+	var nd := get_direction(d)
+	if nd == "" or nd == last_direction or not clip.ends_with(last_direction):
+		return
+	var new_clip := clip.substr(0, clip.length() - last_direction.length()) + nd
+	if not anim.has_animation(new_clip):
+		return
+	var pos := anim.current_animation_position
+	var spd := anim.get_playing_speed()
+	facing_dir = d
+	last_direction = nd
+	anim.play(new_clip, -1, spd)
+	anim.seek(pos, true)
+	if _attack_step_velocity != Vector2.ZERO:
+		_attack_step_velocity = d * _attack_step_velocity.length()
+
+
+## То же, но клип, который уже идёт, начинается заново: удар или заклинание,
+## начатые в окне отмены прошлого (тем же клипом), идут с первого кадра —
+## иначе картинка шла бы с середины и разъезжалась с вылетом снаряда/ударом
+func _play_restart(anim_name: String) -> bool:
+	var was := String(anim.current_animation)
+	if not _play(anim_name):
+		return false
+	if String(anim.current_animation) == was:
+		anim.seek(0.0, true)
 	return true
 
 

@@ -41,14 +41,21 @@ var ability_class_map := {
 	"Путь охотницы": HuntressPathAbility,
 	"Перо Хугина": HuginnFeatherAbility,
 	"Игла Норн": NornNeedleAbility,
+	# Маг — талисманы (эффекты в Player_scene/mage.gd)
+	"Глаз Мимира": MimirEyeTalisman,
+	"Кольцо Драупнир": DraupnirRingTalisman,
+	"Гандр вёльвы": VolvaStaffTalisman,
 }
+const MimirEyeTalisman := preload("res://Inventory/systems/ability/abilities/mage/mimir_eye_talisman.gd")
+const DraupnirRingTalisman := preload("res://Inventory/systems/ability/abilities/mage/draupnir_ring_talisman.gd")
+const VolvaStaffTalisman := preload("res://Inventory/systems/ability/abilities/mage/volva_staff_talisman.gd")
 
 func _knight_items() -> Array:
 	return [
 		{
 			"name": "Мёд Поэзии",
 			"price": 50,
-			"icon": "res://Shop/icons/jar_honey.png",       # ← ПУТЬ К ТВОЕМУ PNG
+			"icon": "res://Shop/icons/icons_2/jar_honey.png",
 			"description": "Постепенно восстанавливает здоровье.",
 			"lore": "Старинный напиток, рожденный из шёпота богов\nГоворят, его вкус дарует не только ясность ума, но и силу, что течёт глубже крови.\nНемногие знают, из чего он создан.\nИ ещё меньше — чем приходится за него платить.",
 			"col": Color(0.4, 0.8, 0.3),
@@ -57,7 +64,7 @@ func _knight_items() -> Array:
 		{
 			"name": "Песнь валькирии",
 			"price": 0,
-			"icon": "res://Shop/icons/flask_gold.png",
+			"icon": "res://Shop/icons/icons_2/valkyrie's_song.png",
 			"description": "Те, кто слышит её песнь, возвращаются к бою.\nНо не все возвращаются прежними.",
 			"lore": "Тихий отголосок битв, что давно затихли.\nСчитается, что в этом сосуде запечатан последний вздох павшей валькирии.",
 			"col": Color(0.9, 0.75, 0.2),
@@ -66,7 +73,7 @@ func _knight_items() -> Array:
 		{
 			"name": "Эликсир Вальгаллы",
 			"price": 120,
-			"icon": "res://Shop/icons/flask_red.png",
+			"icon": "res://Shop/icons/icons_2/valhalla_elixir.png",
 			"description": "Тот, кто испьёт его, на мгновение ощущает силу тех, кто уже пал.\nНо даже мимолётный взгляд за порог не проходит бесследно.",
 			"lore": "Густой напиток, которым провожают павших воинов.\nГоворят, он пропитан эхом пиршеств из Вальгалла.",
 			"col": Color(0.6, 0.4, 0.9),
@@ -75,7 +82,7 @@ func _knight_items() -> Array:
 		{
 			"name": "Руна жертвы",
 			"price": 0,
-			"icon": "res://Shop/icons/potion_blood.png",
+			"icon": "res://Shop/icons/icons_2/rune_of_sacrifice.png",
 			"description": "Она откликается на боль владельца, возвращая утраченное.\nНо всегда забирает больше, чем было отдано.",
 			"lore": "Старинный знак, вырезанный не ради защиты, а ради расплаты.\nКаждая линия на ней — напоминание о цене силы.",
 			"col": Color(0.95, 0.55, 0.1),
@@ -84,7 +91,7 @@ func _knight_items() -> Array:
 		{
 			"name": "Безумие Берсерка",
 			"price": 0,
-			"icon": "res://Shop/icons/blood_pouch.png",
+			"icon": "res://Shop/icons/icons_2/berserk.png",
 			"description": "С каждым ударом сила растёт.\nНо вместе с ней исчезает и контроль.",
 			"lore": "Ярость, в которой теряется грань между человеком и зверем.\nГоворят, те, кто поддаются ей, больше не чувствуют боли.",
 			"col": Color(0.7, 0.85, 0.95),
@@ -111,7 +118,7 @@ func _knight_items() -> Array:
 		{
 			"name": "Кровь Фенрира",
 			"price": 0,
-			"icon": "res://Shop/icons/demon_flask.png",
+			"icon": "res://Shop/icons/icons_2/fenrir.png",
 			"description": "Дарует мощь, способную сокрушить всё на пути.\nНо зверь внутри никогда не служит долго.",
 			"lore": "Сила зверя, что однажды разорвёт сами оковы мира.\nОна кипит, даже будучи заключённой.",
 			"col": Color(0.75, 0.8, 0.85),
@@ -229,11 +236,71 @@ func _archer_items() -> Array:
 	]
 
 
+## Товары мага — зелья рыцарского каталога (те же иконки и предания), цены
+## в душах. Боевые способности рыцаря и лучницы завязаны на свой класс, магу
+## не годятся; свои способности у мага появятся позже
+const MAGE_PRICES := {"Мёд Поэзии": 50, "Песнь валькирии": 80, "Эликсир Вальгаллы": 120}
+
+func _mage_items() -> Array:
+	var out := []
+	for it in _knight_items():
+		if MAGE_PRICES.has(it["name"]):
+			var m: Dictionary = it.duplicate()
+			m["price"] = MAGE_PRICES[it["name"]]
+			m["subtitle"] = "Зелье"
+			# Сколько влезает в сумку — как у рыцаря (inventory_ui._get_max_count)
+			m["max"] = 5 if it["name"] == "Мёд Поэзии" else 3
+			out.append(m)
+	out.append_array(_mage_talismans())
+	return out
+
+
+## Талисманы мага — надеваются во вкладке "Талисманы", как у лучницы
+func _mage_talismans() -> Array:
+	return [
+		{
+			"name": "Глаз Мимира",
+			"subtitle": "Мимир  •  Талисман, пассивный",
+			"price": 150,
+			"max": 1,
+			"icon": "res://UI/icons_for_mage/mimir_eye.png",
+			"description": "Сейд восполняется на 50% быстрее —\nи в бою, и в передышке.",
+			"lore": "Один отдал глаз за глоток из источника Мимира.\nТот глаз до сих пор смотрит со дна —\nи видит, откуда течёт сила.",
+			"col": Color(0.45, 0.7, 1.0),
+			"texture": null
+		},
+		{
+			"name": "Кольцо Драупнир",
+			"subtitle": "Один  •  Талисман, пассивный",
+			"price": 200,
+			"max": 1,
+			"icon": "res://UI/icons_for_mage/draupnir_ring.png",
+			"description": "Каждая собранная душа приносит\nна 30% больше.",
+			"lore": "Каждую девятую ночь из Драупнира капают\nвосемь колец, равных ему по весу.\nТо, что к нему прикасается, множится.",
+			"col": Color(0.95, 0.75, 0.35),
+			"texture": null
+		},
+		{
+			"name": "Гандр вёльвы",
+			"subtitle": "Вёльва  •  Талисман, пассивный",
+			"price": 250,
+			"max": 1,
+			"icon": "res://UI/icons_for_mage/volva_staff.png",
+			"description": "Все заклинания стоят на 20% меньше Сейда.",
+			"lore": "Посох провидицы, что пела сейд у границ миров.\nВ нём сила не тратится —\nона лишь течёт из одного русла в другое.",
+			"col": Color(0.7, 0.55, 1.0),
+			"texture": null
+		},
+	]
+
+
 ## Каталог по классу покупателя. У лучницы есть character_id, у рыцаря нет
 func _build_items_for(player: Node) -> void:
 	var cid = player.get("character_id") if player else null
 	if cid == "archer":
 		items.assign(_archer_items())
+	elif cid == "mage":
+		items.assign(_mage_items())
 	else:
 		items.assign(_knight_items())
 	_load_textures()
@@ -245,9 +312,7 @@ func _build_items_for(player: Node) -> void:
 
 ## ── Для лута ────────────────────────────────────────────────────────────────
 ## Товары, которые этот герой может получить (каталог его класса без тех, что
-## уже лежат в сумке по максимуму). Маг своего каталога пока не имеет — пусто
-## (магазин сам показывает ему товары рыцаря, но в лут их отдавать нельзя:
-## у мага нет сумки)
+## уже лежат в сумке по максимуму). Маг получает зелья (_mage_items)
 func loot_catalog(player: Node) -> Array:
 	if player == null or player.get("inventory_ui") == null:
 		return []
@@ -255,6 +320,8 @@ func loot_catalog(player: Node) -> Array:
 	var catalog: Array
 	if cid == "archer":
 		catalog = _archer_items()
+	elif cid == "mage":
+		catalog = _mage_items()
 	elif cid == null or cid == "knight":
 		catalog = _knight_items()
 	else:
@@ -281,6 +348,8 @@ func make_ability(item_name: String) -> Ability:
 var hovered_index: int = -1
 var selected_index: int = -1
 var player_gold: int = 3000
+## Покупатель платит душами (маг), а не золотом — см. open_shop / _money
+var _souls_mode := false
 var scroll_offset: float = 0.0
 var target_scroll: float = 0.0
 var anim_time: float = 0.0
@@ -296,54 +365,77 @@ var _confirm_hover := -1   # 0 — Да, 1 — Нет
 # Момент открытия — та же E, что открыла магазин (interact в shop_trigger.gd),
 # не должна тут же нажать "Купить"
 var _opened_at := 0.0
+## Затемнение краёв экрана поверх затемнённого мира (как за инвентарём)
 var _vignette: Texture2D
-var _glow: Texture2D
+## Иконки товаров рисуются отдельным слоем с шейдером иконок инвентаря
+## (середина картинки, мягкие края, чуть ярче), окно подтверждения — ещё
+## одним слоем поверх них
+var _icon_layer: Control
+var _overlay: Control
+## Подсветка строк 0..1 (выбранная — 1, под курсором — 0.5), плавно
+var _row_glow: Array[float] = []
+var _glow_ms := 0
+## Слои HUD, спрятанные на время магазина (как у инвентаря)
+var _hidden_layers: Array[CanvasLayer] = []
 
 # ─── ВЁРСТКА ───────────────────────────────────────────────────────────────────
 # Всё в координатах макета 1920×1080. _draw() масштабирует их под реальный
-# размер окна (_view_scale/_view_offset), мышь пересчитывается обратно
+# размер окна (_view_scale/_view_offset), мышь пересчитывается обратно.
+# Сетка — как у инвентаря героя: панели от y=118 высотой 890, поля по 46
 const DESIGN := Vector2(1920, 1080)
 ## Слой CanvasLayer магазина — выше HUD героя и экранных эффектов (все они 1)
 const SHOP_CANVAS_LAYER := 20
-const LEFT_PANEL := Rect2(34, 110, 590, 925)
-const BANNER := Rect2(64, 22, 400, 92)
-const LIST_TOP := 176.0
-const LIST_BOTTOM := 890.0
-const ROW_X := 58.0
-const ROW_W := 542.0
+const HEADER := Rect2(780, 28, 360, 58)
+const LIST_PANEL := Rect2(46, 118, 720, 890)
+const LIST_TOP := 196.0
+const LIST_BOTTOM := 904.0
+const ROW_X := 70.0
+const ROW_W := 656.0
 const ITEM_H := 76.0
-const RIGHT_PANEL := Rect2(664, 110, 1070, 925)
-const GOLD_PILL := Rect2(1646, 32, 238, 48)
-const ICON_C := Vector2(1199, 266)
-const ICON_R := 106.0
-const TITLE_Y := 456.0
-const PRICE_PILL := Rect2(1092, 522, 214, 46)
-const DESC_X := 716.0
-const DESC_Y := 618.0
-const LORE_SEP_Y := 712.0
-const BUY_BTN := Rect2(858, 930, 684, 58)
-const CONFIRM := Rect2(680, 400, 560, 250)
+const CARD := Rect2(780, 118, 1094, 890)
+const ICON_C := Vector2(1327, 294)
+const ICON_BOX := 212.0
+const ICON_SZ := 180.0
+const NAME_Y := 484.0
+const DESC_Y := 640.0
+const LORE_SEP_Y := 744.0
+const BUY_BTN := Rect2(1097, 934, 460, 56)
+const CONFIRM := Rect2(680, 415, 560, 250)
 
 # ─── ПАЛИТРА ───────────────────────────────────────────────────────────────────
-const C_BG := Color(0.03, 0.026, 0.024)
-const C_PANEL := Color(0.045, 0.04, 0.036, 0.93)
-const C_GOLD := Color(0.78, 0.62, 0.37)
-const C_GOLD_DIM := Color(0.55, 0.45, 0.3, 0.65)
-const C_GOLD_FAINT := Color(0.55, 0.45, 0.3, 0.25)
-const C_GOLD_BRIGHT := Color(0.98, 0.84, 0.5)
-const C_TEXT := Color(0.9, 0.85, 0.75)
-const C_TEXT_DIM := Color(0.62, 0.57, 0.48)
-const C_RED := Color(0.86, 0.26, 0.18)
-const C_BANNER := Color(0.3, 0.055, 0.045)
+# Та же, что у инвентаря, HUD и главного меню (UI/clean_hud.gd): почти чёрные
+# полупрозрачные плашки с каймой в 7 % белого, тёплый почти белый текст,
+# золото — только выбранное, наведённое и цена
+const CleanHud := preload("res://UI/clean_hud.gd")
+const HeroSkin := preload("res://Inventory/ui/hero_inventory_skin.gd")
+const ProcSkin := preload("res://Inventory/ui/proc_skin.gd")
+const PANEL_FILL := Color(0.012, 0.012, 0.012, 0.95)
+const C_BORDER := CleanHud.BORDER
+const C_GOLD := CleanHud.GOLD
+const C_GOLD_HI := CleanHud.GOLD_HI
+const C_TEXT := CleanHud.TEXT
+const C_TEXT_DIM := CleanHud.TEXT_DIM
+const C_LINE := CleanHud.LINE
+## Значок души — как у счётчика душ в HUD мага (mage_hud.gd SOUL_ICON)
+const C_SOUL := Color(0.6, 0.72, 0.88)
+## Плашки: панель, клетка (строка, клетка иконки), кнопка, кнопка под курсором
+var _sb_panel: StyleBoxFlat
+var _sb_cell: StyleBoxFlat
+var _sb_btn: StyleBoxFlat
+var _sb_btn_hover: StyleBoxFlat
+var _sb_btn_off: StyleBoxFlat
+var _font_caps: FontVariation
 
 var _view_scale := 1.0
 var _view_offset := Vector2.ZERO
 
 # ─── UI-ЗВУКИ ──────────────────────────────────────────────────────────────────
-const SOUND_ACCEPT := preload("res://Sound/UI_button/accept.wav")
-const SOUND_DENIED := preload("res://Sound/UI_button/denied.wav")
-const SOUND_CHOICE := preload("res://Sound/UI_button/choice.wav")
-const SOUND_OPEN := preload("res://Sound/openUI_sound.mp3")
+const UiSounds := preload("res://UI/ui_sounds.gd")
+const SOUND_ACCEPT := UiSounds.SELECT
+const SOUND_DENIED := UiSounds.ERROR
+const SOUND_CHOICE := UiSounds.MOVE
+const SOUND_OPEN := UiSounds.OPEN
+const SOUND_CLOSE := UiSounds.CLOSE
 const SOUND_BUY := preload("res://Sound/shop_sound/sound_buy.mp3")
 var _ui_audio: AudioStreamPlayer
 
@@ -356,9 +448,10 @@ func _ready() -> void:
 	# Лут на уровне (Levels/loot/loot_item.gd) находит магазин по группе и
 	# берёт товары оттуда — лут выдаёт ровно то, что продаётся
 	add_to_group("shop_menu")
-	# Магазин — непрозрачный экран поверх всего. HUD героя (здоровье, стамина,
-	# Одр, быстрые слоты, лут) — тоже CanvasLayer слоя 1 и добавляется позже,
-	# поэтому рисовался поверх магазина. Поднимаем слой магазина над ними
+	# Магазин — экран поверх всего (мир позади затемнён). HUD героя (здоровье,
+	# стамина, Одр, быстрые слоты, лут) — тоже CanvasLayer слоя 1 и добавляется
+	# позже, поэтому рисовался поверх магазина. Поднимаем слой магазина над ними
+	# (а сам HUD на время магазина прячется — _hide_game_hud)
 	var shop_layer := get_parent() as CanvasLayer
 	if shop_layer and shop_layer.layer < SHOP_CANVAS_LAYER:
 		shop_layer.layer = SHOP_CANVAS_LAYER
@@ -366,25 +459,48 @@ func _ready() -> void:
 	_load_textures()
 	set_process(false)
 	set_process_input(false)
-	# Шрифт с засечками и нормальными цифрами — как в инвентаре
-	var serif := SystemFont.new()
-	serif.font_names = PackedStringArray(["Palatino Linotype", "Book Antiqua", "Cambria", "Georgia"])
-	font_body = serif
-	# Заголовки — тот же шрифт с засечками, как на макете, только крупнее
-	font_title = serif
+	# Шрифт инвентаря — антиква с кириллицей и нормальными цифрами
+	font_body = CleanHud.font()
+	font_title = CleanHud.font()
+	# Заглавные подписи — та же антиква с разрядкой (как в главном меню)
+	_font_caps = FontVariation.new()
+	_font_caps.base_font = CleanHud.font()
+	_font_caps.spacing_glyph = 3
 	visible = false
 
-	_vignette = _radial_texture([Color(0.1, 0.085, 0.07, 1.0), Color(0.02, 0.017, 0.015, 1.0)])
-	_glow = _radial_texture([Color(1.0, 0.6, 0.25, 1.0), Color(1.0, 0.5, 0.2, 0.0)])
+	_sb_panel = ProcSkin.CleanU.box(PANEL_FILL, C_BORDER, 6, 10)
+	_sb_cell = ProcSkin.CleanU.box(Color(0, 0, 0, 0.32), C_BORDER, 4)
+	_sb_btn = ProcSkin.CleanU.box(Color(0, 0, 0, 0.35), Color(C_GOLD, 0.35), 4)
+	_sb_btn_hover = ProcSkin.CleanU.box(Color(C_GOLD_HI, 0.07), Color(C_GOLD_HI, 0.7), 4)
+	_sb_btn_off = ProcSkin.CleanU.box(Color(0, 0, 0, 0.35), C_BORDER, 4)
+	# Края экрана чуть темнее середины — как фон инвентаря (inventory_ui._build_backdrop)
+	_vignette = _radial_texture(PackedFloat32Array([0.0, 0.55, 1.0]),
+			PackedColorArray([Color(0, 0, 0, 0.0), Color(0, 0, 0, 0.08), Color(0, 0, 0, 0.45)]))
+
+	_icon_layer = _make_layer()
+	_icon_layer.material = HeroSkin.icon_material(1.15)
+	_icon_layer.draw.connect(_draw_icons)
+	_overlay = _make_layer()
+	_overlay.draw.connect(_draw_overlay)
 
 	_ui_audio = AudioStreamPlayer.new()
+	_ui_audio.bus = UiSounds.bus()
 	add_child(_ui_audio)
 
 
-func _radial_texture(colors: Array) -> GradientTexture2D:
+## Слой рисования поверх магазина на весь экран (мышь не ловит)
+func _make_layer() -> Control:
+	var c := Control.new()
+	c.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	c.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	add_child(c)
+	return c
+
+
+func _radial_texture(offsets: PackedFloat32Array, colors: PackedColorArray) -> GradientTexture2D:
 	var g := Gradient.new()
-	g.set_color(0, colors[0])
-	g.set_color(1, colors[1])
+	g.offsets = offsets
+	g.colors = colors
 	var t := GradientTexture2D.new()
 	t.gradient = g
 	t.fill = GradientTexture2D.FILL_RADIAL
@@ -399,7 +515,10 @@ func open_shop(player: Node2D) -> void:
 	if visible:
 		return  # магазин уже открыт — игнорируем повторный вызов
 	current_player = player
-	player_gold = player.gold
+	# Маг платит душами (его валюта), остальные — золотом. player_gold здесь
+	# и дальше — просто "деньги покупателя" в его валюте
+	_souls_mode = player.get("collects_souls") == true
+	player_gold = player.souls if _souls_mode else player.gold
 	_build_items_for(player)
 	# Карточка справа сразу показывает первый товар — пустая половина экрана
 	# при открытии выглядит как недогруженное окно
@@ -409,17 +528,23 @@ func open_shop(player: Node2D) -> void:
 	_opened_at = anim_time
 	_play_ui_sound(SOUND_OPEN)
 
+	_row_glow.clear()
+	_row_glow.resize(items.size())
+	_row_glow.fill(0.0)
+	if selected_index >= 0:
+		_row_glow[selected_index] = 1.0
+	_glow_ms = Time.get_ticks_msec()
+
 	visible = true
 	set_process(true)
 	set_process_input(true)
+	_hide_game_hud(true)
 
+	# Только проявление: за магазином — затемнённый мир на весь экран,
+	# масштабировать его вместе с окном нельзя (открылись бы края)
 	modulate = Color(1, 1, 1, 0)
-	scale = Vector2(0.96, 0.96)
-	pivot_offset = size / 2.0
-
-	var tw = create_tween().set_parallel()
+	var tw = create_tween()
 	tw.tween_property(self, "modulate", Color.WHITE, 0.18)
-	tw.tween_property(self, "scale", Vector2.ONE, 0.18).set_ease(Tween.EASE_OUT)
 	_set_level_rain_muffled(true, 0.18)
 
 	queue_redraw()
@@ -429,7 +554,9 @@ func _load_textures() -> void:
 	for i: int in items.size():
 		var path: String = items[i]["icon"] as String
 		if ResourceLoader.exists(path):
-			items[i]["texture"] = load(path) as Texture2D
+			# Через общий кеш предметов: крупные PNG (icons_2, 1254 px) уменьшаются
+			# один раз, та же текстура, что в сумке и быстром слоте
+			items[i]["texture"] = Ability.load_icon(path)
 		else:
 			items[i]["texture"] = null
 			print("ShopMenu: иконка не найдена: ", path)
@@ -437,7 +564,17 @@ func _load_textures() -> void:
 func _process(delta: float) -> void:
 	anim_time     += delta
 	scroll_offset  = lerp(scroll_offset, target_scroll, delta * 10.0)
+	# Подсветка строк — по реальному времени (Juice может замедлять
+	# Engine.time_scale): полный переход за ~0.18 с, как у значков инвентаря
+	var now := Time.get_ticks_msec()
+	var dt := minf((now - _glow_ms) / 1000.0, 0.1)
+	_glow_ms = now
+	for i in _row_glow.size():
+		var target := 1.0 if i == selected_index else (0.5 if i == hovered_index else 0.0)
+		_row_glow[i] = move_toward(_row_glow[i], target, ProcSkin.SheetIcon.SPEED * dt)
 	queue_redraw()
+	_icon_layer.queue_redraw()
+	_overlay.queue_redraw()
 
 
 func _max_scroll() -> float:
@@ -508,11 +645,9 @@ func _set_level_rain_muffled(muffled: bool, duration: float) -> void:
 		music_mgr.set_shop_open(muffled, duration)
 
 func close_shop() -> void:
-	_play_ui_sound(SOUND_OPEN)
-	pivot_offset = size / 2.0
-	var tw = create_tween().set_parallel()
+	_play_ui_sound(SOUND_CLOSE)
+	var tw = create_tween()
 	tw.tween_property(self, "modulate", Color(1, 1, 1, 0), 0.14)
-	tw.tween_property(self, "scale", Vector2(0.96, 0.96), 0.14)
 	_set_level_rain_muffled(false, 0.14)
 	await tw.finished
 	if current_player:
@@ -520,6 +655,25 @@ func close_shop() -> void:
 	visible = false
 	set_process(false)
 	set_process_input(false)
+	_hide_game_hud(false)
+
+
+## Пока магазин открыт, игровой HUD (полоски, слоты, счётчики — CanvasLayer
+## с layer >= 1) прячется, как у инвентаря героя; при закрытии — обратно
+func _hide_game_hud(on: bool) -> void:
+	if not on:
+		for l in _hidden_layers:
+			if is_instance_valid(l):
+				l.visible = true
+		_hidden_layers.clear()
+		return
+	var own := get_parent() as CanvasLayer
+	for n in get_tree().root.find_children("*", "CanvasLayer", true, false):
+		var l := n as CanvasLayer
+		if l == own or not l.visible or l.layer < 1:
+			continue
+		l.visible = false
+		_hidden_layers.append(l)
 
 
 func _row_rect(i: int) -> Rect2:
@@ -636,9 +790,13 @@ func _try_buy(index: int) -> void:
 		print("ShopMenu: нет класса способности для ", item_name)
 		return
 
-	# списываем золото
-	current_player.gold -= price
-	player_gold = current_player.gold
+	# списываем золото (у мага — души)
+	if _souls_mode:
+		current_player.souls -= price
+		player_gold = current_player.souls
+	else:
+		current_player.gold -= price
+		player_gold = current_player.gold
 
 	# создаём способность и добавляем в инвентарь
 	var ability_class = ability_class_map[item_name]
@@ -649,190 +807,138 @@ func _try_buy(index: int) -> void:
 	print("Куплено: ", item_name, " за ", price)
 
 # ─── MAIN DRAW ─────────────────────────────────────────────────────────────────
+# Вид — как у инвентаря героя (тема CLEAN, Inventory/ui/hero_inventory_skin.gd):
+# мир позади затемнён, поверх — почти чёрные полупрозрачные плашки с едва
+# заметной каймой, тонкие гаснущие черты, золото — только у выбранного,
+# наведённого и у цены. Иконки — слой _icon_layer, подтверждение — _overlay
 func _draw() -> void:
 	# Макет 1920×1080 вписывается в окно целиком, по центру
 	_view_scale = minf(size.x / DESIGN.x, size.y / DESIGN.y)
 	_view_offset = (size - DESIGN * _view_scale) * 0.5
-	draw_rect(Rect2(Vector2.ZERO, size), C_BG)
+	# Мир за магазином — затемнён так же, как за инвентарём
+	draw_rect(Rect2(Vector2.ZERO, size), Color(0, 0, 0, HeroSkin.CLEAN["world_dim"]))
+	draw_texture_rect(_vignette, Rect2(Vector2.ZERO, size), false)
 	draw_set_transform(_view_offset, 0.0, Vector2(_view_scale, _view_scale))
 
-	_draw_background()
-	_draw_left_panel()
-	_draw_banner()
-	_draw_gold_pill()
-	_draw_right_panel()
-	if pending_buy_index >= 0:
-		_draw_confirm_dialog()
+	_draw_header()
+	_draw_list_panel()
+	_draw_card()
 
 	draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
 
 
-# ─── ФОН ───────────────────────────────────────────────────────────────────────
-func _draw_background() -> void:
-	# Мягкая виньетка: к центру чуть теплее и светлее, по краям в черноту
-	draw_texture_rect(_vignette, Rect2(-200, -300, DESIGN.x + 400, DESIGN.y + 600), false)
+# ─── ОБЩИЕ ДЕТАЛИ ──────────────────────────────────────────────────────────────
 
-	# Тёплые отсветы свечей — справа внизу и слева вверху, мерцают неровно
-	var f1 := 0.85 + 0.1 * sin(anim_time * 7.3) + 0.05 * sin(anim_time * 17.0)
-	var f2 := 0.85 + 0.1 * sin(anim_time * 5.1 + 1.3) + 0.05 * sin(anim_time * 13.0)
-	draw_texture_rect(_glow, Rect2(1500, 560, 700, 700), false, Color(1, 1, 1, 0.13 * f1))
-	draw_texture_rect(_glow, Rect2(-260, -300, 700, 600), false, Color(1, 1, 1, 0.06 * f2))
-
-	# Зерно — неподвижное (фиксированный seed), только чтобы фон не был плоским
-	var rng := RandomNumberGenerator.new()
-	rng.seed = 42
-	for _i: int in 700:
-		draw_rect(Rect2(rng.randf_range(0.0, DESIGN.x), rng.randf_range(0.0, DESIGN.y), 1.0, 1.0),
-				Color(1.0, 0.95, 0.8, rng.randf_range(0.01, 0.045)))
+## Тонкая черта, гаснущая к концам (FadeLine / ProcDivider инвентаря)
+func _fade_line(ci: CanvasItem, x: float, w: float, y: float, col := C_LINE) -> void:
+	var c0 := Color(col, 0.0)
+	ci.draw_polyline_colors(PackedVector2Array([Vector2(x, y), Vector2(x + w * 0.18, y),
+			Vector2(x + w * 0.82, y), Vector2(x + w, y)]), PackedColorArray([c0, col, col, c0]), 1.0)
 
 
-# ─── ОБЩИЕ ОРНАМЕНТЫ ───────────────────────────────────────────────────────────
-
-## Панель с двойной каймой и кованными уголками
-func _draw_panel(r: Rect2, fill := C_PANEL) -> void:
-	draw_rect(r, fill)
-	# Лёгкий градиент сверху — панель не выглядит плоской заливкой
-	for i in 6:
-		draw_rect(Rect2(r.position.x, r.position.y + i * 14.0, r.size.x, 14.0),
-				Color(0.12, 0.1, 0.07, 0.035 * (6 - i)))
-	draw_rect(r, C_GOLD_DIM, false, 1.0)
-	draw_rect(r.grow(-7.0), C_GOLD_FAINT, false, 1.0)
-	for c in [[r.position, 1.0, 1.0], [Vector2(r.end.x, r.position.y), -1.0, 1.0],
-			[Vector2(r.position.x, r.end.y), 1.0, -1.0], [r.end, -1.0, -1.0]]:
-		_draw_corner(c[0], c[1], c[2])
+## Заголовок колонки: золотистая подпись заглавными, под ней короткая
+## золотая черта (ProcPlaque инвентаря)
+func _plaque(ci: CanvasItem, text: String, cx: float, y: float) -> void:
+	_text_on(ci, Vector2(cx - 200.0, y), tr(text).to_upper(), 17, C_GOLD, _font_caps, HORIZONTAL_ALIGNMENT_CENTER, 400.0)
+	ci.draw_line(Vector2(cx - 50.0, y + 14.0), Vector2(cx + 50.0, y + 14.0), Color(C_GOLD, 0.35), 1.0)
 
 
-func _draw_corner(p: Vector2, sx: float, sy: float) -> void:
-	var L := 34.0
-	draw_line(p + Vector2(-sx * 6, -sy * 6), p + Vector2(sx * L, -sy * 6), C_GOLD, 1.5)
-	draw_line(p + Vector2(-sx * 6, -sy * 6), p + Vector2(-sx * 6, sy * L), C_GOLD, 1.5)
-	# Завиток внутрь угла и ромбик на самом углу
-	draw_line(p + Vector2(sx * 4, sy * 4), p + Vector2(sx * 16, sy * 16), C_GOLD_DIM, 1.0)
-	draw_arc(p + Vector2(sx * 20, sy * 20), 5.0, 0.0, TAU, 16, C_GOLD_DIM, 1.0, true)
-	_draw_diamond(p + Vector2(-sx * 6, -sy * 6), 5.0, C_GOLD, true)
+## Золотая кромка выбранной/наведённой клетки с мягким ореолом внутрь
+## (HeroCell инвентаря); h — сила подсветки 0..1
+func _gold_edge(ci: CanvasItem, r: Rect2, h: float) -> void:
+	if h <= 0.0:
+		return
+	for k in 6:
+		ci.draw_rect(r.grow(-2.0 - k * 2.0), Color(C_GOLD_HI, 0.045 * h), false, 2.0)
+	ci.draw_rect(Rect2(r.position + Vector2(0.5, 0.5), r.size - Vector2.ONE), Color(C_GOLD_HI, 0.85 * h), false, 1.0)
+	ci.draw_rect(r.grow(-3.0), Color(C_GOLD_HI, 0.05 * h))
 
 
-func _draw_diamond(c: Vector2, s: float, col: Color, filled := false) -> void:
-	var pts := PackedVector2Array([c + Vector2(0, -s), c + Vector2(s, 0), c + Vector2(0, s), c + Vector2(-s, 0)])
-	if filled:
-		draw_colored_polygon(pts, Color(0.06, 0.05, 0.04))
-	pts.append(pts[0])
-	draw_polyline(pts, col, 1.3, true)
-	if filled:
-		draw_colored_polygon(PackedVector2Array([c + Vector2(0, -s * 0.4), c + Vector2(s * 0.4, 0),
-				c + Vector2(0, s * 0.4), c + Vector2(-s * 0.4, 0)]), col)
+## Кнопка — плашка с золотистой каймой; под курсором чуть светлеет, текст
+## ярко-золотой; недоступная — серая кайма и серый текст
+func _button(ci: CanvasItem, r: Rect2, label: String, hover: bool, enabled := true) -> void:
+	var sb := _sb_btn_off if not enabled else (_sb_btn_hover if hover else _sb_btn)
+	ci.draw_style_box(sb, r)
+	var col := C_TEXT_DIM if not enabled else (C_GOLD_HI if hover else C_TEXT)
+	_text_on(ci, Vector2(r.position.x, r.get_center().y + 8.0), label, 22, col, null,
+			HORIZONTAL_ALIGNMENT_CENTER, r.size.x)
 
 
-## Горизонтальная линия-орнамент: затухающие концы, ромбик в центре
-func _draw_ornament_line(a: Vector2, b: Vector2, col := C_GOLD_DIM, center_diamond := true) -> void:
-	var mid := (a + b) * 0.5
-	var gap := 12.0 if center_diamond else 0.0
-	draw_line(a, mid - Vector2(gap, 0), col, 1.0)
-	draw_line(mid + Vector2(gap, 0), b, col, 1.0)
-	draw_circle(a, 1.5, col)
-	draw_circle(b, 1.5, col)
-	if center_diamond:
-		_draw_diamond(mid, 5.0, col)
+## Сумма в валюте покупателя: золото у рыцаря и лучницы, души у мага
+func _money(n: int) -> String:
+	return tr("%d душ") % n if _souls_mode else "%d G" % n
 
 
-## Плашка с заострёнными концами-стрелками (цена, золото, кнопка)
-func _pill_points(r: Rect2, tip: float) -> PackedVector2Array:
-	var cy := r.position.y + r.size.y * 0.5
-	return PackedVector2Array([
-		Vector2(r.position.x + tip, r.position.y), Vector2(r.end.x - tip, r.position.y),
-		Vector2(r.end.x, cy), Vector2(r.end.x - tip, r.end.y),
-		Vector2(r.position.x + tip, r.end.y), Vector2(r.position.x, cy)])
-
-
-func _draw_pill(r: Rect2, border: Color, fill := Color(0.05, 0.043, 0.037, 0.95), wings := true) -> void:
-	var tip := minf(r.size.y * 0.5, 22.0)
-	var pts := _pill_points(r, tip)
-	draw_colored_polygon(pts, fill)
-	var loop := pts.duplicate()
-	loop.append(pts[0])
-	draw_polyline(loop, border, 1.3, true)
-	var inner := _pill_points(r.grow_individual(-5, -4, -5, -4), tip - 3.0)
-	inner.append(inner[0])
-	draw_polyline(inner, Color(border, border.a * 0.35), 1.0, true)
-	if wings:
-		# Шевроны снаружи концов — "наконечники", как на HUD
-		var cy := r.position.y + r.size.y * 0.5
-		var h := r.size.y * 0.42
-		for side: float in [-1.0, 1.0]:
-			var x := r.position.x - 6.0 if side < 0.0 else r.end.x + 6.0
-			draw_polyline(PackedVector2Array([Vector2(x - side * 2.0, cy - h),
-					Vector2(x + side * 10.0, cy), Vector2(x - side * 2.0, cy + h)]), border, 1.3, true)
-			_draw_diamond(Vector2(x + side * 18.0, cy), 3.0, border)
-
-
+## Значок валюты линиями, как в HUD (clean_hud.gd Glyph): монета — золотая,
+## душа (маг) — бледно-голубая капля пламени. Не хватает — серый
 func _draw_coin(c: Vector2, r: float, can_afford := true) -> void:
-	var base := Color(0.8, 0.6, 0.18) if can_afford else Color(0.72, 0.16, 0.1)
-	var hi := Color(1.0, 0.85, 0.4) if can_afford else Color(0.98, 0.42, 0.3)
-	draw_circle(c, r + 2.0, Color(base, 0.25))
-	draw_circle(c, r, base)
-	draw_circle(c + Vector2(-r * 0.2, -r * 0.2), r * 0.62, hi)
-	draw_arc(c, r * 0.8, 0.0, TAU, 20, Color(base.darkened(0.3), 0.8), 1.0, true)
+	var k := r / 8.0
+	if _souls_mode:
+		var col := C_SOUL if can_afford else C_TEXT_DIM
+		var out := PackedVector2Array([c + Vector2(0, -11) * k])
+		for i in range(17):
+			var a := -PI * 0.15 + (PI * 1.3) * float(i) / 16.0
+			out.append(c + (Vector2(cos(a), sin(a)) * 7.0 + Vector2(0, 3)) * k)
+		out.append(c + Vector2(0, -11) * k)
+		draw_polyline(out, col, 1.6 * k, true)
+		draw_circle(c + Vector2(0, 4) * k, 2.2 * k, Color(col, 0.8))
+		return
+	var gc := C_GOLD if can_afford else C_TEXT_DIM
+	draw_arc(c, 8.0 * k, 0, TAU, 28, gc, 1.6 * k, true)
+	draw_arc(c, 4.5 * k, 0, TAU, 20, Color(gc, 0.6), 1.0 * k, true)
+
+
+## Текст с тонкой тенью (как Label в clean_hud.label) — читается на любом фоне
+func _text_on(ci: CanvasItem, pos: Vector2, s: String, sz: int, col: Color, font: Font = null,
+		align := HORIZONTAL_ALIGNMENT_LEFT, width := -1.0) -> void:
+	# Перевод — здесь: подписи, названия и строки описаний (tr не трогает
+	# уже переведённое и строки без перевода)
+	var f := font if font else font_body
+	var t := tr(s)
+	ci.draw_string(f, pos + Vector2(1, 1), t, align, width, sz, Color(0, 0, 0, 0.75 * col.a))
+	ci.draw_string(f, pos, t, align, width, sz, col)
 
 
 func _text(pos: Vector2, s: String, sz: int, col: Color, font: Font = null,
 		align := HORIZONTAL_ALIGNMENT_LEFT, width := -1.0) -> void:
-	draw_string(font if font else font_body, pos, s, align, width, sz, col)
+	_text_on(self, pos, s, sz, col, font, align, width)
 
 
 func _text_w(s: String, sz: int, font: Font = null) -> float:
-	return (font if font else font_body).get_string_size(s, HORIZONTAL_ALIGNMENT_LEFT, -1, sz).x
+	return (font if font else font_body).get_string_size(tr(s), HORIZONTAL_ALIGNMENT_LEFT, -1, sz).x
 
 
-# ─── ЗАГОЛОВОК-ЗНАМЯ ───────────────────────────────────────────────────────────
-func _draw_banner() -> void:
-	var r := BANNER
-	var notch := 18.0
-	var pts := PackedVector2Array([
-		r.position, Vector2(r.end.x, r.position.y),
-		Vector2(r.end.x - notch, r.position.y + r.size.y * 0.5), Vector2(r.end.x, r.end.y),
-		Vector2(r.position.x, r.end.y)])
-	draw_colored_polygon(pts, C_BANNER)
-	# Затемнение книзу и потёртости ткани
-	for i in 5:
-		draw_rect(Rect2(r.position.x, r.position.y + r.size.y * (0.5 + i * 0.1), r.size.x - notch * 1.2,
-				r.size.y * 0.1), Color(0, 0, 0, 0.06 * (i + 1)))
-	var rng := RandomNumberGenerator.new()
-	rng.seed = 7
-	for _i in 60:
-		draw_rect(Rect2(rng.randf_range(r.position.x, r.end.x - notch * 1.5), rng.randf_range(r.position.y, r.end.y), 2.0, 1.0),
-				Color(0, 0, 0, rng.randf_range(0.1, 0.3)))
-	var loop := pts.duplicate()
-	loop.append(pts[0])
-	draw_polyline(loop, C_GOLD_DIM, 1.5, true)
-	draw_line(r.position + Vector2(8, 6), Vector2(r.end.x - 10, r.position.y + 6), C_GOLD_FAINT, 1.0)
-	draw_line(Vector2(r.position.x + 8, r.end.y - 6), Vector2(r.end.x - 10, r.end.y - 6), C_GOLD_FAINT, 1.0)
+func _glow_of(i: int) -> float:
+	return _row_glow[i] if i < _row_glow.size() else 0.0
 
-	# Эмблема: медальон с руной-звездой
-	var ec := Vector2(r.position.x + 44, r.position.y + r.size.y * 0.5)
-	draw_circle(ec, 27.0, Color(0.08, 0.05, 0.04))
-	draw_arc(ec, 27.0, 0.0, TAU, 32, C_GOLD, 2.0, true)
-	draw_arc(ec, 21.0, 0.0, TAU, 32, C_GOLD_DIM, 1.0, true)
-	for k in 2:
-		var tri := PackedVector2Array()
-		for j in 4:
-			tri.append(ec + Vector2.from_angle(-PI / 2.0 + k * PI / 3.0 + j * TAU / 3.0) * 14.0)
-		draw_polyline(tri, C_GOLD, 1.3, true)
-	draw_circle(ec, 2.5, C_GOLD_BRIGHT)
 
-	_text(Vector2(r.position.x + 88, r.position.y + r.size.y * 0.5 + 12), "МАГАЗИН", 34, C_TEXT, font_title)
+# ─── ЗАГОЛОВОК ─────────────────────────────────────────────────────────────────
+## Плашка по центру сверху, как полоса вкладок инвентаря: значок-сундук и
+## «МАГАЗИН» золотом (это открытая «вкладка»); справа — подсказка выхода
+func _draw_header() -> void:
+	var r := HEADER
+	draw_style_box(ProcSkin.CleanU.box(PANEL_FILL, C_BORDER, 6, 8), r)
+	var label := tr("МАГАЗИН")
+	var tw := _text_w(label, 22, _font_caps)
+	var icon_px := 30
+	var x0 := r.get_center().x - (icon_px + 14.0 + tw) * 0.5
+	var tex := ProcSkin.SheetIcon.texture_for("chest", icon_px)
+	if tex:
+		draw_texture_rect(tex, Rect2(x0, r.get_center().y - icon_px * 0.5 - 1.0, icon_px, icon_px), false, C_GOLD)
+	_text(Vector2(x0 + icon_px + 14.0, r.get_center().y + 8.0), label, 22, C_GOLD, _font_caps)
+	draw_line(Vector2(r.get_center().x - 60.0, r.end.y - 2.0), Vector2(r.get_center().x + 60.0, r.end.y - 2.0),
+			Color(C_GOLD, 0.8), 1.5)
 
 
 # ─── ЛЕВАЯ ПАНЕЛЬ: СПИСОК ──────────────────────────────────────────────────────
-func _draw_left_panel() -> void:
-	_draw_panel(LEFT_PANEL)
-
-	var hy := 150.0
-	_text(Vector2(64, hy), "ПРЕДМЕТ", 18, C_GOLD_DIM)
-	_text(Vector2(ROW_X, hy), "ЦЕНА", 18, C_GOLD_DIM, null, HORIZONTAL_ALIGNMENT_RIGHT, ROW_W - 14.0)
-	_draw_ornament_line(Vector2(180, hy - 6), Vector2(ROW_X + ROW_W - 80, hy - 6), C_GOLD_FAINT)
-	draw_line(Vector2(ROW_X, hy + 12), Vector2(ROW_X + ROW_W, hy + 12), C_GOLD_FAINT, 1.0)
-	_draw_diamond(Vector2(ROW_X, hy + 12), 3.0, C_GOLD_DIM)
-	_draw_diamond(Vector2(ROW_X + ROW_W, hy + 12), 3.0, C_GOLD_DIM)
+func _draw_list_panel() -> void:
+	var p := LIST_PANEL
+	draw_style_box(_sb_panel, p)
+	# Подписи колонок — серые заглавные, под ними тонкая черта
+	var hy := p.position.y + 50.0
+	_text(Vector2(ROW_X + 8.0, hy), tr("ПРЕДМЕТ"), 15, C_TEXT_DIM, _font_caps)
+	_text(Vector2(ROW_X, hy), tr("ЦЕНА"), 15, C_TEXT_DIM, _font_caps, HORIZONTAL_ALIGNMENT_RIGHT, ROW_W - 18.0)
+	_fade_line(self, p.position.x + 20.0, p.size.x - 40.0, hy + 16.0)
 
 	for i: int in items.size():
 		var r := _row_rect(i)
@@ -840,71 +946,57 @@ func _draw_left_panel() -> void:
 			_draw_row(i, r)
 	_draw_scrollbar()
 
-	# Низ панели: "У вас есть:" и золото
-	var by := 944.0
-	_text(Vector2(62, by), "У вас есть:", 18, C_TEXT_DIM)
-	_draw_ornament_line(Vector2(170, by - 6), Vector2(290, by - 6), C_GOLD_FAINT, false)
-	_draw_diamond(Vector2(170, by - 6), 3.0, C_GOLD_DIM)
-	_draw_coin(Vector2(84, 988), 14.0)
-	_text(Vector2(110, 998), "%d G" % player_gold, 28, C_TEXT)
+	# Низ панели: тонкая черта, «У вас есть» и деньги покупателя
+	var by := p.end.y - 70.0
+	_fade_line(self, p.position.x + 20.0, p.size.x - 40.0, by)
+	var ty := by + 44.0
+	_text(Vector2(ROW_X + 6.0, ty), "У вас есть:", 18, C_TEXT_DIM)
+	var money := _money(player_gold)
+	var mw := _text_w(money, 24)
+	var right := ROW_X + ROW_W - 10.0
+	_text(Vector2(right - mw, ty + 1.0), money, 24, C_TEXT)
+	_draw_coin(Vector2(right - mw - 20.0, ty - 7.0), 8.0)
 
 
 func _draw_row(i: int, r: Rect2) -> void:
 	var item: Dictionary = items[i]
-	var is_hovered := i == hovered_index
-	var is_selected := i == selected_index
+	var g := _glow_of(i)
 	var can_afford := player_gold >= (item["price"] as int)
 	var maxed := _is_maxed(item)
 
-	if is_selected:
-		var pulse := 0.5 + 0.5 * sin(anim_time * 2.5)
-		draw_rect(r.grow(3.0), Color(C_GOLD_BRIGHT, 0.06 + 0.04 * pulse))
-		# Золотистая заливка, светлее к середине строки
-		draw_rect(r, Color(0.2, 0.15, 0.07, 0.95))
-		for k in 4:
-			draw_rect(Rect2(r.position.x + r.size.x * 0.15 + k * 30.0, r.position.y, r.size.x * 0.7 - k * 60.0, r.size.y),
-					Color(0.5, 0.36, 0.12, 0.05))
-		draw_rect(r, Color(C_GOLD_BRIGHT, 0.85), false, 1.5)
-		draw_rect(r.grow(-4.0), Color(C_GOLD, 0.3), false, 1.0)
-		# Маркер-засечка слева от выбранной строки
-		draw_line(Vector2(r.position.x - 26, r.get_center().y), Vector2(r.position.x - 8, r.get_center().y), C_GOLD, 1.5)
-		_draw_diamond(Vector2(r.position.x - 4, r.get_center().y), 4.0, C_GOLD_BRIGHT, true)
-	elif is_hovered:
-		draw_rect(r, Color(0.1, 0.085, 0.065, 0.95))
-		draw_rect(r, C_GOLD_DIM, false, 1.0)
-	else:
-		draw_rect(r, Color(0.055, 0.048, 0.042, 0.9))
-		draw_rect(r, Color(0.35, 0.3, 0.22, 0.3), false, 1.0)
+	# Строка — тёмная полупрозрачная клетка; выбранная и наведённая —
+	# золотая кромка (наведённая вполсилы)
+	draw_style_box(_sb_cell, r)
+	_gold_edge(self, r, g)
 
-	# Иконка в рамке
-	var isz := 56.0
-	var ir := Rect2(r.position.x + 12.0, r.get_center().y - isz * 0.5, isz, isz)
-	draw_rect(ir.grow(2.0), Color(0.02, 0.018, 0.016))
-	var tex: Texture2D = item["texture"] as Texture2D
-	var dim := 1.0 if (is_hovered or is_selected) else 0.82
-	if tex:
-		draw_texture_rect(tex, ir, false, Color(dim, dim, dim))
-	else:
-		_draw_icon_placeholder(ir.get_center().x, ir.get_center().y, isz * 0.4,
-				item["name"] as String, item["col"] as Color, is_hovered or is_selected)
-	draw_rect(ir.grow(2.0), C_GOLD if is_selected else C_GOLD_DIM, false, 1.0)
+	# Клетка иконки (сама иконка — на слое _icon_layer)
+	var ir := _row_icon_rect(r)
+	draw_style_box(_sb_cell, ir.grow(3.0))
+	if item["texture"] == null:
+		_draw_icon_placeholder(ir.get_center().x, ir.get_center().y, ir.size.x * 0.4,
+				item["name"] as String, item["col"] as Color, g > 0.0)
 
-	var name_col := C_TEXT if (is_selected or is_hovered) else Color(0.8, 0.75, 0.64)
+	var name_col := C_TEXT if g > 0.0 else Color(C_TEXT, 0.82)
 	if not can_afford and not maxed:
-		name_col = name_col.darkened(0.25)
+		name_col = C_TEXT_DIM
 	_text(Vector2(ir.end.x + 22.0, r.get_center().y + 7.0), item["name"] as String, 21, name_col)
 
-	# Цена справа: монета + число. Не хватает золота — всё красное
-	var right := r.end.x - 16.0
+	# Цена справа: значок валюты и число золотом. Не хватает — всё серое
+	var right := r.end.x - 18.0
 	var cy := r.get_center().y
 	if maxed:
 		_text(Vector2(r.position.x, cy + 6.0), "в сумке", 17, C_TEXT_DIM, null,
-				HORIZONTAL_ALIGNMENT_RIGHT, r.size.x - 16.0)
+				HORIZONTAL_ALIGNMENT_RIGHT, r.size.x - 18.0)
 		return
 	var price_str := str(item["price"])
-	var pw := _text_w(price_str, 25)
-	_text(Vector2(right - pw, cy + 9.0), price_str, 25, C_GOLD_BRIGHT if can_afford else C_RED)
-	_draw_coin(Vector2(right - pw - 18.0, cy + 1.0), 9.0, can_afford)
+	var pw := _text_w(price_str, 23)
+	_text(Vector2(right - pw, cy + 8.0), price_str, 23, C_GOLD if can_afford else C_TEXT_DIM)
+	_draw_coin(Vector2(right - pw - 17.0, cy), 7.0, can_afford)
+
+
+func _row_icon_rect(r: Rect2) -> Rect2:
+	var isz := 52.0
+	return Rect2(r.position.x + 11.0, r.get_center().y - isz * 0.5, isz, isz)
 
 
 func _draw_scrollbar() -> void:
@@ -912,216 +1004,139 @@ func _draw_scrollbar() -> void:
 	var visible_h := LIST_BOTTOM - LIST_TOP
 	if total_h <= visible_h:
 		return
-	var bar_x := ROW_X + ROW_W + 10.0
-	draw_rect(Rect2(bar_x, LIST_TOP, 2.0, visible_h), C_GOLD_FAINT)
+	var bar_x := ROW_X + ROW_W + 12.0
+	draw_rect(Rect2(bar_x, LIST_TOP, 1.0, visible_h), C_LINE)
 	var thumb_h: float = maxf(30.0, visible_h * (visible_h / total_h))
 	var thumb_y: float = LIST_TOP + (scroll_offset / (total_h - visible_h)) * (visible_h - thumb_h)
-	draw_rect(Rect2(bar_x - 1.0, thumb_y, 4.0, thumb_h), C_GOLD_DIM)
-
-
-# ─── ЗОЛОТО СПРАВА СВЕРХУ ──────────────────────────────────────────────────────
-func _draw_gold_pill() -> void:
-	var r := GOLD_PILL
-	_draw_pill(r, C_GOLD_DIM, Color(0.05, 0.043, 0.037, 0.95), false)
-	draw_polyline(PackedVector2Array([Vector2(r.end.x - 4, r.position.y + 8), Vector2(r.end.x + 8, r.get_center().y),
-			Vector2(r.end.x - 4, r.end.y - 8)]), C_GOLD_DIM, 1.3, true)
-	# Значок-свеча в кружке
-	var c := Vector2(r.position.x + 28, r.get_center().y)
-	draw_circle(c, 17.0, Color(0.09, 0.06, 0.04))
-	draw_arc(c, 17.0, 0.0, TAU, 28, C_GOLD, 1.5, true)
-	var fl := 1.0 + 0.12 * sin(anim_time * 11.0) + 0.06 * sin(anim_time * 23.0)
-	draw_rect(Rect2(c.x - 4, c.y + 1, 8, 9), Color(0.85, 0.78, 0.62))
-	var flame := PackedVector2Array([c + Vector2(0, -12 * fl), c + Vector2(3.5, -3), c + Vector2(0, 0), c + Vector2(-3.5, -3)])
-	draw_colored_polygon(flame, Color(1.0, 0.72, 0.25))
-	draw_circle(c + Vector2(0, -4), 1.8, Color(1.0, 0.95, 0.7))
-	_text(Vector2(c.x + 30, r.get_center().y + 9), "%d G" % player_gold, 26, C_TEXT)
+	draw_rect(Rect2(bar_x - 1.0, thumb_y, 3.0, thumb_h), Color(1, 1, 1, 0.22))
 
 
 # ─── ПРАВАЯ ПАНЕЛЬ: КАРТОЧКА ТОВАРА ────────────────────────────────────────────
-func _draw_right_panel() -> void:
-	var rp := RIGHT_PANEL
-	_draw_panel(rp)
-	# Шпиль-орнамент над медальоном по центру верхней кромки
-	var top := Vector2(rp.get_center().x, rp.position.y)
-	draw_polyline(PackedVector2Array([top + Vector2(-60, 0), top + Vector2(0, -26), top + Vector2(60, 0)]), C_GOLD_DIM, 1.3, true)
-	_draw_diamond(top + Vector2(0, -26), 6.0, C_GOLD, true)
-	_draw_rune_column(Vector2(rp.position.x + 30, 190))
-	_draw_rune_column(Vector2(rp.end.x - 30, 190))
+## Как карточка предмета в инвентаре: иконка в тёмной клетке сверху, под
+## ней название, принадлежность, цена; ниже — описание и предание абзацами,
+## внизу кнопка
+func _draw_card() -> void:
+	var cp := CARD
+	draw_style_box(_sb_panel, cp)
 
 	if selected_index < 0 or selected_index >= items.size():
-		_text(Vector2(rp.position.x, rp.get_center().y), "Выберите предмет", 22, C_TEXT_DIM, null,
-				HORIZONTAL_ALIGNMENT_CENTER, rp.size.x)
+		_text(Vector2(cp.position.x, cp.get_center().y), "Выберите предмет", 22, C_TEXT_DIM, null,
+				HORIZONTAL_ALIGNMENT_CENTER, cp.size.x)
 		return
 
 	var item: Dictionary = items[selected_index]
-	var col: Color = item["col"] as Color
 	var can_afford := player_gold >= (item["price"] as int)
 	var maxed := _is_maxed(item)
+	var cx := cp.get_center().x
+	var left := cp.position.x + 60.0
+	var width := cp.size.x - 120.0
 
-	_draw_medallion(item, col)
+	draw_style_box(ProcSkin.CleanU.box(Color(0, 0, 0, 0.3), C_BORDER, 6), _card_icon_rect().grow((ICON_BOX - ICON_SZ) * 0.5))
+	if item["texture"] == null:
+		_draw_icon_placeholder(ICON_C.x, ICON_C.y, ICON_SZ * 0.35, item["name"] as String, item["col"] as Color, true)
 
-	# Название с орнаментальными линиями по бокам
-	var name_str: String = item["name"] as String
-	var nw := _text_w(name_str, 40, font_title)
-	var cx := rp.get_center().x
-	_text(Vector2(rp.position.x, TITLE_Y), name_str, 40, C_TEXT, font_title, HORIZONTAL_ALIGNMENT_CENTER, rp.size.x)
-	var ly := TITLE_Y - 13.0
-	for side: float in [-1.0, 1.0]:
-		var inner := cx + side * (nw * 0.5 + 34.0)
-		var outer := rp.position.x + 50.0 if side < 0.0 else rp.end.x - 50.0
-		draw_line(Vector2(inner + side * 14.0, ly), Vector2(outer, ly), C_GOLD_FAINT, 1.0)
-		_draw_diamond(Vector2(inner, ly), 6.0, C_GOLD_DIM)
-		draw_line(Vector2(inner + side * 7.0, ly), Vector2(inner + side * 30.0, ly), C_GOLD_DIM, 1.0)
-
+	_text(Vector2(left, NAME_Y), item["name"] as String, 34, C_TEXT, font_title, HORIZONTAL_ALIGNMENT_CENTER, width)
+	var y := NAME_Y + 34.0
 	if item.has("subtitle"):
-		_text(Vector2(rp.position.x, TITLE_Y + 36.0), item["subtitle"] as String, 20,
-				Color(C_GOLD, 0.95), null, HORIZONTAL_ALIGNMENT_CENTER, rp.size.x)
+		_text(Vector2(left, y), item["subtitle"] as String, 18, C_TEXT_DIM, null, HORIZONTAL_ALIGNMENT_CENTER, width)
+		y += 36.0
+	else:
+		y += 6.0
 
-	# Цена
-	_draw_pill(PRICE_PILL, C_GOLD_DIM)
-	var price_str := "%d G" % (item["price"] as int)
-	var pw := _text_w(price_str, 26)
-	var pc := PRICE_PILL.get_center()
-	_draw_coin(Vector2(pc.x - pw * 0.5 - 8.0, pc.y), 11.0, can_afford)
-	_text(Vector2(pc.x - pw * 0.5 + 12.0, pc.y + 9.0), price_str, 26, C_TEXT if can_afford else C_RED)
+	# Цена: значок и сумма золотом; не хватает — серым
+	var price_str := _money(item["price"] as int)
+	var pw := _text_w(price_str, 24)
+	_draw_coin(Vector2(cx - pw * 0.5 - 6.0, y - 8.0), 8.0, can_afford)
+	_text(Vector2(cx - pw * 0.5 + 12.0, y), price_str, 24, C_GOLD if can_afford else C_TEXT_DIM)
+
+	_fade_line(self, cp.position.x + 30.0, cp.size.x - 60.0, DESC_Y - 46.0)
 
 	# Описание
-	var desc_lines: PackedStringArray = (item["description"] as String).split("\n")
+	# Переводим целиком до разбивки: ключ перевода — с переносами \n
+	var desc_lines: PackedStringArray = tr(item["description"] as String).split("\n")
 	for li in desc_lines.size():
-		_text(Vector2(DESC_X, DESC_Y + li * 34.0), desc_lines[li], 21, C_TEXT)
+		_text(Vector2(left, DESC_Y + li * 32.0), desc_lines[li], 20, C_TEXT, null,
+				HORIZONTAL_ALIGNMENT_CENTER, width)
 
 	# Предание — ниже описания, но не выше своей строки на макете
-	var sep_y := maxf(LORE_SEP_Y, DESC_Y + desc_lines.size() * 34.0 + 22.0)
-	_draw_diamond(Vector2(DESC_X - 6.0, sep_y - 7.0), 3.5, C_GOLD_DIM)
-	_text(Vector2(DESC_X + 8.0, sep_y), "Предание", 21, C_GOLD_DIM)
-	var lx := DESC_X + 8.0 + _text_w("Предание", 21) + 14.0
-	_draw_diamond(Vector2(lx, sep_y - 7.0), 3.5, C_GOLD_DIM)
-	_draw_ornament_line(Vector2(lx + 10.0, sep_y - 7.0), Vector2(rp.end.x - 60.0, sep_y - 7.0), C_GOLD_FAINT)
-	var lore_lines: PackedStringArray = (item["lore"] as String).split("\n")
+	var sep_y := maxf(LORE_SEP_Y, DESC_Y + desc_lines.size() * 32.0 + 30.0)
+	var cap := tr("Предание")
+	var cw := _text_w(cap, 17)
+	_text(Vector2(left, sep_y), cap, 17, C_TEXT_DIM, null, HORIZONTAL_ALIGNMENT_CENTER, width)
+	_fade_line(self, cx - cw * 0.5 - 220.0, 200.0, sep_y - 6.0)
+	_fade_line(self, cx + cw * 0.5 + 20.0, 200.0, sep_y - 6.0)
+	var lore_lines: PackedStringArray = tr(item["lore"] as String).split("\n")
 	for li in lore_lines.size():
-		_text(Vector2(DESC_X, sep_y + 44.0 + li * 29.0), lore_lines[li], 18, C_TEXT_DIM)
+		_text(Vector2(left, sep_y + 40.0 + li * 28.0), lore_lines[li], 18, C_TEXT_DIM, null,
+				HORIZONTAL_ALIGNMENT_CENTER, width)
 
 	_draw_buy_button(can_afford, maxed)
 
 
-## Круглая иконка в медальоне: тёплое свечение, кольцо рун, засечки
-func _draw_medallion(item: Dictionary, col: Color) -> void:
-	var c := ICON_C
-	var pulse := 0.5 + 0.5 * sin(anim_time * 2.0)
-	var warm := col.lerp(Color(1.0, 0.6, 0.25), 0.5)
-	draw_texture_rect(_glow, Rect2(c - Vector2.ONE * (ICON_R + 110), Vector2.ONE * (ICON_R + 110) * 2.0),
-			false, Color(warm, 0.14 + 0.05 * pulse))
-
-	draw_circle(c, ICON_R + 34.0, Color(0.035, 0.03, 0.027, 0.9))
-	draw_arc(c, ICON_R + 34.0, 0.0, TAU, 96, C_GOLD_FAINT, 1.0, true)
-	draw_arc(c, ICON_R + 16.0, 0.0, TAU, 96, C_GOLD_DIM, 1.2, true)
-	# Засечки и "руны" между кольцами медленно проворачиваются
-	var rot := anim_time * 0.05
-	for k in 72:
-		var a := rot + k * TAU / 72.0
-		var d := Vector2.from_angle(a)
-		var long := k % 6 == 0
-		draw_line(c + d * (ICON_R + 17.0), c + d * (ICON_R + (27.0 if long else 21.0)),
-				C_GOLD_DIM if long else C_GOLD_FAINT, 1.0)
-	for k in 12:
-		var a := -rot * 2.0 + (k + 0.5) * TAU / 12.0
-		var p := c + Vector2.from_angle(a) * (ICON_R + 26.0)
-		var t := Vector2.from_angle(a + PI / 2.0)
-		var n := Vector2.from_angle(a)
-		draw_line(p - n * 4.0, p + n * 4.0, C_GOLD_DIM, 1.0)
-		draw_line(p, p + (n + t * (1.0 if k % 2 == 0 else -1.0)) * 3.0, C_GOLD_DIM, 1.0)
-	# Ромбики по сторонам и сверху — снизу нет, там сразу название
-	for k in [0, 2, 3]:
-		var d := Vector2.from_angle(k * PI / 2.0)
-		_draw_diamond(c + d * (ICON_R + 44.0), 5.0, C_GOLD, true)
-		draw_line(c + d * (ICON_R + 50.0), c + d * (ICON_R + 70.0), C_GOLD_DIM, 1.0)
-
-	draw_circle(c, ICON_R + 2.0, Color(0.02, 0.018, 0.016))
-	var tex: Texture2D = item["texture"] as Texture2D
-	if tex != null:
-		# Обрезка по кругу треугольным веером
-		var segments := 64
-		var center_uv := Vector2(0.5, 0.5)
-		for si in segments:
-			var a0 := float(si) / segments * TAU
-			var a1 := float(si + 1) / segments * TAU
-			var d0 := Vector2.from_angle(a0)
-			var d1 := Vector2.from_angle(a1)
-			draw_primitive(
-				PackedVector2Array([c, c + d0 * ICON_R, c + d1 * ICON_R]),
-				PackedColorArray([Color.WHITE, Color.WHITE, Color.WHITE]),
-				PackedVector2Array([center_uv, d0 * 0.5 + center_uv, d1 * 0.5 + center_uv]),
-				tex)
-	else:
-		_draw_icon_placeholder(c.x, c.y, ICON_R * 0.6, item["name"] as String, col, true)
-	draw_arc(c, ICON_R, 0.0, TAU, 96, Color(C_GOLD, 0.7 + 0.2 * pulse), 2.0, true)
-	draw_arc(c, ICON_R - 6.0, 0.0, TAU, 96, Color(0, 0, 0, 0.35), 5.0, true)
-
-
-## Вертикальная колонка рун-засечек у края панели
-func _draw_rune_column(top: Vector2) -> void:
-	for k in 6:
-		var p := top + Vector2(0, k * 26.0)
-		var col := Color(C_GOLD, 0.22)
-		draw_line(p, p + Vector2(0, 16), col, 1.2)
-		match k % 3:
-			0:
-				draw_line(p + Vector2(0, 4), p + Vector2(6, 9), col, 1.2)
-			1:
-				draw_line(p + Vector2(0, 3), p + Vector2(-6, 8), col, 1.2)
-				draw_line(p + Vector2(0, 8), p + Vector2(-6, 13), col, 1.2)
-			2:
-				draw_line(p + Vector2(-5, 4), p + Vector2(5, 12), col, 1.2)
+func _card_icon_rect() -> Rect2:
+	return Rect2(ICON_C - Vector2(ICON_SZ, ICON_SZ) * 0.5, Vector2(ICON_SZ, ICON_SZ))
 
 
 func _draw_buy_button(can_afford: bool, maxed: bool) -> void:
 	var enabled := can_afford and not maxed
-	var hover := _buy_hover and enabled
-	var border := C_GOLD if hover else C_GOLD_DIM
-	var fill := Color(0.12, 0.09, 0.05, 0.96) if hover else Color(0.05, 0.043, 0.037, 0.95)
-	_draw_pill(BUY_BTN, border, fill)
 	var label := "[E]  Купить"
-	var col := C_GOLD_BRIGHT if hover else C_TEXT
 	if maxed:
 		label = "Уже в сумке"
-		col = C_TEXT_DIM
 	elif not can_afford:
-		label = "Недостаточно золота"
-		col = Color(C_RED, 0.85)
-	_text(Vector2(BUY_BTN.position.x, BUY_BTN.get_center().y + 8.0), label, 23, col, null,
-			HORIZONTAL_ALIGNMENT_CENTER, BUY_BTN.size.x)
+		label = "Недостаточно душ" if _souls_mode else "Недостаточно золота"
+	_button(self, BUY_BTN, label, _buy_hover and enabled, enabled)
+
+
+# ─── ИКОНКИ ────────────────────────────────────────────────────────────────────
+## Слой _icon_layer с шейдером иконок инвентаря (HeroSkin.icon_material):
+## середина картинки без своей рамки, мягкие края, яркость 1.15. Не под
+## курсором и не выбранная — чуть темнее
+func _draw_icons() -> void:
+	if not visible:
+		return
+	var ci := _icon_layer
+	ci.draw_set_transform(_view_offset, 0.0, Vector2(_view_scale, _view_scale))
+	for i: int in items.size():
+		var r := _row_rect(i)
+		var tex: Texture2D = items[i]["texture"] as Texture2D
+		if tex and _row_visible(r):
+			var d := 0.8 + 0.2 * minf(_glow_of(i) * 2.0, 1.0)
+			ci.draw_texture_rect(tex, _row_icon_rect(r), false, Color(d, d, d))
+	if selected_index >= 0 and selected_index < items.size():
+		var tex: Texture2D = items[selected_index]["texture"] as Texture2D
+		if tex:
+			ci.draw_texture_rect(tex, _card_icon_rect(), false)
+	ci.draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
 
 
 # ─── ПОДТВЕРЖДЕНИЕ ПОКУПКИ ─────────────────────────────────────────────────────
-func _draw_confirm_dialog() -> void:
-	draw_rect(Rect2(-200, -200, DESIGN.x + 400, DESIGN.y + 400), Color(0, 0, 0, 0.62))
+## Слой _overlay — поверх иконок: экран темнеет, по центру плашка с вопросом
+func _draw_overlay() -> void:
+	if not visible or pending_buy_index < 0:
+		return
+	var ci := _overlay
+	ci.draw_rect(Rect2(Vector2.ZERO, size), Color(0, 0, 0, 0.6))
+	ci.draw_set_transform(_view_offset, 0.0, Vector2(_view_scale, _view_scale))
 	var item: Dictionary = items[pending_buy_index]
-	_draw_panel(CONFIRM, Color(0.05, 0.044, 0.038, 0.98))
-	_text(Vector2(CONFIRM.position.x, CONFIRM.position.y + 58.0), "Подтверждение", 26, C_GOLD, font_title,
-			HORIZONTAL_ALIGNMENT_CENTER, CONFIRM.size.x)
-	_draw_ornament_line(Vector2(CONFIRM.position.x + 90, CONFIRM.position.y + 78), Vector2(CONFIRM.end.x - 90, CONFIRM.position.y + 78))
-	_text(Vector2(CONFIRM.position.x, CONFIRM.position.y + 124.0),
-			"Купить «%s» за %d G?" % [item["name"], item["price"]], 21, C_TEXT, null,
+	ci.draw_style_box(_sb_panel, CONFIRM)
+	_plaque(ci, "Подтверждение", CONFIRM.get_center().x, CONFIRM.position.y + 48.0)
+	_text_on(ci, Vector2(CONFIRM.position.x, CONFIRM.position.y + 118.0),
+			tr("Купить «%s» за %s?") % [tr(item["name"]), _money(item["price"] as int)], 21, C_TEXT, null,
 			HORIZONTAL_ALIGNMENT_CENTER, CONFIRM.size.x)
 
 	var btns := _confirm_buttons()
 	var labels := ["[E]  Да", "[Esc]  Нет"]
 	for i in 2:
-		var hover := _confirm_hover == i
-		_draw_pill(btns[i], C_GOLD if hover else C_GOLD_DIM,
-				Color(0.12, 0.09, 0.05, 0.96) if hover else Color(0.05, 0.043, 0.037, 0.95), false)
-		_text(Vector2(btns[i].position.x, btns[i].get_center().y + 8.0), labels[i], 21,
-				C_GOLD_BRIGHT if hover else C_TEXT, null, HORIZONTAL_ALIGNMENT_CENTER, btns[i].size.x)
+		_button(ci, btns[i], labels[i], _confirm_hover == i)
+	ci.draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
 
 
 # ─── ЗАГЛУШКА (если PNG не найден) ────────────────────────────────────────────
-# Рисует круг с первой буквой названия предмета
-func _draw_icon_placeholder(cx: float, cy: float, r: float, item_name: String, col: Color, bright: bool) -> void:
-	var alpha: float = 1.0 if bright else 0.5
-	draw_circle(Vector2(cx, cy), r, Color(col.r * 0.2, col.g * 0.2, col.b * 0.2, alpha))
-	draw_arc(Vector2(cx, cy), r, 0.0, TAU, 32, Color(col.r, col.g, col.b, alpha), 2.0)
+# Серый кружок с первой буквой названия предмета
+func _draw_icon_placeholder(cx: float, cy: float, r: float, item_name: String, _col: Color, bright: bool) -> void:
+	var col := C_TEXT if bright else C_TEXT_DIM
+	draw_arc(Vector2(cx, cy), r, 0.0, TAU, 32, Color(col, 0.6), 1.5, true)
 	if item_name.length() > 0:
-		var letter: String = item_name.substr(0, 1).to_upper()
-		draw_string(font_title, Vector2(cx - r * 0.3, cy + r * 0.35),
-				letter, HORIZONTAL_ALIGNMENT_LEFT, -1, int(r * 1.0),
-				Color(col.r, col.g, col.b, alpha))
+		var letter: String = tr(item_name).substr(0, 1).to_upper()
+		draw_string(font_title, Vector2(cx - r, cy + r * 0.35), letter, HORIZONTAL_ALIGNMENT_CENTER,
+				r * 2.0, int(r * 1.0), col)

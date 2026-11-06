@@ -268,7 +268,12 @@ func _hit_front() -> void:
 		if dist > _front:
 			continue
 		_hit_ids[id] = true
+		# Удар волны — маг усиливает её урон по стойкости (mage.gd::posture_mult_vs)
+		if is_instance_valid(_caster):
+			_caster.set_meta("pulse_hit", true)
 		e.take_damage(damage, _caster)
+		if is_instance_valid(_caster):
+			_caster.set_meta("pulse_hit", false)
 		MageFx.hit_burst(get_tree(), e.global_position, to.normalized() if to.length() > 0.001 else Vector2.DOWN)
 		if not e.is_dead and "knockback_velocity" in e:
 			var dir := to.normalized() if to.length() > 0.001 else Vector2.DOWN

@@ -17,7 +17,8 @@ extends CanvasLayer
 
 signal scene_changed
 
-const MENU_FONT := preload("res://Font/sikandinarie.ttf")
+const Style := preload("res://Main_Menu/scripts/MenuStyle.gd")
+const LOGO_SHADER := preload("res://Main_Menu/assets/shaders/logo_ember.gdshader")
 const LOGO_SHEET := preload("res://Main_Menu/TLO_anim.png")
 const SpriteSheetAnimationScript := preload("res://Main_Menu/scripts/SpriteSheetAnimation.gd")
 
@@ -34,21 +35,23 @@ const SETTLE_FRAMES := 4
 # Полоса догоняет реальный прогресс плавно, не скачками (доля в секунду)
 const BAR_SPEED := 0.9
 
-const BG_COLOR := Color(0.02, 0.018, 0.016)
-const GOLD := Color(0.72, 0.57, 0.33)
-const GOLD_BRIGHT := Color(0.98, 0.8, 0.42)
-const TEXT_COLOR := Color(0.78, 0.72, 0.62)
+const BG_COLOR := Color(0.008, 0.008, 0.008)
+const GOLD := Style.GOLD
+const GOLD_BRIGHT := Style.GOLD_HI
+const TEXT_COLOR := Style.TEXT
+const TEXT_DIM_COLOR := Style.TEXT_DIM
 
 const TIPS := [
-	"The fourth strike of a combo spins through every foe around you.",
-	"A well-timed parry leaves your enemy open for a counter.",
-	"A roll carries you through enemies — but never through walls.",
-	"Sacrifice blood to the rune, and the gods forget your cooldowns.",
-	"Baldur's blessing may spare you once from a killing blow.",
-	"Under Odin's gaze time slows — and the marked do not rise again.",
-	"Fenrir's blood makes you unbreakable, and angrier with every second.",
-	"Stamina is life. An exhausted warrior is a dead one.",
-	"Enemies that spot you will not forget. Strike first.",
+	"Четвёртый удар серии — с разворота: он задевает всех врагов вокруг.",
+	"Вовремя парированный удар открывает врага для ответа.",
+	"Перекат проносит сквозь врагов — но не сквозь стены.",
+	"Отдай кровь Руне Жертвы — и боги забудут, что твои силы на перезарядке.",
+	"Благословение Бальдра может однажды спасти от смертельного удара.",
+	"Под взором Одина время замедляется — и отмеченные уже не встают.",
+	"Кровь Фенрира делает тебя несокрушимым и злее с каждой секундой.",
+	"Выносливость — это жизнь. Выдохшийся воин — мёртвый воин.",
+	"Заметивший тебя враг не забудет. Бей первым.",
+	"У костра можно отдохнуть: здоровье вернётся, но враги воскреснут.",
 ]
 
 var _busy := false
@@ -177,8 +180,7 @@ func _process(delta: float) -> void:
 	_time += delta
 	_shown_progress = move_toward(_shown_progress, _target_progress, BAR_SPEED * delta)
 	_update_bar()
-	# Лого и надпись медленно "дышат" — так же, как тлеющий лого в меню
-	_logo.modulate.a = 0.82 + 0.15 * sin(_time * 1.6)
+	# Лого «дышит» жаром в шейдере (logo_ember), прозрачность не мигает
 	_loading_label.modulate.a = 0.45 + 0.35 * (0.5 + 0.5 * sin(_time * 2.4))
 	# Ромбик на конце полосы мерцает, как уголёк
 	_bar_tip.modulate.a = 0.7 + 0.3 * sin(_time * 7.0)
@@ -212,7 +214,7 @@ func _build() -> void:
 	glow.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	var grad := Gradient.new()
 	grad.offsets = PackedFloat32Array([0.0, 1.0])
-	grad.colors = PackedColorArray([Color(0.55, 0.3, 0.1, 0.16), Color(0, 0, 0, 0)])
+	grad.colors = PackedColorArray([Color(1.0, 0.86, 0.6, 0.06), Color(0, 0, 0, 0)])
 	var grad_tex := GradientTexture2D.new()
 	grad_tex.gradient = grad
 	grad_tex.fill = GradientTexture2D.FILL_RADIAL
@@ -226,9 +228,15 @@ func _build() -> void:
 	embers.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_content.add_child(embers)
 
-	# Мерцающий лого из меню — тот же спрайт-лист, чуть меньше
+	# Лого из меню — тот же спрайт-лист, чуть меньше. smooth — сглаживание с
+	# мип-картами (кадр 1024 px здесь уменьшается до 840, чётко)
 	_logo = TextureRect.new()
 	_logo.set_script(SpriteSheetAnimationScript)
+	_logo.set("smooth", true)
+	var logo_mat := ShaderMaterial.new()
+	logo_mat.shader = LOGO_SHADER
+	logo_mat.set_shader_parameter("rect_size", Vector2(840, 420))
+	_logo.material = logo_mat
 	_logo.set_anchors_preset(Control.PRESET_CENTER)
 	_logo.offset_left = -420.0
 	_logo.offset_right = 420.0
@@ -248,7 +256,7 @@ func _build() -> void:
 	_content.add_child(bar)
 
 	var track := ColorRect.new()
-	track.color = Color(GOLD, 0.22)
+	track.color = Color(1, 1, 1, 0.1)
 	track.set_anchors_preset(Control.PRESET_FULL_RECT)
 	track.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	bar.add_child(track)
@@ -269,7 +277,7 @@ func _build() -> void:
 	_bar_tip.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	bar.add_child(_bar_tip)
 
-	_loading_label = _make_label("L O A D I N G", 22, GOLD)
+	_loading_label = _make_label("ЗАГРУЗКА", 18, TEXT_DIM_COLOR)
 	_loading_label.set_anchors_preset(Control.PRESET_CENTER)
 	_loading_label.offset_left = -260.0
 	_loading_label.offset_right = 260.0
@@ -277,7 +285,8 @@ func _build() -> void:
 	_loading_label.offset_bottom = 160.0
 	_content.add_child(_loading_label)
 
-	_tip_label = _make_label("", 24, TEXT_COLOR)
+	_tip_label = _make_label("", 22, TEXT_COLOR)
+	_tip_label.add_theme_font_override("font", Style.italic_font())
 	_tip_label.set_anchors_preset(Control.PRESET_CENTER_BOTTOM)
 	_tip_label.offset_left = -700.0
 	_tip_label.offset_right = 700.0
@@ -293,7 +302,7 @@ func _make_label(text: String, font_size: int, color: Color) -> Label:
 	l.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	l.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	l.add_theme_font_override("font", MENU_FONT)
+	l.add_theme_font_override("font", Style.caps_font())
 	l.add_theme_font_size_override("font_size", font_size)
 	l.add_theme_color_override("font_color", color)
 	return l

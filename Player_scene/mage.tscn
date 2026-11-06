@@ -16,6 +16,7 @@ script = ExtResource("0_mage_script")
 snap_radius = 220.0
 focus_break_range = 500.0
 collects_gold = false
+collects_souls = true
 strafe_names_swapped = true
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="." unique_id=1767030573]

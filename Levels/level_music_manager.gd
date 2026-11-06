@@ -67,6 +67,10 @@ var _house_rain_db := 0.0
 var _check_timer := 0.0
 var _fade_tween: Tween
 var _rain_tween: Tween
+# Громкость дождя по состоянию (бой/магазин/дом) — её ведёт tween; к ней в
+# _process прибавляется погода (Weather.rain_db()): нет дождя — нет и звука,
+# дождь нарастает — звук нарастает вместе с ним
+var _rain_base_db := 0.0
 var _crows_timer := 0.0
 var _next_crows_time := 0.0
 
@@ -89,12 +93,14 @@ func _ready() -> void:
 	# воспроизведении рвёт звук — с невалидным loop_end получается петля нулевой
 	# длины и тишина), а перезапуском: когда одноразовый поток доигрывает,
 	# сигнал finished запускает его заново.
-	rain_player.volume_db = rain_volume_calm
+	_rain_base_db = rain_volume_calm
+	rain_player.volume_db = _rain_base_db + Weather.rain_db()
 	if not rain_player.finished.is_connected(_replay_rain):
 		rain_player.finished.connect(_replay_rain)
 
 	_setup_crows_bus()
 	_next_crows_time = randf_range(crows_interval_min, crows_interval_max)
+	_setup_ambience()
 	# Шины живут дольше сцены: если прошлый забег оборвался посреди просадки,
 	# музыка так и осталась бы приглушённой после рестарта уровня.
 	# Возвращаем именно на уровень из настроек, а не на 0 дБ
@@ -142,6 +148,8 @@ func _replay_rain() -> void:
 
 
 func _process(delta: float) -> void:
+	rain_player.volume_db = maxf(_rain_base_db + Weather.rain_db(), SILENT_DB)
+	_update_ambience(delta)
 	_check_timer -= delta
 	if _check_timer <= 0.0:
 		_check_timer = check_interval
@@ -263,7 +271,7 @@ func _apply_rain_volume(duration: float) -> void:
 	if _rain_tween:
 		_rain_tween.kill()
 	_rain_tween = create_tween()
-	_rain_tween.tween_property(rain_player, "volume_db", target, duration)
+	_rain_tween.tween_property(self, "_rain_base_db", target, duration)
 
 
 func _force_loop(stream: AudioStream) -> void:
@@ -273,3 +281,77 @@ func _force_loop(stream: AudioStream) -> void:
 		(stream as AudioStreamOggVorbis).loop = true
 	elif stream is AudioStreamWAV:
 		(stream as AudioStreamWAV).loop_mode = AudioStreamWAV.LOOP_FORWARD
+
+
+# ===================== ЭМБИЕНТ МИРА =====================
+# Четыре зацикленных слоя, все играют постоянно, громкость плавно идёт за
+# погодой и временем суток (Levels/weather.gd): ветер — всегда, по силе ветра;
+# сверчки — ясной ночью; лес — днём; глухой гул — в доме. В доме уличные слои
+# почти гаснут, в магазине приглушено всё. Нет файла — слоя просто нет
+
+const SoundBank := preload("res://Levels/sound_bank.gd")
+## Громкость слоя на полную (дБ)
+@export var ambience_wind_db := -13.0
+@export var ambience_crickets_db := -7.0
+@export var ambience_forest_db := -10.0
+@export var ambience_indoor_db := -2.0
+## Как быстро слой меняет громкость (доля полной громкости в секунду)
+@export var ambience_fade_speed := 0.25
+
+## имя -> {player, level (текущая доля 0..1), db}
+var _ambience := {}
+
+
+func _setup_ambience() -> void:
+	_add_ambience("wind", "ambience/wind_loop.wav", ambience_wind_db)
+	_add_ambience("crickets", "ambience/crickets_loop.wav", ambience_crickets_db)
+	_add_ambience("forest", "ambience/forest_day_loop.wav", ambience_forest_db)
+	_add_ambience("indoor", "ambience/indoor_loop.ogg", ambience_indoor_db)
+	await get_tree().process_frame
+	for k in _ambience:
+		var p: AudioStreamPlayer = _ambience[k]["player"]
+		# С разного места, чтобы слои не совпадали швами
+		p.play(randf() * p.stream.get_length() * 0.8)
+
+
+func _add_ambience(id: String, rel: String, db: float) -> void:
+	var st := SoundBank.loop_stream(rel)
+	if st == null:
+		return
+	var p := AudioStreamPlayer.new()
+	p.name = "Ambience_" + id
+	p.stream = st
+	p.volume_db = SILENT_DB
+	add_child(p)
+	_ambience[id] = {"player": p, "level": 0.0, "db": db}
+
+
+func _ambience_target(id: String) -> float:
+	var outside := 0.0 if _in_house else 1.0
+	var active: bool = Weather.is_active()
+	var night: float = Weather.night if active else 1.0
+	var rain: float = Weather.rain if active else 0.0
+	var k := 0.0
+	match id:
+		"wind":
+			var w: float = clampf(Weather.wind / 2.2, 0.0, 1.0) if active else 0.5
+			k = lerpf(0.2, 1.0, w) * maxf(outside, 0.18)
+		"crickets":
+			k = night * (1.0 - rain) * outside
+		"forest":
+			k = (1.0 - night) * (1.0 - rain * 0.7) * outside
+		"indoor":
+			k = 1.0 - outside
+	if _in_shop:
+		k *= 0.1
+	elif _in_combat:
+		k *= 0.75
+	return k
+
+
+func _update_ambience(delta: float) -> void:
+	for id in _ambience:
+		var a: Dictionary = _ambience[id]
+		a["level"] = move_toward(a["level"], _ambience_target(id), ambience_fade_speed * delta)
+		var p: AudioStreamPlayer = a["player"]
+		p.volume_db = maxf(a["db"] + linear_to_db(maxf(a["level"], 0.0001)), SILENT_DB)

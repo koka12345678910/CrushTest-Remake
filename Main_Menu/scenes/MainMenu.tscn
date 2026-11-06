@@ -24,6 +24,12 @@ shader_parameter/warp_strength = 0.0
 shader_parameter/warp_speed = 0.0
 shader_parameter/parallax_offset = Vector2(0, 0)
 
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_wallpaper_far"]
+shader = ExtResource("7_wallpaper")
+shader_parameter/warp_strength = 0.0
+shader_parameter/warp_speed = 0.0
+shader_parameter/parallax_offset = Vector2(0, 0)
+
 [node name="MainMenu" type="Control" unique_id=1294809207]
 layout_mode = 3
 anchors_preset = 15
@@ -45,6 +51,7 @@ anchor_bottom = 1.0
 color = Color(0.04, 0.05, 0.07, 0)
 
 [node name="Background" type="TextureRect" parent="." unique_id=971412128]
+material = SubResource("ShaderMaterial_wallpaper_far")
 layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
@@ -59,20 +66,6 @@ expand_mode = 3
 stretch_mode = 6
 
 [node name="CameraAnim" type="AnimationPlayer" parent="Background" unique_id=716639152]
-
-[node name="GameTitle" type="TextureRect" parent="." unique_id=244491220]
-layout_mode = 1
-anchor_left = 0.5
-anchor_right = 0.5
-offset_left = -630.0
-offset_top = -140.0
-offset_right = 630.0
-offset_bottom = 490.0
-grow_horizontal = 2
-mouse_filter = 2
-expand_mode = 1
-stretch_mode = 5
-script = ExtResource("14_logo_anim")
 
 [node name="Rain" type="GPUParticles2D" parent="." unique_id=1485973941]
 position = Vector2(576, 0)
@@ -114,55 +107,60 @@ stretch_mode = 6
 [node name="UILayer" type="CanvasLayer" parent="." unique_id=1985279804]
 layer = 2
 
+[node name="GameTitle" type="TextureRect" parent="UILayer" unique_id=244491220]
+offset_left = 92.0
+offset_top = 78.0
+offset_right = 872.0
+offset_bottom = 338.0
+mouse_filter = 2
+expand_mode = 1
+stretch_mode = 5
+script = ExtResource("14_logo_anim")
+smooth = true
+
 [node name="LeftPanel" type="VBoxContainer" parent="UILayer" unique_id=1197256295]
-anchors_preset = 9
-anchor_bottom = 1.0
-offset_left = 24.0
-offset_right = 460.0
-grow_vertical = 2
-alignment = 1
+offset_left = 135.0
+offset_top = 404.0
+offset_right = 655.0
+offset_bottom = 900.0
 
 [node name="Spacer" type="Control" parent="UILayer/LeftPanel" unique_id=1953702604]
-custom_minimum_size = Vector2(0, 48)
 layout_mode = 2
 
 [node name="MenuButtons" type="VBoxContainer" parent="UILayer/LeftPanel" unique_id=1570133491]
 layout_mode = 2
 theme = ExtResource("6_theme")
-
-[node name="BtnNewGame" type="Button" parent="UILayer/LeftPanel/MenuButtons" unique_id=2062564159]
-layout_mode = 2
-size_flags_horizontal = 4
-text = "NEW JOURNEY"
-script = ExtResource("5_btn")
+theme_override_constants/separation = 4
 
 [node name="BtnContinue" type="Button" parent="UILayer/LeftPanel/MenuButtons" unique_id=796371256]
 layout_mode = 2
-size_flags_horizontal = 4
-text = "CONTINUE"
+text = "ПРОДОЛЖИТЬ"
+script = ExtResource("5_btn")
+
+[node name="BtnNewGame" type="Button" parent="UILayer/LeftPanel/MenuButtons" unique_id=2062564159]
+layout_mode = 2
+text = "НОВЫЙ ПУТЬ"
 script = ExtResource("5_btn")
 
 [node name="BtnLoad" type="Button" parent="UILayer/LeftPanel/MenuButtons" unique_id=1681102973]
+visible = false
 layout_mode = 2
-size_flags_horizontal = 4
-text = "LOAD GAME"
+text = "ЗАГРУЗИТЬ"
 script = ExtResource("5_btn")
 
 [node name="NavSeparator" type="Control" parent="UILayer/LeftPanel/MenuButtons" unique_id=700000301]
-custom_minimum_size = Vector2(0, 26)
+custom_minimum_size = Vector2(0, 30)
 layout_mode = 2
 script = ExtResource("13_sep")
 
 [node name="BtnSettings" type="Button" parent="UILayer/LeftPanel/MenuButtons" unique_id=632916370]
 layout_mode = 2
-size_flags_horizontal = 4
-text = "SETTINGS"
+text = "НАСТРОЙКИ"
 script = ExtResource("5_btn")
 
 [node name="BtnQuit" type="Button" parent="UILayer/LeftPanel/MenuButtons" unique_id=2145485157]
 layout_mode = 2
-size_flags_horizontal = 4
-text = "QUIT"
+text = "ВЫХОД"
 script = ExtResource("5_btn")
 
 [node name="BottomBar" type="HBoxContainer" parent="UILayer" unique_id=317497745]
@@ -170,13 +168,17 @@ anchors_preset = 12
 anchor_top = 1.0
 anchor_right = 1.0
 anchor_bottom = 1.0
-offset_left = 24.0
-offset_top = -36.0
-offset_right = -24.0
+offset_left = 160.0
+offset_top = -66.0
+offset_right = -56.0
+offset_bottom = -30.0
+grow_horizontal = 2
+grow_vertical = 0
 
 [node name="VersionLabel" type="Label" parent="UILayer/BottomBar" unique_id=1730489451]
 layout_mode = 2
-text = "v0.1.0  —  Early Access"
+size_flags_vertical = 4
+text = "v0.1.0  ·  ранний доступ"
 
 [node name="SettingsPanel" type="Control" parent="UILayer" unique_id=1900000040]
 layout_mode = 3
@@ -188,6 +190,7 @@ script = ExtResource("11_settings")
 [node name="AmbientMusic" type="AudioStreamPlayer" parent="." unique_id=1943123550]
 stream = ExtResource("8_music")
 volume_db = -15.0
+bus = &"Music"
 autoplay = true
 
 [node name="RainAmbience" type="AudioStreamPlayer" parent="." unique_id=1943123551]
@@ -196,6 +199,7 @@ volume_db = -18.0
 autoplay = true
 
 [node name="UIAudio" type="AudioStreamPlayer" parent="." unique_id=1943123552]
+bus = &"UI"
 
 [node name="PointLight2D" type="PointLight2D" parent="." unique_id=1501921397]
 position = Vector2(969, 511)

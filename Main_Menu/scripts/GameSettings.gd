@@ -22,10 +22,20 @@ var sfx_volume := 0.8
 # У этой игры тряски камеры много (удары, стан, истощение, парирование), и
 # для части игроков это некомфортно вплоть до укачивания. 0 = выключить совсем
 var shake_multiplier := 1.0
+# Удары, выстрелы и заклинания — туда, куда указывает мышь (а не по
+# стрелкам/взгляду). Для игры на клавиатуре с мышью
+var mouse_aim := false
 
 # --- Экран ---
 var fullscreen := false
 var vsync := true
+
+# --- Язык интерфейса: "ru" (исходный текст в коде) или "en" (перевод из
+# Localization/strings_en.gd). Сброс настроек язык не трогает
+var language := "ru"
+const LANGUAGES := ["ru", "en"]
+const StringsEn := preload("res://Localization/strings_en.gd")
+const UiSounds := preload("res://UI/ui_sounds.gd")
 
 # Имена шин из default_bus_layout.tres. "Combat" держит боевые SFX, музыка
 # живёт на своей шине, остальное (шаги, эмбиент) идёт напрямую в Master и
@@ -37,6 +47,9 @@ const SILENT_DB := -80.0
 
 
 func _ready() -> void:
+	# Шина звуков интерфейса — до первой сцены, чтобы плееры меню её уже видели
+	UiSounds.ensure_bus()
+	_register_translations()
 	load_settings()
 	apply_all()
 
@@ -50,7 +63,26 @@ func apply_all() -> void:
 	_apply_bus(BUS_MUSIC, music_volume)
 	_apply_bus(BUS_SFX, sfx_volume)
 	_apply_window()
+	apply_language()
 	settings_changed.emit()
+
+
+## Русский — исходный текст: для него перевода нет, tr() возвращает строку
+## как есть. Смена локали сама пересчитывает все Label/Button на экране
+## (NOTIFICATION_TRANSLATION_CHANGED)
+func apply_language() -> void:
+	if language not in LANGUAGES:
+		language = "ru"
+	if TranslationServer.get_locale() != language:
+		TranslationServer.set_locale(language)
+
+
+func _register_translations() -> void:
+	var t := Translation.new()
+	t.locale = "en"
+	for key in StringsEn.MESSAGES:
+		t.add_message(key, StringsEn.MESSAGES[key])
+	TranslationServer.add_translation(t)
 
 
 func _apply_bus(bus_name: String, value: float) -> void:
@@ -94,8 +126,10 @@ func save_settings() -> void:
 	cfg.set_value("audio", "music", music_volume)
 	cfg.set_value("audio", "sfx", sfx_volume)
 	cfg.set_value("gameplay", "shake", shake_multiplier)
+	cfg.set_value("gameplay", "mouse_aim", mouse_aim)
 	cfg.set_value("display", "fullscreen", fullscreen)
 	cfg.set_value("display", "vsync", vsync)
+	cfg.set_value("general", "language", language)
 	cfg.save(CONFIG_PATH)
 
 
@@ -107,8 +141,10 @@ func load_settings() -> void:
 	music_volume = cfg.get_value("audio", "music", music_volume)
 	sfx_volume = cfg.get_value("audio", "sfx", sfx_volume)
 	shake_multiplier = cfg.get_value("gameplay", "shake", shake_multiplier)
+	mouse_aim = cfg.get_value("gameplay", "mouse_aim", mouse_aim)
 	fullscreen = cfg.get_value("display", "fullscreen", fullscreen)
 	vsync = cfg.get_value("display", "vsync", vsync)
+	language = cfg.get_value("general", "language", language)
 
 
 func reset_to_defaults() -> void:
@@ -116,6 +152,7 @@ func reset_to_defaults() -> void:
 	music_volume = 0.7
 	sfx_volume = 0.8
 	shake_multiplier = 1.0
+	mouse_aim = false
 	fullscreen = false
 	vsync = true
 	apply_all()

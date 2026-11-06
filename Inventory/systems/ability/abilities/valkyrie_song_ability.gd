@@ -14,7 +14,7 @@ func _init() -> void:
 	ability_name = "Песнь Валькирии"
 	cooldown_duration = 15.0
 	description = "Постепенно лечит и снимает все негативные эффекты"
-	icon = load("res://Shop/icons/flask_gold.png")
+	icon = load_icon("res://Shop/icons/icons_2/valkyrie's_song.png")
 
 func _execute(player: Node) -> void:
 	# Сначала игрок пьёт, и только когда звук доиграет — начинается действие

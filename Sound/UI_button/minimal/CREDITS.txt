@@ -1,0 +1,8 @@
+Звуки интерфейса (главное меню, инвентарь, магазин)
+
+Kenney — Interface Sounds (v1.0)
+https://kenney.nl/assets/interface-sounds
+Копия в WAV: https://github.com/Calinou/kenney-interface-sounds
+Лицензия: CC0 1.0 (общественное достояние), см. LICENSE.txt
+Скачано 2026-11-03: tick_002, click_002, select_001, back_001,
+toggle_004, error_008, open_001, close_001 (без изменений).

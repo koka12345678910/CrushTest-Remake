@@ -31,6 +31,9 @@ var height := 0.0
 ## меньше (Levels/house_interior.gd), чтобы комнаты казались просторнее.
 ## На скорость не влияет: это не "даль", а масштаб интерьера
 var scale_mul := 1.0
+## Мгновенный множитель масштаба картинки без сглаживания — сжатие/растяжение
+## от движения (Player_scene/motion_feel.gd). Только картинка, скорость не трогает
+var fx_scale := Vector2.ONE
 
 var _body: Node2D
 var _sprite: Node2D
@@ -75,7 +78,7 @@ func _process(delta: float) -> void:
 		_shown_factor = target
 
 	if _sprite:
-		_sprite.scale = _base_sprite_scale * _shown_factor
+		_sprite.scale = _base_sprite_scale * _shown_factor * fx_scale
 
 	var speed_k := 1.0 + (_shown_factor / scale_mul - 1.0) * speed_follow
 	for prop in _base_speeds:

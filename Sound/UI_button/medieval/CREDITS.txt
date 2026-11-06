@@ -1,0 +1,20 @@
+Звуки интерфейса (главное меню, инвентарь, магазин, костры, лут) — UI/ui_sounds.gd
+
+Kenney — RPG Audio («50 RPG sound effects»)
+https://kenney.nl/assets/rpg-audio
+Скачано 2026-11-04 с OpenGameArt: https://opengameart.org/content/50-rpg-sound-effects
+(файл RPGsounds_Kenney.zip, 675 КБ)
+Лицензия: CC0 1.0 (общественное достояние),
+http://creativecommons.org/publicdomain/zero/1.0/
+Автор — Kenney Vleugels (www.kenney.nl); указывать не обязательно, но приятно.
+
+Что откуда (OGG → WAV 44,1 кГц, 16 бит, моно; обрезано, срезаны верха
+мягким фильтром, плавное затухание, выровнена громкость):
+  move_leather.wav  ← handleSmallLeather.ogg  (наведение/перемещение)
+  select_book.wav   ← bookPlace1.ogg          (выбор)
+  back_cloth.wav    ← cloth2.ogg              (назад)
+  toggle_knock.wav  ← chop.ogg                (переключатель)
+  error_thud.wav    ← doorClose_4.ogg         (отказ)
+  open_page.wav     ← bookFlip2.ogg           (открыть окно)
+  close_book.wav    ← bookClose.ogg           (закрыть окно)
+  pickup_pouch.wav  ← dropLeather.ogg         (подобран предмет)

@@ -5,8 +5,8 @@ extends RefCounted
 ##   const Spells := preload("res://Player_scene/magic/spells.gd")
 ##   var s := Spells.make("Благословение Тора")
 ##
-## Иконки: положите PNG по пути из "icon" — подхватится само. Пока файла
-## нет, рисуется заглушка-круг цвета стихии
+## Иконки: PNG по пути из "icon" (большие — уменьшаются при загрузке, см.
+## _icon). Пока файла нет, рисуется заглушка-круг цвета стихии
 
 const BlessingScript := preload("res://Player_scene/magic/blessing.gd")
 
@@ -16,20 +16,28 @@ const DATA := {
 		"odr_cost": 40.0,
 		"duration": 30.0,
 		"color": Color(1.0, 0.9, 0.55),
-		"icon": "res://UI/icons/magic/blessing_thor.png",
+		"icon": "res://blessing_for_warrior/Мифический молот грома в руническом медальоне.png",
 		"description": "Молния Тора бьёт в поднятый меч.\n30 сек: удары сильнее бьют по концентрации\nи перескакивают разрядом на соседнего врага.",
+		## Предание — для панели находки (Levels/loot/loot_ui.gd)
+		"lore": "Тор, сын Одина, — защитник Мидгарда от великанов. Гром — стук колёс его колесницы, молния — след брошенного Мьёльнира, что всегда возвращается в руку хозяина. Воины молились ему перед битвой: тот, кто поднял меч во имя Аса, не боится грозы.",
 	},
 	"Благословение Сурта": {
 		"element": "fire",
 		"odr_cost": 35.0,
 		"duration": 30.0,
 		"color": Color(1.0, 0.55, 0.2),
-		"icon": "res://UI/icons/magic/blessing_surt.png",
-		"description": "Огонь Муспельхейма охватывает клинок.\nВспышка вокруг поджигает и отталкивает тех, кто рядом.\n30 сек: удары поджигают врагов.",
+		"icon": "res://blessing_for_warrior/Раскалённый меч в руническом кольце.png",
+		"description": "Огонь Муспельхейма вырывается из-под земли и охватывает клинок.\nОгненное кольцо поджигает и отталкивает тех, кто рядом.\n30 сек: удары поджигают врагов.",
+		"lore": "Сурт — огненный великан, страж Муспельхейма. В Рагнарёк он пройдёт по радужному мосту с мечом ярче солнца, и пламя его поглотит все девять миров. Просить у него благословения — значит взять взаймы у самого конца света.",
 	},
 }
 
+## Иконки рисуются в слоте ~60 px: исходник 1254 px без мипмапов рябил бы
+## при уменьшении — поэтому один раз сглаженно ужимаем до ICON_SIZE
+const ICON_SIZE := 256
+
 static var _placeholders := {}
+static var _icons := {}
 
 
 static func exists(spell_name: String) -> bool:
@@ -55,8 +63,19 @@ static func make(spell_name: String) -> Ability:
 
 
 static func _icon(spell_name: String, d: Dictionary) -> Texture2D:
+	if _icons.has(spell_name):
+		return _icons[spell_name]
 	if ResourceLoader.exists(d["icon"]):
-		return load(d["icon"])
+		var tex: Texture2D = load(d["icon"])
+		var img := tex.get_image()
+		if img == null or img.get_width() <= ICON_SIZE:
+			_icons[spell_name] = tex
+			return tex
+		if img.is_compressed():
+			img.decompress()
+		img.resize(ICON_SIZE, ICON_SIZE * img.get_height() / img.get_width(), Image.INTERPOLATE_LANCZOS)
+		_icons[spell_name] = ImageTexture.create_from_image(img)
+		return _icons[spell_name]
 	if not _placeholders.has(spell_name):
 		var c: Color = d["color"]
 		var g := Gradient.new()

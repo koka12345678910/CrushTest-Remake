@@ -1,0 +1,51 @@
+Звуки Хальварда, скелетов, шагов, механик и эмбиент — источники (скачано 2026-11-05).
+Папки: Sound/knight, skeleton, footsteps, mechanics, mage_voice, ambience. Код: Levels/sound_bank.gd.
+Всё обработано: нарезка, срез верхних частот, насыщение, выравнивание, WAV 44,1 кГц 16 бит моно.
+Указывать авторов CC0 не обязательно, список ведётся для титров.
+
+Ben Jaszczak & Brian Nelson (Still North Media) — CC0
+  "Medieval sound effects - Weapon impacts" https://opengameart.org/content/medieval-sound-effects-weapon-impacts
+    knight/hit_light_*, hit_heavy_*, hit_run_*, body_*, block_*, parry_*;
+    skeleton/hit_*; mechanics/execution_wave; слой удара в skeleton/collapse_*
+  "Medieval sound effects - Weapon Textures" https://opengameart.org/content/medieval-sound-effects-weapon-textures
+    knight/swing_*, run_swing_*, draw; skeleton/swing_*; mechanics/trap_snap
+
+Jan Schupke (Vehicle), "Fantasy Weapons and Apparel SFX Library" — CC0
+  https://opengameart.org/content/fantasy-weapons-and-apparel-sfx-library
+    mechanics/trap_place, roots
+
+"Male Grunt/Yelling sounds" — страница указывает OGA-BY 3.0 и CC0, используется CC0
+  https://opengameart.org/content/male-gruntyelling-sounds
+    mage_voice/* (исполнитель 2)
+
+"Footsteps Leather, Cloth, Armor" — страница указывает OGA-BY 3.0 и CC0, используется CC0
+  https://opengameart.org/content/footsteps-leather-cloth-armor
+    knight/armor_step_*
+
+Fantozzi, "Fantozzi's Footsteps (Grass/Sand & Stone)" — CC0
+  https://opengameart.org/content/fantozzis-footsteps-grasssand-stone
+    footsteps/soft_*, stone_*
+
+congusbongus, "Bones rattle" — CC0 на странице
+  https://opengameart.org/content/bones-rattle
+    skeleton/rattle_*, collapse_*
+  ПРОВЕРИТЬ ПЕРЕД РЕЛИЗОМ: набор сделан из записи https://freesound.org/people/blukotek/sounds/249319/ —
+  лицензия самой записи не проверена.
+
+Ogrebane, "Monster Sound Effects Pack" — CC0
+  https://opengameart.org/content/monster-sound-effects-pack
+    skeleton/grunt_*, aggro_*
+
+Iwan "qubodup" Gabovitch, "Ghost Monster Voice Moaning & Growling" — CC0
+  https://opengameart.org/content/ghost-monster-voice-moaning-growling
+    skeleton/moan_*; mechanics/life_exchange
+
+Эмбиент — CC0:
+  "Wind" (crystalgames.space, IgnasD) https://opengameart.org/content/wind — ambience/wind_loop
+  "Crickets Ambient Noise - loopable" https://opengameart.org/content/crickets-ambient-noise-loopable — ambience/crickets_loop
+  "Forest Ambience" https://opengameart.org/content/forest-ambience — ambience/forest_day_loop
+  "Fireplace Sound loop" https://opengameart.org/content/fireplace-sound-loop — ambience/fire_loop
+  "Loopable Dungeon Ambience" https://opengameart.org/content/loopable-dungeon-ambience — ambience/indoor_loop (без обработки)
+
+Старые файлы (melee_sound, groaning_sound, take_damage_sound и др.) не удалены: пока новый файл
+недоступен, код играет старый; вернуть старый звук — убрать вызов SoundBank в player.gd.

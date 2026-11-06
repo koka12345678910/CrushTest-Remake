@@ -1760,6 +1760,95 @@ func occlusion_base_maps() -> void:
 		l.material = m
 
 
+# ============================================================ МЕНЬШЕ УЗЛОВ
+#
+# 2026-11-03 оптимизация: сотни однотипных статичных узлов у корня уровня
+# сворачиваются в несколько. Рисуется и сталкивается всё то же самое:
+# - обёртки StaticBody2D с одной формой (static_rect) -> одно тело на слой
+#   коллизий ("Colliders" слой 1, "CollidersUpper" слой 512 — второй этаж),
+#   формы те же, в тех же мировых точках; навмеш печётся из них же;
+# - плоский декор под ногами (gp_flat: ростки, камешки z -18, кольца
+#   кострищ z -17) -> "GroundDecor" / "CampfireRings" (Levels/props/sprite_batch.gd);
+# - ограды, кусты и прочие gp_prop с окном прозрачности -> "PropBatch"
+#   (тот же sprite_batch.gd в режиме y_sorted: сортируется с героем как раньше).
+# Ломаемое, дома, магазин, лучи, интерьеры и всё со скриптами/детьми не трогаем.
+
+func batch_static_nodes() -> void:
+	var atlas: Texture2D = load(GP)
+	var batches := {"GroundDecor": [], "CampfireRings": [], "PropBatch": []}
+	var sources := {"GroundDecor": [], "CampfireRings": [], "PropBatch": []}
+	var bodies := {}   # слой -> [StaticBody2D]
+	for ch in lvl.get_children():
+		if ch is Sprite2D and ch.get_child_count() == 0 and ch.get_groups().is_empty() \
+				and ch.texture is AtlasTexture and (ch.texture as AtlasTexture).atlas == atlas \
+				and ch.rotation == 0.0 and not ch.region_enabled:
+			var key := ""
+			if ch.material == occl_sprite:
+				key = "PropBatch"
+			elif ch.material == null and ch.z_index == -18:
+				key = "GroundDecor"
+			elif ch.material == null and ch.z_index == -17:
+				key = "CampfireRings"
+			if key != "":
+				batches[key].append_array(_batch_item(ch))
+				sources[key].append(ch)
+		elif ch is StaticBody2D and ch.get_script() == null and ch.get_child_count() == 1 \
+				and ch.get_child(0) is CollisionShape2D and ch.rotation == 0.0 and ch.scale == Vector2.ONE:
+			if not bodies.has(ch.collision_layer):
+				bodies[ch.collision_layer] = []
+			bodies[ch.collision_layer].append(ch)
+
+	for key in batches:
+		if sources[key].is_empty():
+			continue
+		var b := Node2D.new()
+		b.name = key
+		b.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR
+		if key == "PropBatch":
+			b.material = occl_sprite
+		else:
+			b.z_index = -18 if key == "GroundDecor" else -17
+		b.set_script(load("res://Levels/props/sprite_batch.gd"))
+		b.set("atlas", atlas)
+		b.set("y_sorted", key == "PropBatch")
+		b.set("items", PackedFloat32Array(batches[key]))
+		add_node(b)
+		lvl.move_child(b, sources[key][0].get_index())
+		for s in sources[key]:
+			lvl.remove_child(s)
+			s.free()
+
+	for layer in bodies:
+		var merged := StaticBody2D.new()
+		merged.name = "Colliders" if layer == 1 else "CollidersUpper"
+		merged.collision_layer = layer
+		add_node(merged)
+		lvl.move_child(merged, bodies[layer][0].get_index())
+		var n := 1
+		for body in bodies[layer]:
+			var cs: CollisionShape2D = body.get_child(0)
+			body.remove_child(cs)
+			cs.name = "Shape%d" % n
+			cs.position += body.position
+			add_node(cs, merged)
+			lvl.remove_child(body)
+			body.free()
+			n += 1
+	print("GEN batch: ", sources.GroundDecor.size(), " decor, ", sources.CampfireRings.size(), " rings, ",
+			sources.PropBatch.size(), " props; bodies ", bodies.keys().map(func(l): return "%d:%d" % [l, bodies[l].size()]))
+
+
+## Числа спрайта для sprite_batch.gd: позиция, масштаб, offset (левый верх
+## картинки), регион атласа, flip_h
+func _batch_item(s: Sprite2D) -> Array:
+	var region: Rect2 = (s.texture as AtlasTexture).region
+	var ofs := s.offset
+	if s.centered:
+		ofs -= region.size / 2.0
+	return [s.position.x, s.position.y, s.scale.x, s.scale.y, ofs.x, ofs.y,
+			region.position.x, region.position.y, region.size.x, region.size.y, 1.0 if s.flip_h else 0.0]
+
+
 # ============================================================ PREFABS (факел, костёр)
 
 func build_fire_scene(campfire: bool) -> PackedScene:
@@ -1918,6 +2007,7 @@ func _initialize() -> void:
 	finish_scene()
 	build_ground()
 	occlusion_base_maps()
+	batch_static_nodes()
 
 	var ps := PackedScene.new()
 	var err := ps.pack(lvl)
@@ -1970,7 +2060,10 @@ func layout() -> void:
 	# зарезервировано как было, чтобы не сдвинулась остальная карта
 	reserve_rect(Rect2i(RX(720), RY(458), RX(885) - RX(720) + 1, 4))
 	reserve_rect(Rect2i(RX(720) - 1, RY(458) + 4, RX(885) - RX(720) + 3, 1))
-	wall_block(RX(1185), RX(1245), RY(518), false)                # сторожка
+	# Сторожка (глухая кладка у оранжевого дерева) тоже убрана по просьбе —
+	# место зарезервировано так же, как его занимал wall_block
+	reserve_rect(Rect2i(RX(1185), RY(518), RX(1245) - RX(1185) + 1, 4))
+	reserve_rect(Rect2i(RX(1185) - 1, RY(518) + 4, RX(1245) - RX(1185) + 3, 1))
 	wall_block(RX(1250), RX(1380), RY(636))                       # склеп у южной стены
 
 	# ---------- стены (ограды участков)
@@ -2250,6 +2343,9 @@ func finish_scene() -> void:
 	sp.enemy_scenes = [sk_grunt, sk_shield, sk_duelist, sk_brute] as Array[PackedScene]
 	sp.enemy_weights = [6.0, 3.0, 1.2, 1.0] as Array[float]
 	sp.enemy_pack_limits = [0, 2, 1, 1] as Array[int]
+	# Мир как в Dark Souls: убитые возвращаются только при отдыхе у костра
+	# (Levels/bonfire/bonfire_world.gd), спавнер не досыпает врагов сам
+	sp.set("refill", false)
 
 	# Лут как в Dark Souls (Levels/loot/loot_item.gd): светящиеся находки под
 	# охраной скелетов. Координаты — мировые; находка сама встаёт на навмеш.
@@ -2274,6 +2370,18 @@ func finish_scene() -> void:
 		if L.size() > 6:
 			loot.spell_name = L[6]
 		add_node(loot)
+
+	# Костры (Levels/bonfire/bonfire.gd) — на западном и восточном концах
+	# главной дороги, подальше от охраняемого лута. Мировые координаты
+	var bonfire_script := load("res://Levels/bonfire/bonfire.gd")
+	for B in [["BonfireWest", Vector2(190, 1150), "Западный тракт"],
+			["BonfireEast", Vector2(2880, 1150), "Восточная ограда"]]:
+		var bf := Node2D.new()
+		bf.name = B[0]
+		bf.position = B[1]
+		bf.set_script(bonfire_script)
+		bf.set("bonfire_name", B[2])
+		add_node(bf)
 	var pts :=[Vector2(880, 220), Vector2(1200, 300), Vector2(470, 420), Vector2(270, 500), Vector2(1000, 540), Vector2(1470, 500), Vector2(1550, 720), Vector2(300, 720)]
 	var k := 0
 	for ch in sp.get_children():

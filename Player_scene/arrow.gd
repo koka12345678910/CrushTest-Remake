@@ -15,6 +15,8 @@ extends Area2D
 ## эффекты навыков считает он (archer.gd), стрела только сообщает о попадании.
 
 const TEXTURE := preload("res://Player_scene/arrow.png")
+## Свист в полёте и звук попадания (тело, щит, дерево/камень) — звуки Сигрид
+const Sfx := preload("res://Player_scene/sigrid_sfx.gd")
 ## Наконечник на исходной текстуре уже смотрит вправо (+X) — проверено по
 ## пикселям (силуэт сужается до острия у правого края, x≈58-63/64, левый
 ## край остаётся сплошным блоком — оперение). Совпадает с конвенцией
@@ -65,6 +67,9 @@ func launch(from: Vector2, direction: Vector2, shooter: Node2D, dmg: int) -> voi
 	damage = dmg
 	if trail_color.a > 0.0:
 		_start_trail()
+	# Свист летит вместе со стрелой и затихает с расстоянием сам (2D-звук).
+	# Быстрая стрела (натянутый лук, Валькирия) свистит выше
+	Sfx.play_on(self, "arrow_fly", 0.0, clampf(speed / 520.0, 0.85, 1.35))
 
 
 func _ready() -> void:
@@ -117,6 +122,12 @@ func _on_area_entered(area: Area2D) -> void:
 		return
 	_hit_ids[id] = true
 
+	# Щит (враг закрылся лицом к стрелку) — звон, иначе — глухо в тело.
+	# Читаем ДО урона: после него враг уже другой (стан, смерть)
+	var shielded: bool = (enemy.get("is_blocking") == true or enemy.get("is_parrying") == true) \
+			and (not enemy.has_method("_is_guarding_against") or bool(enemy.call("_is_guarding_against", _shooter)))
+	Sfx.play_at(get_tree(), "arrow_hit_shield" if shielded else "arrow_hit_flesh", global_position)
+
 	if is_instance_valid(_shooter) and _shooter.has_method("resolve_arrow_hit"):
 		_shooter.resolve_arrow_hit(enemy, self)
 	else:
@@ -140,6 +151,10 @@ func _on_body_entered(body: Node) -> void:
 	# предмет и застревает в нём, как в стене
 	if body.is_in_group("breakable") and body.has_method("take_damage"):
 		body.take_damage(damage, _shooter)
+	# Ящики, бочки, частокол, деревья — стук дерева; надгробия и стены —
+	# камень. Различить их по телу нельзя, поэтому чаще дерево
+	var wood: bool = body.is_in_group("breakable") or randf() < 0.6
+	Sfx.play_at(get_tree(), "arrow_hit_wood" if wood else "arrow_hit_stone", global_position)
 	_stuck = true
 	set_deferred("monitoring", false)
 	await get_tree().create_timer(STUCK_TIME).timeout

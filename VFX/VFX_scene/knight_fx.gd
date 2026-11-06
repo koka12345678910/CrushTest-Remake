@@ -60,6 +60,15 @@ static func arc(owner: Node2D, from: float, to: float, radius: float, width: flo
 		center := CHEST, linear := false, sparks := false, edge := Color(0, 0, 0, 0)) -> void:
 	if not is_instance_valid(owner):
 		return
+	# Рыцарь под благословением (knight_magic.gd): кромка дуги в цвет стихии,
+	# а за головой дуги тянется огненный шлейф / бегут разряды. Бледная
+	# внешняя волна (power < 0.5) — без них
+	var magic = owner.get("magic")
+	if magic != null and magic.active_element != "":
+		if edge.a <= 0.0:
+			edge = magic.blade_edge_color()
+		if power >= 0.5:
+			magic.on_swing(from, to, radius, dur, center, linear)
 	_arc(owner, from, to, radius, width, dur, power, 0.0, center, linear, edge)
 	# Вторая дуга — тоньше, внутри и чуть отстаёт: след не плоский, а слоистый
 	_arc(owner, from, to, radius * 0.8, width * 0.55, dur * 1.08, power * 0.45, minf(0.028, dur * 0.15), center, linear, edge)

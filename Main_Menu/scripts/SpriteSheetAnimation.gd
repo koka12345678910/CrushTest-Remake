@@ -16,13 +16,16 @@ var _frames := 1
 var _frame_time := 0.1
 var _elapsed := 0.0
 var _frame := 0
+## false — пиксель-арт (герои): «по ближайшему пикселю», чётко при целом
+## увеличении. true — рисованный лист (лого): сглаживание с мип-картами.
+## Лого раньше шло через NEAREST и растягивалось в 1.23 раза — дробное
+## увеличение без сглаживания и давало «лесенку» и сдвоенные пиксели
+@export var smooth := false
 
 
 func _ready() -> void:
-	# Пиксель-арт (персонажи) и высокое разрешение (лого) одинаково не любят
-	# линейную фильтрацию — она либо мылит пиксели, либо смазывает мелкую
-	# гравировку на лого
-	texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS if smooth \
+		else CanvasItem.TEXTURE_FILTER_NEAREST
 	expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 	mouse_filter = Control.MOUSE_FILTER_IGNORE

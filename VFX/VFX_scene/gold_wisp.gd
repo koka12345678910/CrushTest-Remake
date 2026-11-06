@@ -24,10 +24,21 @@ const GOLD_EDGE := Color(0.85, 0.42, 0.08)
 ## свет на землю (1.0 — исходная, ярче смотрелось слишком кричаще)
 const GLOW := 0.7
 
-## Сколько золота несёт душа
+## Души мага (его валюта, character_base.gd::collects_souls) — та же
+## летящая душа, только бледно-голубая, и засчитывается в души, а не в золото
+const SOUL_CORE := Color(0.88, 0.95, 1.0)
+const SOUL_MID := Color(0.5, 0.72, 1.0)
+const SOUL_EDGE := Color(0.18, 0.3, 0.8)
+
+## Сколько золота (или душ) несёт душа
 var value := 5
 ## Душа крупного номинала — крупнее и ярче
 var is_big := false
+## true — душа мага, false — золото
+var is_soul := false
+var _c_core := GOLD_CORE
+var _c_mid := GOLD_MID
+var _c_edge := GOLD_EDGE
 
 var _velocity := Vector2.ZERO
 var _t := 0.0
@@ -48,11 +59,12 @@ var _light: PointLight2D
 static var _last_sound_ms := 0
 
 
-static func spawn(tree: SceneTree, at: Vector2, amount: int, big := false) -> Node2D:
+static func spawn(tree: SceneTree, at: Vector2, amount: int, big := false, soul := false) -> Node2D:
 	# Свой же скрипт — через load: в статической функции unqualified new() нет
 	var w: Node2D = load("res://VFX/VFX_scene/gold_wisp.gd").new()
 	w.value = amount
 	w.is_big = big
+	w.is_soul = soul
 	var root := tree.current_scene if tree.current_scene else tree.root
 	# Позиция — до добавления (корень уровня в нуле), а само добавление —
 	# отложенное: выпадение случается посреди физики (смерть врага от удара)
@@ -63,6 +75,10 @@ static func spawn(tree: SceneTree, at: Vector2, amount: int, big := false) -> No
 
 func _ready() -> void:
 	z_index = 12
+	if is_soul:
+		_c_core = SOUL_CORE
+		_c_mid = SOUL_MID
+		_c_edge = SOUL_EDGE
 	_seed = randf() * TAU
 	_rise_time = randf_range(0.35, 0.75)
 	# Вспархивает в случайную сторону, но скорее вверх
@@ -91,7 +107,7 @@ func _ready() -> void:
 	pm.turbulence_enabled = true
 	pm.turbulence_noise_strength = 0.6
 	pm.turbulence_noise_scale = 3.0
-	pm.color_ramp = MageFx.ramp([Color(GOLD_CORE, 0.8), Color(GOLD_MID, 0.45), Color(GOLD_EDGE, 0.0)])
+	pm.color_ramp = MageFx.ramp([Color(_c_core, 0.8), Color(_c_mid, 0.45), Color(_c_edge, 0.0)])
 	_trail.process_material = pm
 	add_child(_trail)
 
@@ -99,20 +115,20 @@ func _ready() -> void:
 	_tail = Sprite2D.new()
 	_tail.texture = MageFx.streak()
 	_tail.material = MageFx.add_material()
-	_tail.modulate = Color(1.25, 0.72, 0.22, 0.0)
+	_tail.modulate = Color(_c_mid.r * 1.25, _c_mid.g * 0.95, _c_mid.b * 0.8, 0.0)
 	_tail.centered = true
 	_tail.offset = Vector2(0, 20)
 	add_child(_tail)
-	_halo = _layer(34.0 * sz, Color(GOLD_EDGE.r * 1.15, GOLD_EDGE.g * 1.1, GOLD_EDGE.b, 0.4))
-	_core = _layer(14.0 * sz, Color(GOLD_MID.r * 1.35, GOLD_MID.g * 1.25, GOLD_MID.b, 0.7))
-	_spark = _layer(4.5 * sz, Color(GOLD_CORE.r * 1.6, GOLD_CORE.g * 1.6, GOLD_CORE.b * 1.4, 0.9))
+	_halo = _layer(34.0 * sz, Color(_c_edge.r * 1.15, _c_edge.g * 1.1, _c_edge.b, 0.4))
+	_core = _layer(14.0 * sz, Color(_c_mid.r * 1.35, _c_mid.g * 1.25, _c_mid.b, 0.7))
+	_spark = _layer(4.5 * sz, Color(_c_core.r * 1.6, _c_core.g * 1.6, _c_core.b * 1.4, 0.9))
 	_spark.texture = MageFx.dot()
 	_spark.scale = Vector2.ONE * 4.5 * sz / 8.0
 
 	_light = PointLight2D.new()
 	_light.texture = MageFx.radial()
 	_light.texture_scale = 40.0 * sz / 128.0
-	_light.color = GOLD_MID
+	_light.color = _c_mid
 	_light.energy = 0.55 * GLOW
 	add_child(_light)
 
@@ -137,6 +153,7 @@ func _process(delta: float) -> void:
 	if _collected:
 		return
 	_t += delta
+	_compensate_for_ambient_tint()
 	# Мерцание: ядро и искра дышат, ореол чуть плывёт
 	var flick := 0.85 + 0.15 * sin(_t * 17.0 + _seed) + 0.08 * sin(_t * 31.0 + _seed * 2.0)
 	_spark.self_modulate.a = flick
@@ -205,7 +222,10 @@ func _hero() -> Node2D:
 
 func _collect(hero: Node2D) -> void:
 	_collected = true
-	if hero.has_method("add_gold"):
+	if is_soul:
+		if hero.has_method("add_souls"):
+			hero.add_souls(value, global_position)
+	elif hero.has_method("add_gold"):
 		hero.add_gold(value)
 	if hero.has_method("_trigger_coin_glow"):
 		hero._trigger_coin_glow()
@@ -213,7 +233,7 @@ func _collect(hero: Node2D) -> void:
 	# Короткая золотая вспышка с искрами на герое — душа "впиталась"
 	var h := MageFx.holder(get_tree(), hero.global_position + Vector2(0, -10), 0.6, 13)
 	h.modulate = modulate
-	MageFx.flash(h, 22.0 if is_big else 16.0, 0.16, GOLD_CORE)
+	MageFx.flash(h, 22.0 if is_big else 16.0, 0.16, _c_core)
 	MageFx.burst(h, 8 if is_big else 5, 0.4, MageFx.dot(), func(pm: ParticleProcessMaterial):
 		pm.spread = 180.0
 		pm.initial_velocity_min = 25.0
@@ -223,7 +243,7 @@ func _collect(hero: Node2D) -> void:
 		pm.gravity = Vector3(0, -30, 0)
 		pm.scale_min = 0.4
 		pm.scale_max = 0.8
-		pm.color_ramp = MageFx.ramp([Color(GOLD_CORE, 1.0), Color(GOLD_MID, 0.8), Color(GOLD_EDGE, 0.0)]))
+		pm.color_ramp = MageFx.ramp([Color(_c_core, 1.0), Color(_c_mid, 0.8), Color(_c_edge, 0.0)]))
 	_fade_out()
 
 
@@ -237,9 +257,12 @@ func _play_coin_sound(hero: Node2D) -> void:
 	var p := AudioStreamPlayer2D.new()
 	p.stream = COIN_SOUND
 	p.pitch_scale = randf_range(0.92, 1.12) * (0.9 if is_big else 1.0)
+	# Душа звенит ниже и глуше, призрачно (своего звука душ в проекте нет)
+	if is_soul:
+		p.pitch_scale *= 0.55
 	# Та же шина и громкость, что у монет рыцаря (CoinAudio в player.tscn) —
 	# звон с эхом
-	p.volume_db = -10.0
+	p.volume_db = -13.0 if is_soul else -10.0
 	p.bus = &"CoinEcho"
 	hero.get_parent().add_child(p)
 	p.global_position = hero.global_position
@@ -264,12 +287,8 @@ func _fade_out() -> void:
 # живёт в мире — без компенсации золото съехало бы в зелень/голубизну. Тот же
 # приём, что был у монеты: обратный множитель на modulate узла, от реального
 # цвета CanvasModulate на сцене
+## (цвет мира меняется со временем суток — Levels/weather.gd, — поэтому
+## поправка обновляется каждый кадр, альфа узла сохраняется)
 func _compensate_for_ambient_tint() -> void:
-	var scene := get_tree().current_scene
-	if scene == null:
-		return
-	for child in scene.get_children():
-		if child is CanvasModulate and child.visible:
-			var c: Color = child.color
-			modulate = Color(1.0 / maxf(c.r, 0.05), 1.0 / maxf(c.g, 0.05), 1.0 / maxf(c.b, 0.05), 1.0)
-			return
+	var c := Weather.ambient_comp()
+	modulate = Color(c.r, c.g, c.b, modulate.a)

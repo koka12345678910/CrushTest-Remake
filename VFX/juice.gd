@@ -571,15 +571,10 @@ func _feet(victim: Node2D) -> Vector2:
 
 
 ## Обратный множитель ночного CanvasModulate — светящееся не должно тонуть в
-## ночном тоне (тот же приём, что у золотых душ)
+## ночном тоне (тот же приём, что у золотых душ). Цвет мира теперь меняется со
+## временем суток — берём его у Weather (Levels/weather.gd)
 func _ambient_comp() -> Color:
-	var scene := get_tree().current_scene
-	if scene:
-		for ch in scene.get_children():
-			if ch is CanvasModulate and ch.visible:
-				var c: Color = ch.color
-				return Color(1.0 / maxf(c.r, 0.05), 1.0 / maxf(c.g, 0.05), 1.0 / maxf(c.b, 0.05), 1.0)
-	return Color.WHITE
+	return Weather.ambient_comp()
 
 
 func _play(stream: AudioStream, at: Vector2, pitch: float, volume_db: float) -> void:

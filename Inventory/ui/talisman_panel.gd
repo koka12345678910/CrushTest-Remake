@@ -31,9 +31,10 @@ const DiamondMarkerScript := preload("res://Main_Menu/scripts/DiamondMarker.gd")
 const OrnamentSeparatorScript := preload("res://Main_Menu/scripts/OrnamentSeparator.gd")
 const GlyphIconScript := preload("res://Main_Menu/scripts/GlyphIcon.gd")
 
-const SOUND_ACCEPT := preload("res://Sound/UI_button/accept.wav")
-const SOUND_DENIED := preload("res://Sound/UI_button/denied.wav")
-const SOUND_CHOICE := preload("res://Sound/UI_button/choice.wav")
+const UiSounds := preload("res://UI/ui_sounds.gd")
+const SOUND_ACCEPT := UiSounds.SELECT
+const SOUND_DENIED := UiSounds.ERROR
+const SOUND_CHOICE := UiSounds.MOVE
 
 const GRID_COLS := 3
 const GRID_ROWS := 2
@@ -464,7 +465,7 @@ func _select(name: String) -> void:
 		_detail_name.text = ab.ability_name
 		_detail_name.add_theme_color_override("font_color", COLOR_TEXT)
 		var type_name := ab.item_type if ab.item_type != "" else "Талисман"
-		_detail_type.text = type_name + ("  •  экипирован" if equipped else "")
+		_detail_type.text = tr(type_name) + (("  •  " + tr("экипирован")) if equipped else "")
 		_detail_effect.text = ab.description
 		var cnt := _inventory_system.get_count(ab.ability_name)
 		_detail_count.text = "%d" % cnt
@@ -508,19 +509,19 @@ func _on_equip_pressed() -> void:
 		_talisman_system.unequip(slot)
 		_play_sound.call(SOUND_CHOICE)
 		_select(_selected_name)
-		_set_status("Снято: %s" % ab.ability_name, COLOR_TEXT_DIM)
+		_set_status(tr("Снято: %s") % tr(ab.ability_name), COLOR_TEXT_DIM)
 		return
 
 	var empty := _talisman_system.find_empty_slot()
 	if empty == -1:
 		_play_sound.call(SOUND_DENIED)
-		_set_status("Все %d секции заняты — сначала снимите талисман" % TalismanSystem.MAX_SLOTS, COLOR_WARN)
+		_set_status(tr("Все %d секции заняты — сначала снимите талисман") % TalismanSystem.MAX_SLOTS, COLOR_WARN)
 		return
 
 	_talisman_system.equip(empty, ab)
 	_play_sound.call(SOUND_ACCEPT)
 	_select(_selected_name)
-	_set_status("Экипирован: %s" % ab.ability_name, COLOR_TEXT_GOLD)
+	_set_status(tr("Экипирован: %s") % tr(ab.ability_name), COLOR_TEXT_GOLD)
 
 
 func _set_status(text: String, color := COLOR_TEXT_DIM) -> void:

@@ -32,6 +32,7 @@ SaveManager="*res://Save/save_manager.gd"
 SkillTrees="*res://Save/skill_trees.gd"
 SceneLoader="*res://Main_Menu/scripts/SceneLoader.gd"
 Juice="*res://VFX/juice.gd"
+Weather="*res://Levels/weather.gd"
 
 [display]
 
