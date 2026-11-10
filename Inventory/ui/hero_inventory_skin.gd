@@ -68,6 +68,8 @@ static func theme_for(character_id) -> Variant:
 			t["lore"] = "_archer_items"
 		"mage":
 			t["lore"] = "_mage_items"
+		"druid":
+			t["lore"] = "_druid_items"
 		_:
 			t["lore"] = "_knight_items"
 	return t
@@ -818,7 +820,7 @@ func _build_quick(ui, root: Control) -> void:
 	root.add_child(_saga)
 	# У рыцаря на месте саги бывает алтарь Одра — он выше, кнопка трофеев под ним
 	var cid = ui._player.get("character_id") if ui._player else null
-	var knight: bool = cid != "archer" and cid != "mage"
+	var knight: bool = cid == null or cid == "knight"
 	var side_h: float = maxf(_saga.size.y, 312.0) if knight else _saga.size.y
 	var below: float = side.position.y + side_h + 10.0
 	match cid:
@@ -845,6 +847,9 @@ func _build_quick(ui, root: Control) -> void:
 			root.add_child(_vessel_label)
 			_side_button(ui, root, "[G]   ОТКРЫТЬ ГРИМУАР", Rect2(side.position.x + 10, vt + 64, side.size.x - 20, 44),
 					func(): ui._on_tab_pressed(ui.TAB_GRIMOIRE))
+		"druid":
+			# Сольвейг: своей боковой секции пока нет (каркас)
+			pass
 		_:
 			# Рыцарь: алтарь Одра — на месте саги, пока открыта вкладка «Магия»
 			_altar = Side.AltarView.new()

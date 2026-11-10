@@ -8,7 +8,7 @@ extends Node
 ## сжатие идёт через его fx_scale, а не прямо в sprite.scale. Наклон — через
 ## rotation самой картинки (её больше никто не крутит).
 
-const DustScene := preload("res://VFX/VFX_scene/turn_around_vfx_scene.tscn")
+const SkidDust := preload("res://VFX/VFX_scene/skid_dust.gd")
 
 ## Наклон корпуса на полном беге, градусы (по горизонтальной составляющей)
 @export var max_lean_deg := 4.0
@@ -63,11 +63,11 @@ func _physics_process(delta: float) -> void:
 		if _prev_speed < 25.0 and speed > 60.0:
 			_squash = -1.0
 			if start_dust and (speed > dust_start_speed or _flag("is_running")):
-				_dust(-dir)
-		# Резкая остановка с бега — оседает (сжатие), пыль вперёд
+				_dust(-dir, SkidDust.Kind.START, 0.8)
+		# Резкая остановка с бега — оседает (сжатие), пыль вперёд по инерции
 		elif _prev_speed >= 40.0 and speed < 40.0 and _recent_peak > dust_stop_speed:
 			_squash = 1.0
-			_dust(_prev_dir)
+			_dust(_prev_dir, SkidDust.Kind.STOP, _recent_peak / run_speed)
 		# Разворот на ходу — короткое сжатие
 		elif speed > 80.0 and _prev_speed > 80.0 and dir.dot(_prev_dir) < -0.3:
 			_squash = 0.8
@@ -97,16 +97,10 @@ func _flag(name: String) -> bool:
 	return name in _body and bool(_body.get(name))
 
 
-## Пыль из-под ног — та же, что на развороте (turn_around_vfx_scene)
-func _dust(dir: Vector2) -> void:
+## Пыль из-под ног (VFX/VFX_scene/skid_dust.gd) — та же, что на развороте.
+## dir — куда летит пыль, power — во сколько раз скорость выше бега
+func _dust(dir: Vector2, kind: int, power: float) -> void:
 	if _dust_cd > 0.0 or dir == Vector2.ZERO:
 		return
 	_dust_cd = 0.25
-	var scene := _body.get_tree().current_scene
-	if scene == null:
-		return
-	var vfx: Node2D = DustScene.instantiate()
-	scene.add_child(vfx)
-	vfx.global_position = _body.global_position + Vector2(0, 12) + dir * 4.0
-	vfx.set("move_direction", dir)
-	vfx.rotation = dir.angle()
+	SkidDust.skid(_body.get_tree(), _body.global_position + Vector2(0, 14) + dir * 4.0, dir, kind, power)

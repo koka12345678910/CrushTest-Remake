@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://bnwhvl5braa6o"
-path="res://.godot/imported/sigrid_healthbar_icon.png-b2c6452b3600630b51cf6c05d173dbc1.ctex"
+uid="uid://dg2qfnhmkks7"
+path="res://.godot/imported/AttackRun.png-a3c094117812b603c77d8c2d39496e74.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://UI/healthbar/sigrid_healthbar_icon.png"
-dest_files=["res://.godot/imported/sigrid_healthbar_icon.png-b2c6452b3600630b51cf6c05d173dbc1.ctex"]
+source_file="res://Character/Shaman_20261110_201203/AttackRun.png"
+dest_files=["res://.godot/imported/AttackRun.png-a3c094117812b603c77d8c2d39496e74.ctex"]
 
 [params]
 

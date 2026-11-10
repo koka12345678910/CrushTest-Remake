@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://dssatqg2cr53l"
-path="res://.godot/imported/healthbar_icon.png-0e10b1801ea4255ce10ddd4fcd15a513.ctex"
+uid="uid://cc2weess5m21x"
+path="res://.godot/imported/CrouchIdle.png-4ed1c69f4ada50f1979d3dcec01d280c.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://UI/healthbar/healthbar_icon.png"
-dest_files=["res://.godot/imported/healthbar_icon.png-0e10b1801ea4255ce10ddd4fcd15a513.ctex"]
+source_file="res://Character/Shaman_20261110_201203/CrouchIdle.png"
+dest_files=["res://.godot/imported/CrouchIdle.png-4ed1c69f4ada50f1979d3dcec01d280c.ctex"]
 
 [params]
 

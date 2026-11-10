@@ -9,11 +9,12 @@ extends CanvasLayer
 ## Отрисовка — в ключе инвентаря (UI/clean_hud.gd): круглый портрет без
 ## светлой каймы, полоски-капсулы со скруглёнными концами и лёгким глянцем.
 
-const TEX_ICON := preload("res://UI/healthbar/healthbar_icon.png")
+const TEX_ICON := preload("res://UI/healthbar/portrait_knight.png")
 const Clean := preload("res://UI/clean_hud.gd")
 
-# Иконка портрета — переопределяется в сцене персонажа (см. archer.tscn),
-# чтобы у каждого класса был свой портрет вместо общего рыцарского
+# Иконка портрета — переопределяется в сцене персонажа (archer.tscn, mage.tscn),
+# чтобы у каждого класса был свой портрет. Картинки — квадратные, без своей
+# рамки (UI/healthbar/portrait_*.png): круглая маска режет их по краю медальона
 @export var icon_texture: Texture2D = TEX_ICON
 
 # --- HP ---
@@ -284,14 +285,15 @@ func _build_icon() -> void:
 	icon.texture = icon_texture
 	icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED
-	# Светлая нарисованная рамка картинки начинается на радиусе ~0.345
-	# стороны (UI/healthbar/*_icon.png, 128 px) — маска режет внутри неё,
-	# по 0.325, а картинка растянута так, чтобы этот круг = inner
-	icon.size = Vector2(inner, inner) / 0.65
+	# Портрет без рамки заполняет весь внутренний круг: картинка = inner,
+	# маска по радиусу 0.5 (краем круга). Плавное убывание тона к краям уже
+	# нарисовано в самой картинке
+	icon.size = Vector2(inner, inner)
 	icon.position = ((medal.size - icon.size) * 0.5).round()
 	icon.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	icon.modulate = Color(icon_darken, icon_darken, icon_darken)
-	icon.material = Clean.mask_material(0.325)
+	icon.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS
+	icon.material = Clean.mask_material(0.5)
 	medal.set_portrait(icon)
 
 

@@ -15,8 +15,9 @@ extends Node
 # Сам поток дождя, зацикливание (в импорте) и autoplay заданы прямо в сцене
 # на узле RainPlayer — как в главном меню, где такой же дождь стабильно играет.
 # Здесь мы им НЕ управляем через play(), только держим громкость.
-@export var rain_volume_calm := -15.0
-@export var rain_volume_combat := -12.0
+## Тише, чем было (-15 / -12): шум дождя утомлял в долгой игре
+@export var rain_volume_calm := -20.0
+@export var rain_volume_combat := -17.0
 # Пока открыт магазин — дождь приглушается почти полностью (как звук за дверью
 # в Sekiro), но не обрывается мгновенно, а плавно уходит за то же время,
 # что идёт анимация открытия/закрытия окна магазина
@@ -33,8 +34,8 @@ extends Node
 # а не как ворона сидит у игрока на плече
 @export var crows_distance_min := 0.5
 @export var crows_distance_max := 1.0
-@export var crows_volume_near := -11.0
-@export var crows_volume_far := -22.0
+@export var crows_volume_near := -15.0
+@export var crows_volume_far := -26.0
 # Дальний звук теряет верха — имитируем это фильтром: чем дальше, тем ниже срез
 @export var crows_filter_freq_near := 9000.0
 @export var crows_filter_freq_far := 1000.0
@@ -284,17 +285,22 @@ func _force_loop(stream: AudioStream) -> void:
 
 
 # ===================== ЭМБИЕНТ МИРА =====================
-# Четыре зацикленных слоя, все играют постоянно, громкость плавно идёт за
-# погодой и временем суток (Levels/weather.gd): ветер — всегда, по силе ветра;
-# сверчки — ясной ночью; лес — днём; глухой гул — в доме. В доме уличные слои
-# почти гаснут, в магазине приглушено всё. Нет файла — слоя просто нет
+# Зацикленные слои, все играют постоянно, громкость плавно идёт за погодой и
+# временем суток (Levels/weather.gd): ветер — всегда, по силе ветра; лес —
+# днём; глухой гул — в доме. В доме уличные слои почти гаснут, в магазине
+# приглушено всё. Нет файла — слоя просто нет.
+# Сверчков (ambience/crickets_loop.wav) больше нет: непрерывный высокий звон
+# всю ночь слышался как писк в ушах и давил на голову. Вернуть — включить
+# ambience_crickets_enabled
+# Громкости убавлены (было: ветер -13, лес -10, дом -2) — фон шумел
 
 const SoundBank := preload("res://Levels/sound_bank.gd")
 ## Громкость слоя на полную (дБ)
-@export var ambience_wind_db := -13.0
-@export var ambience_crickets_db := -7.0
-@export var ambience_forest_db := -10.0
-@export var ambience_indoor_db := -2.0
+@export var ambience_wind_db := -19.0
+@export var ambience_crickets_enabled := false
+@export var ambience_crickets_db := -18.0
+@export var ambience_forest_db := -16.0
+@export var ambience_indoor_db := -11.0
 ## Как быстро слой меняет громкость (доля полной громкости в секунду)
 @export var ambience_fade_speed := 0.25
 
@@ -304,7 +310,8 @@ var _ambience := {}
 
 func _setup_ambience() -> void:
 	_add_ambience("wind", "ambience/wind_loop.wav", ambience_wind_db)
-	_add_ambience("crickets", "ambience/crickets_loop.wav", ambience_crickets_db)
+	if ambience_crickets_enabled:
+		_add_ambience("crickets", "ambience/crickets_loop.wav", ambience_crickets_db)
 	_add_ambience("forest", "ambience/forest_day_loop.wav", ambience_forest_db)
 	_add_ambience("indoor", "ambience/indoor_loop.ogg", ambience_indoor_db)
 	await get_tree().process_frame

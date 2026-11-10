@@ -391,6 +391,34 @@ const MESSAGES := {
 	"+1 урона огню": "+1 fire damage",
 	"+1 урона волнам": "+1 wave damage",
 	"+2 цели столпам": "+2 pillar targets",
+	"ПЛАМЯ МУСПЕЛЬХЕЙМА": "FLAME OF MUSPELHEIM",
+	"ЛЁД НИФЛЬХЕЙМА": "ICE OF NIFLHEIM",
+	"Кольцо инея": "Rime Ring",
+	"Вихрь": "Blizzard Whirl",
+	"Ледяной луч": "Frost Ray",
+	"Ледяной шаг": "Ice Step",
+	"Иса": "Isa",
+	"Йера": "Jera",
+	"Тейваз": "Tiwaz",
+	"Эваз": "Ehwaz",
+	"Вокруг мага из земли вырастают ледяные шипы: ранят, отбрасывают и сковывают ознобом.":
+		"Ice spikes burst from the ground around the mage: they wound, push back and bind with chill.",
+	"Маг крутится в метели: стягивает врагов к себе, дважды бьёт льдом и раскидывает. Удар его не сбивает.":
+		"The mage spins in a blizzard: drags enemies in, strikes twice with ice and hurls them away. Blows do not interrupt it.",
+	"Пока зажата клавиша, из рук бьёт луч стужи: пронзает всех на линии и тянет Сейд каждую секунду.":
+		"While the key is held, a ray of cold pours from the hands: it pierces everyone in line and drains Seid every second.",
+	"Рывок осколками сквозь врагов, неуязвимый. Позади — наледь, что морозит, впереди — вспышка холода.":
+		"An invulnerable dash of shards through enemies. Behind — freezing ice, ahead — a burst of cold.",
+	"+1 урона шипам": "+1 spike damage",
+	"+1 урона каждому удару": "+1 damage per strike",
+	"+1 урона за тик": "+1 damage per tick",
+	"+1 урона вспышке": "+1 burst damage",
+	# Реакции стихий мага (mage_reactions.gd)
+	"ПАР": "STEAM",
+	"ВСПЫШКА": "FLARE",
+	"РАСКОЛ": "SHATTER",
+	"КАЗНЬ": "EXECUTION",
+	"Ctrl": "Ctrl",
 
 	# ═════════════════════ Предметы, способности, талисманы ═════════════════════
 	# Названия — ключи логики и сейва, по-русски внутри; переводится только показ

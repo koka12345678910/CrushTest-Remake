@@ -6,6 +6,7 @@
 [ext_resource type="SpriteFrames" path="res://Player_scene/mage_frames.tres" id="mage_frames"]
 [ext_resource type="AnimationLibrary" path="res://Player_scene/mage_anims.tres" id="mage_anims"]
 [ext_resource type="Material" path="res://Player_scene/mage_detail_material.tres" id="mage_detail"]
+[ext_resource type="Texture2D" path="res://UI/healthbar/portrait_mage.png" id="mage_icon"]
 
 [sub_resource type="CapsuleShape2D" id="CapsuleShape2D_g4v7s"]
 
@@ -39,6 +40,7 @@ position_smoothing_enabled = true
 
 [node name="HealthStaminaBar" type="CanvasLayer" parent="." unique_id=1185229389]
 script = ExtResource("0_hpbar")
+icon_texture = ExtResource("mage_icon")
 
 [node name="SkillPointsBar" type="CanvasLayer" parent="." unique_id=384756216]
 script = ExtResource("0_skillbar")

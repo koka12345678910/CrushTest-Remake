@@ -255,6 +255,20 @@ func _mage_items() -> Array:
 	return out
 
 
+## Товары Сольвейг — пока только зелья рыцарского каталога за золото (те же
+## цены). Своих талисманов у неё ещё нет (Жёлудь Иггдрасиля, Венок Сив,
+## Волчья шкура — в планах)
+func _druid_items() -> Array:
+	var out := []
+	for it in _knight_items():
+		if MAGE_PRICES.has(it["name"]):
+			var m: Dictionary = it.duplicate()
+			m["subtitle"] = "Зелье"
+			m["max"] = 5 if it["name"] == "Мёд Поэзии" else 3
+			out.append(m)
+	return out
+
+
 ## Талисманы мага — надеваются во вкладке "Талисманы", как у лучницы
 func _mage_talismans() -> Array:
 	return [
@@ -301,6 +315,8 @@ func _build_items_for(player: Node) -> void:
 		items.assign(_archer_items())
 	elif cid == "mage":
 		items.assign(_mage_items())
+	elif cid == "druid":
+		items.assign(_druid_items())
 	else:
 		items.assign(_knight_items())
 	_load_textures()
@@ -322,6 +338,8 @@ func loot_catalog(player: Node) -> Array:
 		catalog = _archer_items()
 	elif cid == "mage":
 		catalog = _mage_items()
+	elif cid == "druid":
+		catalog = _druid_items()
 	elif cid == null or cid == "knight":
 		catalog = _knight_items()
 	else:

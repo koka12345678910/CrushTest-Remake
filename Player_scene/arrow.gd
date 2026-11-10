@@ -27,6 +27,9 @@ const HITBOX_SIZE := Vector2(26.0, 3.0)
 ## Сколько стрела торчит в стене, прежде чем растаять
 const STUCK_TIME := 0.6
 const TRAIL_POINTS := 10
+## Стрела полного натяга (tags["power"]): отброс врага и вспышка попадания
+const FlurryFx := preload("res://VFX/VFX_scene/flurry_fx.gd")
+const POWER_KNOCKBACK := 210.0
 
 @export var speed := 520.0
 @export var lifetime := 1.6
@@ -133,6 +136,13 @@ func _on_area_entered(area: Area2D) -> void:
 	else:
 		enemy.take_damage(damage, _shooter)
 
+	# Полный натяг: стрела бьёт тяжело — враг отлетает (обычно стрелы лучницы
+	# не отбрасывают, enemy.gd::_pushes), в точке удара — вспышка и искры
+	if tags.has("power"):
+		FlurryFx.arrow_impact(get_tree(), global_position, _direction)
+		if is_instance_valid(enemy) and enemy.get("is_dead") != true and "knockback_velocity" in enemy:
+			enemy.knockback_velocity = _direction * POWER_KNOCKBACK
+
 	if pierce > 0:
 		pierce -= 1
 		# Пробитая цель больше не тянет стрелу к себе — летим дальше прямо
@@ -178,7 +188,14 @@ func _fade_out(time: float) -> void:
 func _start_trail() -> void:
 	_trail = Line2D.new()
 	_trail.top_level = true
-	_trail.width = 3.0
+	# Стрела полного натяга — след шире и светится (аддитивно)
+	var power := tags.has("power")
+	_trail.width = 5.0 if power else 3.0
+	if power:
+		var m := CanvasItemMaterial.new()
+		m.blend_mode = CanvasItemMaterial.BLEND_MODE_ADD
+		m.light_mode = CanvasItemMaterial.LIGHT_MODE_UNSHADED
+		_trail.material = m
 	_trail.z_index = 9
 	_trail.joint_mode = Line2D.LINE_JOINT_ROUND
 	var grad := Gradient.new()
@@ -197,5 +214,5 @@ func _update_trail() -> void:
 	if not is_instance_valid(_trail):
 		return
 	_trail.add_point(global_position)
-	while _trail.get_point_count() > TRAIL_POINTS:
+	while _trail.get_point_count() > TRAIL_POINTS * (2 if tags.has("power") else 1):
 		_trail.remove_point(0)

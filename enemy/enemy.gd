@@ -375,6 +375,21 @@ func _slow_mult() -> float:
 	return 1.0 - clampf(_slow_percent, 0.0, 90.0) / 100.0 if _slow_left > 0.0 else 1.0
 
 
+## Связан корнями (Оковы корней, Хлёст лозы Сольвейг — Player_scene/druid.gd):
+## seconds секунд стоит на месте — ни шага, ни рывка, ни отлёта. Бить при
+## этом может: корни держат ноги, а не руки
+var _root_left := 0.0
+
+func apply_root(seconds: float) -> void:
+	if is_dead:
+		return
+	_root_left = maxf(_root_left, seconds)
+
+
+func is_rooted() -> bool:
+	return _root_left > 0.0 and not is_dead
+
+
 ## Радиус обнаружения героя с его навыками (Тихий шаг). Зона зрения
 ## масштабируется прямо — Area2D сама пересчитает, кто в ней
 var _detect_mult := 1.0
@@ -468,6 +483,11 @@ func _physics_process(delta: float) -> void:
 		_slow_left = maxf(_slow_left - delta, 0.0)
 	_separate_from_player(delta)
 	_separate_from_enemies(delta)
+	if _root_left > 0.0:
+		_root_left = maxf(_root_left - delta, 0.0)
+		velocity = Vector2.ZERO
+		knockback_velocity = Vector2.ZERO
+		move_velocity = Vector2.ZERO
 	if not velocity.is_finite():
 		velocity = Vector2.ZERO
 	move_and_slide()

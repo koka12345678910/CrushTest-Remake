@@ -443,7 +443,7 @@ func _unhandled_input(event: InputEvent) -> void:
 	if event is InputEventKey and event.pressed and not event.echo \
 			and (event.keycode == KEY_T or event.keycode == KEY_G) and _skin != null:
 		var cid = _player.get("character_id") if _player else null
-		if event.keycode == KEY_T and cid != "archer" and cid != "mage":
+		if event.keycode == KEY_T and (cid == null or cid == "knight"):
 			get_viewport().set_input_as_handled()
 			if is_instance_valid(_trophies_panel) and _trophies_panel.visible:
 				_close_content_panel(_trophies_panel)
@@ -1228,7 +1228,7 @@ func _build_hints() -> void:
 		match _player.get("character_id") if _player else null:
 			"mage":
 				hints.insert(1, ["G", "ГРИМУАР"])
-			"archer":
+			"archer", "druid":
 				pass
 			_:
 				hints.insert(1, ["T", "ТРОФЕИ"])

@@ -9,8 +9,9 @@ extends CanvasLayer
 ## зовёт soul_collected — от мага к счётчику летит маленький огонёк, и число
 ## прибавляется, когда он долетел.
 ##
-## Руны: четыре клетки — ЛКМ, ПКМ, V, B (огненный шар, огненное облако,
-## импульс, столпы). Руна светлая, когда на заклинание хватает Сейда; не
+## Руны: два ряда по четыре. Нижний — пламя: ЛКМ, ПКМ, V, B (огненный шар,
+## огненное облако, импульс, столпы); верхний — лёд: Q, F, X, Ctrl (кольцо
+## инея, вихрь, луч, ледяной шаг). Руна светлая, когда на заклинание хватает Сейда; не
 ## хватает — тусклая, а черта по низу клетки показывает, сколько уже
 ## накопилось. Колдуется — золотая кайма; каст — вспышка; не хватило —
 ## клетка вздрагивает.
@@ -20,6 +21,8 @@ const Clean := preload("res://UI/clean_hud.gd")
 ## Размеры — в макете 1920x1080 (stretch canvas_items), как у остальных HUD
 const STONE := 80.0
 const GAP := 14.0
+## Между рядами рун — место под подпись клавиши нижнего ряда
+const ROW_GAP := 34.0
 ## Низ клеток — вровень с клеткой быстрого слота (её низ в 65 px от края)
 const MARGIN := Vector2(44, 65)
 ## Счётчик душ — там же, где золото у рыцаря и лучницы (Inventory/ui/hud.gd)
@@ -41,16 +44,25 @@ var _in_flight := 0
 var _first_sync := true
 var _runes: Array = []
 
+## Тот же HUD рунной панели берёт и Сольвейг (druid.gd): у неё валюта —
+## золото общего HUD, счётчик душ не строится. Ставить ДО add_child
+var show_souls := true
+## Цвет черты накопления под руной — цвет шкалы ресурса героя
+var rune_fill_color := RuneStone.SEID
+
 
 func _ready() -> void:
 	_root = Control.new()
 	_root.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	_root.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(_root)
-	_build_souls()
+	if show_souls:
+		_build_souls()
 
 
 func _process(delta: float) -> void:
+	if _soul_label == null:
+		return
 	# Число догоняет счёт плавно — прибавка читается, а не щёлкает
 	if _souls_shown < _souls_target:
 		_souls_shown = minf(_souls_shown + maxf((_souls_target - _souls_shown) * 8.0, 12.0) * delta, _souls_target)
@@ -73,6 +85,8 @@ func sync_souls(total: int) -> void:
 ## Душа впиталась в мага в точке world_pos: от неё к счётчику летит огонёк,
 ## по прилёту число растёт на amount (счёт мага уже вырос — см. sync_souls)
 func soul_collected(world_pos: Vector2, amount: int) -> void:
+	if _soul_icon == null:
+		return
 	_in_flight += amount
 	var from := get_viewport().get_canvas_transform() * world_pos
 	var to := _soul_icon.global_position + _soul_icon.size * 0.5
@@ -125,8 +139,10 @@ func _build_souls() -> void:
 
 ## spells — массив словарей {key, cost, glyph} по порядку слева направо;
 ## right — отступ правого края панели от правого края экрана (правее —
-## быстрый слот предметов)
-func build_runes(spells: Array, right := MARGIN.x) -> void:
+## быстрый слот предметов). columns > 0 — клеток в ряду: следующие ряды
+## встают НАД первым (у мага: внизу пламя, над ним лёд). Шире четырёх в ряд
+## нельзя — левее начинается полоска концентрации по центру экрана
+func build_runes(spells: Array, right := MARGIN.x, columns := 0) -> void:
 	var anchor := Control.new()
 	anchor.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	anchor.anchor_left = 1.0
@@ -135,24 +151,35 @@ func build_runes(spells: Array, right := MARGIN.x) -> void:
 	anchor.anchor_bottom = 1.0
 	_root.add_child(anchor)
 	var n := spells.size()
-	var x0 := -right - n * STONE - (n - 1) * GAP
+	var cols := n if columns <= 0 else mini(columns, n)
+	var x0 := -right - cols * STONE - (cols - 1) * GAP
 	for i in n:
 		var r := RuneStone.new()
 		r.key = spells[i]["key"]
 		r.cost = spells[i]["cost"]
 		r.glyph = spells[i]["glyph"]
-		r.position = Vector2(x0 + i * (STONE + GAP), -MARGIN.y - STONE)
+		r.fill_color = rune_fill_color
+		@warning_ignore("integer_division")
+		var row := i / cols
+		r.position = Vector2(x0 + (i % cols) * (STONE + GAP), -MARGIN.y - STONE - row * (STONE + ROW_GAP))
 		anchor.add_child(r)
 		_runes.append(r)
 
 
 ## Каждый кадр: сколько Сейда, какая руна сейчас колдуется (-1 — никакая) и
 ## текущие цены (талисман может их снизить — число в уголке меняется)
-func update_runes(seid: float, casting: int, costs: Array = []) -> void:
+## cooldowns (необязательно) — у каждой руны [осталось секунд, всего секунд];
+## пока идёт перезарядка, клетка затянута тенью сверху вниз и показывает таймер
+## (у мага кулдаунов нет — пусто; у Сольвейг — druid.gd)
+func update_runes(seid: float, casting: int, costs: Array = [], cooldowns: Array = []) -> void:
 	for i in _runes.size():
 		var r: RuneStone = _runes[i]
 		if i < costs.size():
 			r.cost = costs[i]
+		if i < cooldowns.size():
+			var c: Array = cooldowns[i]
+			r.cd_left = float(c[0])
+			r.cd_frac = clampf(float(c[0]) / maxf(float(c[1]), 0.01), 0.0, 1.0)
 		r.fill = clampf(seid / r.cost, 0.0, 1.0) if r.cost > 0.0 else 1.0
 		r.active = i == casting
 		r.queue_redraw()
@@ -177,7 +204,11 @@ class RuneStone extends Control:
 	var cost := 10.0
 	## Руна — ломаные в квадрате 0..1
 	var glyph: Array = []
+	var fill_color := SEID
 	var fill := 1.0
+	## Перезарядка: сколько секунд осталось и какая доля (1 — только начата)
+	var cd_left := 0.0
+	var cd_frac := 0.0
 	var active := false
 	var _flash := 0.0
 	var _shake := 0.0
@@ -209,24 +240,34 @@ class RuneStone extends Control:
 	func _draw() -> void:
 		var off := Vector2(sin(_t * 70.0) * 4.0 * _shake, 0.0)
 		var r := Rect2(off, size)
-		var is_ready := fill >= 1.0
+		var cooling := cd_left > 0.0
+		var is_ready := fill >= 1.0 and not cooling
 		draw_style_box(_box_active if active else _box, r)
 		if _flash > 0.0:
 			draw_rect(r.grow(-2.0), Color(1, 1, 1, 0.3 * _flash))
 		# Накопление Сейда до цены — черта по низу клетки (только пока не хватает)
-		if not is_ready:
+		if fill < 1.0:
 			var w := size.x - 10.0
 			draw_line(off + Vector2(5, size.y - 5), off + Vector2(5 + w, size.y - 5), Color(0, 0, 0, 0.5), 3.0)
-			draw_line(off + Vector2(5, size.y - 5), off + Vector2(5 + w * fill, size.y - 5), SEID, 3.0)
+			draw_line(off + Vector2(5, size.y - 5), off + Vector2(5 + w * fill, size.y - 5), fill_color, 3.0)
 		# Руна: светлая — готова, тусклая — не хватает, золотая — колдуется
 		var col := Clean.TEXT if is_ready else Color(Clean.TEXT_DIM, 0.7)
 		if active:
 			col = Clean.GOLD_HI
 		_glyph(Rect2(off + size * 0.5 - Vector2(16, 19), Vector2(32, 38)), col, 2.5)
-		# Цена — в уголке, клавиша — под клеткой
 		var f := Clean.font()
-		draw_string(f, off + Vector2(size.x - 34, 19), str(int(cost)), HORIZONTAL_ALIGNMENT_RIGHT, 28, 14,
-				Clean.TEXT_DIM if is_ready else Color(Clean.TEXT_DIM, 0.55))
+		# Перезарядка: тень убывает сверху вниз, по центру — секунды
+		if cooling:
+			var inner := r.grow(-3.0)
+			var h := inner.size.y * cd_frac
+			draw_rect(Rect2(inner.position + Vector2(0, inner.size.y - h), Vector2(inner.size.x, h)), Color(0, 0, 0, 0.62))
+			var txt := ("%.1f" % cd_left) if cd_left < 1.0 else str(ceili(cd_left))
+			draw_string(f, off + Vector2(0, size.y * 0.5 + 9), txt, HORIZONTAL_ALIGNMENT_CENTER, size.x, 24, Clean.TEXT)
+		# Цена — в уголке, клавиша — под клеткой
+		# Бесплатный приём (посох Сольвейг) — без цены в уголке
+		if cost > 0.0:
+			draw_string(f, off + Vector2(size.x - 34, 19), str(int(cost)), HORIZONTAL_ALIGNMENT_RIGHT, 28, 14,
+					Clean.TEXT_DIM if is_ready else Color(Clean.TEXT_DIM, 0.55))
 		draw_string(f, off + Vector2(0, size.y + 24), tr(key), HORIZONTAL_ALIGNMENT_CENTER, size.x, 18, Clean.TEXT_DIM)
 
 	func _glyph(box: Rect2, col: Color, w: float) -> void:

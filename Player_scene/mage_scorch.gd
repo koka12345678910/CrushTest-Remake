@@ -21,6 +21,7 @@ extends Node2D
 const SHADER := preload("res://Shaders/magic_scorch.gdshader")
 const CLOUD_SHADER := preload("res://Shaders/magic_fire_cloud.gdshader")
 const MageFx := preload("res://Player_scene/mage_fx.gd")
+const Reactions := preload("res://Player_scene/mage_reactions.gd")
 ## Сплющенность земли по вертикали (3/4 вид), как у дуг клинка
 const DEPTH := 0.62
 const SEG_ACROSS := 18
@@ -289,7 +290,7 @@ func _burn_enemies() -> void:
 			continue
 		_hit[e] = true
 		var push_dir := to.normalized() if to.length() > 0.001 else _facing
-		e.take_damage(damage, _caster)
+		Reactions.strike(_caster, e, damage, "fire")
 		MageFx.hit_burst(get_tree(), e.global_position, push_dir)
 		# Отброс — от мага, вдоль выжигания
 		if not e.is_dead and "knockback_velocity" in e:

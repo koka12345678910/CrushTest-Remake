@@ -1,6 +1,6 @@
 [gd_scene format=3 uid="uid://cwxja614r3lt2"]
 
-[ext_resource type="Texture2D" uid="uid://bnwhvl5braa6o" path="res://UI/healthbar/sigrid_healthbar_icon.png" id="0_archer_icon"]
+[ext_resource type="Texture2D" path="res://UI/healthbar/portrait_archer.png" id="0_archer_icon"]
 [ext_resource type="Script" uid="uid://c1ya3gqoi0wv7" path="res://Player_scene/archer.gd" id="0_archer_script"]
 [ext_resource type="Script" uid="uid://j0djrjdp0hsh" path="res://UI/health_stamina_bar.gd" id="0_hpbar"]
 [ext_resource type="Script" uid="uid://7cev6imio80h" path="res://UI/skill_points_bar.gd" id="0_skillbar"]
@@ -24,6 +24,8 @@ combo_length = 1
 snap_radius = 240.0
 focus_break_range = 550.0
 run_attack_keeps_moving = true
+dash_enabled = true
+dash_ghost_tint = Color(0.74, 0.96, 0.8, 1)
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="." unique_id=1872682061]
 position = Vector2(0, 2)

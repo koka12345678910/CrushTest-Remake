@@ -76,7 +76,8 @@ func _update_fire_sound(delta: float) -> void:
 			return
 		_fire_audio = AudioStreamPlayer2D.new()
 		_fire_audio.stream = st
-		_fire_audio.volume_db = -3.0
+		# Было -3: треск костров шумел, рядом с ними их несколько сразу
+		_fire_audio.volume_db = -10.0
 		_fire_audio.max_distance = FIRE_HEAR_DISTANCE
 		_fire_audio.attenuation = 1.4
 		add_child(_fire_audio)

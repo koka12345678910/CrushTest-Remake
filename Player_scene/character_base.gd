@@ -16,9 +16,9 @@ const DirectionUtil := preload("res://Player_scene/direction_util.gd")
 const FocusSystemScript := preload("res://Player_scene/focus_system.gd")
 const DepthComponentScript := preload("res://Player_scene/depth_component.gd")
 const MotionFeelScript := preload("res://Player_scene/motion_feel.gd")
-## Пыль из-под ног на резком развороте (Turn_) — тот же VFX, что у рыцаря
-## (player.gd::turn_around_vfx_scene), общий на все классы, не копия
-const TurnDustScene := preload("res://VFX/VFX_scene/turn_around_vfx_scene.tscn")
+## Пыль из-под ног на резком развороте, остановке и старте — один общий
+## процедурный эффект на всех героев (и рыцаря: player.gd, motion_feel.gd)
+const SkidDust := preload("res://VFX/VFX_scene/skid_dust.gd")
 const BloodFx := preload("res://VFX/VFX_scene/blood_fx.gd")
 
 @export var walk_speed := 100.0
@@ -76,6 +76,26 @@ var _attack_step_velocity := Vector2.ZERO
 ## С какого места переката (с) его обрывает любое действие (удар, приём,
 ## заклинание, новый перекат) — сразу после конца неуязвимости
 @export var roll_cancel_time := 0.55
+
+## Дэш — короткий быстрый рывок-уклон по той же логике, что перекат
+## (выносливость, неуязвимость, сквозь врагов), но вдвое короче и резче.
+## Включён — пробел работает в два действия: одно нажатие — дэш (сразу, без
+## задержки), второе нажатие в пределах double_tap_window — перекат (рывок
+## обрывается, перекат идёт с места). Выключен — пробел, как раньше, сразу
+## перекат. Сейчас включён у Сигрид (archer.tscn)
+@export var dash_enabled := false
+## Путь дэша ≈ dash_speed * dash_duration * ~0.8 (гасится к концу): 560 → ~75 px
+@export var dash_speed := 560.0
+@export var dash_duration := 0.17
+@export var dash_stamina_cost := 12.0
+## Окно второго нажатия для переката, с — с запасом, чтобы успевать без спешки
+@export var double_tap_window := 0.35
+## Двойники за рывком: свой цвет героя (прозрачный — светлая сталь)
+@export var dash_ghost_tint := Color(0, 0, 0, 0)
+var _dash_left := 0.0
+var _dash_dir := Vector2.ZERO
+var _dash_ghost_t := 0.0
+var _dash_tap_ms := -100000
 ## Наведение: при зажатом направлении удар/выстрел/заклинание идёт туда, а к
 ## врагу доворачивает, только если он в этом конусе (полуугол, градусы).
 ## Без направления — к ближайшему в радиусе, в фокусе — всегда к цели
@@ -286,6 +306,17 @@ func _physics_process(delta: float) -> void:
 		_handle_roll(delta)
 		return
 
+	# Дэш: пока летит, ввод — только второе нажатие пробела (перекат)
+	if is_dodging:
+		input_vector = Input.get_vector("move_left", "move_right", "move_up", "move_down")
+		handle_roll_input()
+		if is_rolling:
+			_handle_roll(delta)
+			return
+		_handle_dash(delta)
+		if is_dodging:
+			return
+
 	if is_in_shop:
 		velocity = Vector2.ZERO
 		play_movement_animation()
@@ -300,6 +331,9 @@ func _physics_process(delta: float) -> void:
 	handle_roll_input()
 	if is_rolling:
 		_handle_roll(delta)
+		return
+	if is_dodging:
+		_handle_dash(delta)
 		return
 
 	# Нокбэк от удара — перехватывает движение на несколько кадров, тот же
@@ -439,8 +473,13 @@ const BUFFERED_ACTIONS := ["attack", "ui_accept", "parry", "kick", "special"]
 var _press_ms := {}
 
 
+## Наследник добавляет свои действия (маг — ледяные руны и толчок посохом)
+func _buffered_actions() -> Array:
+	return BUFFERED_ACTIONS
+
+
 func _record_buffered_presses() -> void:
-	for action in BUFFERED_ACTIONS:
+	for action in _buffered_actions():
 		if InputMap.has_action(action) and Input.is_action_just_pressed(action):
 			_press_ms[action] = Time.get_ticks_msec()
 
@@ -460,7 +499,7 @@ func _consume(action: String) -> void:
 
 
 func _any_action_pressed() -> bool:
-	for action in BUFFERED_ACTIONS:
+	for action in _buffered_actions():
 		if _pressed(action):
 			return true
 	return false
@@ -715,19 +754,15 @@ func start_turn(new_dir: Vector2) -> void:
 	_play_turn_dust()
 
 
-## Пыль под ногами на развороте — тот же приём, что у рыцаря
-## (player.gd::play_turn_vfx): направление и позиция берутся из текущей
-## скорости, а не из FootPoint-маркера — его нет ни у лучника, ни у мага, а
-## у CharacterBody2D этого проекта опорная точка и так у самых ног
+## Пыль под ногами на развороте (VFX/VFX_scene/skid_dust.gd): направление и
+## позиция берутся из текущей скорости, а не из FootPoint-маркера — его нет
+## ни у лучника, ни у мага; ноги — чуть ниже опорной точки тела
 func _play_turn_dust() -> void:
-	var vfx: Node2D = TurnDustScene.instantiate()
 	var dir := velocity.normalized()
 	if dir == Vector2.ZERO:
 		dir = direction_to_vector(last_direction)
-	get_tree().current_scene.add_child(vfx)
-	vfx.global_position = global_position - dir * 5.0
-	vfx.set("move_direction", dir)
-	vfx.rotation = dir.angle()
+	var power := clampf(velocity.length() / maxf(run_speed, 1.0), 0.6, 1.2) if "run_speed" in self else 0.9
+	SkidDust.skid(get_tree(), global_position + Vector2(0, 14) - dir * 4.0, dir, SkidDust.Kind.TURN, power)
 
 
 # ─────────────────────────────────────────────
@@ -739,9 +774,106 @@ func _play_turn_dust() -> void:
 func handle_roll_input() -> void:
 	if is_rolling:
 		return
-	if _pressed("ui_accept"):
-		_consume("ui_accept")
+	if not _pressed("ui_accept"):
+		return
+	_consume("ui_accept")
+	if not dash_enabled:
 		start_roll()
+		return
+	# Второе нажатие в окне после дэша — перекат (дэш обрывается)
+	var now := Time.get_ticks_msec()
+	if now - _dash_tap_ms <= int(double_tap_window * 1000.0):
+		_dash_tap_ms = -100000
+		_end_dash()
+		start_roll()
+		return
+	_dash_tap_ms = now
+	start_dash()
+
+
+# ─────────────────────────────────────────────
+# ДЭШ
+# ─────────────────────────────────────────────
+
+## Свои имена констант: у наследников уже есть FlurryFx/MageFx (archer.gd,
+## mage.gd), а повторное имя в наследнике — ошибка разбора
+const DashFlurryFx := preload("res://VFX/VFX_scene/flurry_fx.gd")
+const MageFxBase := preload("res://Player_scene/mage_fx.gd")
+
+## Куда: зажатое направление; без него — шаг назад от взгляда (отскок).
+## Под фокусом взгляд остаётся на враге — дэш вбок идёт стрейфом
+func start_dash() -> void:
+	if is_dodging or is_rolling:
+		return
+	var dir := input_vector.normalized() if input_vector != Vector2.ZERO else -facing_dir
+	if dir == Vector2.ZERO:
+		dir = Vector2.DOWN
+	if is_instance_valid(health_bar) and not health_bar.use_stamina(dash_stamina_cost):
+		return
+	_cancel_attack()
+	knockback_velocity = Vector2.ZERO
+	_hurt_timer = 0.0
+	is_dodging = true
+	_dash_left = dash_duration
+	_dash_dir = dir
+	_dash_ghost_t = 0.0
+	set_collision_mask_value(3, false)
+	dodge_velocity = dir * dash_speed
+	velocity = dodge_velocity
+	input_vector = dir
+	_update_facing()
+	play_movement_animation()
+	_dash_fx_start(dir)
+
+
+func _handle_dash(delta: float) -> void:
+	_dash_left -= delta
+	var k := clampf(_dash_left / maxf(dash_duration, 0.01), 0.0, 1.0)
+	# Почти полная скорость до последней трети — резко, потом гасится
+	dodge_velocity = _dash_dir * dash_speed * clampf(k * 1.6, 0.25, 1.0)
+	velocity = dodge_velocity
+	move_and_slide()
+	_dash_ghost_t -= delta
+	if _dash_ghost_t <= 0.0:
+		_dash_ghost_t = 0.03
+		DashFlurryFx.ghost(self, sprite, 1, _dash_dir, 0.24, dash_ghost_tint)
+	if _dash_left <= 0.0:
+		_end_dash()
+		SkidDust.skid(get_tree(), global_position + Vector2(0, 14), _dash_dir, SkidDust.Kind.STOP, 0.7)
+		play_movement_animation()
+
+
+func _end_dash() -> void:
+	if not is_dodging:
+		return
+	is_dodging = false
+	_dash_left = 0.0
+	dodge_velocity = Vector2.ZERO
+	set_collision_mask_value(3, true)
+
+
+## Старт рывка: пыль и линии скорости из-под ног (как рывок рыцаря), вспышка
+## и звёздочки воздуха, свист, лёгкий толчок камеры
+func _dash_fx_start(dir: Vector2) -> void:
+	DashFlurryFx.lunge(self, dir, 1.3)
+	var col := dash_ghost_tint if dash_ghost_tint.a > 0.0 else DashFlurryFx.GHOST
+	var h := MageFxBase.holder(get_tree(), global_position + Vector2(0, -4), 0.6, 12)
+	MageFxBase.flash(h, 22.0, 0.12, col)
+	MageFxBase.burst(h, 10, 0.3, MageFxBase.streak(), func(pm: ParticleProcessMaterial):
+		pm.particle_flag_align_y = true
+		pm.direction = Vector3(-dir.x, -dir.y, 0)
+		pm.spread = 22.0
+		pm.emission_shape = ParticleProcessMaterial.EMISSION_SHAPE_SPHERE
+		pm.emission_sphere_radius = 8.0
+		pm.initial_velocity_min = 90.0
+		pm.initial_velocity_max = 200.0
+		pm.damping_min = 300.0
+		pm.damping_max = 500.0
+		pm.scale_min = 0.25
+		pm.scale_max = 0.5
+		pm.color_ramp = MageFxBase.ramp([Color(1, 1, 1, 0.9), Color(col, 0.6), Color(col, 0.0)]))
+	SoundBank.play_at(get_tree(), "knight_swing", global_position, -9.0, 1.6)
+	shake_camera(1.5, 0.08)
 
 
 func start_roll() -> void:
@@ -788,8 +920,9 @@ func start_roll() -> void:
 	dodge_velocity = roll_dir * roll_speed
 
 
+## Неуязвимость уклона: начало переката или весь дэш
 func _roll_invulnerable() -> bool:
-	return is_rolling and roll_control <= roll_iframes_end
+	return (is_rolling and roll_control <= roll_iframes_end) or is_dodging
 
 
 func _end_roll() -> void:
@@ -1152,10 +1285,12 @@ const FOOTSTEP_RIGHT := preload("res://Sound/Run/right-leg.wav")
 const HEARTBEAT_SILENT_DB := -40.0
 
 @export var low_health_threshold := 20.0
-@export var heartbeat_volume_low_hp := -18.0
-@export var heartbeat_volume_exhausted := 3.0
+## Пульс и одышка — тише, чем было (-18 / +3 / -3): в долгой игре давили на
+## уши. Те же числа — у рыцаря (player.gd)
+@export var heartbeat_volume_low_hp := -26.0
+@export var heartbeat_volume_exhausted := -6.0
 @export var heartbeat_fade_speed := 25.0
-@export var dyspnea_volume := -3.0
+@export var dyspnea_volume := -12.0
 @export var footstep_step_distance := 42.0
 
 var _damage_vignette: CanvasLayer

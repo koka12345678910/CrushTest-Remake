@@ -1,0 +1,43 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://UI/health_stamina_bar.gd" id="0_hpbar"]
+[ext_resource type="Script" path="res://Player_scene/druid.gd" id="0_druid_script"]
+[ext_resource type="Script" path="res://UI/skill_points_bar.gd" id="0_skillbar"]
+[ext_resource type="SpriteFrames" path="res://Player_scene/druid_frames.tres" id="druid_frames"]
+[ext_resource type="AnimationLibrary" path="res://Player_scene/druid_anims.tres" id="druid_anims"]
+[ext_resource type="Material" path="res://Player_scene/druid_detail_material.tres" id="druid_detail"]
+
+[sub_resource type="CapsuleShape2D" id="CapsuleShape2D_druid"]
+
+[node name="Druid" type="CharacterBody2D"]
+collision_layer = 2
+collision_mask = 5
+script = ExtResource("0_druid_script")
+combo_length = 1
+snap_radius = 220.0
+focus_break_range = 500.0
+strafe_names_swapped = true
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="."]
+shape = SubResource("CapsuleShape2D_druid")
+
+[node name="AnimatedSprite2D" type="AnimatedSprite2D" parent="."]
+material = ExtResource("druid_detail")
+texture_filter = 1
+scale = Vector2(0.9, 0.9)
+sprite_frames = ExtResource("druid_frames")
+animation = &"Idle_Down"
+
+[node name="DruidAnimations" type="AnimationPlayer" parent="."]
+libraries/ = ExtResource("druid_anims")
+
+[node name="Camera2D" type="Camera2D" parent="."]
+zoom = Vector2(2.2, 2.2)
+limit_smoothed = true
+position_smoothing_enabled = true
+
+[node name="HealthStaminaBar" type="CanvasLayer" parent="."]
+script = ExtResource("0_hpbar")
+
+[node name="SkillPointsBar" type="CanvasLayer" parent="."]
+script = ExtResource("0_skillbar")

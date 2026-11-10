@@ -10,6 +10,7 @@ extends Node2D
 const SHADER := preload("res://Shaders/magic_pillar.gdshader")
 const CIRCLE_SHADER := preload("res://Shaders/magic_circle.gdshader")
 const MageFx := preload("res://Player_scene/mage_fx.gd")
+const Reactions := preload("res://Player_scene/mage_reactions.gd")
 
 ## Размер столпа в пикселях мира
 @export var width := 50.0
@@ -164,5 +165,5 @@ func _hit() -> void:
 	if not is_instance_valid(_target) or _target.is_dead:
 		return
 	# Смертельно: урон на всё оставшееся здоровье, мимо блока и парирования
-	_target.take_damage(maxi(ceili(_target.health), 1), _caster, true)
+	Reactions.strike(_caster, _target, maxi(ceili(_target.health), 1), "fire", true)
 	MageFx.hit_burst(get_tree(), _target.global_position, Vector2.UP)

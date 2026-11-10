@@ -12,6 +12,7 @@ const SHADER := preload("res://Shaders/magic_pulse.gdshader")
 const DISTORT_SHADER := preload("res://Shaders/magic_distort.gdshader")
 const CIRCLE_SHADER := preload("res://Shaders/magic_circle.gdshader")
 const MageFx := preload("res://Player_scene/mage_fx.gd")
+const Reactions := preload("res://Player_scene/mage_reactions.gd")
 
 @export var color := Color(0.3, 0.6, 1.0)
 
@@ -271,7 +272,7 @@ func _hit_front() -> void:
 		# Удар волны — маг усиливает её урон по стойкости (mage.gd::posture_mult_vs)
 		if is_instance_valid(_caster):
 			_caster.set_meta("pulse_hit", true)
-		e.take_damage(damage, _caster)
+		Reactions.strike(_caster, e, damage, "force")
 		if is_instance_valid(_caster):
 			_caster.set_meta("pulse_hit", false)
 		MageFx.hit_burst(get_tree(), e.global_position, to.normalized() if to.length() > 0.001 else Vector2.DOWN)

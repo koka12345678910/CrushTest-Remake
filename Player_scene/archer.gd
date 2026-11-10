@@ -193,6 +193,25 @@ func _unhandled_input(event: InputEvent) -> void:
 @export var shot_anim_speed := 1.0
 const COLOR_FULL_DRAW := Color(1.6, 1.45, 1.0)
 
+## ── Песнь тетивы: быстрые выстрелы в ритм ──
+## Тапы ЛКМ подряд (каждый следующий — не позже tap_chain_window после
+## прошлого) идут серией из трёх: второй и третий натягиваются быстрее и с
+## меньшей паузой, третий раскрывается веером из split_shot_count стрел
+@export var tap_chain_window := 0.9
+## Пауза до вылета стрелы (доля shoot_delay) и кулдаун (доля) по шагу серии
+@export var tap_chain_delay: Array[float] = [1.0, 0.7, 0.7]
+@export var tap_chain_cooldown: Array[float] = [1.0, 0.6, 0.75]
+@export var split_shot_count := 3
+@export var split_shot_spread_deg := 11.0
+## Полный натяг: отдача назад при спуске (скорость) и тряска камеры
+@export var power_shot_recoil := 110.0
+## След стрелы полного натяга (если навык не дал свой цвет)
+const COLOR_POWER_TRAIL := Color(1.0, 0.9, 0.66)
+var _tap_chain := 0
+var _tap_chain_left := 0.0
+## Темп клипа выстрела (Attack_) на шаге серии — держит _update_dagger_flurry
+var _bow_tempo := 1.0
+
 var _shoot_cooldown_timer := 0.0
 var _kick_cooldown_timer := 0.0
 var _quick_shot_cooldown_timer := 0.0
@@ -223,6 +242,10 @@ func handle_attack_input() -> void:
 		_quick_shot_cooldown_timer -= dt
 	_spin_cooldown_timer = maxf(_spin_cooldown_timer - dt, 0.0)
 	_lunge_cooldown_timer = maxf(_lunge_cooldown_timer - dt, 0.0)
+	if _tap_chain_left > 0.0:
+		_tap_chain_left -= dt
+		if _tap_chain_left <= 0.0:
+			_tap_chain = 0
 
 	# Прошлый приём уже отыгран (стрела ушла, клинок прошёл) — новое нажатие
 	# обрывает его хвост и начинается сразу. Кроме удара мечом посреди серии:
@@ -290,6 +313,7 @@ func handle_attack_input() -> void:
 		if is_instance_valid(health_bar) and not health_bar.use_stamina(shoot_stamina_cost):
 			return
 		_shoot_cooldown_timer = _current_cooldown()
+		_bow_tempo = 1.0
 		start_run_attack()
 		return
 	# Стоя: ждём, нажатие это или удержание (решается выше, в _press_pending)
@@ -302,8 +326,15 @@ func handle_attack_input() -> void:
 func _tap_shot() -> void:
 	if is_instance_valid(health_bar) and not health_bar.use_stamina(shoot_stamina_cost):
 		return
-	_shoot_cooldown_timer = _current_cooldown()
+	# Песнь тетивы: нажатие в окне после прошлого выстрела — следующий шаг
+	# серии (1 -> 2 -> 3 -> снова 1), позже — серия с начала
+	_tap_chain = (_tap_chain % 3) + 1 if _tap_chain_left > 0.0 else 1
+	_tap_chain_left = tap_chain_window
+	var i := clampi(_tap_chain - 1, 0, 2)
+	_shoot_cooldown_timer = _current_cooldown() * tap_chain_cooldown[i]
+	_bow_tempo = 1.0 / maxf(tap_chain_delay[i], 0.1)
 	start_attack(1)
+	anim.speed_scale = _bow_tempo
 
 
 func _current_cooldown() -> float:
@@ -459,10 +490,31 @@ func _on_attack_started(_step: int, aim: Node2D) -> void:
 	# выстрел по направлению взгляда, если aim за это время протух
 	if is_dead():
 		return
-	_shoot_arrow(aim)
+	# Третий выстрел серии — веер (на бегу серии нет: там step 0)
+	if _step == 1 and _tap_chain == 3 and split_shot_count > 1:
+		_shoot_fan(aim)
+	else:
+		_shoot_arrow(aim)
 	# Стрела ушла — хвост клипа больше не держит (character_base._attack_recovery)
 	if is_attacking and _same_attack(clip):
 		_attack_recovery = true
+
+
+## Веер третьего выстрела серии: split_shot_count стрел разом, средняя — в
+## цель (она же несёт заряженные навыки), крайние — по бокам на
+## split_shot_spread_deg
+func _shoot_fan(aim: Node2D) -> void:
+	var dir := (aim.global_position - global_position).normalized() if is_instance_valid(aim) else facing_dir
+	if dir == Vector2.ZERO:
+		dir = Vector2.RIGHT
+	var n := split_shot_count
+	for k in n:
+		var off := (k - (n - 1) * 0.5) * deg_to_rad(split_shot_spread_deg)
+		var mid := absf(off) < 0.001
+		_fire_arrow(dir.rotated(off), aim if mid else null, -1.0, mid, mid)
+	# Веер — ярче обычного спуска
+	FlurryFx.bow_release(self, global_position + dir * shoot_offset, dir, 0.75, Color(0.85, 1.0, 0.88))
+	shake_camera(2.0, 0.1)
 
 
 func _shoot_arrow(aim: Node2D) -> void:
@@ -487,7 +539,7 @@ func _shoot_arrow(aim: Node2D) -> void:
 ##
 ## power — сила натяжения 0..1 (обычный выстрел ЛКМ); -1 — без натяжения
 ## (залп, выстрел на бегу): базовые урон и скорость
-func _fire_arrow(dir: Vector2, aim: Node2D = null, power := -1.0) -> void:
+func _fire_arrow(dir: Vector2, aim: Node2D = null, power := -1.0, charges := true, release_fx := true) -> void:
 	var arrow: Area2D = ArrowScript.new()
 	var dmg := arrow_damage
 	var spd := arrow_speed
@@ -504,6 +556,12 @@ func _fire_arrow(dir: Vector2, aim: Node2D = null, power := -1.0) -> void:
 	dmg = SkillTrees.scale_int(dmg, pct)
 	spd *= 1.0 + skill("arrow_speed_percent") / 100.0
 	var trail := Color(0, 0, 0, 0)
+	# Полный натяг — тяжёлая стрела: пробивает одного насквозь, отбрасывает,
+	# светится следом (arrow.gd, tags["power"])
+	if power >= 1.0:
+		arrow.tags["power"] = true
+		arrow.pierce = 1
+		trail = COLOR_POWER_TRAIL
 
 	if _last_look_time > 0.0:
 		dmg += 1
@@ -511,32 +569,42 @@ func _fire_arrow(dir: Vector2, aim: Node2D = null, power := -1.0) -> void:
 		if is_instance_valid(aim):
 			arrow.homing_target = aim
 		trail = COLOR_LAST_LOOK
-	if _pierce_shots > 0:
-		_pierce_shots -= 1
-		arrow.pierce = 1
-		trail = COLOR_FENRIR
-	if _whisper_shots > 0:
-		_whisper_shots -= 1
-		arrow.ignore_walls = true
-		trail = COLOR_WHISPER
-	if _dance_charged:
-		_dance_charged = false
-		arrow.tags["guaranteed_crit"] = true
-		trail = COLOR_DANCE
-	if _valkyrie_shot_ready:
-		_valkyrie_shot_ready = false
-		dmg += 1
-		spd *= 1.8
-		trail = COLOR_VALKYRIE
+	# Заряды навыков — по одному на стрелу; у боковых стрел веера их нет
+	if charges:
+		if _pierce_shots > 0:
+			_pierce_shots -= 1
+			arrow.pierce = maxi(arrow.pierce, 1) + (1 if power >= 1.0 else 0)
+			trail = COLOR_FENRIR
+		if _whisper_shots > 0:
+			_whisper_shots -= 1
+			arrow.ignore_walls = true
+			trail = COLOR_WHISPER
+		if _dance_charged:
+			_dance_charged = false
+			arrow.tags["guaranteed_crit"] = true
+			trail = COLOR_DANCE
+		if _valkyrie_shot_ready:
+			_valkyrie_shot_ready = false
+			dmg += 1
+			spd *= 1.8
+			trail = COLOR_VALKYRIE
 
 	arrow.trail_color = trail
 	# Спуск тетивы: чем сильнее натянута, тем громче и ниже (тяжелее) щелчок.
 	# Без натяжения (залп, на бегу, быстрый) — средний
 	var pw := power if power >= 0.0 else 0.4
-	Sfx.play_on(self, "bow_release", lerpf(-3.0, 2.0, pw), lerpf(1.1, 0.9, pw))
+	if release_fx:
+		Sfx.play_on(self, "bow_release", lerpf(-3.0, 2.0, pw), lerpf(1.1, 0.9, pw))
 	get_tree().current_scene.add_child(arrow)
 	arrow.speed = spd
-	arrow.launch(global_position + dir * shoot_offset, dir, self, dmg)
+	var from := global_position + dir * shoot_offset
+	arrow.launch(from, dir, self, dmg)
+	if release_fx:
+		FlurryFx.bow_release(self, from, dir, pw)
+	# Полный натяг: отдача — Сигрид отшатывает назад, камера вздрагивает
+	if power >= 1.0:
+		knockback_velocity = -dir * power_shot_recoil
+		shake_camera(4.0, 0.16)
 
 
 ## Натяжение лука. Выстрел Валькирии срывает стрелу почти сразу, Последний
@@ -545,8 +613,9 @@ func _current_shoot_delay() -> float:
 	if _valkyrie_shot_ready:
 		return 0.04
 	if _last_look_time > 0.0:
-		return shoot_delay * LAST_LOOK_RATE
-	return shoot_delay
+		return shoot_delay * LAST_LOOK_RATE / maxf(_bow_tempo, 0.1)
+	# Песнь тетивы: на 2-м и 3-м выстреле серии стрела срывается раньше
+	return shoot_delay / maxf(_bow_tempo, 0.1)
 
 
 # ─────────────────────────────────────────────
@@ -962,7 +1031,8 @@ const KnightFx := preload("res://VFX/VFX_scene/knight_fx.gd")
 @export var sword_reach := 30.0
 @export var sword_hit_scale := Vector2(1.9, 1.7)
 @export var sword_stamina_cost := 10.0
-@export var sword_combo_length := 3
+## Серия кинжалом: взмах -> укол -> разворот -> рубящий финиш
+@export var sword_combo_length := 4
 @export var spin_damage := 1
 @export var spin_stamina_cost := 22.0
 @export var spin_cooldown := 1.2
@@ -975,7 +1045,22 @@ const KnightFx := preload("res://VFX/VFX_scene/knight_fx.gd")
 ## attack_step_friction из character_base). Укол и финиш шагают шире
 @export var sword_step_speed := 110.0
 @export var sword_thrust_step_speed := 150.0
+@export var sword_spin_step_speed := 120.0
 @export var sword_finisher_step_speed := 170.0
+
+## ── Танец клинка: быстрая серия кинжалом ──
+## Темп клипа по шагу серии [1, 2, 3, 4] — Сигрид разгоняется, финиш весомый
+@export var dagger_flurry_speed: Array[float] = [1.0, 1.15, 1.25, 1.0]
+## Рывок к врагу на каждом ударе: остановиться в стольких px, не дальше какой
+## дистанции рваться и с какой наибольшей скоростью
+@export var dagger_lunge_stop := 20.0
+@export var dagger_lunge_reach := 95.0
+@export var dagger_lunge_speed := 280.0
+## Двойники на окне удара — со 2-го шага (интервал, с)
+@export var dagger_ghost_interval := 0.03
+const DAGGER_GHOST := Color(0.74, 0.96, 0.8)
+const FlurryFx := preload("res://VFX/VFX_scene/flurry_fx.gd")
+var _dagger_ghost_cd := 0.0
 ## За сколько секунд до удара клинка начинается шаг — нога ставится на
 ## замахе, и к моменту попадания Сигрид уже идёт вперёд всем весом
 @export var sword_step_lead := 0.12
@@ -997,12 +1082,13 @@ const SIGRID_CHEST := Vector2(0, -2)
 ## В кадре со следом взмах уже прошёл — дуга стартует на кадр раньше
 const SWING_LEAD := 0.04
 ## Шаг серии -> [лист, заготовка дуги на случай, если взмах по кадрам не
-## измерился]. Серия: Attack1 -> Attack6 (укол, потом взмах) -> Attack4 (финиш);
-## 0 — удар на бегу
+## измерился]. Серия: Attack1 -> Attack6 (укол) -> Attack2 (разворот, бьёт всех
+## вокруг) -> Attack4 (рубящий финиш); 0 — удар на бегу
 const STEP_SWING := {
 	1: ["Attack1", KnightFx.Swing.RISING],
 	2: ["Attack6", KnightFx.Swing.SWEEP],
-	3: ["Attack4", KnightFx.Swing.HEAVY],
+	3: ["Attack2", KnightFx.Swing.SPIN],
+	4: ["Attack4", KnightFx.Swing.HEAVY],
 	0: ["AttackRun", KnightFx.Swing.RUN],
 }
 ## Время взмаха, если для направления в таблице ничего нет (с от старта клипа)
@@ -1116,12 +1202,12 @@ func _cancel_attack() -> void:
 	_disable_kick_hitbox()
 
 
-## Финиш серии мечом (рубящий Attack4) и выпад — тяжёлые приёмы, попадание их
-## не сбивает (урон проходит)
+## Разворот и финиш серии (рубящий Attack4) и выпад — тяжёлые приёмы,
+## попадание их не сбивает (урон проходит)
 func _has_hyper_armor() -> bool:
 	if weapon != Weapon.SWORD or not is_attacking:
 		return false
-	return combo_step == 3 or String(anim.current_animation).begins_with(SWORD_PREFIX + "Lunge")
+	return combo_step >= 3 or String(anim.current_animation).begins_with(SWORD_PREFIX + "Lunge")
 
 
 func _pay(cost: float) -> bool:
@@ -1155,22 +1241,36 @@ func _sword_strike(step: int) -> void:
 	var clip := anim.current_animation
 	var dir := facing_dir if facing_dir != Vector2.ZERO else direction_to_vector(last_direction)
 	var info: Array = STEP_SWING.get(step, STEP_SWING[1])
+	# Танец клинка: темп клипа по шагу серии. Все времена ниже — в секундах
+	# клипа, ждём их с поправкой на темп (sp). Сбрасывает темп _update_dagger_flurry
+	var sp := 1.0
+	if step >= 1:
+		sp = dagger_flurry_speed[clampi(step, 1, dagger_flurry_speed.size()) - 1]
+	anim.speed_scale = sp
 	var events := []
 	match step:
 		# Второй удар (Attack6) — только укол: выпад с вытянутым клинком на
 		# кадрах 5-8. Вихрь клинка после него — прокрут, а не удар
 		2: events.append({"t0": ATTACK6_STAB[0], "t1": ATTACK6_STAB[1], "thrust": true})
+		# Третий (Attack2) — разворот: клинок по кругу, бьёт всех вокруг
+		3:
+			var sw := _swing("Attack2", last_direction, KnightFx.Swing.SPIN, dir)
+			var p := KnightFx.preset(KnightFx.Swing.SPIN, dir)
+			events.append({"t0": sw.t0, "t1": sw.t1, "spin": true, "from": p.from, "to": p.to,
+					"radius": p.radius * 0.85, "width": p.width, "power": p.power})
 		# Финиш (Attack4) — рубящий сверху: клинок от головы вниз и вперёд
-		3: events.append({"t0": ATTACK4_CHOP[0], "t1": ATTACK4_CHOP[1], "chop": true})
+		4: events.append({"t0": ATTACK4_CHOP[0], "t1": ATTACK4_CHOP[1], "chop": true})
 		_: events.append(_swing(info[0], last_direction, info[1], dir))
+	var heavy := step == 4
 	# Удар на бегу (step 0) уже несёт свой рывок (_run_dash_velocity)
 	if step > 0:
-		var step_speed: float = [sword_step_speed, sword_thrust_step_speed, sword_finisher_step_speed][clampi(step, 1, 3) - 1]
-		_step_into_swing(clip, maxf(events[0].t0 - sword_step_lead, 0.0), step_speed)
+		var speeds := [sword_step_speed, sword_thrust_step_speed, sword_spin_step_speed, sword_finisher_step_speed]
+		var step_speed: float = speeds[clampi(step, 1, speeds.size()) - 1]
+		_step_into_swing(clip, maxf(events[0].t0 - sword_step_lead, 0.0) / sp, step_speed)
 	var t := 0.0
 	for ev in events:
 		var vfx_at := maxf(ev.t0 - SWING_LEAD, t)
-		await get_tree().create_timer(vfx_at - t).timeout
+		await get_tree().create_timer((vfx_at - t) / sp).timeout
 		t = vfx_at
 		# Перекат, удар по Сигрид или смерть оборвали замах
 		if not is_attacking or not _same_attack(clip):
@@ -1180,29 +1280,42 @@ func _sword_strike(step: int) -> void:
 		# дуга и хитбокс идут туда, куда Сигрид смотрит сейчас
 		if facing_dir != Vector2.ZERO and not facing_dir.is_equal_approx(dir):
 			dir = facing_dir
-			if not ev.has("thrust") and not ev.has("chop"):
+			if not ev.has("thrust") and not ev.has("chop") and not ev.has("spin"):
 				var cur := _swing(info[0], last_direction, info[1], dir)
 				for k in ["from", "to", "radius", "width", "power"]:
 					ev[k] = cur[k]
+		var dur: float = (ev.t1 - ev.t0 + SWING_LEAD) / sp
 		if ev.has("thrust"):
 			KnightFx.thrust(self, dir, 36.0, SIGRID_CHEST)
 		elif ev.has("chop"):
-			KnightFx.chop(self, dir, 28.0, ev.t1 - ev.t0 + SWING_LEAD, 1.25, SIGRID_CHEST)
+			KnightFx.chop(self, dir, 28.0, dur, 1.25, SIGRID_CHEST)
+		elif ev.has("spin"):
+			KnightFx.arc(self, ev.from, ev.to, ev.radius, ev.width, dur, ev.power, SIGRID_CHEST, true)
 		else:
-			KnightFx.arc(self, ev.from, ev.to, ev.radius, ev.width, ev.t1 - ev.t0 + SWING_LEAD, ev.power,
+			KnightFx.arc(self, ev.from, ev.to, ev.radius, ev.width, dur, ev.power,
 					SIGRID_CHEST, true, false)
-		# Свист сакса: финиш серии — ниже и громче (рубящий, всем весом)
-		Sfx.play_on(self, "dagger_swing", 2.0 if step == 3 else 0.0, 0.9 if step == 3 else 1.0)
+		# Свист сакса: финиш серии — ниже и громче (рубящий, всем весом),
+		# разворот — длинный свист по кругу, два замаха внахлёст
+		Sfx.play_on(self, "dagger_swing", 2.0 if heavy else 0.0, 0.9 if heavy else 1.0)
+		if ev.has("spin"):
+			get_tree().create_timer(0.08).timeout.connect(func():
+				if is_instance_valid(self):
+					Sfx.play_on(self, "dagger_swing", -1.0, 0.95))
 		# Финиш серии — всегда с выкриком, остальные удары — через раз
-		_say("attack", 1.0 if step == 3 else attack_voice_chance)
-		await get_tree().create_timer(maxf(ev.t0 - t, 0.0)).timeout
+		_say("attack", 1.0 if heavy else attack_voice_chance)
+		await get_tree().create_timer(maxf(ev.t0 - t, 0.0) / sp).timeout
 		t = maxf(ev.t0, t)
 		if not is_attacking or not _same_attack(clip):
 			return
-		var dmg := sword_finisher_damage if step == 3 else sword_damage
-		_open_sword_hitbox(dir * sword_reach, sword_hit_scale, dmg)
+		var dmg := sword_finisher_damage if heavy else sword_damage
+		if ev.has("spin"):
+			_open_sword_hitbox(Vector2.ZERO, Vector2(3.4, 3.0), dmg)
+		else:
+			_open_sword_hitbox(dir * sword_reach, sword_hit_scale, dmg)
+		if heavy:
+			FlurryFx.cross_cut(self, global_position + SIGRID_CHEST + dir * (sword_reach + 4.0), dir)
 		var close_at: float = ev.t1 + SWING_TAIL_HIT
-		await get_tree().create_timer(maxf(close_at - t, 0.01)).timeout
+		await get_tree().create_timer(maxf(close_at - t, 0.01) / sp).timeout
 		t = close_at
 		_disable_kick_hitbox()
 	# Клинок прошёл — отмах больше не держит: следующий удар серии сразу,
@@ -1218,13 +1331,57 @@ func _step_into_swing(clip: String, delay: float, step_speed: float) -> void:
 		await get_tree().create_timer(delay).timeout
 	if not is_attacking or not _same_attack(clip):
 		return
-	# Куда смотрит сейчас — удар могли довернуть в начале замаха
-	attack_step(facing_dir * step_speed)
+	# Куда смотрит сейчас — удар могли довернуть в начале замаха. Танец клинка:
+	# враг рядом — Сигрид сама доскакивает до него и бьёт вплотную
+	var lunge := _dagger_lunge()
+	if lunge != Vector2.ZERO:
+		attack_step(lunge)
+		FlurryFx.lunge(self, lunge, 0.8)
+	else:
+		attack_step(facing_dir * step_speed)
+
+
+## Скорость рывка к цели на ударе серии кинжалом: цель в фокусе или ближайший
+## враг в пределах dagger_lunge_reach, но дальше dagger_lunge_stop — летим так,
+## чтобы остановиться вплотную (шаг гаснет трением attack_step_friction:
+## путь ≈ скорость / трение). Zero — рядом никого или уже вплотную
+func _dagger_lunge() -> Vector2:
+	var target: Node2D = _focus.target if _focus.has_target() else _assist_target()
+	if target == null or target.get("is_dead") == true:
+		return Vector2.ZERO
+	var to := target.global_position - global_position
+	var dist := to.length()
+	if dist > dagger_lunge_reach or dist <= dagger_lunge_stop + 2.0:
+		return Vector2.ZERO
+	var v := minf((dist - dagger_lunge_stop) * attack_step_friction, dagger_lunge_speed)
+	return to / dist * v
 
 
 func _physics_process(delta: float) -> void:
 	super._physics_process(delta)
 	_carry_enemies()
+	_update_dagger_flurry(delta)
+
+
+## Темп серии кинжалом живёт, только пока идёт удар серии — иначе
+## speed_scale общего AnimationPlayer тянулся бы на бег и перекат. Пока клинок
+## в окне удара (со 2-го шага), за Сигрид тянутся бледно-зелёные двойники
+func _update_dagger_flurry(delta: float) -> void:
+	# Выстрел серии луком (Attack_) держит свой темп (_bow_tempo, Песнь тетивы)
+	if weapon == Weapon.BOW and is_attacking and not is_run_attacking \
+			and String(anim.current_animation).begins_with("Attack_"):
+		anim.speed_scale = _bow_tempo
+		return
+	var in_combo := weapon == Weapon.SWORD and is_attacking and combo_step >= 1 and not is_run_attacking \
+			and String(anim.current_animation).begins_with(SWORD_PREFIX + "Attack")
+	if not in_combo:
+		if anim.speed_scale != 1.0:
+			anim.speed_scale = 1.0
+		return
+	_dagger_ghost_cd -= delta
+	if combo_step >= 2 and kick_hitbox.monitoring and _dagger_ghost_cd <= 0.0:
+		_dagger_ghost_cd = dagger_ghost_interval
+		FlurryFx.ghost(self, sprite, combo_step, facing_dir, 0.2, DAGGER_GHOST)
 
 
 ## Куда Сигрид сейчас движется самим ударом: шаг серии или выпад (он идёт
@@ -1454,8 +1611,8 @@ func _dyspnea_stream() -> AudioStream:
 @export_range(0.6, 1.8, 0.01) var breath_tempo := 1.1
 @export_range(0.8, 1.8, 0.01) var breath_tone := 1.28
 @export_range(50.0, 1500.0, 10.0) var breath_low_cut_hz := 380.0
-## Громкость одышки (дБ). Было -3 — на слух слишком громко
-@export_range(-30.0, 6.0, 0.5) var breath_volume_db := -10.0
+## Громкость одышки (дБ). Было -3, потом -10 — всё ещё давило в долгой игре
+@export_range(-30.0, 6.0, 0.5) var breath_volume_db := -16.0
 const BREATH_BUS := "SigridBreath"
 
 
@@ -1541,7 +1698,7 @@ func _on_blade_contact(area: Area2D) -> void:
 		return
 	# Сочный удар — три слоя разом: рез, шлепок по плоти, глухой удар по
 	# телу. Финиш серии и выпад тяжелее — слой тела громче и ниже
-	var heavy := combo_step == 3 or String(anim.current_animation).begins_with(SWORD_PREFIX + "Lunge")
+	var heavy := combo_step == 4 or String(anim.current_animation).begins_with(SWORD_PREFIX + "Lunge")
 	Sfx.play_at(get_tree(), "dagger_hit", at)
 	Sfx.play_at(get_tree(), "dagger_flesh", at, 2.0 if heavy else 0.0, 0.92)
 	Sfx.play_at(get_tree(), "dagger_body", at, 4.0 if heavy else 0.0, 0.5 if heavy else 0.6, 0.05)

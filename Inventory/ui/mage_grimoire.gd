@@ -1,7 +1,8 @@
 extends Control
 ## mage_grimoire.gd — вкладка «ГРИМУАР» мага (клавиша G): встаёт на место
 ## содержимого инвентаря, как экран талисманов.
-##   слева  — четыре страницы заклинаний (ЛКМ/ПКМ/V/B): руна, что делает,
+##   слева  — страницы заклинаний на двух вкладках: «Пламя» (ЛКМ/ПКМ/V/B) и
+##            «Лёд» (Q/F/X/Ctrl). На странице: руна, что делает,
 ##            цена в Сейде (с рангом и Гандром вёльвы), сила, три ранга и
 ##            кнопка «Усилить» за души;
 ##   справа — Сосуд душ: сколько душ, уровень сосуда и его расширение
@@ -32,12 +33,37 @@ const SPELLS := [
 		"glyph": [[Vector2(0.5, 0.94), Vector2(0.5, 0.06)], [Vector2(0.5, 0.46), Vector2(0.16, 0.1)],
 				[Vector2(0.5, 0.46), Vector2(0.84, 0.1)]],
 		"rank3": "+2 цели столпам"},
+	# ── Лёд Нифльхейма ──
+	{"key": "Q", "name": "Кольцо инея", "rune": "Иса",
+		"desc": "Вокруг мага из земли вырастают ледяные шипы: ранят, отбрасывают и сковывают ознобом.",
+		"glyph": [[Vector2(0.5, 0.06), Vector2(0.5, 0.94)]],
+		"rank3": "+1 урона шипам"},
+	{"key": "F", "name": "Вихрь", "rune": "Йера",
+		"desc": "Маг крутится в метели: стягивает врагов к себе, дважды бьёт льдом и раскидывает. Удар его не сбивает.",
+		"glyph": [[Vector2(0.44, 0.1), Vector2(0.16, 0.36), Vector2(0.44, 0.62)],
+				[Vector2(0.56, 0.38), Vector2(0.84, 0.64), Vector2(0.56, 0.9)]],
+		"rank3": "+1 урона каждому удару"},
+	{"key": "X", "name": "Ледяной луч", "rune": "Тейваз",
+		"desc": "Пока зажата клавиша, из рук бьёт луч стужи: пронзает всех на линии и тянет Сейд каждую секунду.",
+		"glyph": [[Vector2(0.5, 0.94), Vector2(0.5, 0.06)], [Vector2(0.16, 0.38), Vector2(0.5, 0.06), Vector2(0.84, 0.38)]],
+		"rank3": "+1 урона за тик"},
+	{"key": "Ctrl", "name": "Ледяной шаг", "rune": "Эваз",
+		"desc": "Рывок осколками сквозь врагов, неуязвимый. Позади — наледь, что морозит, впереди — вспышка холода.",
+		"glyph": [[Vector2(0.2, 0.94), Vector2(0.2, 0.06), Vector2(0.5, 0.42), Vector2(0.8, 0.06), Vector2(0.8, 0.94)]],
+		"rank3": "+1 урона вспышке"},
 ]
+## Страниц на вкладке: 0-3 — пламя, 4-7 — лёд
+const PER_TAB := 4
+const TABS := ["ПЛАМЯ МУСПЕЛЬХЕЙМА", "ЛЁД НИФЛЬХЕЙМА"]
 
 var _ui
 var _mage: Node
 var _pages: Array = []
 var _buttons: Array[Button] = []
+## Держатели страниц (с плашкой) — прячутся вместе с вкладкой
+var _holders: Array[Control] = []
+var _tab_buttons: Array[Button] = []
+var _tab := 0
 var _vessel: VesselView
 var _souls_label: Label
 var _seid_label: Label
@@ -60,6 +86,8 @@ func refresh() -> void:
 		return
 	var souls: int = _mage.souls
 	for i in _pages.size():
+		if i >= _mage.spell_ranks.size():
+			break
 		var pg: SpellPage = _pages[i]
 		pg.rank = _mage.spell_ranks[i]
 		pg.cost_base = _mage.base_spell_cost(i)
@@ -100,25 +128,31 @@ func _build() -> void:
 	hdr.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	add_child(hdr)
 	HeroSkin.divider(self, f.position.x + 60, f.size.x - 120, ty + 38)
-	var sub := _make_label("Души, собранные с павших, вплетаются в руны: ранг II — дешевле, ранг III — сильнее", 16)
-	sub.add_theme_color_override("font_color", HeroSkin.TEXT_DIM)
-	sub.position = Vector2(f.position.x, ty + 62)
-	sub.size = Vector2(f.size.x, 22)
-	sub.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	add_child(sub)
+	# Вкладки школ: восемь страниц в ряд не помещаются — по четыре на вкладку
+	_tab_buttons.clear()
+	var tw := 300.0
+	for t in TABS.size():
+		var tb := _button(Rect2(f.position.x + f.size.x * 0.5 + (t - 1) * (tw + 16) + 8, ty + 52, tw, 38))
+		tb.text = TABS[t]
+		var idx := t
+		tb.pressed.connect(func(): _show_tab(idx, true))
+		_tab_buttons.append(tb)
 
 	var area := Rect2(f.position.x + 30, ty + 104, f.size.x - 60, f.end.y - 30 - (ty + 104))
 	var gap := 20.0
 	var cw := floorf((area.size.x - gap * 3.0) / 4.0)
 	_pages.clear()
 	_buttons.clear()
+	_holders.clear()
 	for i in SPELLS.size():
-		var r := Rect2(area.position + Vector2(i * (cw + gap), 0), Vector2(cw, area.size.y))
+		var col := i % PER_TAB
+		var r := Rect2(area.position + Vector2(col * (cw + gap), 0), Vector2(cw, area.size.y))
 		var holder := Control.new()
 		holder.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		holder.position = r.position.round()
 		holder.size = r.size
 		add_child(holder)
+		_holders.append(holder)
 		HeroSkin.cell_plate(holder, r.size)
 		var pg := SpellPage.new()
 		pg.spell = SPELLS[i]
@@ -165,7 +199,32 @@ func _build() -> void:
 	_status.size = Vector2(f.size.x, 22)
 	_status.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	add_child(_status)
+	_status.text = "Души, собранные с павших, вплетаются в руны: ранг II — дешевле, ранг III — сильнее"
+	_status.add_theme_color_override("font_color", HeroSkin.TEXT_DIM)
+	_show_tab(0, false)
 	refresh()
+
+
+## Вкладка школы: страницы и кнопки «Усилить» только её рун; выбранная
+## вкладка подсвечена золотом
+func _show_tab(t: int, with_sound: bool) -> void:
+	_tab = t
+	for i in _holders.size():
+		@warning_ignore("integer_division")
+		var on := i / PER_TAB == t
+		_holders[i].visible = on
+		_buttons[i].visible = on
+	for k in _tab_buttons.size():
+		var b := _tab_buttons[k]
+		var c := HeroSkin.GOLD_HI if k == t else HeroSkin.TEXT_DIM
+		b.add_theme_color_override("font_color", c)
+		var sb := b.get_theme_stylebox("normal").duplicate() as StyleBoxFlat
+		if sb:
+			sb.border_color = Color(HeroSkin.GOLD, 0.95 if k == t else 0.3)
+			sb.bg_color = Color(HeroSkin.GOLD_HI, 0.1) if k == t else Color(0, 0, 0, 0.5)
+			b.add_theme_stylebox_override("normal", sb)
+	if with_sound and _ui and _ui.has_method("_play_ui_sound"):
+		_ui._play_ui_sound(_ui.SOUND_ACCEPT)
 
 
 func _button(r: Rect2) -> Button:

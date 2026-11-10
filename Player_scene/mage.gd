@@ -70,14 +70,13 @@ func _ready() -> void:
 	add_child(mage_hud)
 	_setup_inventory()
 	_ensure_life_exchange_action()
-	mage_hud.build_runes([
-		{"key": "ЛКМ", "cost": fireball_seid_cost, "glyph": [[Vector2(0.72, 0.08), Vector2(0.28, 0.5), Vector2(0.72, 0.92)]]},
-		{"key": "ПКМ", "cost": sweep_seid_cost, "glyph": [[Vector2(0.68, 0.06), Vector2(0.3, 0.38), Vector2(0.7, 0.62), Vector2(0.32, 0.94)]]},
-		{"key": "V", "cost": pulse_seid_cost, "glyph": [[Vector2(0.25, 0.06), Vector2(0.25, 0.94)], [Vector2(0.75, 0.06), Vector2(0.75, 0.94)],
-				[Vector2(0.25, 0.36), Vector2(0.75, 0.64)]]},
-		{"key": "B", "cost": special_seid_cost, "glyph": [[Vector2(0.5, 0.94), Vector2(0.5, 0.06)], [Vector2(0.5, 0.46), Vector2(0.16, 0.1)],
-				[Vector2(0.5, 0.46), Vector2(0.84, 0.1)]]},
-	], RUNES_RIGHT)
+	_ensure_mage_actions()
+	# Два ряда по четыре: нижний — пламя Муспельхейма (0-3), верхний — лёд
+	# Нифльхейма (4-7). Черты рун — те же, что в Гримуаре (mage_grimoire.gd)
+	var runes := []
+	for i in RUNE_GLYPHS.size():
+		runes.append({"key": RUNE_KEYS[i], "cost": base_spell_cost(i), "glyph": RUNE_GLYPHS[i]})
+	mage_hud.build_runes(runes, RUNES_RIGHT, 4)
 
 
 func _process(delta: float) -> void:
@@ -95,7 +94,7 @@ func _process(delta: float) -> void:
 	if is_instance_valid(health_bar):
 		health_bar.set_odr(seid, max_seid)
 	if is_instance_valid(mage_hud):
-		mage_hud.update_runes(seid, _casting_rune, [_spell_cost(0), _spell_cost(1), _spell_cost(2), _spell_cost(3)])
+		mage_hud.update_runes(seid, _casting_rune, _all_costs())
 		mage_hud.sync_souls(souls)
 
 
@@ -114,8 +113,17 @@ func _has_talisman(item_name: String) -> bool:
 	return talisman_system != null and talisman_system.has_talisman(item_name)
 
 
+## Цены всех рун разом — для рунной панели HUD
+func _all_costs() -> Array:
+	var out := []
+	for i in spell_ranks.size():
+		out.append(_spell_cost(i))
+	return out
+
+
 ## Цена руны в Сейде с учётом Гандра вёльвы и ранга заклинания в Гримуаре
-## (0 — шар, 1 — облако, 2 — импульс, 3 — столпы)
+## (0 — шар, 1 — облако, 2 — импульс, 3 — столпы, 4 — кольцо инея, 5 — вихрь,
+## 6 — луч (цена старта), 7 — ледяной шаг)
 func _spell_cost(rune: int) -> float:
 	var cost: float = base_spell_cost(rune)
 	if spell_ranks[rune] >= 2:
@@ -136,7 +144,14 @@ func _spell_cost(rune: int) -> float:
 
 
 func base_spell_cost(rune: int) -> float:
-	return [fireball_seid_cost, sweep_seid_cost, pulse_seid_cost, special_seid_cost][rune]
+	return [fireball_seid_cost, sweep_seid_cost, pulse_seid_cost, special_seid_cost,
+			frost_ring_seid_cost, whirl_seid_cost, beam_seid_cost, ice_step_seid_cost][rune]
+
+
+## Во сколько раз ранги, талисман и навыки изменили цену руны (для расхода
+## Сейда луча в секунду — он дешевеет вместе с ценой старта)
+func _cost_mult(rune: int) -> float:
+	return _spell_cost(rune) / maxf(base_spell_cost(rune), 0.01)
 
 
 ## Цена руны для Гримуара (тот же расчёт, что при касте)
@@ -155,7 +170,7 @@ const VESSEL_SEID := 20.0
 const MAX_RANK := 3
 ## Прямой урон шара (mage_fireball.gd direct_damage) — для Гримуара и ранга III
 const FIREBALL_DAMAGE := 2
-var spell_ranks: Array[int] = [1, 1, 1, 1]
+var spell_ranks: Array[int] = [1, 1, 1, 1, 1, 1, 1, 1]
 var vessel_level := 0
 ## База шкалы Сейда без сосуда (max_seid пересчитывается от неё)
 var _base_max_seid := -1.0
@@ -197,13 +212,19 @@ func upgrade_vessel() -> bool:
 
 
 ## Ранг III: шар и облако бьют на +1, импульс на +1, столпы — по двум целям
-## больше. Возвращает [урон, доп. цели] для руны
+## больше; ледяные — +1 урона (у луча — за каждый тик, у вихря — за каждый
+## удар). Возвращает [урон, доп. цели] для руны
 func spell_power(rune: int) -> Array:
 	var r3 := spell_ranks[rune] >= 3
+	var bonus := 1 if r3 else 0
 	match rune:
-		0: return [FIREBALL_DAMAGE + (1 if r3 else 0), 0]
-		1: return [sweep_damage + (1 if r3 else 0), 0]
-		2: return [pulse_damage + (1 if r3 else 0), 0]
+		0: return [FIREBALL_DAMAGE + bonus, 0]
+		1: return [sweep_damage + bonus, 0]
+		2: return [pulse_damage + bonus, 0]
+		4: return [frost_ring_damage + bonus, 0]
+		5: return [whirl_damage + bonus, 0]
+		6: return [beam_damage + bonus, 0]
+		7: return [ice_step_damage + bonus, 0]
 		_: return [0, special_max_targets + (2 if r3 else 0)]
 
 
@@ -213,7 +234,7 @@ func _apply_ranks() -> void:
 	# Тихий исток, Глубокий родник, Вечный возврат — поверх Сосуда душ
 	max_seid = (_base_max_seid + VESSEL_SEID * vessel_level) * (1.0 + skill("max_seid_percent") / 100.0)
 	if is_instance_valid(mage_hud):
-		mage_hud.update_runes(seid, _casting_rune, [_spell_cost(0), _spell_cost(1), _spell_cost(2), _spell_cost(3)])
+		mage_hud.update_runes(seid, _casting_rune, _all_costs())
 
 
 func get_hero_progress() -> Dictionary:
@@ -372,36 +393,49 @@ func _cast_sweep() -> void:
 		_attack_recovery = true
 
 
-## ЛКМ — дальняя атака (Attack_, огненный шар), ПКМ ("parry", у мага парирования
-## нет) — ближняя (Attack_2_, пелена с отбросом), V ("kick", пинка у мага нет) —
-## двойной импульс вокруг себя (Attack_3_), B ("special") — столпы огня под
-## врагами (SpecialAttack_). Это отдельные кнопки, а не серия:
-## повторное нажатие во время удара в очередь не ставится, как это делала база.
-## Бег на Attack_ работает как раньше (Run_Attack_, если нарисована)
+## Пламя Муспельхейма (нижний ряд рун): ЛКМ — огненный шар (Attack_), ПКМ
+## ("parry", парирования у мага нет) — выжигание (Attack_2_), V ("kick") —
+## двойной импульс (Attack_3_), B ("special") — столпы (SpecialAttack_).
+## Лёд Нифльхейма (верхний ряд): Q — кольцо инея, F — вихрь, X (держать) —
+## ледяной луч, Ctrl — ледяной шаг. Без Сейда: G — толчок посохом (и ЛКМ,
+## когда на шар не хватает Сейда), Z (держать, стоя) — медитация.
+## Это отдельные кнопки, а не серия: повторное нажатие во время удара в
+## очередь не ставится, как это делала база. Бег на ЛКМ — Run_Attack_
 func handle_attack_input() -> void:
 	# Нажатия — из буфера ввода базы: руна, нажатая под конец прошлого
-	# заклинания или переката, сработает сразу, как маг освободится
-	var fireball := _pressed("attack")
-	var sweep := _pressed("parry")
-	var pulse := _pressed("kick")
-	var special := _pressed("special")
-	if not fireball and not sweep and not pulse and not special:
+	# заклинания или переката, сработает сразу, как маг освободится. Если
+	# нажато несколько разом — сильнейшая/особая первой
+	var rune := -1
+	for r in [7, 6, 5, 4, 3, 2, 1, 0]:
+		if _pressed(RUNE_ACTIONS[r]):
+			rune = r
+			break
+	var shove := _pressed(SHOVE_ACTION)
+	if rune < 0 and not shove:
+		_try_meditate()
 		return
 	# Прошлое заклинание уже сорвалось с руки (_attack_recovery) — новое
 	# можно начинать, не дожидаясь конца клипа
 	if is_attacking and not _attack_recovery:
 		return
+	if rune < 0:
+		_consume(SHOVE_ACTION)
+		_start_shove()
+		return
 	# Заклинание стоит Сейда. Не хватает — не колдуем: шкала мигает, руна
-	# вздрагивает, глухой звук отказа
-	var rune := 3 if special else (2 if pulse else (1 if sweep else 0))
-	_consume(["attack", "parry", "kick", "special"][rune])
+	# вздрагивает, глухой звук отказа. Не хватило на шар — маг не стоит
+	# столбом, а бьёт посохом (толчок без Сейда)
+	_consume(RUNE_ACTIONS[rune])
 	var cost := _spell_cost(rune)
 	if seid < cost:
 		if is_instance_valid(health_bar):
 			health_bar.blink_odr()
 		if is_instance_valid(mage_hud):
 			mage_hud.rune_denied(rune)
-		_play_denied()
+		if rune == 0:
+			_start_shove()
+		else:
+			_play_denied()
 		return
 	if is_attacking:
 		_cancel_attack()
@@ -412,16 +446,19 @@ func handle_attack_input() -> void:
 	_last_cast_cost = cost
 	if is_instance_valid(mage_hud):
 		mage_hud.rune_cast(rune)
-	if special:
-		start_special()
-	elif pulse:
-		start_attack(3)
-	elif sweep:
-		start_attack(2)
-	elif is_running and input_vector != Vector2.ZERO:
-		start_run_attack()
-	else:
-		start_attack(1)
+	match rune:
+		3: start_special()
+		2: start_attack(3)
+		1: start_attack(2)
+		4: _start_frost_ring()
+		5: _start_whirl()
+		6: _start_beam()
+		7: _start_ice_step()
+		_:
+			if is_running and input_vector != Vector2.ZERO:
+				start_run_attack()
+			else:
+				start_attack(1)
 
 
 ## Цена заклинаний в Сейде (шкала — HealthStaminaBar.enable_odr, руны — mage_hud.gd)
@@ -622,15 +659,21 @@ func _ground_offset(e: Node2D) -> Vector2:
 	return spr.position + FEET_PX * spr.scale
 
 
-## База завершает удар только по клипам "Attack*" — SpecialAttack_ сюда не
-## попадает, и без этого маг так и остался бы в is_attacking
+## База завершает удар только по клипам "Attack*" — SpecialAttack_, вихрь,
+## луч и толчок посохом сюда не попадают, и без этого маг так и остался бы в
+## is_attacking
+const OWN_CLIPS := ["SpecialAttack", "Whirl_", "Cast_", "Kick_"]
+
 func _on_animation_finished(finished_anim: String) -> void:
-	if finished_anim.begins_with("SpecialAttack"):
-		is_attacking = false
-		combo_step = 0
-		combo_queued = false
-		play_movement_animation()
-		return
+	for p in OWN_CLIPS:
+		if finished_anim.begins_with(p):
+			if is_instance_valid(_beam):
+				_stop_beam()
+			is_attacking = false
+			combo_step = 0
+			combo_queued = false
+			play_movement_animation()
+			return
 	super(finished_anim)
 
 
@@ -658,7 +701,7 @@ var _seq_rune := -1
 var _seq_time := -1000.0
 ## Бонус последовательности для каждого из четырёх заклинаний — ставится в
 ## момент каста и действует на то, что это заклинание выпустит
-var _cast_combo := [false, false, false, false]
+var _cast_combo := [false, false, false, false, false, false, false, false]
 
 
 func _register_cast(rune: int) -> void:
@@ -703,11 +746,14 @@ func posture_mult_vs(_enemy: Node) -> float:
 	return 1.0
 
 
-## Входящий урон: Память камня и (пока идёт импульс) Тяжёлая земля
+## Входящий урон: Память камня и (пока идёт импульс) Тяжёлая земля. В
+## медитации маг беззащитен — бьют больнее
 func _incoming_damage_mult(_attack_data: Dictionary) -> float:
 	var pct := skill("physical_damage_taken_percent")
 	if is_attacking and _casting_rune == 2:
 		pct += skill("casting_pulse_damage_taken_percent")
+	if is_instance_valid(_meditation):
+		pct += meditate_damage_taken_percent
 	return maxf(1.0 + pct / 100.0, 0.1)
 
 
@@ -808,6 +854,501 @@ func on_enemy_killed(_enemy: Node) -> void:
 	var pct := skill("seid_on_kill_percent")
 	if pct > 0.0 and _last_cast_cost > 0.0:
 		seid = minf(seid + _last_cast_cost * pct / 100.0, max_seid)
+
+
+# ═════════════════ ЛЁД НИФЛЬХЕЙМА: руны 4-7 и приёмы без Сейда ═════════════════
+# Пара к огню: огонь бьёт и жжёт, лёд держит — замедляет (озноб), стягивает,
+# отталкивает, даёт уйти. Эффекты — mage_ice_fx.gd и узлы заклинаний ниже,
+# клипы — из листов Frost-мага (tools/build_mage_anims.gd).
+
+const MageFx := preload("res://Player_scene/mage_fx.gd")
+const IceFx := preload("res://Player_scene/mage_ice_fx.gd")
+const FrostRingScript := preload("res://Player_scene/mage_frost_ring.gd")
+const WhirlScript := preload("res://Player_scene/mage_whirl.gd")
+const BeamScript := preload("res://Player_scene/mage_beam.gd")
+const FrostTrailScript := preload("res://Player_scene/mage_frost_trail.gd")
+const MeditationScript := preload("res://Player_scene/mage_meditation.gd")
+
+## Руна -> действие ввода. 0-3 — из project.godot, 4-7 заводит маг сам
+const RUNE_ACTIONS := ["attack", "parry", "kick", "special", "frost_ring", "whirl", "ice_beam", "ice_step"]
+const RUNE_KEYS := ["ЛКМ", "ПКМ", "V", "B", "Q", "F", "X", "Ctrl"]
+const SHOVE_ACTION := "staff_shove"
+const MEDITATE_ACTION := "meditate"
+## [действие, клавиша по умолчанию] — заводятся при старте, если их нет
+const MAGE_KEYS := [["frost_ring", KEY_Q], ["whirl", KEY_F], ["ice_beam", KEY_X],
+		["ice_step", KEY_CTRL], ["staff_shove", KEY_G], ["meditate", KEY_Z]]
+## Буфер ввода мага: базовые действия + ледяные руны и толчок (медитация —
+## удержание, её не буферизуем)
+const MAGE_BUFFERED := ["attack", "ui_accept", "parry", "kick", "special",
+		"frost_ring", "whirl", "ice_beam", "ice_step", "staff_shove"]
+
+## Черты рун в квадрате 0..1 (те же — в Гримуаре). Пламя: Кеназ, Соулу,
+## Хагалаз, Альгиз. Лёд: Иса (лёд), Йера (круговорот), Тейваз (копьё),
+## Эваз (конь — движение)
+const RUNE_GLYPHS := [
+	[[Vector2(0.72, 0.08), Vector2(0.28, 0.5), Vector2(0.72, 0.92)]],
+	[[Vector2(0.68, 0.06), Vector2(0.3, 0.38), Vector2(0.7, 0.62), Vector2(0.32, 0.94)]],
+	[[Vector2(0.25, 0.06), Vector2(0.25, 0.94)], [Vector2(0.75, 0.06), Vector2(0.75, 0.94)],
+			[Vector2(0.25, 0.36), Vector2(0.75, 0.64)]],
+	[[Vector2(0.5, 0.94), Vector2(0.5, 0.06)], [Vector2(0.5, 0.46), Vector2(0.16, 0.1)],
+			[Vector2(0.5, 0.46), Vector2(0.84, 0.1)]],
+	[[Vector2(0.5, 0.06), Vector2(0.5, 0.94)]],
+	[[Vector2(0.44, 0.1), Vector2(0.16, 0.36), Vector2(0.44, 0.62)],
+			[Vector2(0.56, 0.38), Vector2(0.84, 0.64), Vector2(0.56, 0.9)]],
+	[[Vector2(0.5, 0.94), Vector2(0.5, 0.06)], [Vector2(0.16, 0.38), Vector2(0.5, 0.06), Vector2(0.84, 0.38)]],
+	[[Vector2(0.2, 0.94), Vector2(0.2, 0.06), Vector2(0.5, 0.42), Vector2(0.8, 0.06), Vector2(0.8, 0.94)]],
+]
+
+## Цены ледяных рун в Сейде
+@export var frost_ring_seid_cost := 22.0
+@export var whirl_seid_cost := 26.0
+## Луч: цена старта + расход в секунду, пока держат
+@export var beam_seid_cost := 8.0
+@export var beam_seid_per_sec := 16.0
+@export var ice_step_seid_cost := 14.0
+
+## ── Кольцо инея (Q, Attack_4_): малое кольцо на 2.5 кадре, удар на 8.5 ──
+@export var frost_ring_damage := 1
+@export var frost_ring_radius := 78.0
+
+## ── Вихрь (F, Whirl_): тянет врагов, два удара, срыв наружу ──
+@export var whirl_damage := 1
+
+## ── Ледяной луч (X — держать, Cast_) ──
+@export var beam_damage := 1
+## Раз в сколько секунд луч ранит всех на линии
+@export var beam_tick := 0.45
+@export var beam_length := 230.0
+## Кадр клипа, на котором луч срывается с рук, и кадры, которые держатся,
+## пока зажата клавиша (лист Attack3: руки вперёд, свечение — кадры 4-10)
+@export var beam_start_frame := 5.0
+@export var beam_loop_start := 6.0
+@export var beam_loop_end := 9.5
+## Даже по короткому нажатию луч живёт хотя бы столько
+@export var beam_min_time := 0.35
+## Скорость доворота луча за мышью/стрелками, рад/с
+@export var beam_turn_speed := 2.4
+
+## ── Ледяной шаг (Ctrl, Run_Attack_2_): рывок сквозь врагов ──
+@export var ice_step_damage := 1
+@export var ice_step_speed := 650.0
+## Сколько секунд длится сам рывок (дальше маг свободен) и неуязвимость
+@export var ice_step_time := 0.28
+@export var ice_step_iframes := 0.3
+@export var ice_step_nova_radius := 46.0
+@export var ice_step_trail_life := 2.6
+
+## ── Толчок посохом (G, Kick_): без Сейда, бьёт по стойкости ──
+@export var shove_hit_frame := 6.0
+@export var shove_range := 46.0
+@export var shove_cone_deg := 70.0
+@export var shove_posture := 34.0
+@export var shove_push := 230.0
+## Сейд за каждого задетого — посох «выбивает» силу из врага
+@export var shove_seid_gain := 6.0
+
+## ── Медитация (Z — держать, Crouch_Idle_) ──
+@export var meditate_seid_per_sec := 34.0
+## Первые доли секунды маг только садится — Сейд ещё не течёт
+@export var meditate_warmup := 0.35
+@export var meditate_ramp := 0.8
+@export var meditate_damage_taken_percent := 30.0
+
+var _beam: Node2D
+var _beam_clip := ""
+var _beam_time := 0.0
+var _meditation: Node2D
+var _meditate_time := 0.0
+
+
+func _ensure_mage_actions() -> void:
+	for pair in MAGE_KEYS:
+		if InputMap.has_action(pair[0]):
+			continue
+		InputMap.add_action(pair[0])
+		var ev := InputEventKey.new()
+		ev.physical_keycode = pair[1]
+		InputMap.action_add_event(pair[0], ev)
+
+
+func _buffered_actions() -> Array:
+	return MAGE_BUFFERED
+
+
+func _physics_process(delta: float) -> void:
+	super(delta)
+	_update_beam(delta)
+	_update_meditation(delta)
+
+
+## Вихрь не сбивается ударом — маг в нём крутится до конца
+func _has_hyper_armor() -> bool:
+	return is_attacking and String(anim.current_animation).begins_with("Whirl_")
+
+
+## Запустить клип приёма (не серии) — как start_special: без комбо, лицом к
+## цели (turn = false — не поворачиваться). Возвращает имя клипа, "" — клипа нет
+func _start_move(prefix: String, turn := true) -> String:
+	_attack_recovery = false
+	is_attacking = true
+	is_run_attacking = false
+	combo_step = 0
+	combo_queued = false
+	_attack_step_velocity = Vector2.ZERO
+	if turn:
+		_turn_to_aim(_pick_aim())
+	if not _play_restart(prefix + last_direction):
+		is_attacking = false
+		return ""
+	return String(anim.current_animation)
+
+
+## Через frames кадров клипа заклинание «отыграно»: хвост клипа больше не
+## держит — можно идти и колдовать дальше
+func _recover_at(clip: String, frames: float) -> void:
+	await get_tree().create_timer(frames * _clip_frame_time(clip)).timeout
+	if is_attacking and _same_attack(clip):
+		_attack_recovery = true
+
+
+func _ice_damage(rune: int) -> int:
+	return SkillTrees.scale_int(spell_power(rune)[0], _spell_damage_percent(rune))
+
+
+# ── Кольцо инея ──
+func _start_frost_ring() -> void:
+	var clip := _start_move("Attack_4_")
+	if clip == "":
+		return
+	var ring: Node2D = FrostRingScript.new()
+	ring.setup(self, _ice_damage(4), frost_ring_radius, _clip_frame_time(clip))
+	ring.alive_check = func() -> bool: return not is_dead() and is_attacking and _same_attack(clip)
+	get_tree().current_scene.add_child(ring)
+	ring.global_position = global_position + _body_anchor()[1]
+	_recover_at(clip, 10.0)
+
+
+# ── Вихрь ──
+func _start_whirl() -> void:
+	var clip := _start_move("Whirl_", false)
+	if clip == "":
+		return
+	var body := _body_anchor()
+	var w: Node2D = WhirlScript.new()
+	w.setup(self, _ice_damage(5), _clip_frame_time(clip), body[1] - body[0])
+	w.alive_check = func() -> bool: return not is_dead() and is_attacking and _same_attack(clip)
+	w.position = body[0]
+	add_child(w)
+	_recover_at(clip, 12.5)
+
+
+# ── Ледяной луч ──
+func _start_beam() -> void:
+	var clip := _start_move("Cast_")
+	if clip == "":
+		return
+	_beam_clip = clip
+	_beam_time = 0.0
+	await get_tree().create_timer(beam_start_frame * _clip_frame_time(clip)).timeout
+	if is_dead() or not is_attacking or not _same_attack(clip):
+		return
+	var b: Node2D = BeamScript.new()
+	b.setup(self, _ice_damage(6), beam_tick, beam_length)
+	add_child(b)
+	_beam = b
+	_place_beam()
+
+
+## Луч — у рук мага, по взгляду; ground_offset — от рук до земли под ними
+func _place_beam() -> void:
+	var body := _body_anchor()
+	_beam.aim = facing_dir
+	_beam.position = body[0] + facing_dir * 12.0 + Vector2(0, -4)
+	_beam.ground_offset = body[1] - _beam.position
+
+
+## Куда хочет повернуть луч игрок: цель в фокусе > мышь/стрелки
+func _beam_aim_dir() -> Vector2:
+	if _focus.has_target():
+		var to: Vector2 = _focus.direction_to_target()
+		if to != Vector2.ZERO:
+			return to.normalized()
+	return _aim_dir()
+
+
+func _update_beam(delta: float) -> void:
+	if not is_instance_valid(_beam):
+		return
+	# Луч сорвали: перекат, удар, смерть, другой приём
+	if is_dead() or not is_attacking or not _same_attack(_beam_clip):
+		_stop_beam()
+		return
+	_beam_time += delta
+	var held := Input.is_action_pressed(RUNE_ACTIONS[6])
+	if (not held and _beam_time >= beam_min_time) or seid <= 0.0:
+		_stop_beam()
+		return
+	seid = maxf(seid - beam_seid_per_sec * _cost_mult(6) * delta, 0.0)
+	_since_cast = 0.0
+	_casting_rune = 6
+	# Доворот за прицелом — плавно, с ограниченной скоростью; сменился сектор —
+	# клип той же позы в новую сторону
+	var want := _beam_aim_dir()
+	if want != Vector2.ZERO:
+		var a := facing_dir.angle()
+		var diff := wrapf(want.angle() - a, -PI, PI)
+		var step := beam_turn_speed * delta
+		facing_dir = Vector2.from_angle(a + clampf(diff, -step, step))
+		var nd := get_direction(facing_dir)
+		if nd != "" and nd != last_direction and anim.has_animation("Cast_" + nd):
+			var pos := anim.current_animation_position
+			last_direction = nd
+			_beam_clip = "Cast_" + nd
+			anim.play(_beam_clip)
+			anim.seek(pos, true)
+	# Пока держат — поза «руки вперёд» держится (кадры loop_start..loop_end)
+	var fr := _clip_frame_time(_beam_clip)
+	if anim.current_animation_position >= beam_loop_end * fr:
+		anim.seek(beam_loop_start * fr, true)
+	_place_beam()
+
+
+## Луч гаснет; клип доигрывает отмах сам (дальше _on_animation_finished)
+func _stop_beam() -> void:
+	if is_instance_valid(_beam):
+		_beam.stop()
+	_beam = null
+	if is_attacking and _same_attack(_beam_clip):
+		_attack_recovery = true
+
+
+# ── Ледяной шаг ──
+func _start_ice_step() -> void:
+	var dir := input_vector.normalized() if input_vector != Vector2.ZERO else facing_dir
+	if dir == Vector2.ZERO:
+		dir = Vector2.DOWN
+	_attack_recovery = false
+	is_attacking = true
+	is_run_attacking = true
+	combo_step = 0
+	combo_queued = false
+	facing_dir = dir
+	last_direction = get_direction(dir)
+	if not _play_restart("Run_Attack_2_" + last_direction):
+		is_attacking = false
+		is_run_attacking = false
+		return
+	var clip := String(anim.current_animation)
+	# Несёт база (is_run_attacking: _run_dash_velocity гаснет трением)
+	_run_dash_velocity = dir * ice_step_speed
+	is_invulnerable = true
+	_invuln_timer = maxf(_invuln_timer, ice_step_iframes)
+	# Слой 3 — враги: сквозь них, как на перекате
+	set_collision_mask_value(3, false)
+	var feet: Vector2 = _body_anchor()[1]
+	var start := global_position + feet
+	var h := MageFx.holder(get_tree(), start + Vector2(0, -16), 1.0, 11)
+	MageFx.flash(h, 34.0, 0.12, IceFx.CORE)
+	IceFx.shards(h, 10, 120.0, 0.45, -dir, 60.0)
+	IceFx.mist(h, 5, 10.0, 26.0, 0.8, 0.2)
+	SoundBank.play_at(get_tree(), "life_exchange", start, -12.0, 1.6)
+	# Ледяные двойники по пути
+	var t := 0.0
+	while t < ice_step_time:
+		IceFx.ghost(self, sprite, 0.5 * (1.0 - t / ice_step_time) + 0.15, 0.3)
+		await get_tree().create_timer(0.035).timeout
+		t += 0.035
+		if is_dead():
+			break
+	if not is_rolling:
+		set_collision_mask_value(3, true)
+	if is_dead():
+		return
+	var end := global_position + feet
+	var trail: Node2D = FrostTrailScript.new()
+	trail.setup(start, end, ice_step_trail_life)
+	get_tree().current_scene.add_child(trail)
+	_ice_step_nova(end, dir)
+	# Рывок кончился — маг свободен, хвост клипа обрывается движением
+	if is_attacking and _same_attack(clip):
+		is_run_attacking = false
+		_run_dash_velocity = Vector2.ZERO
+		_attack_recovery = true
+
+
+## Приход шага: короткая вспышка холода вокруг — урон, озноб, лёгкий отброс
+func _ice_step_nova(at: Vector2, dir: Vector2) -> void:
+	var h := MageFx.holder(get_tree(), at + Vector2(0, -12), 1.2, 11)
+	MageFx.flash(h, 52.0, 0.14, IceFx.CORE)
+	MageFx.light_pulse(h, 80.0, 1.2, 0.35, IceFx.MID)
+	IceFx.shards(h, 16, 170.0, 0.5, dir, 120.0)
+	IceFx.mist(h, 6, 14.0, 30.0, 0.9, 0.22)
+	for e in IceFx.targets(get_tree()):
+		if IceFx.ground_dist(at, IceFx.feet(e), 0.7) <= ice_step_nova_radius:
+			IceFx.hit(self, e, _ice_damage(7), at, 160.0, 45.0, 1.5)
+	shake_camera(2.0, 0.12)
+
+
+# ── Толчок посохом (без Сейда) ──
+## Ближний тычок посохом: мало урона нет совсем, зато бьёт по стойкости
+## (enemy.take_posture_damage — оглушение, а сломанную стойку добьёт любое
+## следующее заклинание) и отбрасывает. За каждого задетого — немного Сейда
+func _start_shove() -> void:
+	if is_attacking:
+		_cancel_attack()
+	var clip := _start_move("Kick_")
+	if clip == "":
+		return
+	_casting_rune = -1
+	attack_step(facing_dir * 110.0)
+	await get_tree().create_timer(shove_hit_frame * _clip_frame_time(clip)).timeout
+	if is_dead() or not is_attacking or not _same_attack(clip):
+		return
+	_shove_hit()
+	_recover_at(clip, 2.5)
+
+
+func _shove_hit() -> void:
+	var feet: Vector2 = _body_anchor()[1]
+	var origin := global_position + feet
+	var tree := get_tree()
+	var min_dot := cos(deg_to_rad(shove_cone_deg))
+	var hits := 0
+	for e in IceFx.targets(tree):
+		var f := IceFx.feet(e)
+		var to := f - origin
+		var d := IceFx.ground_dist(origin, f, 0.8)
+		if d > shove_range:
+			continue
+		if d > 10.0 and to.normalized().dot(facing_dir) < min_dot:
+			continue
+		hits += 1
+		var dir := to.normalized() if to.length() > 0.5 else facing_dir
+		if "player" in e and e.player == null:
+			e.player = self
+		if e.has_method("take_posture_damage"):
+			e.take_posture_damage(shove_posture)
+		if "knockback_velocity" in e and e.get("is_dead") != true:
+			e.knockback_velocity = dir * shove_push
+		var hh := MageFx.holder(tree, e.global_position, 0.6, 12)
+		MageFx.flash(hh, 18.0, 0.1, Color(1.0, 0.95, 0.85))
+	# Посох по земле: пыль, искра холода с навершия
+	var tip := origin + facing_dir * 26.0
+	SkidDust.skid(tree, tip, facing_dir, SkidDust.Kind.STOP, 0.8)
+	var h := MageFx.holder(tree, tip + Vector2(0, -14), 0.8, 11)
+	IceFx.shards(h, 5, 90.0, 0.35, facing_dir, 50.0)
+	if hits > 0:
+		seid = minf(seid + shove_seid_gain * hits, max_seid)
+		SoundBank.play_at(tree, "knight_body", tip, -6.0, 1.1)
+
+
+# ── Медитация ──
+## Зажал Z, стоя на месте и ничего не делая, — маг садится и копит Сейд.
+## Встаёт сам: отпустил Z, пошёл, наколдовал, получил удар (бьют больнее)
+func _try_meditate() -> void:
+	if is_attacking or is_instance_valid(_meditation) or not Input.is_action_pressed(MEDITATE_ACTION):
+		return
+	if input_vector != Vector2.ZERO or seid >= max_seid:
+		return
+	var clip := _start_move("Crouch_Idle_", false)
+	if clip == "":
+		return
+	# Любое движение или руна обрывают медитацию (база: «отыграно» + ввод)
+	_attack_recovery = true
+	_meditate_time = 0.0
+	_meditation = MeditationScript.new()
+	_meditation.feet = _body_anchor()[1]
+	add_child(_meditation)
+
+
+func _update_meditation(delta: float) -> void:
+	if not is_instance_valid(_meditation):
+		return
+	var sitting := not is_dead() and is_attacking and String(anim.current_animation).begins_with("Crouch_Idle_")
+	if not sitting or not Input.is_action_pressed(MEDITATE_ACTION):
+		_end_meditation(sitting)
+		return
+	_meditate_time += delta
+	var k := clampf((_meditate_time - meditate_warmup) / meditate_ramp, 0.0, 1.0)
+	_meditation.power = k
+	seid = minf(seid + meditate_seid_per_sec * k * delta, max_seid)
+
+
+func _end_meditation(stand_up: bool) -> void:
+	if is_instance_valid(_meditation):
+		_meditation.fade_out()
+	_meditation = null
+	# Отпустил клавишу — встаёт сам; прервали (удар, руна, шаг) — уже занят другим
+	if stand_up:
+		is_attacking = false
+		_attack_recovery = false
+		play_movement_animation()
+
+
+# ═════════════════ СЛЭШЕР: реакции стихий, слава, казнь ═════════════════
+# Удар каждого заклинания несёт стихию (mage_reactions.gd::strike помечает
+# мага meta "hit_element"), враг сообщает о попадании сюда — и маг решает,
+# сработала ли реакция. Шкалы славы нет: слэшер-часть мага — реакции и казнь.
+
+const Reactions := preload("res://Player_scene/mage_reactions.gd")
+
+## Казнь (добивание сломанной стойки) возвращает Сейд
+@export var execution_seid_gain := 22.0
+## Реакции — немного Сейда за удачное сочетание стихий
+@export var reaction_seid_gain := 6.0
+## Пар бьёт саму цель на столько (соседей — на 1)
+@export var steam_damage := 2
+
+
+## Попадание по врагу (enemy.gd::_notify_weapon_hit). blocked — в щит
+func on_weapon_hit(enemy: Node2D, blocked: bool) -> void:
+	var element: String = get_meta("hit_element", "")
+	if blocked or element == "" or not is_instance_valid(enemy):
+		return
+	if enemy.get("is_dead") == true:
+		_on_spell_kill(enemy)
+		return
+	match element:
+		"fire":
+			if IceFx.is_chilled(enemy):
+				_react(enemy, "steam")
+			else:
+				Reactions.scorch(enemy)
+		"ice":
+			if Reactions.is_scorched(enemy):
+				_react(enemy, "steam")
+		"force":
+			if Reactions.is_scorched(enemy):
+				_react(enemy, "flare")
+
+
+func _react(enemy: Node2D, kind: String) -> void:
+	match kind:
+		"steam":
+			Reactions.steam(self, enemy, steam_damage)
+		"flare":
+			Reactions.flare(self, enemy)
+	seid = minf(seid + reaction_seid_gain, max_seid)
+
+
+## Враг пал от заклинания. Был охлаждён — лопается льдом (раскол), цепочка
+## продолжается, пока соседи тоже охлаждены
+func _on_spell_kill(enemy: Node2D) -> void:
+	if IceFx.is_chilled(enemy):
+		var depth: int = get_meta("shatter_depth", 0)
+		if depth < Reactions.MAX_CHAIN:
+			Reactions.shatter(self, enemy, depth)
+			seid = minf(seid + reaction_seid_gain * 0.5, max_seid)
+
+
+## Казнь: сломанную стойку (толчок посохом, пар) добило заклинание
+## (enemy.gd::_execute_by). Сейд возвращается
+func on_execution_of(enemy: Node) -> void:
+	seid = minf(seid + execution_seid_gain, max_seid)
+	if enemy is Node2D:
+		Reactions.popup(get_tree(), (enemy as Node2D).global_position + Vector2(0, -36), "КАЗНЬ", Reactions.COL_EXECUTE)
+		if IceFx.is_chilled(enemy):
+			Reactions.shatter(self, enemy as Node2D, 0)
 
 
 # ── Голос Эйрика (Levels/sound_bank.gd): боль и смерть ──

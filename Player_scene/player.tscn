@@ -8,7 +8,6 @@
 [ext_resource type="PackedScene" uid="uid://ckjq1ftt8nvsw" path="res://VFX/VFX_scene/move_start_vfx_scene.tscn" id="4_sf3ye"]
 [ext_resource type="PackedScene" uid="uid://ca4ngwbmoy8gy" path="res://VFX/VFX_scene/melee_hit.tscn" id="5_ihg11"]
 [ext_resource type="PackedScene" uid="uid://y4x16714fwdf" path="res://VFX/VFX_scene/melee_2_hit.tscn" id="6_hvtdm"]
-[ext_resource type="PackedScene" uid="uid://d1ercr4q0c1n2" path="res://VFX/VFX_scene/turn_around_vfx_scene.tscn" id="7_m414l"]
 [ext_resource type="PackedScene" uid="uid://c1lxkyyffdy2u" path="res://VFX/VFX_scene/fenrir_hit_vfx.tscn" id="8_8gugs"]
 [ext_resource type="Script" uid="uid://bus7cngrbieyv" path="res://Inventory/systems/ability/ability_system.gd" id="9_hwflx"]
 [ext_resource type="PackedScene" uid="uid://clxk311ld8km6" path="res://VFX/VFX_scene/fire_ring_vfx.tscn" id="9_l3nxm"]
@@ -6264,7 +6263,6 @@ running_hit_vfx_scene = ExtResource("3_n1bac")
 move_start_vfx_scene = ExtResource("4_sf3ye")
 melee_hit_vfx_scene = ExtResource("5_ihg11")
 melee_hit_2_vfx_scene = ExtResource("6_hvtdm")
-turn_around_vfx_scene = ExtResource("7_m414l")
 snap_radius = 150.0
 fenrir_hit_vfx_scene = ExtResource("8_8gugs")
 fire_ring_vfx_scene = ExtResource("9_l3nxm")

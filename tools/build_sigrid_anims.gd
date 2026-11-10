@@ -45,7 +45,9 @@ const CLIPS := [
 	["Sword_Take_Damage_", "TakeDamage", 15.0, false, 0, 14],
 	["Sword_Attack_", "Attack1", 25.0, false, 0, 14],
 	["Sword_Attack_2_", "Attack6", 20.0, false, 0, 14],
-	["Sword_Attack_3_", "Attack4", 25.0, false, 0, 14],
+	# Серия кинжалом (archer.gd::STEP_SWING): взмах -> укол -> разворот -> рубящий финиш
+	["Sword_Attack_3_", "Attack2", 25.0, false, 0, 14],
+	["Sword_Attack_4_", "Attack4", 25.0, false, 0, 14],
 	["Sword_Spin_", "Attack2", 25.0, false, 0, 14],
 	["Sword_Lunge_", "Attack5", 25.0, false, 0, 14],
 	["Sword_Run_Attack_", "AttackRun", 25.0, false, 0, 14],

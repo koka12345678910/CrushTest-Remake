@@ -10,6 +10,7 @@ extends Area2D
 ## чтобы враг агрился на игрока, а не на снаряд.
 
 const MageFx := preload("res://Player_scene/mage_fx.gd")
+const Reactions := preload("res://Player_scene/mage_reactions.gd")
 const ORB_SHADER := preload("res://Shaders/magic_orb.gdshader")
 
 @export var speed := 300.0
@@ -229,9 +230,9 @@ func _explode(direct_hit: Node2D) -> void:
 		if not is_instance_valid(e) or e.is_dead:
 			continue
 		if e == direct_hit:
-			e.take_damage(direct_damage, _caster)
+			Reactions.strike(_caster, e, direct_damage, "fire")
 		elif center.distance_to(e.global_position) <= splash_radius:
-			e.take_damage(splash_damage, _caster)
+			Reactions.strike(_caster, e, splash_damage, "fire")
 	_dissolve(center)
 	if _visual == null:
 		queue_free()

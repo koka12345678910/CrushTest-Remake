@@ -40,11 +40,17 @@ func _ready() -> void:
 func _on_node_added(n: Node) -> void:
 	if _respawning:
 		return
+	# Корень врага — всегда экземпляр сцены (есть scene_file_path); дочерние узлы,
+	# частицы, снаряды и т.п. отсекаем сразу, не ставя их в очередь
+	if n.scene_file_path == "" or not (n is Node2D):
+		return
 	# Группу "enemy" враг получает в своём _ready — к отложенной проверке она уже есть
 	_record.call_deferred(n)
 
 
-func _record(n: Node) -> void:
+# Аргумент без типа: к моменту отложенного вызова узел мог быть уже освобождён,
+# а освобождённый объект не приводится к Node («Cannot convert argument 1 from Object to Object»)
+func _record(n) -> void:
 	if not is_instance_valid(n) or not n.is_in_group("enemy") or n.has_meta("roster_id"):
 		return
 	# Без файла сцены воссоздать нечем (мини-босс-заглушка и т.п.)

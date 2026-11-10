@@ -19,6 +19,8 @@ static func rows(p: Node) -> Array:
 			return _archer(p)
 		"mage":
 			return _mage(p)
+		"druid":
+			return _druid(p)
 		_:
 			return _knight(p)
 
@@ -81,6 +83,16 @@ static func _archer(p: Node) -> Array:
 	if p.has_method("_has_talisman") and p._has_talisman(p.get("TALISMAN_NORN")):
 		out.append(["Крит по раненым", _pct(crit + crit_bonus + float(p.get("NORN_CRIT_BONUS"))), "Игла Норн"])
 	out.append(["Крит. урон", "×%d" % int(p.get("CRIT_MULT")), ""])
+	out.append(["Золото", str(p.get("gold")), ""])
+	out.append(["Очки навыков", str(p.get("skill_points")), ""])
+	return out
+
+
+static func _druid(p: Node) -> Array:
+	var out := _vitals(p)
+	out.append(["Рост", "%s / %s" % [_num(p.get("growth")), _num(p.get("max_growth"))], ""])
+	var heal_pct: float = p.skill("heal_power_percent") if p.has_method("skill") else 0.0
+	out.append(["Сила лечения", "×%.2f" % (1.0 + heal_pct / 100.0), ""])
 	out.append(["Золото", str(p.get("gold")), ""])
 	out.append(["Очки навыков", str(p.get("skill_points")), ""])
 	return out

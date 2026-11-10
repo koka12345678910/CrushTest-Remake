@@ -11,10 +11,11 @@ extends Node
 const KNIGHT := "knight"
 const ARCHER := "archer"
 const MAGE := "mage"
+const DRUID := "druid"
 
 ## Порядок карточек в меню выбора. Отдельно от DATA, потому что порядок ключей
 ## в словаре — не то, на что стоит опираться при отрисовке UI
-const ORDER: Array[String] = [KNIGHT, ARCHER, MAGE]
+const ORDER: Array[String] = [KNIGHT, ARCHER, MAGE, DRUID]
 
 ## Порядок строк со статами на экране выбора героя. ВАЖНО: пока это витрина,
 ## а не механика — в бою по-прежнему у всех троих одинаковые 100 hp / 100
@@ -99,6 +100,22 @@ const DATA := {
 			"Dexterity": 0.55, "Intelligence": 0.95, "Faith": 0.85,
 		},
 	},
+	DRUID: {
+		"name": "ДРУИДЕССА",
+		"scene": "res://Player_scene/druid.tscn",
+		"tagline": "Посох и корни",
+		"description": "Сольвейг, хранительница корней. Лечит, укрывает корой и камнем — и не прячется за чужими спинами: посох бьёт не хуже меча.",
+		"quote": "Лес не милостив.\nНо он помнит своих.",
+		"color": Color(0.5, 0.75, 0.38),
+		"icon": "leaf",
+		"portrait_sheet": "res://Character/Shaman_20261110_201203/Idle.png",
+		"portrait_region": Rect2(0, 256, 128, 128),
+		"idle_frame_time": 0.2,
+		"stats": {
+			"Health": 0.6, "Stamina": 0.6, "Strength": 0.5,
+			"Dexterity": 0.5, "Intelligence": 0.7, "Faith": 0.9,
+		},
+	},
 }
 
 ## Кем играем, если сейв не загружен — например, когда уровень запускают прямо
@@ -107,10 +124,11 @@ const DATA := {
 const FALLBACK := KNIGHT
 
 
-## Можно ли уже начать игру за этого героя. Лучница и маг в разработке —
-## в меню при выборе показывается окно "в разработке"
-## (Main_Menu/scripts/InDevelopmentPanel.gd). Класс готов — добавь его сюда
-const AVAILABLE: Array[String] = [KNIGHT, ARCHER, MAGE]
+## Можно ли уже начать игру за этого героя. Кого нет в списке — в меню при
+## выборе показывается окно "в разработке"
+## (Main_Menu/scripts/InDevelopmentPanel.gd). Друидесса — пока каркас, но
+## играбельна: открыта, чтобы её можно было пробовать
+const AVAILABLE: Array[String] = [KNIGHT, ARCHER, MAGE, DRUID]
 
 
 func is_available(id: String) -> bool:

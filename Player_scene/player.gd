@@ -7,7 +7,7 @@ extends CharacterBody2D
 @export var move_start_vfx_scene: PackedScene
 @export var melee_hit_vfx_scene: PackedScene
 @export var melee_hit_2_vfx_scene: PackedScene
-@export var turn_around_vfx_scene: PackedScene
+const SkidDust := preload("res://VFX/VFX_scene/skid_dust.gd")
 const DirectionUtil := preload("res://Player_scene/direction_util.gd")
 const FocusSystemScript := preload("res://Player_scene/focus_system.gd")
 const DepthComponentScript := preload("res://Player_scene/depth_component.gd")
@@ -125,7 +125,7 @@ var _last_sample_idx: Dictionary = {}
 # тычка и у добивающего вихря отдача была одинаковой, и разница между слабым и
 # мощным ударом никак не ощущалась физически
 @export var run_attack_impact_mult := 1.4
-@export var spin_impact_mult := 2.2
+@export var spin_impact_mult := 2.8
 @export var shake_decay := 6.0   # чем больше — тем быстрее гаснет
 var _shake_strength := 0.0
 
@@ -146,13 +146,15 @@ var _shake_strength := 0.0
 var _exhaust_shake_target := Vector2.ZERO
 var _exhaust_shake_current := Vector2.ZERO
 var _exhaust_shake_timer := 0.0
-@export var heartbeat_volume_low_hp := -18.0
-@export var heartbeat_volume_exhausted := 3.0
+# Громкость пульса и одышки убавлена (было -18 / +3 / -3): в долгой игре
+# давили на уши. Те же числа — в character_base.gd у остальных героев
+@export var heartbeat_volume_low_hp := -26.0
+@export var heartbeat_volume_exhausted := -6.0
 @export var heartbeat_fade_speed := 25.0  # дБ в секунду, плавность нарастания
 const HEARTBEAT_SILENT_DB := -40.0
 # Одышка (dyspnea) — играется вместе с громким сердцебиением ТОЛЬКО при
 # истощении (не на низком HP, в отличие от сердцебиения)
-@export var dyspnea_volume := -3.0
+@export var dyspnea_volume := -12.0
 var _exhaust_fx_active := false
 
 # Плавное покачивание камеры во время бега — фигура-восьмёрка (лемниската):
@@ -277,6 +279,7 @@ const COIN_SOUND := preload("res://Sound/coin_picking.mp3")
 const BloodFx := preload("res://VFX/VFX_scene/blood_fx.gd")
 # Дуги клинка, удар по щиту, парирование (VFX/VFX_scene/knight_fx.gd)
 const KnightFx := preload("res://VFX/VFX_scene/knight_fx.gd")
+const FlurryFx := preload("res://VFX/VFX_scene/flurry_fx.gd")
 const SoundBank := preload("res://Levels/sound_bank.gd")
 
 var max_posture := 100.0
@@ -403,6 +406,31 @@ var is_rolling := false
 @export var attack_windup_speed := 0.6
 @export var attack_finisher_windup_speed := 0.5
 @export var riposte_windup_speed := 0.85
+
+## ── Флёрри: быстрая серия из четырёх ударов ──
+## Первый удар остаётся весомым (замах на атакующем), дальше серия разгоняется:
+## каждый следующий удар быстрее, замахи короче, хитстоп мельче — рыцарь
+## «входит в ритм». Четвёртый — вихрь с кольцом. Всё по шагам [1, 2, 3, 4]
+## Темп всего клипа по шагу серии
+@export var flurry_speed: Array[float] = [1.0, 1.12, 1.25, 1.0]
+## Скорость замаха (до окна клинка) по шагу — множится на flurry_speed
+@export var flurry_windup: Array[float] = [0.9, 0.95, 1.0, 0.7]
+## Отмах после удара: пока в очереди следующий удар, хвост проматывается быстрее
+@export var flurry_recovery_queued := 1.25
+## Хитстоп удара по шагу — на быстрых шагах короче, чтобы поток не рвался
+@export var flurry_hitstop: Array[float] = [1.0, 0.7, 0.7, 1.0]
+## Рывок к врагу на каждом ударе: на сколько px ближе остановиться, дальше
+## какой дистанции не рвёмся, максимальная скорость рывка
+@export var flurry_lunge_stop := 24.0
+@export var flurry_lunge_reach := 110.0
+@export var flurry_lunge_speed := 250.0
+## Сколько ударов в серии (последний — вихрь)
+@export var combo_length := 4
+## Когда в клипе вихря (Attack_4_) меч бьёт о землю — метод-трек play_fire_ring_vfx
+const SPIN_SLAM_TIME := 0.667
+## Двойники клинка: интервал между ними (с) на окне удара, начиная со 2-го шага
+@export var flurry_ghost_interval := 0.035
+var _ghost_cd := 0.0
 @export var attack_strike_speed := 1.0
 @export var attack_recovery_speed := 0.75
 ## За сколько (с клипа) до окна клинка уже начинается быстрый удар
@@ -1049,6 +1077,14 @@ func _physics_process(delta):
 		if not _strike_fired and atk_clip.begins_with("Attack") \
 				and anim.current_animation_position >= _hit_window(atk_clip).x - attack_strike_lead:
 			_on_strike_start()
+		# Флёрри: пока клинок идёт (окно удара), за рыцарем тянутся светлые
+		# двойники — со 2-го шага серии
+		_ghost_cd -= delta
+		if _strike_fired and combo_step >= 2 and _ghost_cd <= 0.0 and atk_clip.begins_with("Attack") \
+				and anim.current_animation_position <= _hit_window(atk_clip).y + 0.04 \
+				and not _is_riposte and not is_instance_valid(_exec_target):
+			_ghost_cd = flurry_ghost_interval
+			FlurryFx.ghost(self, gfx, combo_step, facing_dir)
 		attack_velocity = attack_velocity.lerp(Vector2.ZERO, friction * delta)
 		velocity = attack_velocity
 		move_and_slide()
@@ -1139,7 +1175,7 @@ func _attack_cancel(_delta: float) -> bool:
 			# Следующий удар серии — сразу, не дожидаясь конца клипа
 			_advance_combo()
 			return false
-		if combo_step >= 3 and _pressed("attack"):
+		if combo_step >= combo_length and _pressed("attack"):
 			# Последний удар серии отыгран — нажатие начинает новую серию
 			reset_combo()
 			handle_attack_input()
@@ -1657,24 +1693,14 @@ func _play_armor_step() -> void:
 		_armor_audio.play()
 
 
+## Пыль на развороте — общий процедурный эффект (VFX/VFX_scene/skid_dust.gd),
+## тот же, что у лучника и мага
 func play_turn_vfx(_old_dir: Vector2, _new_dir: Vector2):
-	if turn_around_vfx_scene == null:
-		return
-	
-	var vfx = turn_around_vfx_scene.instantiate()
-	var dir = velocity.normalized()
+	var dir := velocity.normalized()
 	if dir == Vector2.ZERO:
-		dir = direction_to_vector(last_direction) 
-	# чуть позади игрока
-	vfx.global_position = foot_point.global_position - dir * 5
-
-	# передаём направление (если используешь движение внутри VFX)
-	vfx.set("move_direction", dir)
-
-	# поворот под направление
-	vfx.rotation = dir.angle()
-
-	get_tree().current_scene.add_child(vfx)
+		dir = direction_to_vector(last_direction)
+	var power := clampf(velocity.length() / maxf(run_speed, 1.0), 0.6, 1.2)
+	SkidDust.skid(get_tree(), global_position + Vector2(0, 14) - dir * 4.0, dir, SkidDust.Kind.TURN, power)
 
 func play_move_start_vfx():
 	if move_start_vfx_scene == null:
@@ -2151,7 +2177,7 @@ func handle_attack_input():
 		if is_attacking:
 			# Последний удар серии — очереди дальше нет: нажатие ждёт в буфере
 			# и начнёт новую серию сразу после
-			if combo_step < 3:
+			if combo_step < combo_length:
 				_consume("attack")
 				combo_queued = true
 		elif not is_run_attacking:
@@ -2209,6 +2235,15 @@ func play_attack(step: int):
 	is_turning = false
 	turn_lock = false
 	_play_restart(anim_name)
+	# Вихрь (4-й удар): на замахе рыцарь собирает силу — пыль тянется к ногам,
+	# камешки подпрыгивают, на груди разгорается свет. Время — до удара о
+	# землю (play_fire_ring_vfx на SPIN_SLAM_TIME клипа) с учётом темпа фаз
+	if step == 4 and anim_name.begins_with("Attack_4") and not _is_riposte and not is_instance_valid(_exec_target):
+		var w := _hit_window(anim_name)
+		var wind_end := maxf(w.x - attack_strike_lead, 0.0)
+		var wind_t := wind_end / maxf(flurry_windup[3] * flurry_speed[3], 0.1)
+		var strike_t := maxf(SPIN_SLAM_TIME - wind_end, 0.0) / maxf(attack_strike_speed * flurry_speed[3], 0.1)
+		FlurryFx.charge(self, wind_t + strike_t)
 
 	# Замах тяжёлый и почти на месте; свист, вскрик и шаг вперёд всем весом —
 	# в момент самого удара (_on_strike_start), а не на замахе
@@ -2225,9 +2260,14 @@ func _on_strike_start() -> void:
 		match combo_step:
 			1: _play_pool(voice_audio, GRUNT_1_SOUNDS, "grunt1")
 			2: _play_pool(voice_audio, GRUNT_2_SOUNDS, "grunt2")
-			3: _play_pool(voice_audio, GRUNT_3_SOUNDS, "grunt3")
+			3, 4: _play_pool(voice_audio, GRUNT_3_SOUNDS, "grunt3")
 	var dir := facing_dir if facing_dir != Vector2.ZERO else direction_to_vector(last_direction)
 	attack_velocity = dir * maxf(attack_step_speed, attack_velocity.length())
+	# Флёрри: удар идёт вдогонку за врагом — рыцарь сам доскакивает до него
+	var lunge := _lunge_velocity()
+	if lunge != Vector2.ZERO:
+		attack_velocity = lunge
+		FlurryFx.lunge(self, lunge, 1.0 if combo_step > 1 else 0.7)
 
 
 ## Окно клинка клипа удара (с, по метод-треку enable/disable_attack_hitbox) —
@@ -2253,24 +2293,51 @@ func _hit_window(clip: String) -> Vector2:
 
 
 ## Скорость клипа по фазам удара (вес лат): замах — медленно, клинок — быстро,
-## отмах — тяжело. Удар на бегу и пинок — просто чуть медленнее
+## отмах — тяжело. Удар на бегу и пинок — просто чуть медленнее. Обычная серия
+## идёт флёрри: первый удар весомый, дальше темп растёт (flurry_*). Рипост и
+## добивание остаются тяжёлыми — их темп не разгоняется
 func _attack_phase_speed() -> float:
 	var clip := String(anim.current_animation)
 	if clip.begins_with("Attack"):
 		var pos := anim.current_animation_position
 		var w := _hit_window(clip)
+		var heavy := _is_riposte or is_instance_valid(_exec_target)
+		var si := clampi(combo_step, 1, flurry_speed.size()) - 1
+		var mult := 1.0 if heavy else flurry_speed[si]
 		if pos < w.x - attack_strike_lead:
 			if _is_riposte:
 				return riposte_windup_speed
-			return attack_finisher_windup_speed if combo_step >= 3 else attack_windup_speed
+			if heavy:
+				return attack_finisher_windup_speed
+			return flurry_windup[si] * mult
 		if pos < w.y:
-			return attack_strike_speed
-		return attack_recovery_speed
+			return attack_strike_speed * mult
+		# Отмах: пока следующий удар уже в очереди — проматывается быстрее
+		var rec := attack_recovery_speed * (flurry_recovery_queued if combo_queued and not heavy else 1.0)
+		return rec * mult
 	if clip.begins_with("Run_Attack"):
 		return run_attack_anim_speed
 	if clip.begins_with("Kick_"):
 		return kick_anim_speed
 	return 1.0
+
+
+## Скорость рывка к цели на ударе серии: ближайший враг (в фокусе — он) в
+## пределах flurry_lunge_reach, но дальше flurry_lunge_stop — летим к нему так,
+## чтобы остановиться вплотную (затухание трения friction даёт путь ≈ v/friction).
+## Zero — рывка нет (цели нет, уже вплотную, добивание/рипост идут своим шагом)
+func _lunge_velocity() -> Vector2:
+	if _is_riposte or is_instance_valid(_exec_target):
+		return Vector2.ZERO
+	var target: Node2D = focused_enemy if is_instance_valid(focused_enemy) else _assist_target()
+	if target == null or target.get("is_dead") == true:
+		return Vector2.ZERO
+	var to := target.global_position - global_position
+	var dist := to.length()
+	if dist > flurry_lunge_reach or dist <= flurry_lunge_stop + 2.0:
+		return Vector2.ZERO
+	var v := minf((dist - flurry_lunge_stop) * friction, flurry_lunge_speed)
+	return to / dist * v
 
 ## Рипост — контратака после идеального парирования или уворота. Раньше это
 ## был голый Attack_ без звука и без позиционирования хитбокса; теперь —
@@ -2408,6 +2475,7 @@ func play_melee_2_hit_vfx():
 func play_fire_ring_vfx():
 	# Вихревой финишер 4-го удара: урон и отброс по всем врагам вокруг
 	_spin_finisher()
+	FlurryFx.finisher(self, spin_radius)
 
 	if active_ability_name != "fenrir":  # ← кольцо только для Фенрира
 		return
@@ -2445,6 +2513,8 @@ func _spin_finisher() -> void:
 			dir = Vector2.DOWN
 		if "knockback_velocity" in e:
 			e.knockback_velocity = dir * spin_knockback
+			# Отброшенный врезается ногами в землю — пыль тянется за ним
+			SkidDust.skid(get_tree(), e.global_position + Vector2(0, 14), dir, SkidDust.Kind.STOP, 1.2)
 
 	# отдача вихря — один раз на весь замах, а не на каждого задетого врага,
 	# иначе в толпе стоп-кадр и тряска складывались бы в кашу
@@ -2535,7 +2605,8 @@ func _on_anim_finished(finished_anim: StringName) -> void:
 	if not finished_anim.begins_with("Attack"):
 		return
 
-	# Урезано до 3 шагов серии — 4-й удар (вихрь/spin finisher) временно
+	# Серия — combo_length шагов (4: последний — вихрь/spin finisher, флёрри).
+	# Раньше было урезано до 3 — 4-й удар (вихрь/spin finisher) временно
 	# вынут из обычной цепочки, станет отдельным навыком. Код 4-го удара не
 	# удалён (play_attack умеет step==4, _spin_finisher/play_fire_ring_vfx на
 	# месте) — серия просто больше до него не доходит. Когда навык будет
@@ -2551,7 +2622,7 @@ func _advance_combo() -> void:
 		# В очереди добивание — следующим идёт Attack_3_, с какого бы шага
 		combo_step = 3
 		play_attack(3)
-	elif combo_queued and combo_step < 3:
+	elif combo_queued and combo_step < combo_length:
 		_exec_target = null
 		combo_step += 1
 		play_attack(combo_step)
@@ -2833,7 +2904,11 @@ func _on_player_hitbox_area_entered(area: Area2D) -> void:
 				enemy.call_deferred("take_posture_damage", riposte_posture_damage * posture_mult_vs(enemy))
 		_play_hit_sound(power)
 		shake_camera(hit_shake_strength * power)
-		do_hitstop(power)
+		# Флёрри: на быстрых шагах серии хитстоп короче — поток ударов не рвётся
+		var hs := 1.0
+		if not is_run_attacking and not _is_riposte and combo_step >= 1:
+			hs = flurry_hitstop[clampi(combo_step, 1, flurry_hitstop.size()) - 1]
+		do_hitstop(power * hs)
 
 func do_hitstop(power := 1.0) -> void:
 	# power — множитель "веса" удара: чем мощнее, тем дольше стоп-кадр.
@@ -3075,12 +3150,12 @@ func _take_attack_bonuses() -> void:
 
 
 ## Удар мечом дошёл до врага (enemy.gd::_hero_melee_damage) — итоговый урон.
-## «Четвёртый удар комбинации» — последний, тяжёлый удар серии (их три)
+## «Четвёртый удар комбинации» — последний, тяжёлый удар серии (вихрь)
 func melee_damage_to(enemy: Node, dmg: int) -> int:
 	var pct := skill("sword_damage_percent")
 	if _attack_parry_bonus:
 		pct += skill("parry_next_sword_damage_percent")
-	if combo_step >= 3 and not _is_riposte and not is_run_attacking:
+	if combo_step >= combo_length and not _is_riposte and not is_run_attacking:
 		pct += skill("combo_final_damage_percent")
 	return SkillTrees.scale_int(dmg, pct)
 
