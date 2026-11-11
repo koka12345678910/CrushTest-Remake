@@ -161,6 +161,7 @@ func _start_swing_fx() -> void:
 	var power := _fx_power
 	_fx_power = 1.0
 	DuelistFx.eye_glint(self)
+	_net_ev("glint")
 	if current_attack_anim == "run_attack":
 		DuelistFx.dust(self, direction, 6)
 	# Метод, а не лямбда: если ловкача уже удалили, движок сам снимет связь
@@ -171,6 +172,17 @@ func _start_swing_fx() -> void:
 func _fire_swing_fx(id: int, power: float) -> void:
 	if current_state == State.ATTACK and _fx_attack_id == id and not is_dead:
 		DuelistFx.swing(self, current_attack_anim, direction, power)
+		_net_ev("swing", [current_attack_anim, direction, power])
+
+
+## Кооп: эффекты замаха у копии клиента — по событию хоста (enemy.gd::net_event)
+func net_skel_fx(kind: String, arg) -> void:
+	match kind:
+		"glint":
+			DuelistFx.eye_glint(self)
+		"swing":
+			if arg is Array and arg.size() >= 3:
+				DuelistFx.swing(self, String(arg[0]), arg[1], float(arg[2]))
 
 
 func get_attack_damage() -> int:
@@ -560,7 +572,8 @@ func _setup_sound() -> void:
 
 
 func _process(delta: float) -> void:
-	if is_dead:
+	# Копия у клиента (кооп) звуков сама не издаёт — их шлёт хост (net_event)
+	if is_dead or net_replica:
 		return
 	var hero := get_tree().get_first_node_in_group("player") as Node2D
 	if hero == null or global_position.distance_squared_to(hero.global_position) > SOUND_RANGE * SOUND_RANGE:

@@ -33,6 +33,7 @@ SkillTrees="*res://Save/skill_trees.gd"
 SceneLoader="*res://Main_Menu/scripts/SceneLoader.gd"
 Juice="*res://VFX/juice.gd"
 Weather="*res://Levels/weather.gd"
+Net="*res://Net/net.gd"
 
 [display]
 

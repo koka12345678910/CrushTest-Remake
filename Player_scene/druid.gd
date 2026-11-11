@@ -243,6 +243,8 @@ func _process(delta: float) -> void:
 	_staff_cd = maxf(_staff_cd - delta, 0.0)
 	for i in _cd.size():
 		_cd[i] = maxf(_cd[i] - delta, 0.0)
+	if _revive_left > 0.0:
+		_revive_step(delta)
 	if not is_attacking:
 		_casting_rune = -1
 		_binding_armor = false
@@ -485,6 +487,8 @@ func _on_attack_started(_step: int, aim: Node2D) -> void:
 	s.damage = _earth_damage(seed_damage, skill("seed_damage_percent"))
 	_scene_root().add_child(s)
 	s.launch(_hand_point(), dir, self)
+	# Кооп: у остальных летит такое же семя, без урона (Net.echo)
+	Net.echo(s, "launch", [_hand_point(), dir, self], {"speed": seed_speed})
 	SoundBank.play_at(get_tree(), "knight_swing", global_position, -14.0, 1.4)
 	_recover_at(clip, 2.5)
 
@@ -568,6 +572,7 @@ func _start_vine() -> void:
 	v.root_time = vine_root_time + skill("vine_root_seconds")
 	v.setup(self, _hand_point(), facing_dir, target)
 	_scene_root().add_child(v)
+	Net.echo(v, "setup", [self, _hand_point(), facing_dir, target], {"reach": vine_reach})
 	if is_instance_valid(target):
 		_add_growth(growth_per_hit)
 	SoundBank.play_at(get_tree(), "roots", global_position, -8.0, 1.25)
@@ -640,6 +645,7 @@ func _spawn_thorns(target: Node2D, offset: Vector2, at: Vector2, delay: float, d
 	t.bleed_chance = skill("spikes_bleed_chance_percent")
 	t.setup(self, target, offset, at, delay)
 	_scene_root().add_child(t)
+	Net.echo(t, "setup", [self, target, offset, at, delay])
 
 
 # ═════════════════ ОКОВЫ КОРНЕЙ (B) ═════════════════
@@ -679,6 +685,7 @@ func _start_binding() -> void:
 		r.posture = binding_posture
 		r.setup(self, e, _ground_offset(e), delay + bound * binding_stagger)
 		_scene_root().add_child(r)
+		Net.echo(r, "setup", [self, e, _ground_offset(e), delay + bound * binding_stagger], {"hold_time": hold})
 		bound += 1
 
 	await get_tree().create_timer(delay).timeout
@@ -718,6 +725,11 @@ func _has_hyper_armor() -> bool:
 
 ## Q — Целебные споры. Пока лечат саму Сольвейг; союзника (кооп) — потом
 func _start_spores() -> void:
+	# Рядом павший союзник (кооп) — споры поднимают его, а не лечат
+	var fallen := _fallen_ally_near()
+	if fallen != null:
+		_start_revive(fallen)
+		return
 	var clip := _start_move("Spores_", false)
 	if clip == "":
 		return
@@ -727,12 +739,16 @@ func _start_spores() -> void:
 	await get_tree().create_timer(spores_frame * _clip_frame_time(clip)).timeout
 	if is_dead() or not is_attacking or not _same_attack(clip):
 		return
-	var target: Node2D = self
+	# Самый раненый рядом — она сама или союзник (кооп)
+	var target: Node2D = _most_wounded_near()
 	_spores_fx(target)
 	_heal_target(target, max_health * spores_heal_percent / 100.0)
 	# Чистая роса
 	if skill("spores_cleanse") > 0.0:
-		clear_negative_effects()
+		if target == self:
+			clear_negative_effects()
+		else:
+			Net.to_owner(target.peer_id, "clear_negative_effects", [])
 	# Долгое цветение — регенерация после спор
 	var regen_pct := skill("spores_regen_percent")
 	if regen_pct > 0.0:
@@ -740,23 +756,11 @@ func _start_spores() -> void:
 	_recover_at(clip, 3.0)
 
 
-## Облако спор: круг у ног, вихрь светящейся пыльцы вверх по телу, свет
+## Облако спор у ног (druid_fx.gd::spores_burst) — и у других игроков (кооп)
 func _spores_fx(target: Node2D) -> void:
 	var feet := target.global_position + (_feet() if target == self else Vector2(0, 24))
-	var h := DruidFx.holder(get_tree(), feet, 2.2, 12)
-	var c := DruidFx.circle(h, 54.0, 2.0)
-	var t := h.create_tween()
-	t.tween_method(func(v: float): c.set_shader_parameter("draw", v), 0.0, 1.0, 0.25)
-	t.tween_interval(0.6)
-	t.tween_method(func(v: float): c.set_shader_parameter("fade", v), 1.0, 0.0, 0.6)
-	DruidFx.flash(h, 44.0, 0.25)
-	DruidFx.light_pulse(h, 80.0, 2.0, 0.8)
-	var up := Node2D.new()
-	up.position = Vector2(0, -16)
-	h.add_child(up)
-	DruidFx.pollen(up, 30, 12.0, 1.3, 55.0)
-	DruidFx.leaves(up, 6, 50.0, 1.0)
-	DruidFx.haze(up, 6, 10.0, 40.0, 1.0)
+	DruidFx.spores_burst(get_tree(), feet)
+	Net.echo_static("res://Player_scene/druid_fx.gd", "spores_burst", [get_tree(), feet])
 
 
 ## F — Росток жизни под ногами
@@ -775,6 +779,7 @@ func _start_sprout() -> void:
 	s.slow_percent = skill("sprout_slow_percent")
 	_scene_root().add_child(s)
 	s.global_position = global_position + _feet()
+	Net.echo(s, "", [], {"radius": s.radius, "life": s.life, "position": s.global_position})
 	SoundBank.play_at(get_tree(), "roots", global_position, -10.0, 1.3)
 	_recover_at(clip, 3.0)
 
@@ -787,7 +792,20 @@ func _start_bark() -> void:
 	await get_tree().create_timer(bark_frame * _clip_frame_time(clip)).timeout
 	if is_dead() or not is_attacking or not _same_attack(clip):
 		return
-	_bark_max = bark_absorb * (1.0 + skill("bark_absorb_percent") / 100.0)
+	var absorb := bark_absorb * (1.0 + skill("bark_absorb_percent") / 100.0)
+	# Кооп: союзник под прицелом — кора на него (щит у его героя,
+	# Net/ally_shield.gd), иначе — на себя
+	var ally := _bark_ally()
+	if ally != null:
+		Net.to_owner(ally.peer_id, "apply_ally_shield", [absorb, bark_time])
+		var h := DruidFx.holder(get_tree(), ally.global_position + Vector2(0, -6), 0.8, 12)
+		DruidFx.flash(h, 30.0, 0.18, DruidFx.BARK)
+		DruidFx.leaves(h, 6, 60.0, 0.7)
+		DruidFx.light_pulse(h, 50.0, 1.4, 0.35)
+		SoundBank.play_at(get_tree(), "knight_armor", ally.global_position, -8.0, 1.2)
+		_recover_at(clip, 4.0)
+		return
+	_bark_max = absorb
 	_bark = _bark_max
 	_bark_left = bark_time
 	_ensure_bark_fx()
@@ -801,6 +819,8 @@ func _ensure_bark_fx() -> void:
 	_bark_fx = BarkScript.new()
 	_bark_fx.center = _body()
 	add_child(_bark_fx)
+	# Кооп: у других игроков вокруг куклы — такой же щит, тает по времени
+	Net.echo(_bark_fx, "", [], {"center": _body(), "auto_fade": maxf(_bark_left, 1.0)}, true)
 
 
 func _end_bark_fx(broken: bool) -> void:
@@ -912,8 +932,12 @@ func receive_attack(attack_data: Dictionary) -> bool:
 			return true
 		var rest := attack_data.duplicate()
 		rest["damage"] = (amount - absorbed) / mult
-		return super(rest)
-	return super(attack_data)
+		var got_rest := super(rest)
+		_try_second_breath()
+		return got_rest
+	var got := super(attack_data)
+	_try_second_breath()
+	return got
 
 
 ## Кора сломана ударом. Весна под снегом — немного лечит
@@ -939,6 +963,149 @@ func _die() -> void:
 	super()
 
 
+# ═════════════════ СОЮЗНИКИ (КООП) ═════════════════
+# Другие игроки на её экране — куклы (Net/net_puppet.gd). Лечение и кора
+# уходят их хозяевам (Net.to_owner), там их настоящий герой лечится или
+# получает щит (Net/ally_shield.gd). Павшего союзника она поднимает на месте.
+
+## Споры лечат самого раненого в этом радиусе — её или союзника
+@export var ally_spores_range := 180.0
+## Кора ложится на союзника, на которого она смотрит (конус), в этом радиусе
+@export var ally_bark_range := 200.0
+@export var ally_bark_cone_deg := 40.0
+## Подъём павшего: стоять рядом, Q — она на колене revive_time секунд
+@export var revive_range := 60.0
+@export var revive_time := 4.0
+@export var revive_hp_percent := 20.0
+
+var _revive_target: Node2D
+var _revive_left := 0.0
+var _revive_total := 1.0
+var _revive_fx: Node2D
+var _revive_circle: ShaderMaterial
+var _revive_light: PointLight2D
+## Второе дыхание (финал «Зелёного сердца») уже спасло её — до отдыха у
+## костра больше не спасёт (bonfire.gd::restore_hero сбрасывает)
+var second_breath_used := false
+
+
+func _allies() -> Array:
+	return get_tree().get_nodes_in_group("net_puppet") if Net.is_online() else []
+
+
+func _fallen_ally_near() -> Node2D:
+	var best: Node2D = null
+	var bd := revive_range
+	for p in _allies():
+		if not p.is_dead():
+			continue
+		var d: float = p.global_position.distance_to(global_position)
+		if d <= bd:
+			bd = d
+			best = p
+	return best
+
+
+## Самый раненый (по доле здоровья) рядом — она сама или союзник
+func _most_wounded_near() -> Node2D:
+	var best: Node2D = self
+	var best_frac := health / maxf(max_health, 1.0)
+	for p in _allies():
+		if p.is_dead() or p.global_position.distance_to(global_position) > ally_spores_range:
+			continue
+		if float(p.hp_frac) < best_frac - 0.01:
+			best_frac = float(p.hp_frac)
+			best = p
+	return best
+
+
+## Союзник, на которого она смотрит (или в фокусе), для Коры; нет — null
+func _bark_ally() -> Node2D:
+	var dir := _aim_dir()
+	if dir == Vector2.ZERO:
+		dir = facing_dir
+	var min_dot := cos(deg_to_rad(ally_bark_cone_deg))
+	var best: Node2D = null
+	var bd := ally_bark_range
+	for p in _allies():
+		if p.is_dead():
+			continue
+		var to: Vector2 = p.global_position - global_position
+		var d := to.length()
+		if d > bd or d < 1.0 or to.normalized().dot(dir) < min_dot:
+			continue
+		bd = d
+		best = p
+	return best
+
+
+## Подъём павшего: на колене рядом с ним, под ним растёт круг и свет. Удар по
+## ней, перекат или смерть союзника по другой причине — подъём срывается
+func _start_revive(ally: Node2D) -> void:
+	_turn_to_aim(ally)
+	var clip := _start_move("Bark_", false)
+	if clip == "":
+		return
+	_revive_target = ally
+	_revive_total = revive_time * maxf(1.0 + skill("revive_time_percent") / 100.0, 0.2)
+	_revive_left = _revive_total
+	_revive_fx = DruidFx.holder(get_tree(), ally.global_position + Vector2(0, 24), _revive_total + 2.0, 11)
+	_revive_circle = DruidFx.circle(_revive_fx, 64.0, 1.4)
+	_revive_light = DruidFx.light(_revive_fx, 60.0, 0.0)
+	DruidFx.pollen(_revive_fx, 12, 10.0, 1.0, 20.0)
+	SoundBank.play_at(get_tree(), "roots", global_position, -10.0, 1.4)
+
+
+func _revive_step(delta: float) -> void:
+	if is_dead() or not is_attacking or not is_instance_valid(_revive_target) or not _revive_target.is_dead():
+		_revive_stop(false)
+		return
+	_revive_left -= delta
+	var k := 1.0 - clampf(_revive_left / maxf(_revive_total, 0.01), 0.0, 1.0)
+	if _revive_circle:
+		_revive_circle.set_shader_parameter("draw", k)
+	if is_instance_valid(_revive_light):
+		_revive_light.energy = 0.4 + 1.6 * k
+	if _revive_left > 0.0:
+		return
+	var pct := (revive_hp_percent + skill("revive_hp_percent")) / 100.0
+	Net.to_owner(_revive_target.peer_id, "net_revive", [pct])
+	var feet := _revive_target.global_position + Vector2(0, 24)
+	DruidFx.spores_burst(get_tree(), feet)
+	Net.echo_static("res://Player_scene/druid_fx.gd", "spores_burst", [get_tree(), feet])
+	_revive_stop(true)
+	is_attacking = false
+	play_movement_animation()
+
+
+func _revive_stop(done: bool) -> void:
+	_revive_left = 0.0
+	_revive_target = null
+	if is_instance_valid(_revive_fx):
+		if not done and _revive_circle:
+			_revive_circle.set_shader_parameter("fade", 0.0)
+		_revive_fx.queue_free()
+	_revive_fx = null
+	_revive_circle = null
+	_revive_light = null
+
+
+## Второе дыхание: смертельный удар оставляет её с долей здоровья — раз до
+## отдыха у костра
+func _try_second_breath() -> void:
+	if not is_dead() or second_breath_used or skill("second_breath_enabled") <= 0.0:
+		return
+	second_breath_used = true
+	health = max_health * skill("second_breath_hp_percent") / 100.0
+	if is_instance_valid(health_bar):
+		health_bar.current_hp = health
+	is_invulnerable = true
+	_invuln_timer = 1.5
+	play_movement_animation()
+	_spores_fx(self)
+	flash_tint(Color(0.8, 1.6, 0.8, 1.0))
+
+
 # ═════════════════ УТИЛИТЫ ═════════════════
 
 ## Свои клипы (не «Attack*») база не завершает — без этого героиня так и
@@ -946,6 +1113,10 @@ func _die() -> void:
 const OWN_CLIPS := ["Staff_", "Vine_", "Spikes_", "Binding_", "Spores_", "Sprout_", "Bark_", "Slide_", "Special_"]
 
 func _on_animation_finished(finished_anim: String) -> void:
+	# Подъём союзника длится дольше клипа — она остаётся на колене
+	if _revive_left > 0.0 and finished_anim.begins_with("Bark_"):
+		_play_restart(finished_anim)
+		return
 	for p in OWN_CLIPS:
 		if finished_anim.begins_with(p):
 			_moss_left = 0.0
@@ -1044,7 +1215,6 @@ func _hand_point() -> Vector2:
 
 # ═════════════════ ЕЩЁ НЕ СДЕЛАНО ═════════════════
 # Механики узлов дерева (Save/skill_trees.gd), которые пока никто не читает:
-#   second_breath_*      — Второе дыхание (спасение от смерти, подъём союзника)
 #   kill_sprout_*        — Падаль кормит лес (росток на месте убитого)
 #   swarm_*              — Жучиный рой после шипов
 #   forest_wrath_*       — Гнев леса (ульта на C, клип Special_)
@@ -1052,5 +1222,5 @@ func _hand_point() -> Vector2:
 #   binding_wall_*       — Корневая стена при Оковах
 #   sprout_hp_percent    — у ростка пока нет прочности (враги его не ломают)
 #   wolf_*               — Зов стаи (волк)
-# Споры и Кора — пока только на себя: цель-союзник появится вместе с кооп.
+# Споры, Кора и подъём павшего работают и на союзников (кооп, блок «Союзники»).
 # Свой голос (боль, смерть) и портрет на HUD — тоже позже.

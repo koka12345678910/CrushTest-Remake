@@ -38,6 +38,9 @@ const COL_EXECUTE := Color(0.95, 0.78, 0.4)
 static func strike(caster: Node2D, e: Node2D, dmg: int, element: String, unblockable := false) -> void:
 	if not is_instance_valid(e) or e.get("is_dead") == true:
 		return
+	# Эхо чужого заклинания (кооп): урон уже засчитан у его хозяина
+	if Net.is_echo(caster):
+		return
 	var had := is_instance_valid(caster)
 	if had:
 		caster.set_meta("hit_element", element)

@@ -149,6 +149,16 @@ var _guard_saw_attack := false
 var health := 0
 var is_dead := false
 
+## Кооп (Net/net.gd): копия врага у клиента. ИИ не думает — тело и вид идут
+## по снимкам хоста (net_push), звуки и вспышки — по его событиям (net_event),
+## а всё, что делает с копией свой герой (урон, стойкость, отброс, корни,
+## замедление), уходит настоящему врагу у хоста (Net.enemy_act). Ставится до
+## добавления в дерево
+var net_replica := false
+var _net_snaps: RefCounted
+var _net_inited := false
+var _net_last_hp := -1
+
 var _direction_change_cooldown := 0.0  # добавь к переменным вверху
 
 var current_state := State.IDLE
@@ -366,6 +376,9 @@ var _slow_percent := 0.0
 func apply_slow(percent: float, seconds: float) -> void:
 	if is_dead:
 		return
+	if net_replica:
+		Net.enemy_act(self, "slow", [percent, seconds])
+		return
 	if _slow_left <= 0.0 or percent >= _slow_percent:
 		_slow_percent = percent
 	_slow_left = maxf(_slow_left, seconds)
@@ -382,6 +395,9 @@ var _root_left := 0.0
 
 func apply_root(seconds: float) -> void:
 	if is_dead:
+		return
+	if net_replica:
+		Net.enemy_act(self, "root", [seconds])
 		return
 	_root_left = maxf(_root_left, seconds)
 
@@ -415,6 +431,9 @@ func _deal_damage_to_player() -> void:
 
 # ============== PHYSICS ==============
 func _physics_process(delta: float) -> void:
+	if net_replica:
+		_net_replica_step()
+		return
 	if is_dead:
 		return
 	# Санитизация от NaN: если позиция/скорость/направление стали нефинитными,
@@ -788,6 +807,7 @@ func _decide_state() -> void:
 func play_parry_vfx() -> void:
 	var dir := _dir_to(player)
 	KnightFx.parry(get_tree(), global_position + Vector2(0, -8) + dir * 22.0, dir)
+	_net_ev("parry")
 
 
 ## Клинок попал по телу: черта-разрез и искры. Стрелы и магия — свои
@@ -994,6 +1014,7 @@ func _change_state(new_state: State) -> void:
 			# воспроизведения, поэтому реальную длительность считаем сами
 			_play_animation(current_attack_anim, attack_speed_scale)
 			_play_attack_sound()
+			_net_ev("attack_sound")
 			_attack_windup_time = anim.current_animation_length / attack_speed_scale
 			# Удар засчитывается не в конце анимации, а в её середине —
 			# клинок долетает до цели раньше, чем доигрывает весь замах и
@@ -1505,16 +1526,27 @@ func _try_hit_body(body: Node2D) -> void:
 			body.receive_attack(attack_data)
 			hit_targets.append(body)  # ← добавь
 			_play_impact_sound()
+			_net_ev("impact")
 
 
 # ===================== HIT DAMAGE =====================
 
-var knockback_velocity := Vector2.ZERO
+## Отброс. У копии (кооп) — не двигает её саму, а уходит настоящему врагу
+var knockback_velocity := Vector2.ZERO:
+	set(v):
+		if net_replica:
+			if v != Vector2.ZERO and not is_dead:
+				Net.enemy_act(self, "push", [v])
+			return
+		knockback_velocity = v
 
 ## unblockable — удар, который нельзя ни парировать, ни заблокировать
 ## (столп огня мага, mage_pillar.gd): проходит мимо обеих проверок ниже
 func take_damage(amount: int, source: Node2D = null, unblockable := false) -> void:
 	if is_dead:
+		return
+	if net_replica:
+		_net_forward_damage(amount, source, unblockable)
 		return
 
 	# Любой попавший удар выдаёт позицию атакующего — даже если это стрела
@@ -1547,6 +1579,7 @@ func take_damage(amount: int, source: Node2D = null, unblockable := false) -> vo
 		play_blood_vfx(source, amount)
 		_play_blade_impact(source)
 		_play_hurt_sound()
+		_net_ev("hurt")
 
 		if health <= 0:
 			health = 0
@@ -1623,6 +1656,7 @@ func take_damage(amount: int, source: Node2D = null, unblockable := false) -> vo
 	play_blood_vfx(source, amount)
 	_play_blade_impact(source)
 	_play_hurt_sound()
+	_net_ev("hurt")
 
 	if health <= 0:
 		health = 0
@@ -1666,6 +1700,9 @@ func _notify_weapon_hit(source: Node2D, blocked: bool) -> void:
 ## иначе каждый тик раз в секунду сбивал бы врага в HIT_STUN
 func take_bleed_damage(amount: int, source: Node2D = null) -> void:
 	if is_dead:
+		return
+	if net_replica:
+		Net.enemy_act(self, "bleed", [amount])
 		return
 	if source and is_instance_valid(source) and source.is_in_group("player"):
 		player = source
@@ -1731,6 +1768,10 @@ func _exit_block() -> void:
 var _break_marker: Node2D
 
 func _posture_break() -> void:
+	if net_replica:
+		Net.enemy_act(self, "break", [])
+		return
+	_net_ev("guard_break")
 	is_posture_broken = true
 	is_blocking = false
 	hit_stun_timer = 2.0
@@ -1775,6 +1816,9 @@ func _execute_by(source: Node2D) -> void:
 func lightning_stun(from: Vector2) -> void:
 	if is_dead:
 		return
+	if net_replica:
+		Net.enemy_act(self, "stun", [from])
+		return
 	is_blocking = false
 	is_parrying = false
 	_trigger_damage_flash()
@@ -1784,6 +1828,10 @@ func lightning_stun(from: Vector2) -> void:
 	knockback_velocity = _safe_direction(global_position - from) * 230.0
 
 func take_posture_damage(amount: float) -> void:
+	if net_replica:
+		if not is_dead:
+			Net.enemy_act(self, "posture", [amount])
+		return
 	posture += amount
 	posture_bar.visible = true
 	posture_bar.value = posture
@@ -1878,6 +1926,7 @@ func _stop_attack_telegraph() -> void:
 ## тёплая вспышка самого врага. source — кто ударил (нет — игрок)
 func _trigger_block_effect(source: Node2D = null) -> void:
 	var dir := _dir_to(source if is_instance_valid(source) else player)
+	_net_ev("block", dir)
 	KnightFx.shield_hit(get_tree(), global_position + Vector2(0, -8) + dir * 16.0, dir)
 	var sp = $AnimatedSprite2D
 	sp.modulate = Color(1.7, 1.55, 1.2, 1.0)
@@ -1913,6 +1962,9 @@ var death_handled := false
 # Мгновенная казнь (Глаз Одина) — убивает независимо от блока/парирования
 func execute_kill() -> void:
 	if is_dead:
+		return
+	if net_replica:
+		Net.enemy_act(self, "kill", [])
 		return
 	health = 0
 	hp_bar.visible = true
@@ -1954,7 +2006,8 @@ func _on_dead() -> void:
 func _drop_coins() -> void:
 	# Герой без золота (маг копит души, а не монеты): вместо золотых душ из
 	# врага вылетают его души — бледно-голубые, засчитываются в души
-	var hero := get_tree().get_first_node_in_group("player")
+	# В коопе — свой герой (в группе "player" есть и куклы других игроков)
+	var hero: Node = Net.local_character if Net.is_online() else get_tree().get_first_node_in_group("player")
 	var souls: bool = hero != null and hero.get("collects_souls") == true
 	if hero and "collects_gold" in hero and not hero.collects_gold and not souls:
 		return
@@ -1979,9 +2032,14 @@ func base_gold_value() -> float:
 
 
 func _award_skill_points() -> void:
-	if is_instance_valid(player) and player.has_method("add_skill_points"):
-		player.add_skill_points(skill_points_reward)
-	# Подвиги для стены трофеев рыцаря (player.gd::on_enemy_killed)
+	# Очки навыков. В коопе — каждому за каждое убийство, кто бы ни добил:
+	# здесь (у хоста) — своему герою, у клиентов — их герою, когда копия падёт
+	# (_net_die). Одному — тому, кто убил
+	var earner: Node = Net.local_character if Net.is_online() else player
+	if is_instance_valid(earner) and earner.has_method("add_skill_points"):
+		earner.add_skill_points(skill_points_reward)
+	# Подвиги для стены трофеев рыцаря (player.gd::on_enemy_killed) — убийце;
+	# если это другой игрок, кукла передаст ему (Net.to_owner)
 	if is_instance_valid(player) and player.has_method("on_enemy_killed"):
 		player.on_enemy_killed(self)
 	# Немного Одра за убийство (магия рыцаря)
@@ -2133,3 +2191,162 @@ func _update_attack_shape() -> void:
 		attack_shape.call_deferred("set", "disabled", false)
 	else:
 		attack_shape.call_deferred("set", "disabled", true)
+
+
+# ═════════════════ КООП (Net/net.gd) ═════════════════
+
+const NetSnapBuffer := preload("res://Net/snap_buffer.gd")
+
+
+## Хост: звук/вспышку/взмах этого врага повторить у копий клиентов
+func _net_ev(kind: String, arg = null) -> void:
+	if not net_replica and Net.is_host():
+		Net.enemy_event(self, kind, arg)
+
+
+## Хост: снимок для копий — [номер, позиция, анимация, кадр, отражение,
+## масштаб спрайта, цвет спрайта, цвет врага, здоровье, максимум, стойкость,
+## флаги (1 мёртв, 2 полоска здоровья видна, 4 полоска стойкости, 8 стойкость
+## пробита)]
+func net_snapshot(id: int) -> Array:
+	var sp: AnimatedSprite2D = $AnimatedSprite2D
+	var flags := 0
+	if is_dead:
+		flags |= 1
+	if hp_bar.visible:
+		flags |= 2
+	if posture_bar.visible:
+		flags |= 4
+	if is_posture_broken:
+		flags |= 8
+	return [id, global_position, String(sp.animation), sp.frame, sp.flip_h, sp.scale,
+			sp.modulate, modulate, health, max_health, posture, flags]
+
+
+## Клиент: снимок от хоста
+func net_push(t: float, s: Array) -> void:
+	if _net_snaps == null:
+		_net_snaps = NetSnapBuffer.new()
+	if _net_snaps.push(t, s):
+		global_position = s[1]
+		_net_look(s)
+
+
+## Клиент: копия своей головы не имеет — анимации, состояние и ИИ стоят;
+## тело и вид — из снимков хоста
+func _net_replica_step() -> void:
+	if not _net_inited:
+		_net_inited = true
+		anim.stop()
+		anim.active = false
+		velocity = Vector2.ZERO
+		if is_instance_valid(state_label):
+			state_label.visible = false
+	if _net_snaps == null:
+		return
+	var smp: Array = _net_snaps.sample(1)
+	if smp.is_empty():
+		return
+	global_position = smp[0]
+	_net_look(smp[1])
+	_net_status(_net_snaps.latest())
+
+
+func _net_look(s: Array) -> void:
+	var sp: AnimatedSprite2D = $AnimatedSprite2D
+	var a := StringName(s[2])
+	if sp.animation != a and sp.sprite_frames != null and sp.sprite_frames.has_animation(a):
+		sp.animation = a
+	sp.frame = int(s[3])
+	sp.flip_h = bool(s[4])
+	sp.scale = s[5]
+	sp.modulate = s[6]
+	modulate = s[7]
+
+
+func _net_status(s: Array) -> void:
+	var hp := int(s[8])
+	max_health = int(s[9])
+	var flags := int(s[11])
+	hp_bar.max_value = max_health
+	if _net_last_hp >= 0 and hp < _net_last_hp:
+		play_blood_vfx(null, _net_last_hp - hp)
+	_net_last_hp = hp
+	health = hp
+	hp_bar.value = hp
+	hp_bar.visible = (flags & 2) != 0
+	posture = float(s[10])
+	posture_bar.value = posture
+	posture_bar.visible = (flags & 4) != 0
+	is_posture_broken = (flags & 8) != 0
+	if not is_posture_broken and is_instance_valid(_break_marker):
+		_break_marker.queue_free()
+	if (flags & 1) != 0 and not is_dead:
+		_net_die()
+
+
+## Клиент: враг пал у хоста. Добыча в коопе у каждого своя: золотые души
+## (или души мага) вылетают и здесь — к своему герою, и очки навыков тоже ему
+func _net_die() -> void:
+	is_dead = true
+	health = 0
+	if is_instance_valid(_break_marker):
+		_break_marker.queue_free()
+	if hitbox:
+		hitbox.set_deferred("monitoring", false)
+	if vision_area:
+		vision_area.set_deferred("monitoring", false)
+	_play_death_sound()
+	if bleeds:
+		BloodFx.death_pool(self)
+	_drop_coins()
+	var hero := Net.local_character
+	if is_instance_valid(hero) and hero.has_method("add_skill_points"):
+		hero.add_skill_points(skill_points_reward)
+
+
+## Клиент: хост убрал врага (тело истлело, выход из уровня) — тает и пропадает
+func net_despawn() -> void:
+	remove_from_group("enemy")
+	var tw := create_tween()
+	tw.tween_property(self, "modulate:a", 0.0, 0.4)
+	tw.tween_callback(queue_free)
+
+
+## Клиент: событие врага у хоста — звук, искры блока, парирование, пробитая
+## стойка, взмах клинка (у скелетов — skeleton_enemy.gd::net_skel_fx)
+func net_event(kind: String, arg) -> void:
+	if not net_replica or is_dead:
+		return
+	match kind:
+		"attack_sound":
+			_play_attack_sound()
+		"impact":
+			_play_impact_sound()
+		"hurt":
+			_play_hurt_sound()
+		"parry":
+			play_parry_vfx()
+		"block":
+			var dir: Vector2 = arg if arg is Vector2 else Vector2.DOWN
+			KnightFx.shield_hit(get_tree(), global_position + Vector2(0, -8) + dir * 16.0, dir)
+		"guard_break":
+			if not is_instance_valid(_break_marker):
+				_break_marker = Juice.guard_break(self)
+		_:
+			if has_method("net_skel_fx"):
+				call("net_skel_fx", kind, arg)
+
+
+## Клиент: свой герой ударил копию — урон настоящему врагу у хоста. Отклик
+## (искры клинка, толчок своей камеры) — сразу, не дожидаясь ответа; кровь и
+## полоска здоровья — когда хост пришлёт новое здоровье
+func _net_forward_damage(amount: int, source: Node2D, unblockable: bool) -> void:
+	var element := ""
+	if is_instance_valid(source):
+		element = String(source.get_meta("hit_element", ""))
+	Net.enemy_act(self, "dmg", [amount, unblockable, element])
+	hp_bar.visible = true
+	_play_blade_impact(source)
+	if is_instance_valid(source) and source == Net.local_character:
+		Juice.hit(self, source, amount, false)

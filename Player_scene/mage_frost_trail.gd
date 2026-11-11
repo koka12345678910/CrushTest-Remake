@@ -87,5 +87,6 @@ func _physics_process(delta: float) -> void:
 		var f := IceFx.feet(e)
 		var c := Geometry2D.get_closest_point_to_segment(f, from, to)
 		var off := f - c
-		if Vector2(off.x, off.y / 0.62).length() <= width * 0.75:
+		# Эхо чужого следа (кооп, Net.echo) — только вид, озноб уже у хозяина
+		if Vector2(off.x, off.y / 0.62).length() <= width * 0.75 and not has_meta("net_echo"):
 			IceFx.chill(e, slow_pct, 0.4)

@@ -1136,6 +1136,14 @@ func receive_attack(attack_data: Dictionary) -> bool:
 	if is_rolling:
 		_end_roll()
 	var amount: float = float(attack_data.get("damage", 0)) * _incoming_damage_mult(attack_data)
+	# Кора от союзника (кооп, Net/ally_shield.gd) принимает удар первой.
+	# Поглотила целиком — ни урона, ни реакции, только вспышка
+	amount = preload("res://Net/ally_shield.gd").absorb(self, amount)
+	if amount <= 0.0:
+		_flash_hit()
+		is_invulnerable = true
+		_invuln_timer = post_hit_invulnerability
+		return true
 	health = maxf(health - amount, 0.0)
 	if is_instance_valid(health_bar):
 		health_bar.take_damage(amount)
@@ -1509,6 +1517,26 @@ func _die() -> void:
 	# уже не работает, так что её никто не перебьёт
 	_play("Die_" + last_direction)
 	died.emit()
+
+
+## Кооп (Net._respawn_local): павший встаёт в точке at — у костра или на
+## старте уровня — со всем восполненным, как после отдыха, и на пару секунд
+## неуязвим, чтобы не пасть снова тут же
+func net_respawn(at: Vector2) -> void:
+	global_position = at
+	preload("res://Levels/bonfire/bonfire.gd").restore_hero(self)
+	health = max_health
+	_cancel_attack()
+	if is_rolling:
+		_end_roll()
+	knockback_velocity = Vector2.ZERO
+	_hurt_timer = 0.0
+	velocity = Vector2.ZERO
+	is_invulnerable = true
+	_invuln_timer = 2.0
+	play_movement_animation()
+	if is_instance_valid(camera):
+		camera.reset_smoothing()
 
 
 ## Игрок ударил в момент парирования врага — у рыцаря это накапливает

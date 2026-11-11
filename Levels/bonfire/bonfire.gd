@@ -239,7 +239,10 @@ func rest(hero: Node2D) -> void:
 	var world := get_parent().get_node_or_null("BonfireWorld")
 	if world == null and owner:
 		world = owner.get_node_or_null("BonfireWorld")
-	if world:
+	# Мир возрождается от отдыха одного или хоста коопа. Враги в коопе у хоста:
+	# его сброс сам разойдётся всем (Net: список врагов), а сброс у клиента
+	# выкинул бы копии врагов и поставил своих, которых нет у хоста
+	if world and not Net.is_client():
 		world.reset()
 	restore_hero(hero)
 	SaveManager.set_last_bonfire(bonfire_id(), hero)
@@ -262,6 +265,11 @@ static func restore_hero(hero: Node) -> void:
 		magic.odr = magic.max_odr
 	if "seid" in hero and "max_seid" in hero:
 		hero.seid = hero.max_seid
+	# Рост Сольвейг (druid.gd) и её Второе дыхание — снова готово
+	if "growth" in hero and "max_growth" in hero:
+		hero.growth = hero.max_growth
+	if "second_breath_used" in hero:
+		hero.second_breath_used = false
 	var slots = hero.get("ability_system")
 	if slots and "abilities" in slots:
 		for ab in slots.abilities:

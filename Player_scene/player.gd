@@ -729,7 +729,7 @@ func _run_bound_to_shift() -> bool:
 
 
 func _unhandled_input(event: InputEvent) -> void:
-	if is_in_shop:
+	if is_in_shop or _net_down:
 		return  # ← добавь, магазин сам обрабатывает свой Esc
 	
 	# Блокируем всё кроме инвентаря если он открыт. Esc обрабатывает сам
@@ -957,6 +957,15 @@ func _physics_process(delta):
 		knockback_velocity = Vector2.ZERO
 		dodge_velocity = Vector2.ZERO
 		attack_velocity = Vector2.ZERO
+	# Кооп: при нуле здоровья рыцарь падает и лежит, пока Net не поднимет его
+	# (net_respawn). В одиночной игре — как раньше: смерти у рыцаря пока нет
+	if _net_down:
+		velocity = Vector2.ZERO
+		move_and_slide()
+		return
+	if Net.is_online() and health <= 0.0:
+		_net_fall()
+		return
 	if is_in_shop:
 		velocity = Vector2.ZERO
 		move_and_slide()
@@ -1720,6 +1729,7 @@ func play_move_start_vfx():
 	vfx.rotation = dir.angle()
 
 	get_tree().current_scene.add_child(vfx)
+	Net.echo_scene(vfx, {"move_direction": vfx.get("move_direction"), "anim_name": vfx.get("anim_name")})
 
 # ----------------------------------------------------------
 # АТАКИ / COMBO / RUN ATTACK / DASH
@@ -1816,6 +1826,9 @@ func _find_incoming_attacker() -> Node:
 
 # Вызывается врагом (или hitbox-ом) когда его атака задела игрока
 func receive_attack(attack_data: Dictionary) -> bool:
+	# Павшего в коопе больше не бьют — он ждёт возрождения
+	if _net_down:
+		return false
 	# Уворот/перекат — не просто неуязвимость, а НАГРАДА за тайминг: раньше
 	# атака молча "проваливалась" здесь без всякой обратной связи, будто
 	# игрок и не был под угрозой. Проверяем ДО общей is_invulnerable — та же
@@ -1910,7 +1923,7 @@ func _on_blocked_attack(attack_data: Dictionary) -> void:
 	shake_camera(block_shake_strength)
 	# Искры о щит — со стороны удара, искры летят обратно к бьющему
 	var to_src := _dir_to_source(attack_data.get("source", null))
-	KnightFx.shield_hit(get_tree(), global_position + KnightFx.CHEST + to_src * 16.0, to_src)
+	_kfx("shield_hit", [get_tree(), global_position + KnightFx.CHEST + to_src * 16.0, to_src])
 	# Холодная бело-голубая искра щита — отличается и от белой вспышки урона,
 	# и от тёплых тонов лечения/монет: блок должен читаться как "звон металла",
 	# а не как что-то из этих двух категорий
@@ -1925,7 +1938,7 @@ func play_parry_vfx() -> void:
 	# туда, где скрещиваются клинки, а не в центр игрока
 	var dir = direction_to_vector(last_direction)
 	var offset = 24.0  # чуть в сторону от центра игрока — здесь встречаются клинки
-	KnightFx.parry(get_tree(), global_position + KnightFx.CHEST + dir * offset, dir)
+	_kfx("parry", [get_tree(), global_position + KnightFx.CHEST + dir * offset, dir])
 
 
 ## Направление от рыцаря к тому, кто ударил (нет источника — куда смотрит)
@@ -1995,6 +2008,13 @@ func on_perfect_parry(attack_data: Dictionary):
 func take_damage(amount: int, source: Node = null) -> void:
 	# Снижение урона (Благословение Бальдра и т.п.)
 	amount = int(amount * get_damage_reduction_factor())
+	# Кора от союзника (кооп, Net/ally_shield.gd) принимает удар первой
+	var through: float = preload("res://Net/ally_shield.gd").absorb(self, float(amount))
+	if through <= 0.0:
+		_trigger_damage_flash()
+		_hit_invuln_timer = post_hit_invulnerability
+		return
+	amount = int(ceilf(through))
 	health_bar.take_damage(float(amount))
 	health = health_bar.current_hp
 
@@ -2022,7 +2042,7 @@ func take_damage(amount: int, source: Node = null) -> void:
 	BloodFx.hit(self, source as Node2D, BloodFx.power_for(amount, max_health, health <= 0.0))
 	if is_instance_valid(source as Node2D):
 		var hit_dir := -_dir_to_source(source)
-		KnightFx.impact(get_tree(), global_position + KnightFx.CHEST - hit_dir * 6.0, hit_dir, 0.8)
+		_kfx("impact", [get_tree(), global_position + KnightFx.CHEST - hit_dir * 6.0, hit_dir, 0.8])
 	
 	current_posture += 10.0 * get_posture_damage_reduction_factor()
 	current_posture = min(current_posture, max_posture)
@@ -2243,7 +2263,7 @@ func play_attack(step: int):
 		var wind_end := maxf(w.x - attack_strike_lead, 0.0)
 		var wind_t := wind_end / maxf(flurry_windup[3] * flurry_speed[3], 0.1)
 		var strike_t := maxf(SPIN_SLAM_TIME - wind_end, 0.0) / maxf(attack_strike_speed * flurry_speed[3], 0.1)
-		FlurryFx.charge(self, wind_t + strike_t)
+		_ffx("charge", [self, wind_t + strike_t])
 
 	# Замах тяжёлый и почти на месте; свист, вскрик и шаг вперёд всем весом —
 	# в момент самого удара (_on_strike_start), а не на замахе
@@ -2267,7 +2287,7 @@ func _on_strike_start() -> void:
 	var lunge := _lunge_velocity()
 	if lunge != Vector2.ZERO:
 		attack_velocity = lunge
-		FlurryFx.lunge(self, lunge, 1.0 if combo_step > 1 else 0.7)
+		_ffx("lunge", [self, lunge, 1.0 if combo_step > 1 else 0.7])
 
 
 ## Окно клинка клипа удара (с, по метод-треку enable/disable_attack_hitbox) —
@@ -2426,7 +2446,7 @@ func melee_weapon_tip():
 ## способностью (Фенрир, Берсерк) — её собственные спрайтовые вспышки
 func play_hit_vfx():
 	if active_hit_vfx_override == null:
-		KnightFx.slash(self, KnightFx.Swing.HEAVY, direction_to_vector(last_direction))
+		_kfx("slash", [self, KnightFx.Swing.HEAVY, direction_to_vector(last_direction)])
 		return
 	var scene_to_use: PackedScene = active_hit_vfx_override
 	var vfx = scene_to_use.instantiate()
@@ -2439,10 +2459,11 @@ func play_hit_vfx():
 			"fenrir":  vfx.set("anim_name", "fenrir_hit_3")
 			"berserk": vfx.set("anim_name", "berserk_hit_3")
 	get_tree().current_scene.add_child(vfx)
+	Net.echo_scene(vfx, {"move_direction": vfx.get("move_direction"), "anim_name": vfx.get("anim_name")})
 
 func play_melee_hit_vfx():
 	if active_hit_vfx_override == null:
-		KnightFx.slash(self, KnightFx.Swing.RISING, direction_to_vector(last_direction))
+		_kfx("slash", [self, KnightFx.Swing.RISING, direction_to_vector(last_direction)])
 		return
 	var scene_to_use: PackedScene = active_hit_vfx_override
 	var vfx = scene_to_use.instantiate()
@@ -2455,10 +2476,11 @@ func play_melee_hit_vfx():
 			"fenrir":  vfx.set("anim_name", "fenrir_hit")
 			"berserk": vfx.set("anim_name", "berserk_hit_1")
 	get_tree().current_scene.add_child(vfx)
+	Net.echo_scene(vfx, {"move_direction": vfx.get("move_direction"), "anim_name": vfx.get("anim_name")})
 
 func play_melee_2_hit_vfx():
 	if active_hit_vfx_override == null:
-		KnightFx.slash(self, KnightFx.Swing.SWEEP, direction_to_vector(last_direction))
+		_kfx("slash", [self, KnightFx.Swing.SWEEP, direction_to_vector(last_direction)])
 		return
 	var scene_to_use: PackedScene = active_hit_vfx_override
 	var vfx = scene_to_use.instantiate()
@@ -2471,11 +2493,12 @@ func play_melee_2_hit_vfx():
 			"fenrir":  vfx.set("anim_name", "fenrir_hit_2")
 			"berserk": vfx.set("anim_name", "berserk_hit_2")
 	get_tree().current_scene.add_child(vfx)
+	Net.echo_scene(vfx, {"move_direction": vfx.get("move_direction"), "anim_name": vfx.get("anim_name")})
 
 func play_fire_ring_vfx():
 	# Вихревой финишер 4-го удара: урон и отброс по всем врагам вокруг
 	_spin_finisher()
-	FlurryFx.finisher(self, spin_radius)
+	_ffx("finisher", [self, spin_radius])
 
 	if active_ability_name != "fenrir":  # ← кольцо только для Фенрира
 		return
@@ -2490,6 +2513,7 @@ func play_fire_ring_vfx():
 	var vfx = fire_ring_vfx_scene.instantiate()
 	vfx.global_position = global_position  # на месте игрока
 	get_tree().current_scene.add_child(vfx)
+	Net.echo_scene(vfx, {"move_direction": vfx.get("move_direction"), "anim_name": vfx.get("anim_name")})
 
 func _spin_finisher() -> void:
 	var dmg: int = maxi(1, int(round(attack_damage * spin_damage_mult * get_damage_multiplier())))
@@ -2506,7 +2530,9 @@ func _spin_finisher() -> void:
 		e.is_blocking = false
 		e.is_countering = false
 		if e.has_method("take_damage"):
-			e.take_damage(dmg, self)
+			# Кооп: у копии врага поля защиты — только вид; настоящему (у хоста)
+			# удар идёт мимо блока и парирования — тот же смысл
+			e.take_damage(dmg, self, e.get("net_replica") == true)
 		# усиленный отброс от игрока
 		var dir: Vector2 = (e.global_position - global_position).normalized()
 		if dir == Vector2.ZERO:
@@ -2543,7 +2569,7 @@ const RUN_SWING_LEAD := 0.03
 func play_running_hit_vfx():
 	var sw: Dictionary = KnightRunSwing.DATA.get(last_direction, {})
 	if sw.is_empty():
-		KnightFx.slash(self, KnightFx.Swing.RUN, direction_to_vector(last_direction))
+		_kfx("slash", [self, KnightFx.Swing.RUN, direction_to_vector(last_direction)])
 		return
 	var clip := anim.current_animation
 	var speed := maxf(anim.speed_scale, 0.05)
@@ -2565,11 +2591,11 @@ func play_running_hit_vfx():
 	var from: float = lerpf(a_from, a_to, k)
 	var dur := maxf(total * (1.0 - k), 0.08) / speed
 	var radius := clampf(sw.radius * run_swing_radius_mult, 40.0, 58.0)
-	KnightFx.arc(self, from, a_to, radius, run_swing_width, dur, run_swing_power,
-			KnightFx.CHEST, true, true)
+	_kfx("arc", [self, from, a_to, radius, run_swing_width, dur, run_swing_power,
+			KnightFx.CHEST, true, true])
 	# Внешняя волна — широкая и бледная, чуть позади клинка
-	KnightFx.arc(self, from, a_to, radius * 1.18, run_swing_width * 0.7, dur * 1.1,
-			run_swing_power * 0.35, KnightFx.CHEST, true, false)
+	_kfx("arc", [self, from, a_to, radius * 1.18, run_swing_width * 0.7, dur * 1.1,
+			run_swing_power * 0.35, KnightFx.CHEST, true, false])
 
 # ----------------------------------------------------------
 # ЗАВЕРШЕНИЕ
@@ -2729,7 +2755,9 @@ func clear_negative_effects() -> void:
 # --- ГЛАЗ ОДИНА (заглушка) ---
 
 func activate_odin_eye(duration: float, slow: float, max_targets: int) -> void:
-	Engine.time_scale = slow
+	# В коопе время общее — одному его не замедлить
+	if not Net.is_online():
+		Engine.time_scale = slow
 	print("[ГлазОдина] Время замедлено, выбери до ", max_targets, " целей")
 	get_tree().create_timer(duration, true, false, true).timeout.connect(
 		func():
@@ -2852,6 +2880,65 @@ func play_drink_sound() -> void:
 
 func is_dead() -> bool:
 	return health <= 0.0
+
+
+## Эффект удара (дуга клинка, искры, рывок, вихрь): у себя — и эхом у других
+## игроков на кукле рыцаря (кооп, Net.echo_static). fn — статическая функция
+## knight_fx.gd / flurry_fx.gd, args — её аргументы как есть
+const _KFX_PATH := "res://VFX/VFX_scene/knight_fx.gd"
+const _FFX_PATH := "res://VFX/VFX_scene/flurry_fx.gd"
+
+func _kfx(fn: String, args: Array) -> void:
+	(load(_KFX_PATH) as Script).callv(fn, args)
+	Net.echo_static(_KFX_PATH, fn, args)
+
+
+func _ffx(fn: String, args: Array) -> void:
+	(load(_FFX_PATH) as Script).callv(fn, args)
+	Net.echo_static(_FFX_PATH, fn, args)
+
+
+# ── Кооп: падение и возрождение (Net/net.gd) ──
+# В одиночной игре смерти у рыцаря пока нет (_on_player_dead — TODO). В коопе
+# павший лежит: ни ввода, ни движения, удары по нему не проходят, а через
+# Net.RESPAWN_DELAY секунд Net поднимает его у костра (net_respawn). Своего
+# клипа смерти у рыцаря нет — лежит в позе оглушения, потемнев
+var _net_down := false
+
+func _net_fall() -> void:
+	_net_down = true
+	interrupt_all_actions()
+	is_stunned = false
+	is_dodging = false
+	is_rolling = false
+	is_blocking = false
+	is_parrying = false
+	velocity = Vector2.ZERO
+	var clip := "Stunned_" + last_direction
+	if anim.has_animation(clip):
+		anim.play(clip)
+	create_tween().tween_property(self, "modulate", Color(0.55, 0.5, 0.5), 0.6)
+
+
+func net_respawn(at: Vector2) -> void:
+	global_position = at
+	preload("res://Levels/bonfire/bonfire.gd").restore_hero(self)
+	health = max_health
+	if health_bar:
+		health_bar.heal(health_bar.max_hp)
+		health = health_bar.current_hp
+	_net_down = false
+	is_taking_damage = false
+	is_stunned = false
+	knockback_velocity = Vector2.ZERO
+	velocity = Vector2.ZERO
+	modulate = Color.WHITE
+	is_invulnerable = true
+	get_tree().create_timer(2.0).timeout.connect(func(): is_invulnerable = false)
+	play_movement_animation()
+	var cam := get_node_or_null("Camera2D") as Camera2D
+	if cam:
+		cam.reset_smoothing()
 
 func _on_player_dead() -> void:
 	# TODO: анимация смерти, game over
@@ -3206,7 +3293,7 @@ func _execution_wave(at: Vector2, victim: Node) -> void:
 			e.take_damage(dmg, self, true)
 		if is_instance_valid(e) and not e.is_dead and e.has_method("take_posture_damage"):
 			e.take_posture_damage(posture)
-	KnightFx.impact(get_tree(), at + Vector2(0, -6), Vector2.UP, 1.4)
+	_kfx("impact", [get_tree(), at + Vector2(0, -6), Vector2.UP, 1.4])
 	shake_camera(hit_shake_strength * 1.5)
 	SoundBank.play_at(get_tree(), "execution_wave", at, -4.0)
 

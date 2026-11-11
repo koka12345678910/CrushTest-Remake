@@ -105,17 +105,19 @@ func _erupt() -> void:
 		_finish_fast()
 		return
 	_erupted = true
-	# Хватка: стоит, получает урон и удар по стойкости
-	if _target.has_method("apply_root"):
-		_target.apply_root(hold_time)
-	elif _target.has_method("apply_slow"):
-		_target.apply_slow(90.0, hold_time)
-	if "player" in _target and _target.player == null and is_instance_valid(_caster):
-		_target.player = _caster
-	if damage > 0 and _target.has_method("take_damage"):
-		_target.take_damage(damage, _caster)
-	if is_instance_valid(_target) and _target.has_method("take_posture_damage"):
-		_target.take_posture_damage(posture)
+	# Хватка: стоит, получает урон и удар по стойкости. Эхо чужих корней
+	# (кооп) — только вид: хватка уже у хозяина
+	if not Net.is_echo(_caster):
+		if _target.has_method("apply_root"):
+			_target.apply_root(hold_time)
+		elif _target.has_method("apply_slow"):
+			_target.apply_slow(90.0, hold_time)
+		if "player" in _target and _target.player == null and is_instance_valid(_caster):
+			_target.player = _caster
+		if damage > 0 and _target.has_method("take_damage"):
+			_target.take_damage(damage, _caster)
+		if is_instance_valid(_target) and _target.has_method("take_posture_damage"):
+			_target.take_posture_damage(posture)
 
 	# Вырывание: вспышка у земли, комья, листья, искры вверх, свет
 	DruidFx.flash(self, girth * 3.2, 0.2)

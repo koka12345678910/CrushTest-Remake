@@ -31,12 +31,16 @@ extends Node2D
 var _timer := 0.0
 
 func _ready() -> void:
+	# В коопе врагов расставляет только хост — клиенты получают его список
+	# (Net/net.gd), свои пачки у них были бы другими
+	if Net.is_client():
+		return
 	if spawn_on_ready:
 		for i in max_enemies:
 			_try_spawn()
 
 func _process(delta: float) -> void:
-	if not refill:
+	if not refill or Net.is_client():
 		return
 	_timer += delta
 	if _timer < check_interval:

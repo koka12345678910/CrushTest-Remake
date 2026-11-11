@@ -396,8 +396,9 @@ func open_card(card: Dictionary) -> void:
 	_card_subtitle.text = card.get("subtitle", "")
 	_card_lore.text = card.get("lore", "")
 	_card_desc.text = card.get("desc", "")
-	# Мир — на паузу, игровой HUD прячется (как при открытом инвентаре)
-	get_tree().paused = true
+	# Мир — на паузу, игровой HUD прячется (как при открытом инвентаре). В коопе
+	# замирает только свой герой (Net.pause_world)
+	Net.pause_world(true)
 	_hide_game_hud(true)
 	_card_root.visible = true
 	_card_backdrop.modulate.a = 0.0
@@ -420,7 +421,7 @@ func close_card() -> void:
 	await tw.finished
 	_card_root.visible = false
 	_hide_game_hud(false)
-	get_tree().paused = false
+	Net.pause_world(false)
 	_card_open = false
 	_card_closing = false
 

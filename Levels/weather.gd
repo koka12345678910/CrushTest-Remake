@@ -200,6 +200,24 @@ func set_weather(kind: Kind, instant := false) -> void:
 		_blend = 1.0
 		for k in PARAMS:
 			set(k, _to[k])
+	# Кооп: погоду решает хост — клиентам сразу (Net/net.gd)
+	Net.weather_changed(int(kind))
+
+
+var _net_synced := false
+
+## Кооп, клиент: погода и час от хоста (Net._weather_sync). Первый раз — сразу,
+## дальше погода перетекает как обычно, а час подтягивается, если ушёл
+func net_sync(h: float, kind: int) -> void:
+	if not _net_synced:
+		_net_synced = true
+		hour = h
+		set_weather(kind as Kind, true)
+		return
+	if kind != int(weather):
+		set_weather(kind as Kind)
+	if absf(angle_difference(hour / 24.0 * TAU, h / 24.0 * TAU)) > 0.02:
+		hour = h
 
 
 ## Идёт ли смена суток и погоды на текущей сцене
@@ -254,6 +272,7 @@ func rain_db() -> float:
 func _bind(scene: Node) -> void:
 	_scene = scene
 	_active = false
+	_net_synced = false
 	_ambient = null
 	_sky_light = null
 	_moon = null
@@ -311,7 +330,8 @@ func _update_weather(dt: float) -> void:
 		for p in PARAMS:
 			set(p, lerpf(_from[p], _to[p], k))
 	_hold -= dt
-	if _hold <= 0.0 and _blend >= 1.0:
+	# В коопе следующую погоду выбирает только хост (у клиентов — net_sync)
+	if _hold <= 0.0 and _blend >= 1.0 and not Net.is_client():
 		set_weather(_pick_next())
 
 

@@ -131,6 +131,13 @@ static func hit(caster: Node2D, e: Node2D, dmg: int, from: Vector2, push: float,
 		return
 	var to := e.global_position - from
 	var dir := to.normalized() if to.length() > 0.001 else Vector2.DOWN
+	# Эхо чужого заклинания (кооп): урон, отброс и озноб уже у хозяина — здесь
+	# только вспышка и осколки
+	if Net.is_echo(caster):
+		var eh := MageFx.holder(e.get_tree(), e.global_position + Vector2(0, -8), 0.8, 12)
+		MageFx.flash(eh, 20.0, 0.12, CORE)
+		shards(eh, 7, 120.0, 0.45, dir, 70.0)
+		return
 	if dmg > 0:
 		# Стихия удара — для реакций мага (mage_reactions.gd::strike, тот же
 		# приём; здесь своими руками, чтобы файлы не ссылались друг на друга)

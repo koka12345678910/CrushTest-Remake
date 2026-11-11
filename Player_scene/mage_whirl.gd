@@ -157,7 +157,8 @@ func _physics_process(delta: float) -> void:
 	# 26 px не тянет — вплотную к магу не прилипают
 	var center := caster.global_position + position + feet_offset
 	for e in IceFx.targets(get_tree()):
-		if not ("knockback_velocity" in e):
+		# Эхо чужого вихря (кооп): тянет врагов только настоящий, у хозяина
+		if not ("knockback_velocity" in e) or Net.is_echo(caster):
 			continue
 		var f := IceFx.feet(e)
 		var d := IceFx.ground_dist(center, f, 0.7)

@@ -214,7 +214,8 @@ func _update_tail() -> void:
 ## TODO), и раньше души при нуле здоровья считали героя мёртвым, зависали
 ## рядом с ним и гасли. Нет героя только если его нет в дереве
 func _hero() -> Node2D:
-	var h := get_tree().get_first_node_in_group("player") as Node2D
+	# В коопе — к своему герою: в группе "player" есть и куклы других игроков
+	var h := (Net.local_character if Net.is_online() else get_tree().get_first_node_in_group("player")) as Node2D
 	if h == null or not is_instance_valid(h) or not h.is_inside_tree():
 		return null
 	return h

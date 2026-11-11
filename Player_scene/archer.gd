@@ -599,6 +599,10 @@ func _fire_arrow(dir: Vector2, aim: Node2D = null, power := -1.0, charges := tru
 	arrow.speed = spd
 	var from := global_position + dir * shoot_offset
 	arrow.launch(from, dir, self, dmg)
+	# Кооп: у остальных летит такая же стрела, без урона (Net.echo)
+	Net.echo(arrow, "launch", [from, dir, self, 0], {"speed": spd, "pierce": arrow.pierce,
+			"ignore_walls": arrow.ignore_walls, "trail_color": trail, "homing_target": arrow.homing_target,
+			"tags": arrow.tags.duplicate()})
 	if release_fx:
 		FlurryFx.bow_release(self, from, dir, pw)
 	# Полный натяг: отдача — Сигрид отшатывает назад, камера вздрагивает

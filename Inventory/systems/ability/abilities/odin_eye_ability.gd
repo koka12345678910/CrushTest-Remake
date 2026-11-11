@@ -44,8 +44,10 @@ func _execute(player: Node) -> void:
 		)
 		odin_audio.play()
 
-	# Замедляем время
-	Engine.time_scale = slow_factor
+	# Замедляем время. В коопе время общее — одному его не замедлить, глаз
+	# только метит врагов
+	if not Net.is_online():
+		Engine.time_scale = slow_factor
 
 	# Таймер в РЕАЛЬНОМ времени (ignore_time_scale = true), не зависит от замедления
 	player.get_tree().create_timer(slow_duration, true, false, true).timeout.connect(

@@ -251,8 +251,9 @@ func init(ability_system: AbilitySystem, inventory_system: InventorySystem, play
 func open() -> void:
 	if visible:
 		return
-	# ставим игру на паузу — враги останавливаются и не бьют игрока
-	get_tree().paused = true
+	# ставим игру на паузу — враги останавливаются и не бьют игрока. В коопе
+	# мир у других идёт дальше — замирает только свой герой (Net.pause_world)
+	Net.pause_world(true)
 	_is_closing = false
 	_hover_index = -1
 	_play_ui_sound(SOUND_OPEN)
@@ -290,7 +291,7 @@ func close() -> void:
 	_hide_game_hud(false)
 	_is_closing = false
 	# снимаем паузу — мир снова оживает
-	get_tree().paused = false
+	Net.pause_world(false)
 	emit_signal("closed")
 
 

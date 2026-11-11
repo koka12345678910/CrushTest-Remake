@@ -198,6 +198,25 @@ static func circle(parent: Node, diameter: float, spin := 0.8, z := -16) -> Shad
 	return m
 
 
+## Облако Целебных спор у ног того, кого лечат: круг, вихрь светящейся пыльцы
+## вверх по телу, свет (druid.gd::_start_spores; в коопе — и эхом у других)
+static func spores_burst(tree: SceneTree, feet: Vector2) -> void:
+	var h := holder(tree, feet, 2.2, 12)
+	var c := circle(h, 54.0, 2.0)
+	var t := h.create_tween()
+	t.tween_method(func(v: float): c.set_shader_parameter("draw", v), 0.0, 1.0, 0.25)
+	t.tween_interval(0.6)
+	t.tween_method(func(v: float): c.set_shader_parameter("fade", v), 1.0, 0.0, 0.6)
+	flash(h, 44.0, 0.25)
+	light_pulse(h, 80.0, 2.0, 0.8)
+	var up := Node2D.new()
+	up.position = Vector2(0, -16)
+	h.add_child(up)
+	pollen(up, 30, 12.0, 1.3, 55.0)
+	leaves(up, 6, 50.0, 1.0)
+	haze(up, 6, 10.0, 40.0, 1.0)
+
+
 ## Вспышка попадания: зелёный всплеск, искры, пара листьев и свет
 static func hit_burst(tree: SceneTree, at: Vector2, dir: Vector2) -> void:
 	var h := holder(tree, at + Vector2(0, -10), 1.0, 12)

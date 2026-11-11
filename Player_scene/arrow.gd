@@ -131,6 +131,17 @@ func _on_area_entered(area: Area2D) -> void:
 			and (not enemy.has_method("_is_guarding_against") or bool(enemy.call("_is_guarding_against", _shooter)))
 	Sfx.play_at(get_tree(), "arrow_hit_shield" if shielded else "arrow_hit_flesh", global_position)
 
+	# Эхо чужой стрелы (кооп, Net.echo): урон уже засчитан у стрелявшего —
+	# здесь только звук, вспышка и то, что стрела гаснет или летит дальше
+	if Net.is_echo(_shooter):
+		if tags.has("power"):
+			FlurryFx.arrow_impact(get_tree(), global_position, _direction)
+		if pierce > 0:
+			pierce -= 1
+			return
+		queue_free()
+		return
+
 	if is_instance_valid(_shooter) and _shooter.has_method("resolve_arrow_hit"):
 		_shooter.resolve_arrow_hit(enemy, self)
 	else:
@@ -159,7 +170,7 @@ func _on_body_entered(body: Node) -> void:
 		return
 	# Бочка, ящик и т.п. (Levels/props/breakable_prop.gd) — стрела бьёт в
 	# предмет и застревает в нём, как в стене
-	if body.is_in_group("breakable") and body.has_method("take_damage"):
+	if body.is_in_group("breakable") and body.has_method("take_damage") and not Net.is_echo(_shooter):
 		body.take_damage(damage, _shooter)
 	# Ящики, бочки, частокол, деревья — стук дерева; надгробия и стены —
 	# камень. Различить их по телу нельзя, поэтому чаще дерево

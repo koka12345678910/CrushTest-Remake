@@ -80,8 +80,28 @@ func _ready() -> void:
 
 func _apply_progress() -> void:
 	SaveManager.apply_to(character)
-	_spawn_at_bonfire()
+	if Net.is_online():
+		# В коопе все появляются вместе на старте уровня (у каждого свой сейв
+		# и свой последний костёр — иначе разбрелись бы по карте), разведённые
+		# по номеру игрока
+		var slot: int = int(Net.peers.get(Net.my_id(), {}).get("slot", 0))
+		character.global_position = global_position + Net.spawn_offset(slot)
+	else:
+		_spawn_at_bonfire()
 	_apply_camera_limits()
+	Net.register_local(character, self)
+
+
+## Кукла другого игрока (Net/net_puppet.gd): туда же, где свой герой, с тем же
+## слоем, свечением и тенью
+func add_puppet(puppet: Node2D, slot: int) -> void:
+	puppet.position = position + Net.spawn_offset(slot)
+	puppet.z_index = character_z_index
+	if player_glow_energy > 0.0:
+		_add_glow_to(puppet)
+	get_parent().add_child(puppet)
+	if player_shadow:
+		_move_body_to_own_light_layer(puppet)
 
 
 ## Отдыхали у костра этого уровня — появляемся у него, а не на старте
@@ -101,6 +121,10 @@ func _spawn_at_bonfire() -> void:
 func _add_glow() -> void:
 	if player_glow_energy <= 0.0:
 		return
+	_add_glow_to(character)
+
+
+func _add_glow_to(target: Node2D) -> void:
 	var g := Gradient.new()
 	g.offsets = PackedFloat32Array([0.0, 0.4, 1.0])
 	g.colors = PackedColorArray([Color(1, 1, 1, 1), Color(1, 1, 1, 0.4), Color(1, 1, 1, 0)])
@@ -121,7 +145,7 @@ func _add_glow() -> void:
 	light.color = player_glow_color
 	light.energy = player_glow_energy
 	light.blend_mode = Light2D.BLEND_MODE_ADD
-	character.add_child(light)
+	target.add_child(light)
 
 
 func _setup_shadow() -> void:

@@ -57,6 +57,8 @@ const ConfirmDialogScript := preload("res://Main_Menu/scripts/ConfirmDialog.gd")
 const SceneLoaderScript := preload("res://Main_Menu/scripts/SceneLoader.gd")
 
 var _character_panel: Control
+const CoopPanelScript := preload("res://Main_Menu/scripts/CoopPanel.gd")
+var btn_coop: Button
 
 # ВРЕМЕННО: экран выбора слотов (SaveSlotsPanel) убран, пока не нужен для
 # тестов — играем всегда в один и тот же слот 0, "Новая игра" затирает его
@@ -99,6 +101,13 @@ func _ready() -> void:
 	# режим проекта (keep) — вернём его на выходе из меню (_exit_tree)
 	_prev_aspect = get_tree().root.content_scale_aspect
 	get_tree().root.content_scale_aspect = Window.CONTENT_SCALE_ASPECT_EXPAND
+	# Вернулись в меню из совместной игры — сеанс закончен
+	if Net.is_online():
+		Net.leave()
+	# Приглашение друга в Steam — сразу в окно коопа (и при запуске игры из
+	# приглашения, +connect_lobby)
+	Net.invite_join_started.connect(_on_invite_join)
+	Net.take_pending_invite.call_deferred()
 
 	title_label.call("setup_grid", LOGO_ANIM_SHEET, LOGO_ANIM_COLUMNS, LOGO_ANIM_ROWS,
 		1.0 / LOGO_ANIM_FPS)
@@ -338,12 +347,19 @@ func _logo_sweep() -> void:
 
 # ── Пункты меню ───────────────────────────────────────────────────────────────
 func _connect_buttons() -> void:
+	# «Кооп» — копия пункта меню (тот же MenuButton.gd), встаёт перед «Настройками»
+	btn_coop = btn_settings.duplicate(Node.DUPLICATE_SCRIPTS) as Button
+	btn_coop.name = "BtnCoop"
+	btn_coop.text = "КООП"
+	btn_settings.get_parent().add_child(btn_coop)
+	btn_settings.get_parent().move_child(btn_coop, btn_settings.get_index())
 	btn_continue.pressed.connect(_on_continue)
 	btn_new.pressed.connect(_on_new_game)
 	btn_load.pressed.connect(_on_load)
+	btn_coop.pressed.connect(_on_coop)
 	btn_settings.pressed.connect(_on_settings)
 	btn_quit.pressed.connect(_on_quit)
-	_buttons = [btn_continue, btn_new, btn_load, btn_settings, btn_quit]
+	_buttons = [btn_continue, btn_new, btn_load, btn_coop, btn_settings, btn_quit]
 	for b in _buttons:
 		b.focus_entered.connect(_on_item_focus.bind(b))
 
@@ -553,6 +569,25 @@ func _get_character_panel() -> Control:
 func _on_settings() -> void:
 	_play_ui_sound(SOUND_ACCEPT)
 	settings_panel.open()
+	_set_menu_shown(false)
+
+
+## Приняли приглашение в Steam, пока сидим в меню: окно коопа покажет, как
+## идёт подключение (если оно ещё не открыто)
+func _on_invite_join() -> void:
+	for c in settings_panel.get_parent().get_children():
+		if c.get_script() == CoopPanelScript:
+			return
+	_on_coop()
+
+
+## Лобби совместной игры (CoopPanel.gd, сеть — Net/net.gd)
+func _on_coop() -> void:
+	_play_ui_sound(SOUND_ACCEPT)
+	var p: Control = CoopPanelScript.new()
+	p.scene_path = SCENE_GAME
+	p.closed.connect(_on_overlay_closed)
+	settings_panel.get_parent().add_child(p)
 	_set_menu_shown(false)
 
 

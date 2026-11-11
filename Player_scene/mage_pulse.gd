@@ -276,7 +276,7 @@ func _hit_front() -> void:
 		if is_instance_valid(_caster):
 			_caster.set_meta("pulse_hit", false)
 		MageFx.hit_burst(get_tree(), e.global_position, to.normalized() if to.length() > 0.001 else Vector2.DOWN)
-		if not e.is_dead and "knockback_velocity" in e:
+		if not e.is_dead and "knockback_velocity" in e and not Net.is_echo(_caster):
 			var dir := to.normalized() if to.length() > 0.001 else Vector2.DOWN
 			# К краю пути волна выдыхается — дальних толкает слабее
 			var falloff := 1.0 - dissipate * 0.6 * clampf(dist / radius, 0.0, 1.0)

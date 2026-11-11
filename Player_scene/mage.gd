@@ -359,6 +359,8 @@ func _on_attack_started(step: int, aim: Node2D) -> void:
 	ball.direct_damage = SkillTrees.scale_int(spell_power(0)[0], _spell_damage_percent(0))
 	ball.splash_damage = SkillTrees.scale_int(ball.splash_damage, _spell_damage_percent(0))
 	ball.launch(global_position + dir * fireball_offset, dir, self)
+	# Кооп: у остальных игроков летит такой же шар, без урона (Net.echo)
+	Net.echo(ball, "launch", [global_position + dir * fireball_offset, dir, self])
 	# Шар ушёл — хвост клипа не держит (character_base._attack_recovery)
 	if is_attacking and _same_attack(clip):
 		_attack_recovery = true
@@ -389,6 +391,8 @@ func _cast_sweep() -> void:
 	# Долгий жар, Негаснущий жар: облако горит дольше
 	scorch.hold_time *= 1.0 + skill("cloud_duration_percent") / 100.0
 	get_tree().current_scene.add_child(scorch)
+	Net.echo(scorch, "setup", [self, facing, global_position + _body_anchor()[1], 0, 0.0],
+			{"hold_time": scorch.hold_time})
 	if is_attacking and _same_attack(clip):
 		_attack_recovery = true
 
@@ -523,6 +527,7 @@ func _cast_pulses() -> void:
 	# подошёл. Сам круг в mage_pulse.gd остался, включается этим флагом
 	small.setup(self, pulse_small_radius, pulse_small_expand_frames * frame, 0.0, _pulse_damage(), pulse_small_knockback * _pulse_push(), 0.45, false, body[0], body[1], frame)
 	add_child(small)
+	Net.echo(small, "setup", [self, pulse_small_radius, pulse_small_expand_frames * frame, 0.0, 0, 0.0, 0.45, false, body[0], body[1], frame], {}, true)
 	shake_camera(pulse_small_shake, pulse_small_shake_time)
 
 	await get_tree().create_timer(maxf(pulse_big_frame - pulse_small_frame, 0.0) * frame).timeout
@@ -531,6 +536,7 @@ func _cast_pulses() -> void:
 	var big: Node2D = PulseScript.new()
 	big.setup(self, pulse_big_radius, pulse_big_expand_frames * frame, 1.0, _pulse_damage(), pulse_big_knockback * _pulse_push(), 1.0, false, body[0], body[1], frame)
 	add_child(big)
+	Net.echo(big, "setup", [self, pulse_big_radius, pulse_big_expand_frames * frame, 1.0, 0, 0.0, 1.0, false, body[0], body[1], frame], {}, true)
 	_spawn_roots(global_position + body[1])
 	shake_camera(pulse_big_shake, pulse_big_shake_time)
 	if is_attacking and _same_attack(clip):
@@ -623,6 +629,7 @@ func _cast_pillars(targets: Array) -> void:
 		var p: Node2D = PillarScript.new()
 		p.setup(self, e, _ground_offset(e), Vector2.ZERO, delay + spawned * special_stagger_frames * frame, frame)
 		get_tree().current_scene.add_child(p)
+		Net.echo(p, "setup", [self, e, _ground_offset(e), Vector2.ZERO, delay + spawned * special_stagger_frames * frame, frame])
 		spawned += 1
 	# Врагов рядом нет — один столп перед магом, чтобы заклинание не уходило
 	# в пустоту без всякого эффекта
@@ -631,6 +638,7 @@ func _cast_pillars(targets: Array) -> void:
 		var dir := facing_dir if facing_dir != Vector2.ZERO else Vector2.DOWN
 		p.setup(self, null, Vector2.ZERO, global_position + _body_anchor()[1] + dir * 70.0, delay, frame)
 		get_tree().current_scene.add_child(p)
+		Net.echo(p, "setup", [self, null, Vector2.ZERO, global_position + _body_anchor()[1] + dir * 70.0, delay, frame])
 	await get_tree().create_timer(delay).timeout
 	if not is_dead():
 		shake_camera(special_shake, special_shake_time)
@@ -1025,6 +1033,8 @@ func _start_frost_ring() -> void:
 	ring.alive_check = func() -> bool: return not is_dead() and is_attacking and _same_attack(clip)
 	get_tree().current_scene.add_child(ring)
 	ring.global_position = global_position + _body_anchor()[1]
+	Net.echo(ring, "setup", [self, 0, frost_ring_radius, _clip_frame_time(clip)],
+			{"position": ring.global_position})
 	_recover_at(clip, 10.0)
 
 
@@ -1039,6 +1049,7 @@ func _start_whirl() -> void:
 	w.alive_check = func() -> bool: return not is_dead() and is_attacking and _same_attack(clip)
 	w.position = body[0]
 	add_child(w)
+	Net.echo(w, "setup", [self, 0, _clip_frame_time(clip), body[1] - body[0]], {"position": body[0]}, true)
 	_recover_at(clip, 12.5)
 
 
@@ -1168,6 +1179,7 @@ func _start_ice_step() -> void:
 	var trail: Node2D = FrostTrailScript.new()
 	trail.setup(start, end, ice_step_trail_life)
 	get_tree().current_scene.add_child(trail)
+	Net.echo(trail, "setup", [start, end, ice_step_trail_life])
 	_ice_step_nova(end, dir)
 	# Рывок кончился — маг свободен, хвост клипа обрывается движением
 	if is_attacking and _same_attack(clip):

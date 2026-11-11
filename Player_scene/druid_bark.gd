@@ -8,6 +8,9 @@ const DruidFx := preload("res://Player_scene/druid_fx.gd")
 
 ## 0..1 — сколько щита осталось (ставит druid.gd)
 var strength := 1.0
+## Эхо у других игроков (кооп): прочности они не знают — щит просто тает
+## через столько секунд
+var auto_fade := 0.0
 ## Центр тела относительно героя
 var center := Vector2(0, -6)
 
@@ -29,6 +32,8 @@ func _ready() -> void:
 	DruidFx.flash(self, 30.0, 0.18)
 	DruidFx.leaves(self, 6, 60.0, 0.7)
 	DruidFx.light_pulse(self, 50.0, 1.4, 0.35)
+	if auto_fade > 0.0:
+		get_tree().create_timer(auto_fade).timeout.connect(fade)
 
 
 func _process(delta: float) -> void:

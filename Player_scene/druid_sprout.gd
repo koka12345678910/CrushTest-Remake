@@ -107,6 +107,10 @@ func _process(delta: float) -> void:
 
 func _pulse() -> void:
 	_wave = 0.0
+	# Эхо чужого ростка (кооп, Net.echo): лечит и замедляет только настоящий,
+	# у посадившего — здесь лишь волна
+	if has_meta("net_echo"):
+		return
 	var tree := get_tree()
 	for p in tree.get_nodes_in_group("player"):
 		if not (p is Node2D) or not _inside((p as Node2D).global_position):

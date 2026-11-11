@@ -119,6 +119,10 @@ func _erupt() -> void:
 func _hit() -> void:
 	if not is_instance_valid(_target) or _target.get("is_dead") == true:
 		return
+	# Эхо чужих шипов (кооп): урон уже у хозяина — только вспышка
+	if Net.is_echo(_caster):
+		DruidFx.hit_burst(get_tree(), global_position + Vector2(0, -14), Vector2.UP)
+		return
 	if "player" in _target and _target.player == null and is_instance_valid(_caster):
 		_target.player = _caster
 	_target.take_damage(damage, _caster)

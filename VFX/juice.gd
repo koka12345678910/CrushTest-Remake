@@ -110,6 +110,17 @@ func hit(victim: Node2D, source: Node2D, amount: int, killed: bool, blocked := f
 		return
 	var dir := _dir(source, victim)
 	var at := victim.global_position + Vector2(0, -10)
+	# Ударил другой игрок (кооп, кукла Net/net_puppet.gd): его отклик — у него
+	# на экране; здесь только то, что видно в мире, без тряски своей камеры
+	if is_instance_valid(source) and source.is_in_group("net_puppet"):
+		if blocked:
+			return
+		if killed or amount >= 2:
+			shockwave(at, 52.0 if killed else 38.0, 0.32, 0.012)
+			ground_crack(_feet(victim), 0.9 if killed else 0.6)
+		if killed:
+			corpse_slide(victim, dir, 18.0)
+		return
 	# У рыцаря свой стоп-кадр и тряска на каждое попадание (player.gd) — их не
 	# удваиваем, добавляем только то, чего у него нет
 	var own_feel := is_instance_valid(source) and source.has_method("do_hitstop")
@@ -187,6 +198,14 @@ func execution(victim: Node2D, source: Node2D) -> void:
 		return
 	var dir := _dir(source, victim)
 	var at := victim.global_position + Vector2(0, -12)
+	# Добил другой игрок (кооп) — без остановки времени и толчков своей камеры
+	if is_instance_valid(source) and source.is_in_group("net_puppet"):
+		shockwave(at, 55.0, 0.35, 0.01)
+		ground_crack(_feet(victim), 1.1)
+		corpse_slide(victim, dir, 26.0)
+		BloodFx.hit(victim, source, 3.2)
+		_play(HIT_SOUND, victim.global_position, 0.55, 2.0)
+		return
 	freeze(0.14)
 	slow(0.16, 1.05, 0.55)
 	zoom_punch(0.16, 0.55)
@@ -238,6 +257,10 @@ func freeze(duration: float) -> void:
 ## Замедление до scale на duration реальных секунд: hold — какую долю держится
 ## ровно, дальше плавно отпускает к 1.0
 func slow(scale: float, duration: float, hold := 1.0) -> void:
+	# В коопе время общее: замедлить его одному нельзя (у хоста встали бы враги
+	# для всех) — стоп-кадры и замедления в сети не работают
+	if Net.is_online():
+		return
 	_time_reqs.append([scale, Time.get_ticks_usec(), int(duration * 1000000.0), hold])
 
 

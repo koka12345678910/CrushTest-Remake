@@ -879,6 +879,10 @@ func on_weapon_hit(enemy, blocked: bool) -> void:
 func _add_posture(enemy, amount: float) -> void:
 	if enemy.get("is_dead") or enemy.get("is_posture_broken") or not ("posture" in enemy):
 		return
+	# Кооп: копия врага у клиента — концентрацию считает настоящий у хоста
+	if enemy.get("net_replica") == true:
+		Net.enemy_act(enemy, "add_posture", [amount])
+		return
 	enemy.posture = minf(enemy.posture + amount, enemy.max_posture)
 	enemy.posture_regen_timer = 0.0
 	if enemy.posture_bar:

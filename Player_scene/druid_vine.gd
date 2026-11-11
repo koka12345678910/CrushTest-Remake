@@ -74,6 +74,9 @@ func _strike() -> void:
 	DruidFx.leaves(h, 6, 90.0, 0.8, -_dir, 80.0)
 	DruidFx.sparks(h, 8, 130.0, 0.3, -_dir, 60.0)
 	DruidFx.light_pulse(h, 50.0, 1.6, 0.3)
+	# Эхо чужой лозы (кооп): хватка и рывок уже у хозяина — здесь только вид
+	if Net.is_echo(_caster):
+		return
 	if not is_instance_valid(_target) or _target.get("is_dead") == true:
 		return
 	if "player" in _target and _target.player == null and is_instance_valid(_caster):

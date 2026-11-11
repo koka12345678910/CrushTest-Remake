@@ -293,5 +293,5 @@ func _burn_enemies() -> void:
 		Reactions.strike(_caster, e, damage, "fire")
 		MageFx.hit_burst(get_tree(), e.global_position, push_dir)
 		# Отброс — от мага, вдоль выжигания
-		if not e.is_dead and "knockback_velocity" in e:
+		if not e.is_dead and "knockback_velocity" in e and not Net.is_echo(_caster):
 			e.knockback_velocity = push_dir * knockback

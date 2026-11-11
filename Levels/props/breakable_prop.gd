@@ -87,8 +87,21 @@ func _hit_feedback(source: Node) -> void:
 	_splinters(6, away)
 
 
+## Кооп: предмет разбил другой игрок — разбивается и здесь (Net.world_event).
+## Монеты из него каждый получает свои
+func net_break() -> void:
+	if is_dead:
+		return
+	_net_remote = true
+	_break(null)
+
+
+var _net_remote := false
+
 func _break(source: Node) -> void:
 	is_dead = true
+	if not _net_remote:
+		Net.world_event("break", self)
 	remove_from_group("breakable")
 	for ch in get_children():
 		if ch is CollisionShape2D:

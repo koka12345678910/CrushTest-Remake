@@ -175,12 +175,14 @@ func _finish(hit: Node2D) -> void:
 	set_deferred("monitoring", false)
 	var at := global_position
 	if is_instance_valid(hit):
-		if "player" in hit and hit.player == null and is_instance_valid(_caster):
-			hit.player = _caster
-		hit.take_damage(damage, _caster)
+		# Эхо чужого семени (кооп): урон уже засчитан у хозяина — только вспышка
+		if not Net.is_echo(_caster):
+			if "player" in hit and hit.player == null and is_instance_valid(_caster):
+				hit.player = _caster
+			hit.take_damage(damage, _caster)
+			if is_instance_valid(_caster) and _caster.has_method("_on_seed_hit"):
+				_caster._on_seed_hit(hit)
 		DruidFx.hit_burst(get_tree(), at, _direction)
-		if is_instance_valid(_caster) and _caster.has_method("_on_seed_hit"):
-			_caster._on_seed_hit(hit)
 	else:
 		var h := DruidFx.holder(get_tree(), at, 1.2, 11)
 		DruidFx.flash(h, 16.0, 0.12)
