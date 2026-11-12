@@ -31,7 +31,7 @@ extends Control
 ## сам собой (Characters.FALLBACK).
 # Ночное кладбище по референсу. Старая карта цела — вернуть её можно,
 # поставив сюда "res://Levels/level_01.tscn"
-const SCENE_GAME := "res://Levels/level_graveyard.tscn"
+const SCENE_GAME := "res://reference_map_level/reference_map.tscn"
 
 const Style := preload("res://Main_Menu/scripts/MenuStyle.gd")
 const SOUND_ACCEPT := Style.SOUND_ACCEPT

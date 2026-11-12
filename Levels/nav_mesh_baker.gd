@@ -19,6 +19,11 @@ extends NavigationRegion2D
 @export_flags_2d_physics var obstacle_mask := 3
 ## Размер ячейки навмеша (px)
 @export var cell_size := 2.0
+## Заранее запечённый навмеш. Задан — в рантайме не печём, а берём его.
+## Нужен большим картам: на reference_map (~2900 препятствий) запекание идёт
+## около 50 секунд, и упирается оно в число препятствий, а не в cell_size.
+## Перепечь после правки карты: tools/bake_navmesh.gd
+@export var prebaked: NavigationPolygon
 
 signal baked
 
@@ -34,6 +39,12 @@ func _bake() -> void:
 	# Геометрия собирается в координатах уровня — ставим регион туда же,
 	# иначе навмеш уехал бы на смещение родителя
 	global_transform = level.global_transform
+
+	if prebaked:
+		NavigationServer2D.map_set_cell_size(get_world_2d().navigation_map, prebaked.cell_size)
+		navigation_polygon = prebaked
+		baked.emit()
+		return
 
 	var bounds := _ground_bounds(level)
 	if bounds.size == Vector2.ZERO:

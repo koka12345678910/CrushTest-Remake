@@ -36,6 +36,10 @@ const REST_SOUND := preload("res://Sound/ambient_sound/recover_breath.mp3")
 ## Враг, который видит героя ближе этого, не даёт отдохнуть
 @export var enemy_block_radius := 420.0
 @export var ring_scale := 0.6
+## Слой кольца камней. -17 — сразу над землёй кладбища (её слои на -19..-18).
+## У карт, где земля лежит на z 0 (reference_map), кольцо с -17 ушло бы под
+## тайлы — там ставится 0
+@export var ring_z_index := -17
 
 var lit := false
 var _near := false
@@ -85,7 +89,7 @@ func _build_visuals() -> void:
 	ring.texture = at
 	ring.scale = Vector2.ONE * ring_scale
 	ring.position = Vector2(0, 2)
-	ring.z_index = -17
+	ring.z_index = ring_z_index
 	add_child(ring)
 
 	# Меч, воткнутый в золу — сортируется с героем по точке костра
