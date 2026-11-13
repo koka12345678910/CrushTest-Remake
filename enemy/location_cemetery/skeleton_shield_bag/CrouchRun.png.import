@@ -3,20 +3,21 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://dosp4jet7h7pr"
-path="res://.godot/imported/CrouchRun.png-de691c8ba669b8b866f66752c522a6ca.ctex"
+path.bptc="res://.godot/imported/CrouchRun.png-de691c8ba669b8b866f66752c522a6ca.bptc.ctex"
 metadata={
-"vram_texture": false
+"imported_formats": ["s3tc_bptc"],
+"vram_texture": true
 }
 
 [deps]
 
 source_file="res://enemy/location_cemetery/skeleton_shield_bag/CrouchRun.png"
-dest_files=["res://.godot/imported/CrouchRun.png-de691c8ba669b8b866f66752c522a6ca.ctex"]
+dest_files=["res://.godot/imported/CrouchRun.png-de691c8ba669b8b866f66752c522a6ca.bptc.ctex"]
 
 [params]
 
-compress/mode=0
-compress/high_quality=false
+compress/mode=2
+compress/high_quality=true
 compress/lossy_quality=0.7
 compress/uastc_level=0
 compress/rdo_quality_loss=0.0

@@ -3,20 +3,21 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://b21o6u6mb81jf"
-path="res://.godot/imported/ShieldBlockMid.png-b4707e5eabafbb2f8904c88d450af378.ctex"
+path.bptc="res://.godot/imported/ShieldBlockMid.png-b4707e5eabafbb2f8904c88d450af378.bptc.ctex"
 metadata={
-"vram_texture": false
+"imported_formats": ["s3tc_bptc"],
+"vram_texture": true
 }
 
 [deps]
 
 source_file="res://Character/CharacterAnimationAssets/With shadows/ShieldBlockMid.png"
-dest_files=["res://.godot/imported/ShieldBlockMid.png-b4707e5eabafbb2f8904c88d450af378.ctex"]
+dest_files=["res://.godot/imported/ShieldBlockMid.png-b4707e5eabafbb2f8904c88d450af378.bptc.ctex"]
 
 [params]
 
-compress/mode=0
-compress/high_quality=false
+compress/mode=2
+compress/high_quality=true
 compress/lossy_quality=0.7
 compress/uastc_level=0
 compress/rdo_quality_loss=0.0

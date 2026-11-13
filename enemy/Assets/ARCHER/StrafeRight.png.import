@@ -3,20 +3,21 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://bbka5iwpcy6a6"
-path="res://.godot/imported/StrafeRight.png-47f0aef94926a4618278c0561b4abb77.ctex"
+path.bptc="res://.godot/imported/StrafeRight.png-47f0aef94926a4618278c0561b4abb77.bptc.ctex"
 metadata={
-"vram_texture": false
+"imported_formats": ["s3tc_bptc"],
+"vram_texture": true
 }
 
 [deps]
 
 source_file="res://enemy/Assets/ARCHER/StrafeRight.png"
-dest_files=["res://.godot/imported/StrafeRight.png-47f0aef94926a4618278c0561b4abb77.ctex"]
+dest_files=["res://.godot/imported/StrafeRight.png-47f0aef94926a4618278c0561b4abb77.bptc.ctex"]
 
 [params]
 
-compress/mode=0
-compress/high_quality=false
+compress/mode=2
+compress/high_quality=true
 compress/lossy_quality=0.7
 compress/uastc_level=0
 compress/rdo_quality_loss=0.0

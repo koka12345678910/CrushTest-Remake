@@ -3,20 +3,21 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://bxt8bi58se28h"
-path="res://.godot/imported/GreatSwordKnight_Slash_dir4.png-2154bfd797fb28e4658a6e518944c29c.ctex"
+path.bptc="res://.godot/imported/GreatSwordKnight_Slash_dir4.png-2154bfd797fb28e4658a6e518944c29c.bptc.ctex"
 metadata={
-"vram_texture": false
+"imported_formats": ["s3tc_bptc"],
+"vram_texture": true
 }
 
 [deps]
 
 source_file="res://enemy/Assets/MB_Knight/Slash/GreatSwordKnight_Slash_dir4.png"
-dest_files=["res://.godot/imported/GreatSwordKnight_Slash_dir4.png-2154bfd797fb28e4658a6e518944c29c.ctex"]
+dest_files=["res://.godot/imported/GreatSwordKnight_Slash_dir4.png-2154bfd797fb28e4658a6e518944c29c.bptc.ctex"]
 
 [params]
 
-compress/mode=0
-compress/high_quality=false
+compress/mode=2
+compress/high_quality=true
 compress/lossy_quality=0.7
 compress/uastc_level=0
 compress/rdo_quality_loss=0.0

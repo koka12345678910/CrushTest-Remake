@@ -3,20 +3,21 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://ckd2w2qvexqp4"
-path="res://.godot/imported/RideRunAttack1.png-1a946b8c3fb340f9548538d3930705cb.ctex"
+path.bptc="res://.godot/imported/RideRunAttack1.png-1a946b8c3fb340f9548538d3930705cb.bptc.ctex"
 metadata={
-"vram_texture": false
+"imported_formats": ["s3tc_bptc"],
+"vram_texture": true
 }
 
 [deps]
 
 source_file="res://enemy/location_cemetery/axe_skeleton_2/RideRunAttack1.png"
-dest_files=["res://.godot/imported/RideRunAttack1.png-1a946b8c3fb340f9548538d3930705cb.ctex"]
+dest_files=["res://.godot/imported/RideRunAttack1.png-1a946b8c3fb340f9548538d3930705cb.bptc.ctex"]
 
 [params]
 
-compress/mode=0
-compress/high_quality=false
+compress/mode=2
+compress/high_quality=true
 compress/lossy_quality=0.7
 compress/uastc_level=0
 compress/rdo_quality_loss=0.0

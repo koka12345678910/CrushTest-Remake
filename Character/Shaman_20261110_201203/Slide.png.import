@@ -3,20 +3,21 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://psedxevqwl4s"
-path="res://.godot/imported/Slide.png-3eeecf266ac34a4dfcf947f117960487.ctex"
+path.bptc="res://.godot/imported/Slide.png-3eeecf266ac34a4dfcf947f117960487.bptc.ctex"
 metadata={
-"vram_texture": false
+"imported_formats": ["s3tc_bptc"],
+"vram_texture": true
 }
 
 [deps]
 
 source_file="res://Character/Shaman_20261110_201203/Slide.png"
-dest_files=["res://.godot/imported/Slide.png-3eeecf266ac34a4dfcf947f117960487.ctex"]
+dest_files=["res://.godot/imported/Slide.png-3eeecf266ac34a4dfcf947f117960487.bptc.ctex"]
 
 [params]
 
-compress/mode=0
-compress/high_quality=false
+compress/mode=2
+compress/high_quality=true
 compress/lossy_quality=0.7
 compress/uastc_level=0
 compress/rdo_quality_loss=0.0

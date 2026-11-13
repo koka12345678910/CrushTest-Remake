@@ -3,20 +3,21 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://ct3qt0jru5kks"
-path="res://.godot/imported/180Turn.png-20bc45ab1dd5eb4bb2833d43e5fe4421.ctex"
+path.bptc="res://.godot/imported/180Turn.png-20bc45ab1dd5eb4bb2833d43e5fe4421.bptc.ctex"
 metadata={
-"vram_texture": false
+"imported_formats": ["s3tc_bptc"],
+"vram_texture": true
 }
 
 [deps]
 
 source_file="res://Character/Mage/180Turn.png"
-dest_files=["res://.godot/imported/180Turn.png-20bc45ab1dd5eb4bb2833d43e5fe4421.ctex"]
+dest_files=["res://.godot/imported/180Turn.png-20bc45ab1dd5eb4bb2833d43e5fe4421.bptc.ctex"]
 
 [params]
 
-compress/mode=0
-compress/high_quality=false
+compress/mode=2
+compress/high_quality=true
 compress/lossy_quality=0.7
 compress/uastc_level=0
 compress/rdo_quality_loss=0.0

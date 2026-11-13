@@ -3,20 +3,21 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://chn644m02o5g6"
-path="res://.godot/imported/Attack3.png-33b1b76d4074f69cb85d322dcfa2aca0.ctex"
+path.bptc="res://.godot/imported/Attack3.png-33b1b76d4074f69cb85d322dcfa2aca0.bptc.ctex"
 metadata={
-"vram_texture": false
+"imported_formats": ["s3tc_bptc"],
+"vram_texture": true
 }
 
 [deps]
 
 source_file="res://enemy/location_cemetery/skeleton_dexterous/Attack3.png"
-dest_files=["res://.godot/imported/Attack3.png-33b1b76d4074f69cb85d322dcfa2aca0.ctex"]
+dest_files=["res://.godot/imported/Attack3.png-33b1b76d4074f69cb85d322dcfa2aca0.bptc.ctex"]
 
 [params]
 
-compress/mode=0
-compress/high_quality=false
+compress/mode=2
+compress/high_quality=true
 compress/lossy_quality=0.7
 compress/uastc_level=0
 compress/rdo_quality_loss=0.0

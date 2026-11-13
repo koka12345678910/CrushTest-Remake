@@ -3,20 +3,21 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://02bac6a8vpp2"
-path="res://.godot/imported/Pummel.png-47df0a96a52d77db9cc7d6e7a8b09eea.ctex"
+path.bptc="res://.godot/imported/Pummel.png-47df0a96a52d77db9cc7d6e7a8b09eea.bptc.ctex"
 metadata={
-"vram_texture": false
+"imported_formats": ["s3tc_bptc"],
+"vram_texture": true
 }
 
 [deps]
 
 source_file="res://Character/CharacterAnimationAssets/With shadows/Pummel.png"
-dest_files=["res://.godot/imported/Pummel.png-47df0a96a52d77db9cc7d6e7a8b09eea.ctex"]
+dest_files=["res://.godot/imported/Pummel.png-47df0a96a52d77db9cc7d6e7a8b09eea.bptc.ctex"]
 
 [params]
 
-compress/mode=0
-compress/high_quality=false
+compress/mode=2
+compress/high_quality=true
 compress/lossy_quality=0.7
 compress/uastc_level=0
 compress/rdo_quality_loss=0.0

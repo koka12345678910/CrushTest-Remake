@@ -3,20 +3,21 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://dl5b5fnp6i11i"
-path="res://.godot/imported/GreatSwordKnight_2hIdle5_dir3.png-75de74564cc18e008a3c75d13af737a5.ctex"
+path.bptc="res://.godot/imported/GreatSwordKnight_2hIdle5_dir3.png-75de74564cc18e008a3c75d13af737a5.bptc.ctex"
 metadata={
-"vram_texture": false
+"imported_formats": ["s3tc_bptc"],
+"vram_texture": true
 }
 
 [deps]
 
 source_file="res://enemy/Assets/MB_Knight/Idle/GreatSwordKnight_2hIdle5_dir3.png"
-dest_files=["res://.godot/imported/GreatSwordKnight_2hIdle5_dir3.png-75de74564cc18e008a3c75d13af737a5.ctex"]
+dest_files=["res://.godot/imported/GreatSwordKnight_2hIdle5_dir3.png-75de74564cc18e008a3c75d13af737a5.bptc.ctex"]
 
 [params]
 
-compress/mode=0
-compress/high_quality=false
+compress/mode=2
+compress/high_quality=true
 compress/lossy_quality=0.7
 compress/uastc_level=0
 compress/rdo_quality_loss=0.0

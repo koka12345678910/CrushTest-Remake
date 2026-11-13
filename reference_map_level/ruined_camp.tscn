@@ -3,8 +3,8 @@
 [ext_resource type="Texture2D" path="res://reference_map_level/textures/medieval_ground.png" id="1_afuno"]
 [ext_resource type="Script" path="res://Levels/sprite_batch.gd" id="2_dm4dp"]
 [ext_resource type="Texture2D" path="res://reference_map_level/textures/camp_sprites.png" id="2_g1qqt"]
-[ext_resource type="Texture2D" path="res://reference_map_level/textures/autumn_trees.png" id="3_uyocx"]
 [ext_resource type="Texture2D" path="res://reference_map_level/textures/medieval_atlas.png" id="4_2fihv"]
+[ext_resource type="Texture2D" path="res://reference_map_level/textures/forest_trees.png" id="4_dm4dp"]
 [ext_resource type="Script" path="res://reference_map_level/scripts/camp_darkness.gd" id="5_5ppmi"]
 [ext_resource type="Script" path="res://reference_map_level/scripts/free_camera.gd" id="6_ff1pc"]
 [ext_resource type="Script" path="res://Levels/static_shapes.gd" id="6_qresc"]
@@ -530,471 +530,148 @@ use_texture_padding = false
 tile_size = Vector2i(128, 128)
 sources/0 = SubResource("TileSetAtlasSource_dt65y")
 
-[sub_resource type="TileSetAtlasSource" id="TileSetAtlasSource_q8d46"]
-texture = ExtResource("3_uyocx")
-margins = Vector2i(1452, 760)
-texture_region_size = Vector2i(216, 244)
+[sub_resource type="TileSetAtlasSource" id="TileSetAtlasSource_qresc"]
+texture = ExtResource("4_dm4dp")
+margins = Vector2i(1632, 448)
+texture_region_size = Vector2i(224, 307)
 use_texture_padding = false
-0:0/next_alternative_id = 3
+0:0/next_alternative_id = 2
 0:0/0 = 0
-0:0/0/texture_origin = Vector2i(0, 102)
+0:0/0/texture_origin = Vector2i(0, 128)
 0:0/1 = 1
-0:0/1/texture_origin = Vector2i(0, 102)
-0:0/1/modulate = Color(0.8, 0.74, 0.74, 1)
-0:0/2 = 2
-0:0/2/texture_origin = Vector2i(0, 102)
-0:0/2/modulate = Color(0.62, 0.56, 0.62, 1)
+0:0/1/flip_h = true
+0:0/1/texture_origin = Vector2i(0, 128)
+metadata/forest_variant = "maple_red_1"
 
-[sub_resource type="TileSetAtlasSource" id="TileSetAtlasSource_grqwc"]
-texture = ExtResource("3_uyocx")
-margins = Vector2i(0, 380)
-texture_region_size = Vector2i(294, 372)
+[sub_resource type="TileSetAtlasSource" id="TileSetAtlasSource_v4fan"]
+texture = ExtResource("4_dm4dp")
+margins = Vector2i(1172, 448)
+texture_region_size = Vector2i(188, 326)
 use_texture_padding = false
-0:0/next_alternative_id = 3
+0:0/next_alternative_id = 2
 0:0/0 = 0
-0:0/0/texture_origin = Vector2i(0, 166)
+0:0/0/texture_origin = Vector2i(0, 137)
 0:0/1 = 1
-0:0/1/texture_origin = Vector2i(0, 166)
-0:0/1/modulate = Color(0.8, 0.74, 0.74, 1)
-0:0/2 = 2
-0:0/2/texture_origin = Vector2i(0, 166)
-0:0/2/modulate = Color(0.62, 0.56, 0.62, 1)
+0:0/1/flip_h = true
+0:0/1/texture_origin = Vector2i(0, 137)
+metadata/forest_variant = "birch_weeping_1"
 
-[sub_resource type="TileSetAtlasSource" id="TileSetAtlasSource_5dn4b"]
-texture = ExtResource("3_uyocx")
-margins = Vector2i(900, 380)
-texture_region_size = Vector2i(294, 336)
+[sub_resource type="TileSetAtlasSource" id="TileSetAtlasSource_gj77d"]
+texture = ExtResource("4_dm4dp")
+margins = Vector2i(1364, 448)
+texture_region_size = Vector2i(264, 325)
 use_texture_padding = false
-0:0/next_alternative_id = 3
+0:0/next_alternative_id = 2
 0:0/0 = 0
-0:0/0/texture_origin = Vector2i(0, 148)
+0:0/0/texture_origin = Vector2i(0, 136)
 0:0/1 = 1
-0:0/1/texture_origin = Vector2i(0, 148)
-0:0/1/modulate = Color(0.8, 0.74, 0.74, 1)
-0:0/2 = 2
-0:0/2/texture_origin = Vector2i(0, 148)
-0:0/2/modulate = Color(0.62, 0.56, 0.62, 1)
+0:0/1/flip_h = true
+0:0/1/texture_origin = Vector2i(0, 136)
+metadata/forest_variant = "dead_broken_0"
 
-[sub_resource type="TileSetAtlasSource" id="TileSetAtlasSource_08au0"]
-texture = ExtResource("3_uyocx")
-margins = Vector2i(1096, 0)
-texture_region_size = Vector2i(366, 316)
+[sub_resource type="TileSetAtlasSource" id="TileSetAtlasSource_fxsqc"]
+texture = ExtResource("4_dm4dp")
+margins = Vector2i(423, 810)
+texture_region_size = Vector2i(278, 289)
 use_texture_padding = false
-0:0/next_alternative_id = 3
+0:0/next_alternative_id = 2
 0:0/0 = 0
-0:0/0/texture_origin = Vector2i(0, 138)
+0:0/0/texture_origin = Vector2i(0, 121)
 0:0/1 = 1
-0:0/1/texture_origin = Vector2i(0, 138)
-0:0/1/modulate = Color(0.8, 0.74, 0.74, 1)
-0:0/2 = 2
-0:0/2/texture_origin = Vector2i(0, 138)
-0:0/2/modulate = Color(0.62, 0.56, 0.62, 1)
+0:0/1/flip_h = true
+0:0/1/texture_origin = Vector2i(0, 121)
+metadata/forest_variant = "oak_1"
 
-[sub_resource type="TileSetAtlasSource" id="TileSetAtlasSource_j4yxi"]
-texture = ExtResource("3_uyocx")
-margins = Vector2i(256, 0)
-texture_region_size = Vector2i(276, 360)
+[sub_resource type="TileSetAtlasSource" id="TileSetAtlasSource_nlohb"]
+texture = ExtResource("4_dm4dp")
+margins = Vector2i(0, 448)
+texture_region_size = Vector2i(243, 358)
 use_texture_padding = false
-0:0/next_alternative_id = 3
-0:0/0 = 0
-0:0/0/texture_origin = Vector2i(0, 160)
-0:0/1 = 1
-0:0/1/texture_origin = Vector2i(0, 160)
-0:0/1/modulate = Color(0.8, 0.74, 0.74, 1)
-0:0/2 = 2
-0:0/2/texture_origin = Vector2i(0, 160)
-0:0/2/modulate = Color(0.62, 0.56, 0.62, 1)
-
-[sub_resource type="TileSetAtlasSource" id="TileSetAtlasSource_13oxj"]
-texture = ExtResource("3_uyocx")
-margins = Vector2i(572, 760)
-texture_region_size = Vector2i(360, 378)
-use_texture_padding = false
-0:0/next_alternative_id = 3
-0:0/0 = 0
-0:0/0/texture_origin = Vector2i(0, 168)
-0:0/1 = 1
-0:0/1/texture_origin = Vector2i(0, 168)
-0:0/1/modulate = Color(0.8, 0.74, 0.74, 1)
-0:0/2 = 2
-0:0/2/texture_origin = Vector2i(0, 168)
-0:0/2/modulate = Color(0.62, 0.56, 0.62, 1)
-
-[sub_resource type="TileSetAtlasSource" id="TileSetAtlasSource_4evk0"]
-texture = ExtResource("3_uyocx")
-margins = Vector2i(852, 1142)
-texture_region_size = Vector2i(196, 224)
-use_texture_padding = false
-0:0/next_alternative_id = 3
-0:0/0 = 0
-0:0/0/texture_origin = Vector2i(0, 92)
-0:0/1 = 1
-0:0/1/texture_origin = Vector2i(0, 92)
-0:0/1/modulate = Color(0.8, 0.74, 0.74, 1)
-0:0/2 = 2
-0:0/2/texture_origin = Vector2i(0, 92)
-0:0/2/modulate = Color(0.62, 0.56, 0.62, 1)
-
-[sub_resource type="TileSetAtlasSource" id="TileSetAtlasSource_ktedw"]
-texture = ExtResource("3_uyocx")
-margins = Vector2i(1666, 1142)
-texture_region_size = Vector2i(252, 196)
-use_texture_padding = false
-0:0/next_alternative_id = 3
-0:0/0 = 0
-0:0/0/texture_origin = Vector2i(0, 78)
-0:0/1 = 1
-0:0/1/texture_origin = Vector2i(0, 78)
-0:0/1/modulate = Color(0.8, 0.74, 0.74, 1)
-0:0/2 = 2
-0:0/2/texture_origin = Vector2i(0, 78)
-0:0/2/modulate = Color(0.62, 0.56, 0.62, 1)
-
-[sub_resource type="TileSetAtlasSource" id="TileSetAtlasSource_gwr53"]
-texture = ExtResource("3_uyocx")
-margins = Vector2i(1550, 380)
-texture_region_size = Vector2i(370, 376)
-use_texture_padding = false
-0:0/next_alternative_id = 3
-0:0/0 = 0
-0:0/0/texture_origin = Vector2i(0, 168)
-0:0/1 = 1
-0:0/1/texture_origin = Vector2i(0, 168)
-0:0/1/modulate = Color(0.8, 0.74, 0.74, 1)
-0:0/2 = 2
-0:0/2/texture_origin = Vector2i(0, 168)
-0:0/2/modulate = Color(0.62, 0.56, 0.62, 1)
-
-[sub_resource type="TileSetAtlasSource" id="TileSetAtlasSource_gif1m"]
-texture = ExtResource("3_uyocx")
-margins = Vector2i(536, 0)
-texture_region_size = Vector2i(228, 372)
-use_texture_padding = false
-0:0/next_alternative_id = 3
-0:0/0 = 0
-0:0/0/texture_origin = Vector2i(0, 166)
-0:0/1 = 1
-0:0/1/texture_origin = Vector2i(0, 166)
-0:0/1/modulate = Color(0.8, 0.74, 0.74, 1)
-0:0/2 = 2
-0:0/2/texture_origin = Vector2i(0, 166)
-0:0/2/modulate = Color(0.62, 0.56, 0.62, 1)
-
-[sub_resource type="TileSetAtlasSource" id="TileSetAtlasSource_l3f18"]
-texture = ExtResource("3_uyocx")
-margins = Vector2i(660, 1142)
-texture_region_size = Vector2i(188, 226)
-use_texture_padding = false
-0:0/next_alternative_id = 3
-0:0/0 = 0
-0:0/0/texture_origin = Vector2i(0, 92)
-0:0/1 = 1
-0:0/1/texture_origin = Vector2i(0, 92)
-0:0/1/modulate = Color(0.8, 0.74, 0.74, 1)
-0:0/2 = 2
-0:0/2/texture_origin = Vector2i(0, 92)
-0:0/2/modulate = Color(0.62, 0.56, 0.62, 1)
-
-[sub_resource type="TileSetAtlasSource" id="TileSetAtlasSource_ibqq5"]
-texture = ExtResource("3_uyocx")
-margins = Vector2i(0, 1142)
-texture_region_size = Vector2i(244, 212)
-use_texture_padding = false
-0:0/next_alternative_id = 3
-0:0/0 = 0
-0:0/0/texture_origin = Vector2i(0, 86)
-0:0/1 = 1
-0:0/1/texture_origin = Vector2i(0, 86)
-0:0/1/modulate = Color(0.8, 0.74, 0.74, 1)
-0:0/2 = 2
-0:0/2/texture_origin = Vector2i(0, 86)
-0:0/2/modulate = Color(0.62, 0.56, 0.62, 1)
-
-[sub_resource type="TileSetAtlasSource" id="TileSetAtlasSource_wnj8u"]
-texture = ExtResource("3_uyocx")
-margins = Vector2i(1672, 760)
-texture_region_size = Vector2i(244, 210)
-use_texture_padding = false
-0:0/next_alternative_id = 3
-0:0/0 = 0
-0:0/0/texture_origin = Vector2i(0, 84)
-0:0/1 = 1
-0:0/1/texture_origin = Vector2i(0, 84)
-0:0/1/modulate = Color(0.8, 0.74, 0.74, 1)
-0:0/2 = 2
-0:0/2/texture_origin = Vector2i(0, 84)
-0:0/2/modulate = Color(0.62, 0.56, 0.62, 1)
-
-[sub_resource type="TileSetAtlasSource" id="TileSetAtlasSource_quttx"]
-texture = ExtResource("3_uyocx")
-margins = Vector2i(768, 0)
-texture_region_size = Vector2i(324, 366)
-use_texture_padding = false
-0:0/next_alternative_id = 3
-0:0/0 = 0
-0:0/0/texture_origin = Vector2i(0, 162)
-0:0/1 = 1
-0:0/1/texture_origin = Vector2i(0, 162)
-0:0/1/modulate = Color(0.8, 0.74, 0.74, 1)
-0:0/2 = 2
-0:0/2/texture_origin = Vector2i(0, 162)
-0:0/2/modulate = Color(0.62, 0.56, 0.62, 1)
-
-[sub_resource type="TileSetAtlasSource" id="TileSetAtlasSource_5fh1h"]
-texture = ExtResource("3_uyocx")
-margins = Vector2i(1108, 760)
-texture_region_size = Vector2i(184, 240)
-use_texture_padding = false
-0:0/next_alternative_id = 3
-0:0/0 = 0
-0:0/0/texture_origin = Vector2i(0, 100)
-0:0/1 = 1
-0:0/1/texture_origin = Vector2i(0, 100)
-0:0/1/modulate = Color(0.8, 0.74, 0.74, 1)
-0:0/2 = 2
-0:0/2/texture_origin = Vector2i(0, 100)
-0:0/2/modulate = Color(0.62, 0.56, 0.62, 1)
-
-[sub_resource type="TileSetAtlasSource" id="TileSetAtlasSource_vsdwc"]
-texture = ExtResource("3_uyocx")
-margins = Vector2i(1198, 380)
-texture_region_size = Vector2i(348, 372)
-use_texture_padding = false
-0:0/next_alternative_id = 3
-0:0/0 = 0
-0:0/0/texture_origin = Vector2i(0, 166)
-0:0/1 = 1
-0:0/1/texture_origin = Vector2i(0, 166)
-0:0/1/modulate = Color(0.8, 0.74, 0.74, 1)
-0:0/2 = 2
-0:0/2/texture_origin = Vector2i(0, 166)
-0:0/2/modulate = Color(0.62, 0.56, 0.62, 1)
-
-[sub_resource type="TileSetAtlasSource" id="TileSetAtlasSource_bfy5d"]
-texture = ExtResource("3_uyocx")
-margins = Vector2i(1538, 1142)
-texture_region_size = Vector2i(124, 234)
-use_texture_padding = false
-0:0/next_alternative_id = 3
-0:0/0 = 0
-0:0/0/texture_origin = Vector2i(0, 96)
-0:0/1 = 1
-0:0/1/texture_origin = Vector2i(0, 96)
-0:0/1/modulate = Color(0.8, 0.74, 0.74, 1)
-0:0/2 = 2
-0:0/2/texture_origin = Vector2i(0, 96)
-0:0/2/modulate = Color(0.62, 0.56, 0.62, 1)
-
-[sub_resource type="TileSetAtlasSource" id="TileSetAtlasSource_i4mvg"]
-texture = ExtResource("3_uyocx")
-margins = Vector2i(190, 760)
-texture_region_size = Vector2i(378, 294)
-use_texture_padding = false
-0:0/next_alternative_id = 3
-0:0/0 = 0
-0:0/0/texture_origin = Vector2i(0, 126)
-0:0/1 = 1
-0:0/1/texture_origin = Vector2i(0, 126)
-0:0/1/modulate = Color(0.8, 0.74, 0.74, 1)
-0:0/2 = 2
-0:0/2/texture_origin = Vector2i(0, 126)
-0:0/2/modulate = Color(0.62, 0.56, 0.62, 1)
-
-[sub_resource type="TileSetAtlasSource" id="TileSetAtlasSource_mtjln"]
-texture = ExtResource("3_uyocx")
-texture_region_size = Vector2i(252, 376)
-use_texture_padding = false
-0:0/next_alternative_id = 3
-0:0/0 = 0
-0:0/0/texture_origin = Vector2i(0, 168)
-0:0/1 = 1
-0:0/1/texture_origin = Vector2i(0, 168)
-0:0/1/modulate = Color(0.8, 0.74, 0.74, 1)
-0:0/2 = 2
-0:0/2/texture_origin = Vector2i(0, 168)
-0:0/2/modulate = Color(0.62, 0.56, 0.62, 1)
-
-[sub_resource type="TileSetAtlasSource" id="TileSetAtlasSource_0qixs"]
-texture = ExtResource("3_uyocx")
-margins = Vector2i(936, 760)
-texture_region_size = Vector2i(168, 250)
-use_texture_padding = false
-0:0/next_alternative_id = 3
-0:0/0 = 0
-0:0/0/texture_origin = Vector2i(0, 104)
-0:0/1 = 1
-0:0/1/texture_origin = Vector2i(0, 104)
-0:0/1/modulate = Color(0.8, 0.74, 0.74, 1)
-0:0/2 = 2
-0:0/2/texture_origin = Vector2i(0, 104)
-0:0/2/modulate = Color(0.62, 0.56, 0.62, 1)
-
-[sub_resource type="TileSetAtlasSource" id="TileSetAtlasSource_8vbkh"]
-texture = ExtResource("3_uyocx")
-margins = Vector2i(614, 380)
-texture_region_size = Vector2i(282, 340)
-use_texture_padding = false
-0:0/next_alternative_id = 3
+0:0/next_alternative_id = 2
 0:0/0 = 0
 0:0/0/texture_origin = Vector2i(0, 150)
 0:0/1 = 1
+0:0/1/flip_h = true
 0:0/1/texture_origin = Vector2i(0, 150)
-0:0/1/modulate = Color(0.8, 0.74, 0.74, 1)
-0:0/2 = 2
-0:0/2/texture_origin = Vector2i(0, 150)
-0:0/2/modulate = Color(0.62, 0.56, 0.62, 1)
+metadata/forest_variant = "birch_autumn_0"
 
-[sub_resource type="TileSetAtlasSource" id="TileSetAtlasSource_t42ip"]
-texture = ExtResource("3_uyocx")
-margins = Vector2i(248, 1142)
-texture_region_size = Vector2i(196, 248)
+[sub_resource type="TileSetAtlasSource" id="TileSetAtlasSource_3usws"]
+texture = ExtResource("4_dm4dp")
+margins = Vector2i(576, 448)
+texture_region_size = Vector2i(329, 342)
 use_texture_padding = false
-0:0/next_alternative_id = 3
-0:0/0 = 0
-0:0/0/texture_origin = Vector2i(0, 104)
-0:0/1 = 1
-0:0/1/texture_origin = Vector2i(0, 104)
-0:0/1/modulate = Color(0.8, 0.74, 0.74, 1)
-0:0/2 = 2
-0:0/2/texture_origin = Vector2i(0, 104)
-0:0/2/modulate = Color(0.62, 0.56, 0.62, 1)
-
-[sub_resource type="TileSetAtlasSource" id="TileSetAtlasSource_rfhsm"]
-texture = ExtResource("3_uyocx")
-margins = Vector2i(298, 380)
-texture_region_size = Vector2i(312, 330)
-use_texture_padding = false
-0:0/next_alternative_id = 3
+0:0/next_alternative_id = 2
 0:0/0 = 0
 0:0/0/texture_origin = Vector2i(0, 144)
 0:0/1 = 1
+0:0/1/flip_h = true
 0:0/1/texture_origin = Vector2i(0, 144)
-0:0/1/modulate = Color(0.8, 0.74, 0.74, 1)
-0:0/2 = 2
-0:0/2/texture_origin = Vector2i(0, 144)
-0:0/2/modulate = Color(0.62, 0.56, 0.62, 1)
+metadata/forest_variant = "oak_0"
 
-[sub_resource type="TileSetAtlasSource" id="TileSetAtlasSource_vfcli"]
-texture = ExtResource("3_uyocx")
-margins = Vector2i(1466, 0)
-texture_region_size = Vector2i(366, 318)
+[sub_resource type="TileSetAtlasSource" id="TileSetAtlasSource_u4j73"]
+texture = ExtResource("4_dm4dp")
+margins = Vector2i(979, 0)
+texture_region_size = Vector2i(222, 385)
 use_texture_padding = false
-0:0/next_alternative_id = 3
+0:0/next_alternative_id = 2
 0:0/0 = 0
-0:0/0/texture_origin = Vector2i(0, 138)
+0:0/0/texture_origin = Vector2i(0, 161)
 0:0/1 = 1
-0:0/1/texture_origin = Vector2i(0, 138)
-0:0/1/modulate = Color(0.8, 0.74, 0.74, 1)
-0:0/2 = 2
-0:0/2/texture_origin = Vector2i(0, 138)
-0:0/2/modulate = Color(0.62, 0.56, 0.62, 1)
+0:0/1/flip_h = true
+0:0/1/texture_origin = Vector2i(0, 161)
+metadata/forest_variant = "birch_weeping_0"
 
-[sub_resource type="TileSetAtlasSource" id="TileSetAtlasSource_k1uit"]
-texture = ExtResource("3_uyocx")
-margins = Vector2i(1052, 1142)
-texture_region_size = Vector2i(232, 248)
+[sub_resource type="TileSetAtlasSource" id="TileSetAtlasSource_u0fyv"]
+texture = ExtResource("4_dm4dp")
+margins = Vector2i(213, 810)
+texture_region_size = Vector2i(206, 303)
 use_texture_padding = false
-0:0/next_alternative_id = 3
+0:0/next_alternative_id = 2
 0:0/0 = 0
-0:0/0/texture_origin = Vector2i(0, 104)
+0:0/0/texture_origin = Vector2i(0, 127)
 0:0/1 = 1
-0:0/1/texture_origin = Vector2i(0, 104)
-0:0/1/modulate = Color(0.8, 0.74, 0.74, 1)
-0:0/2 = 2
-0:0/2/texture_origin = Vector2i(0, 104)
-0:0/2/modulate = Color(0.62, 0.56, 0.62, 1)
+0:0/1/flip_h = true
+0:0/1/texture_origin = Vector2i(0, 127)
+metadata/forest_variant = "birch_autumn_1"
 
-[sub_resource type="TileSetAtlasSource" id="TileSetAtlasSource_7pgsj"]
-texture = ExtResource("3_uyocx")
-margins = Vector2i(1288, 1142)
-texture_region_size = Vector2i(246, 250)
+[sub_resource type="TileSetAtlasSource" id="TileSetAtlasSource_vcet7"]
+texture = ExtResource("4_dm4dp")
+margins = Vector2i(1699, 0)
+texture_region_size = Vector2i(265, 363)
 use_texture_padding = false
-0:0/next_alternative_id = 3
+0:0/next_alternative_id = 2
 0:0/0 = 0
-0:0/0/texture_origin = Vector2i(0, 104)
+0:0/0/texture_origin = Vector2i(0, 152)
 0:0/1 = 1
-0:0/1/texture_origin = Vector2i(0, 104)
-0:0/1/modulate = Color(0.8, 0.74, 0.74, 1)
-0:0/2 = 2
-0:0/2/texture_origin = Vector2i(0, 104)
-0:0/2/modulate = Color(0.62, 0.56, 0.62, 1)
+0:0/1/flip_h = true
+0:0/1/texture_origin = Vector2i(0, 152)
+metadata/forest_variant = "maple_red_0"
 
-[sub_resource type="TileSetAtlasSource" id="TileSetAtlasSource_g5bpa"]
-texture = ExtResource("3_uyocx")
-margins = Vector2i(0, 760)
-texture_region_size = Vector2i(186, 352)
+[sub_resource type="TileSetAtlasSource" id="TileSetAtlasSource_yrufw"]
+texture = ExtResource("4_dm4dp")
+margins = Vector2i(705, 810)
+texture_region_size = Vector2i(223, 275)
 use_texture_padding = false
-0:0/next_alternative_id = 3
+0:0/next_alternative_id = 2
 0:0/0 = 0
-0:0/0/texture_origin = Vector2i(0, 156)
+0:0/0/texture_origin = Vector2i(0, 115)
 0:0/1 = 1
-0:0/1/texture_origin = Vector2i(0, 156)
-0:0/1/modulate = Color(0.8, 0.74, 0.74, 1)
-0:0/2 = 2
-0:0/2/texture_origin = Vector2i(0, 156)
-0:0/2/modulate = Color(0.62, 0.56, 0.62, 1)
-
-[sub_resource type="TileSetAtlasSource" id="TileSetAtlasSource_olrit"]
-texture = ExtResource("3_uyocx")
-margins = Vector2i(1296, 760)
-texture_region_size = Vector2i(152, 248)
-use_texture_padding = false
-0:0/next_alternative_id = 3
-0:0/0 = 0
-0:0/0/texture_origin = Vector2i(0, 104)
-0:0/1 = 1
-0:0/1/texture_origin = Vector2i(0, 104)
-0:0/1/modulate = Color(0.8, 0.74, 0.74, 1)
-0:0/2 = 2
-0:0/2/texture_origin = Vector2i(0, 104)
-0:0/2/modulate = Color(0.62, 0.56, 0.62, 1)
-
-[sub_resource type="TileSetAtlasSource" id="TileSetAtlasSource_d4vw1"]
-texture = ExtResource("3_uyocx")
-margins = Vector2i(448, 1142)
-texture_region_size = Vector2i(208, 220)
-use_texture_padding = false
-0:0/next_alternative_id = 3
-0:0/0 = 0
-0:0/0/texture_origin = Vector2i(0, 90)
-0:0/1 = 1
-0:0/1/texture_origin = Vector2i(0, 90)
-0:0/1/modulate = Color(0.8, 0.74, 0.74, 1)
-0:0/2 = 2
-0:0/2/texture_origin = Vector2i(0, 90)
-0:0/2/modulate = Color(0.62, 0.56, 0.62, 1)
+0:0/1/flip_h = true
+0:0/1/texture_origin = Vector2i(0, 115)
+metadata/forest_variant = "dead_broken_1"
 
 [sub_resource type="TileSet" id="TileSet_5dgt6"]
 tile_size = Vector2i(32, 32)
-sources/0 = SubResource("TileSetAtlasSource_q8d46")
-sources/1 = SubResource("TileSetAtlasSource_grqwc")
-sources/2 = SubResource("TileSetAtlasSource_wnj8u")
-sources/3 = SubResource("TileSetAtlasSource_rfhsm")
-sources/4 = SubResource("TileSetAtlasSource_vfcli")
-sources/5 = SubResource("TileSetAtlasSource_k1uit")
-sources/6 = SubResource("TileSetAtlasSource_7pgsj")
-sources/7 = SubResource("TileSetAtlasSource_g5bpa")
-sources/8 = SubResource("TileSetAtlasSource_olrit")
-sources/9 = SubResource("TileSetAtlasSource_d4vw1")
-sources/10 = SubResource("TileSetAtlasSource_5dn4b")
-sources/11 = SubResource("TileSetAtlasSource_08au0")
-sources/12 = SubResource("TileSetAtlasSource_j4yxi")
-sources/13 = SubResource("TileSetAtlasSource_13oxj")
-sources/14 = SubResource("TileSetAtlasSource_4evk0")
-sources/15 = SubResource("TileSetAtlasSource_ktedw")
-sources/16 = SubResource("TileSetAtlasSource_gwr53")
-sources/17 = SubResource("TileSetAtlasSource_gif1m")
-sources/18 = SubResource("TileSetAtlasSource_l3f18")
-sources/19 = SubResource("TileSetAtlasSource_ibqq5")
-sources/20 = SubResource("TileSetAtlasSource_quttx")
-sources/21 = SubResource("TileSetAtlasSource_5fh1h")
-sources/22 = SubResource("TileSetAtlasSource_vsdwc")
-sources/23 = SubResource("TileSetAtlasSource_bfy5d")
-sources/24 = SubResource("TileSetAtlasSource_i4mvg")
-sources/25 = SubResource("TileSetAtlasSource_mtjln")
-sources/26 = SubResource("TileSetAtlasSource_0qixs")
-sources/27 = SubResource("TileSetAtlasSource_8vbkh")
-sources/28 = SubResource("TileSetAtlasSource_t42ip")
+sources/29 = SubResource("TileSetAtlasSource_qresc")
+sources/30 = SubResource("TileSetAtlasSource_v4fan")
+sources/31 = SubResource("TileSetAtlasSource_gj77d")
+sources/32 = SubResource("TileSetAtlasSource_fxsqc")
+sources/33 = SubResource("TileSetAtlasSource_nlohb")
+sources/34 = SubResource("TileSetAtlasSource_3usws")
+sources/35 = SubResource("TileSetAtlasSource_u4j73")
+sources/36 = SubResource("TileSetAtlasSource_u0fyv")
+sources/37 = SubResource("TileSetAtlasSource_vcet7")
+sources/38 = SubResource("TileSetAtlasSource_yrufw")
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_8kg08"]
 size = Vector2(304, 208)
@@ -1359,7 +1036,7 @@ y_sort_enabled = true
 [node name="Trees" type="TileMapLayer" parent="Objects" unique_id=1767563096]
 y_sort_enabled = true
 scale = Vector2(0.5, 0.5)
-tile_map_data = PackedByteArray("AAADAC8AAAAAAAAAAQCqABUAAQAAAAAAARBZAAgAAgAAAAAAAgCGAGkAAwAAAAAAAACwAFAABAAAAAAAAgCnABgABQAAAAAAAhAEAAAABgAAAAAAAQAsAAgABwAAAAAAABBMAGgACAAAAAAAAAApAGsACQAAAAAAAAB4AGgACgAAAAAAAhCWAAIACwAAAAAAAhATAGkACQAAAAAAAQAAADYADAAAAAAAARBjAGwADAAAAAAAAQCEAAIADQAAAAAAAACfAGgADQAAAAAAAQADAFgADgAAAAAAABCkAAcAAQAAAAAAABCJAAgABgAAAAAAAhCLAGsABwAAAAAAAQCqAAIAAwAAAAAAARCcAAEACwAAAAAAAgD//w0ABgAAAAAAARAEAA0AAQAAAAAAAACvAGYAAwAAAAAAAACrAGEADAAAAAAAAhBaAAIADwAAAAAAAQAEABoAEAAAAAAAAhCwABoAEQAAAAAAARD//xgAEgAAAAAAABArAAQAEwAAAAAAAgCuACIAFAAAAAAAAABXAGcAEQAAAAAAAACQAAQACgAAAAAAAhCvADUAFQAAAAAAAgBVAAMAFQAAAAAAAQCtAC4ACgAAAAAAAQD//0MABwAAAAAAAgBCAAcAAwAAAAAAAAAGAGwABAAAAAAAAQCOAGcAFgAAAAAAAgCsAEMABQAAAAAAAgCgAAQAAgAAAAAAARBSAAcACgAAAAAAAgB0AGsAAwAAAAAAAAChAGwAEQAAAAAAAgACAGAAAwAAAAAAARBpAAEAAQAAAAAAARAlAAMAFgAAAAAAAgBKAAQADAAAAAAAAABwAAgAEgAAAAAAAAAFAF8ACgAAAAAAABAfAGgAEwAAAAAAAgB3AAEAAQAAAAAAAQBGAGsAAwAAAAAAARCVAGsABAAAAAAAAhB3AAcAAwAAAAAAAACwAEIAAQAAAAAAAgAAACsAAwAAAAAAABAWAGsAAAAAAAAAAhBxAAMAAQAAAAAAAhBqAGgAAAAAAAAAAgAHAGcAAgAAAAAAAQADAGQAFwAAAAAAAgBdAGwAFgAAAAAAARCqACcADwAAAAAAAAAyAAIACAAAAAAAAhCxAEcADgAAAAAAARCuAD0AGAAAAAAAAACvABEAEQAAAAAAARA+AAEAGQAAAAAAAgCrAFsAEQAAAAAAAAAGAAcAGgAAAAAAABAFAEMAGQAAAAAAAACoAEwACwAAAAAAAhCwAAoAFAAAAAAAAhCFAAcADAAAAAAAAQBNAAIAAwAAAAAAAACqACAAFwAAAAAAAhB+AAIADAAAAAAAAgBtAGwAGwAAAAAAAAA0AGcAFAAAAAAAAgAEAB4AAgAAAAAAAACtAAYACQAAAAAAABAEABYAFwAAAAAAARCxAFkAGQAAAAAAAhANAGwAEwAAAAAAAQCsAEwAGAAAAAAAAQAGADkAGwAAAAAAAhAFACUAGQAAAAAAAhA1AAYAGQAAAAAAAgCwADEAEgAAAAAAAQAhAAgAEgAAAAAAAAAGACwAFAAAAAAAAgANAAkACgAAAAAAAQBVAGoAEAAAAAAAABBjAAMAGAAAAAAAAgCpAGUADwAAAAAAAhAEAFQAFAAAAAAAABCbAAYAAgAAAAAAAhCwAGAAGAAAAAAAAhCKAAIAHAAAAAAAAABQAGkABwAAAAAAAQBgAAYAFgAAAAAAABD//zAAEAAAAAAAAhD+/10ABAAAAAAAAhAOAAMABwAAAAAAAhD//xIAEQAAAAAAAQBLAAgAGQAAAAAAAhCpAAsADgAAAAAAARCqADoAGwAAAAAAAQCAAGgAEQAAAAAAARD+/1YABwAAAAAAAQA6AAUAEgAAAAAAAAA9AGsADAAAAAAAARBEAGcAAwAAAAAAAAADACgAGQAAAAAAARAHADIABgAAAAAAAAD//wgACgAAAAAAAhAAADwAFgAAAAAAARAlAGoACgAAAAAAAgBpAAYACAAAAAAAAgCsAEcAEwAAAAAAAhCtAB0ADQAAAAAAAgCPAGwAGwAAAAAAAQACAAQAAAAAAAAAABCrAFQADQAAAAAAABCDAGwADAAAAAAAAQCpAEAAFQAAAAAAABAvAAQAFAAAAAAAAAD+/xwAEQAAAAAAABB7AGsAFgAAAAAAABAwAGsABgAAAAAAABAIAAQAEgAAAAAAAACSAAgAFwAAAAAAAQBFAAMACAAAAAAAABBxAGcAFgAAAAAAAQCpAGwAGAAAAAAAAhD//yEADQAAAAAAAhAtAGgAGwAAAAAAABBIAGYAFwAAAAAAAgCVAGcAAQAAAAAAARAhAGsAAwAAAAAAAgACAGsAAQAAAAAAABCoADIABAAAAAAAABCwAAIAAAAAAAAAAAAHAFcAGAAAAAAAARAmAAkAEQAAAAAAAgAFAD0ACwAAAAAAARBZAGsABgAAAAAAAQCsABgADQAAAAAAAgCtAGwADgAAAAAAAQBtAAIAGwAAAAAAAAA2AGwABwAAAAAAAhAfAAQAAwAAAAAAABAIACEAFgAAAAAAAgAbAGsACwAAAAAAAQAkAGYAGAAAAAAAAQBCAGoACgAAAAAAARCwACgADQAAAAAAAQB6AAUABAAAAAAAARAAAGYAAQAAAAAAAQCnAEUAHAAAAAAAABCjAGcAEQAAAAAAAAAGABIADQAAAAAAAgCrAA8ADQAAAAAAAgCbAGwABgAAAAAAARBiAGgAGwAAAAAAAQBgAAIABAAAAAAAAhAxAAgADAAAAAAAARA5AGgAEQAAAAAAABCkAAEACgAAAAAAABA+AGcAGwAAAAAAAhCBAAYADAAAAAAAABBkAAgADAAAAAAAAQBmAGcAFgAAAAAAAQBeAGgAHAAAAAAAAhCnAAUAFAAAAAAAABCfAAkAAAAAAAAAAQA3AAEADQAAAAAAAgCvADkABwAAAAAAAgCWAAgAEQAAAAAAARA9AAcABgAAAAAAAgBGAAgADAAAAAAAABAZAGcABwAAAAAAAQBOAGwAFAAAAAAAARA=")
+tile_map_data = PackedByteArray("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")
 tile_set = SubResource("TileSet_5dgt6")
 
 [node name="S1" type="Sprite2D" parent="Objects" unique_id=339231929]

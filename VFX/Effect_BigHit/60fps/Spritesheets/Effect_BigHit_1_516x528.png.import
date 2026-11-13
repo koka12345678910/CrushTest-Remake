@@ -3,20 +3,21 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://cryj6uxxqmjd7"
-path="res://.godot/imported/Effect_BigHit_1_516x528.png-24288a7ccdf0f4920a085e7040db2670.ctex"
+path.bptc="res://.godot/imported/Effect_BigHit_1_516x528.png-24288a7ccdf0f4920a085e7040db2670.bptc.ctex"
 metadata={
-"vram_texture": false
+"imported_formats": ["s3tc_bptc"],
+"vram_texture": true
 }
 
 [deps]
 
 source_file="res://VFX/Effect_BigHit/60fps/Spritesheets/Effect_BigHit_1_516x528.png"
-dest_files=["res://.godot/imported/Effect_BigHit_1_516x528.png-24288a7ccdf0f4920a085e7040db2670.ctex"]
+dest_files=["res://.godot/imported/Effect_BigHit_1_516x528.png-24288a7ccdf0f4920a085e7040db2670.bptc.ctex"]
 
 [params]
 
-compress/mode=0
-compress/high_quality=false
+compress/mode=2
+compress/high_quality=true
 compress/lossy_quality=0.7
 compress/uastc_level=0
 compress/rdo_quality_loss=0.0

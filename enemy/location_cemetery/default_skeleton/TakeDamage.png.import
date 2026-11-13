@@ -3,20 +3,21 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://dso132qqk3f5o"
-path="res://.godot/imported/TakeDamage.png-3ebb11bde4859ab685b5d9b7d5597364.ctex"
+path.bptc="res://.godot/imported/TakeDamage.png-3ebb11bde4859ab685b5d9b7d5597364.bptc.ctex"
 metadata={
-"vram_texture": false
+"imported_formats": ["s3tc_bptc"],
+"vram_texture": true
 }
 
 [deps]
 
 source_file="res://enemy/location_cemetery/default_skeleton/TakeDamage.png"
-dest_files=["res://.godot/imported/TakeDamage.png-3ebb11bde4859ab685b5d9b7d5597364.ctex"]
+dest_files=["res://.godot/imported/TakeDamage.png-3ebb11bde4859ab685b5d9b7d5597364.bptc.ctex"]
 
 [params]
 
-compress/mode=0
-compress/high_quality=false
+compress/mode=2
+compress/high_quality=true
 compress/lossy_quality=0.7
 compress/uastc_level=0
 compress/rdo_quality_loss=0.0

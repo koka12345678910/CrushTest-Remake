@@ -3,20 +3,21 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://bapu3hnkm76ne"
-path="res://.godot/imported/TakeDamage.png-1386598a00804c45f8d45789ea9ddfeb.ctex"
+path.bptc="res://.godot/imported/TakeDamage.png-1386598a00804c45f8d45789ea9ddfeb.bptc.ctex"
 metadata={
-"vram_texture": false
+"imported_formats": ["s3tc_bptc"],
+"vram_texture": true
 }
 
 [deps]
 
 source_file="res://Character/Halvard/TakeDamage.png"
-dest_files=["res://.godot/imported/TakeDamage.png-1386598a00804c45f8d45789ea9ddfeb.ctex"]
+dest_files=["res://.godot/imported/TakeDamage.png-1386598a00804c45f8d45789ea9ddfeb.bptc.ctex"]
 
 [params]
 
-compress/mode=0
-compress/high_quality=false
+compress/mode=2
+compress/high_quality=true
 compress/lossy_quality=0.7
 compress/uastc_level=0
 compress/rdo_quality_loss=0.0

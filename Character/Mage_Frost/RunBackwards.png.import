@@ -3,20 +3,21 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://c5mqbnajqr7gk"
-path="res://.godot/imported/RunBackwards.png-9aba15e277e0a027dd90a885b2d06068.ctex"
+path.bptc="res://.godot/imported/RunBackwards.png-9aba15e277e0a027dd90a885b2d06068.bptc.ctex"
 metadata={
-"vram_texture": false
+"imported_formats": ["s3tc_bptc"],
+"vram_texture": true
 }
 
 [deps]
 
 source_file="res://Character/Mage_Frost/RunBackwards.png"
-dest_files=["res://.godot/imported/RunBackwards.png-9aba15e277e0a027dd90a885b2d06068.ctex"]
+dest_files=["res://.godot/imported/RunBackwards.png-9aba15e277e0a027dd90a885b2d06068.bptc.ctex"]
 
 [params]
 
-compress/mode=0
-compress/high_quality=false
+compress/mode=2
+compress/high_quality=true
 compress/lossy_quality=0.7
 compress/uastc_level=0
 compress/rdo_quality_loss=0.0

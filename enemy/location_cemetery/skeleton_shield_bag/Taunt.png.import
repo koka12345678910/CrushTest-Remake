@@ -3,20 +3,21 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://dor1uqs18cwdx"
-path="res://.godot/imported/Taunt.png-21ae25bc9e0020598a724fc4ec25186d.ctex"
+path.bptc="res://.godot/imported/Taunt.png-21ae25bc9e0020598a724fc4ec25186d.bptc.ctex"
 metadata={
-"vram_texture": false
+"imported_formats": ["s3tc_bptc"],
+"vram_texture": true
 }
 
 [deps]
 
 source_file="res://enemy/location_cemetery/skeleton_shield_bag/Taunt.png"
-dest_files=["res://.godot/imported/Taunt.png-21ae25bc9e0020598a724fc4ec25186d.ctex"]
+dest_files=["res://.godot/imported/Taunt.png-21ae25bc9e0020598a724fc4ec25186d.bptc.ctex"]
 
 [params]
 
-compress/mode=0
-compress/high_quality=false
+compress/mode=2
+compress/high_quality=true
 compress/lossy_quality=0.7
 compress/uastc_level=0
 compress/rdo_quality_loss=0.0

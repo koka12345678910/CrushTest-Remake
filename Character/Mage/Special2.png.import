@@ -3,20 +3,21 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://dgvcam20tnwx1"
-path="res://.godot/imported/Special2.png-f14fe57ea5db5ea83edb90292f5b7c9e.ctex"
+path.bptc="res://.godot/imported/Special2.png-f14fe57ea5db5ea83edb90292f5b7c9e.bptc.ctex"
 metadata={
-"vram_texture": false
+"imported_formats": ["s3tc_bptc"],
+"vram_texture": true
 }
 
 [deps]
 
 source_file="res://Character/Mage/Special2.png"
-dest_files=["res://.godot/imported/Special2.png-f14fe57ea5db5ea83edb90292f5b7c9e.ctex"]
+dest_files=["res://.godot/imported/Special2.png-f14fe57ea5db5ea83edb90292f5b7c9e.bptc.ctex"]
 
 [params]
 
-compress/mode=0
-compress/high_quality=false
+compress/mode=2
+compress/high_quality=true
 compress/lossy_quality=0.7
 compress/uastc_level=0
 compress/rdo_quality_loss=0.0

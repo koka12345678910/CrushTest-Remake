@@ -3,20 +3,21 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://c48iwcrat6b4s"
-path="res://.godot/imported/AttackRun2.png-70f3cd2bda07a14464ec4bc2fff84117.ctex"
+path.bptc="res://.godot/imported/AttackRun2.png-70f3cd2bda07a14464ec4bc2fff84117.bptc.ctex"
 metadata={
-"vram_texture": false
+"imported_formats": ["s3tc_bptc"],
+"vram_texture": true
 }
 
 [deps]
 
 source_file="res://Character/Halvard/AttackRun2.png"
-dest_files=["res://.godot/imported/AttackRun2.png-70f3cd2bda07a14464ec4bc2fff84117.ctex"]
+dest_files=["res://.godot/imported/AttackRun2.png-70f3cd2bda07a14464ec4bc2fff84117.bptc.ctex"]
 
 [params]
 
-compress/mode=0
-compress/high_quality=false
+compress/mode=2
+compress/high_quality=true
 compress/lossy_quality=0.7
 compress/uastc_level=0
 compress/rdo_quality_loss=0.0

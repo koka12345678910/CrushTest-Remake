@@ -3,20 +3,21 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://33eevmi7fml7"
-path="res://.godot/imported/Idle_with_Bow.png-96915ac6642dd1ced8a1c60e47443974.ctex"
+path.bptc="res://.godot/imported/Idle_with_Bow.png-96915ac6642dd1ced8a1c60e47443974.bptc.ctex"
 metadata={
-"vram_texture": false
+"imported_formats": ["s3tc_bptc"],
+"vram_texture": true
 }
 
 [deps]
 
 source_file="res://Character/Archer/Sigrid/Idle_with_Bow.png"
-dest_files=["res://.godot/imported/Idle_with_Bow.png-96915ac6642dd1ced8a1c60e47443974.ctex"]
+dest_files=["res://.godot/imported/Idle_with_Bow.png-96915ac6642dd1ced8a1c60e47443974.bptc.ctex"]
 
 [params]
 
-compress/mode=0
-compress/high_quality=false
+compress/mode=2
+compress/high_quality=true
 compress/lossy_quality=0.7
 compress/uastc_level=0
 compress/rdo_quality_loss=0.0

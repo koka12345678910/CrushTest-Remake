@@ -3,20 +3,21 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://katkmxds1ket"
-path="res://.godot/imported/Attack5.png-291e1c2d8eaea131a6f33b439133f710.ctex"
+path.bptc="res://.godot/imported/Attack5.png-291e1c2d8eaea131a6f33b439133f710.bptc.ctex"
 metadata={
-"vram_texture": false
+"imported_formats": ["s3tc_bptc"],
+"vram_texture": true
 }
 
 [deps]
 
 source_file="res://enemy/location_cemetery/skeleton_shield_bag/Attack5.png"
-dest_files=["res://.godot/imported/Attack5.png-291e1c2d8eaea131a6f33b439133f710.ctex"]
+dest_files=["res://.godot/imported/Attack5.png-291e1c2d8eaea131a6f33b439133f710.bptc.ctex"]
 
 [params]
 
-compress/mode=0
-compress/high_quality=false
+compress/mode=2
+compress/high_quality=true
 compress/lossy_quality=0.7
 compress/uastc_level=0
 compress/rdo_quality_loss=0.0

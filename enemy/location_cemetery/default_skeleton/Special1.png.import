@@ -3,20 +3,21 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://0dfrd5xq5bew"
-path="res://.godot/imported/Special1.png-04b28a1494b9103513a074e83b87cad2.ctex"
+path.bptc="res://.godot/imported/Special1.png-04b28a1494b9103513a074e83b87cad2.bptc.ctex"
 metadata={
-"vram_texture": false
+"imported_formats": ["s3tc_bptc"],
+"vram_texture": true
 }
 
 [deps]
 
 source_file="res://enemy/location_cemetery/default_skeleton/Special1.png"
-dest_files=["res://.godot/imported/Special1.png-04b28a1494b9103513a074e83b87cad2.ctex"]
+dest_files=["res://.godot/imported/Special1.png-04b28a1494b9103513a074e83b87cad2.bptc.ctex"]
 
 [params]
 
-compress/mode=0
-compress/high_quality=false
+compress/mode=2
+compress/high_quality=true
 compress/lossy_quality=0.7
 compress/uastc_level=0
 compress/rdo_quality_loss=0.0

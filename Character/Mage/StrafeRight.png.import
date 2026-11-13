@@ -3,20 +3,21 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://i73lrca8yqoc"
-path="res://.godot/imported/StrafeRight.png-ade88d1075cfe8a0e96086ec41d3aa2e.ctex"
+path.bptc="res://.godot/imported/StrafeRight.png-ade88d1075cfe8a0e96086ec41d3aa2e.bptc.ctex"
 metadata={
-"vram_texture": false
+"imported_formats": ["s3tc_bptc"],
+"vram_texture": true
 }
 
 [deps]
 
 source_file="res://Character/Mage/StrafeRight.png"
-dest_files=["res://.godot/imported/StrafeRight.png-ade88d1075cfe8a0e96086ec41d3aa2e.ctex"]
+dest_files=["res://.godot/imported/StrafeRight.png-ade88d1075cfe8a0e96086ec41d3aa2e.bptc.ctex"]
 
 [params]
 
-compress/mode=0
-compress/high_quality=false
+compress/mode=2
+compress/high_quality=true
 compress/lossy_quality=0.7
 compress/uastc_level=0
 compress/rdo_quality_loss=0.0

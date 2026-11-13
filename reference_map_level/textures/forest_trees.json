@@ -1,0 +1,262 @@
+{
+	"birch_autumn_0": {
+		"base": 29,
+		"kind": "birch_autumn",
+		"rect": [
+			0,
+			448,
+			243,
+			358
+		]
+	},
+	"birch_autumn_1": {
+		"base": 24,
+		"kind": "birch_autumn",
+		"rect": [
+			213,
+			810,
+			206,
+			303
+		]
+	},
+	"birch_weeping_0": {
+		"base": 31,
+		"kind": "birch_weeping",
+		"rect": [
+			979,
+			0,
+			222,
+			385
+		]
+	},
+	"birch_weeping_1": {
+		"base": 26,
+		"kind": "birch_weeping",
+		"rect": [
+			1172,
+			448,
+			188,
+			326
+		]
+	},
+	"bush_berry_0": {
+		"base": 17,
+		"kind": "bush_berry",
+		"rect": [
+			932,
+			810,
+			229,
+			216
+		]
+	},
+	"bush_dead_0": {
+		"base": 11,
+		"kind": "bush_dead",
+		"rect": [
+			1493,
+			810,
+			157,
+			142
+		]
+	},
+	"bush_green_0": {
+		"base": 12,
+		"kind": "bush_green",
+		"rect": [
+			1326,
+			810,
+			163,
+			145
+		]
+	},
+	"bush_red_0": {
+		"base": 12,
+		"kind": "bush_red",
+		"rect": [
+			1165,
+			810,
+			157,
+			147
+		]
+	},
+	"dead_big_0": {
+		"base": 31,
+		"kind": "dead_big",
+		"rect": [
+			669,
+			0,
+			306,
+			387
+		]
+	},
+	"dead_big_1": {
+		"base": 26,
+		"kind": "dead_big",
+		"rect": [
+			909,
+			448,
+			259,
+			328
+		]
+	},
+	"dead_broken_0": {
+		"base": 26,
+		"kind": "dead_broken",
+		"rect": [
+			1364,
+			448,
+			264,
+			325
+		]
+	},
+	"dead_broken_1": {
+		"base": 22,
+		"kind": "dead_broken",
+		"rect": [
+			705,
+			810,
+			223,
+			275
+		]
+	},
+	"fern_0": {
+		"base": 8,
+		"kind": "fern",
+		"rect": [
+			139,
+			1121,
+			126,
+			104
+		]
+	},
+	"fir_0": {
+		"base": 30,
+		"kind": "fir",
+		"rect": [
+			1205,
+			0,
+			257,
+			377
+		]
+	},
+	"fir_1": {
+		"base": 25,
+		"kind": "fir",
+		"rect": [
+			0,
+			810,
+			209,
+			307
+		]
+	},
+	"fir_tall_0": {
+		"base": 36,
+		"kind": "fir_tall",
+		"rect": [
+			0,
+			0,
+			279,
+			444
+		]
+	},
+	"fir_tall_1": {
+		"base": 29,
+		"kind": "fir_tall",
+		"rect": [
+			1466,
+			0,
+			229,
+			365
+		]
+	},
+	"log_0": {
+		"base": 11,
+		"kind": "log",
+		"rect": [
+			1654,
+			810,
+			220,
+			140
+		]
+	},
+	"maple_red_0": {
+		"base": 29,
+		"kind": "maple_red",
+		"rect": [
+			1699,
+			0,
+			265,
+			363
+		]
+	},
+	"maple_red_1": {
+		"base": 25,
+		"kind": "maple_red",
+		"rect": [
+			1632,
+			448,
+			224,
+			307
+		]
+	},
+	"oak_0": {
+		"base": 27,
+		"kind": "oak",
+		"rect": [
+			576,
+			448,
+			329,
+			342
+		]
+	},
+	"oak_1": {
+		"base": 23,
+		"kind": "oak",
+		"rect": [
+			423,
+			810,
+			278,
+			289
+		]
+	},
+	"oak_big_0": {
+		"base": 34,
+		"kind": "oak_big",
+		"rect": [
+			283,
+			0,
+			382,
+			419
+		]
+	},
+	"oak_big_1": {
+		"base": 29,
+		"kind": "oak_big",
+		"rect": [
+			247,
+			448,
+			325,
+			357
+		]
+	},
+	"rocks_0": {
+		"base": 10,
+		"kind": "rocks",
+		"rect": [
+			0,
+			1121,
+			135,
+			121
+		]
+	},
+	"stump_0": {
+		"base": 10,
+		"kind": "stump",
+		"rect": [
+			1878,
+			810,
+			148,
+			124
+		]
+	}
+}

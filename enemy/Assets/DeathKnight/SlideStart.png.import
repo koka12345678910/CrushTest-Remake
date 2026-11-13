@@ -3,20 +3,21 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://cpbr5g4ooe72k"
-path="res://.godot/imported/SlideStart.png-dba90f273eba6a469d19d23dac56502d.ctex"
+path.bptc="res://.godot/imported/SlideStart.png-dba90f273eba6a469d19d23dac56502d.bptc.ctex"
 metadata={
-"vram_texture": false
+"imported_formats": ["s3tc_bptc"],
+"vram_texture": true
 }
 
 [deps]
 
 source_file="res://enemy/Assets/DeathKnight/SlideStart.png"
-dest_files=["res://.godot/imported/SlideStart.png-dba90f273eba6a469d19d23dac56502d.ctex"]
+dest_files=["res://.godot/imported/SlideStart.png-dba90f273eba6a469d19d23dac56502d.bptc.ctex"]
 
 [params]
 
-compress/mode=0
-compress/high_quality=false
+compress/mode=2
+compress/high_quality=true
 compress/lossy_quality=0.7
 compress/uastc_level=0
 compress/rdo_quality_loss=0.0

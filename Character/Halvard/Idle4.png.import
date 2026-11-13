@@ -3,20 +3,21 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://d3ffjlqx5gswh"
-path="res://.godot/imported/Idle4.png-bc6e75ed76149f8e19f9b46a14332e1e.ctex"
+path.bptc="res://.godot/imported/Idle4.png-bc6e75ed76149f8e19f9b46a14332e1e.bptc.ctex"
 metadata={
-"vram_texture": false
+"imported_formats": ["s3tc_bptc"],
+"vram_texture": true
 }
 
 [deps]
 
 source_file="res://Character/Halvard/Idle4.png"
-dest_files=["res://.godot/imported/Idle4.png-bc6e75ed76149f8e19f9b46a14332e1e.ctex"]
+dest_files=["res://.godot/imported/Idle4.png-bc6e75ed76149f8e19f9b46a14332e1e.bptc.ctex"]
 
 [params]
 
-compress/mode=0
-compress/high_quality=false
+compress/mode=2
+compress/high_quality=true
 compress/lossy_quality=0.7
 compress/uastc_level=0
 compress/rdo_quality_loss=0.0

@@ -3,20 +3,21 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://b0og31wl64557"
-path="res://.godot/imported/BlockMid.png-a7dc7d13a72702d10802e24c33065379.ctex"
+path.bptc="res://.godot/imported/BlockMid.png-a7dc7d13a72702d10802e24c33065379.bptc.ctex"
 metadata={
-"vram_texture": false
+"imported_formats": ["s3tc_bptc"],
+"vram_texture": true
 }
 
 [deps]
 
 source_file="res://Character/Archer/BlockMid.png"
-dest_files=["res://.godot/imported/BlockMid.png-a7dc7d13a72702d10802e24c33065379.ctex"]
+dest_files=["res://.godot/imported/BlockMid.png-a7dc7d13a72702d10802e24c33065379.bptc.ctex"]
 
 [params]
 
-compress/mode=0
-compress/high_quality=false
+compress/mode=2
+compress/high_quality=true
 compress/lossy_quality=0.7
 compress/uastc_level=0
 compress/rdo_quality_loss=0.0

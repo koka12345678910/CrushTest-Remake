@@ -3,20 +3,21 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://v5288n28o7g0"
-path="res://.godot/imported/Idle4.png-90767228e9236f4489321d6951ea7a06.ctex"
+path.bptc="res://.godot/imported/Idle4.png-90767228e9236f4489321d6951ea7a06.bptc.ctex"
 metadata={
-"vram_texture": false
+"imported_formats": ["s3tc_bptc"],
+"vram_texture": true
 }
 
 [deps]
 
 source_file="res://enemy/location_cemetery/skeleton_shield_bag/Idle4.png"
-dest_files=["res://.godot/imported/Idle4.png-90767228e9236f4489321d6951ea7a06.ctex"]
+dest_files=["res://.godot/imported/Idle4.png-90767228e9236f4489321d6951ea7a06.bptc.ctex"]
 
 [params]
 
-compress/mode=0
-compress/high_quality=false
+compress/mode=2
+compress/high_quality=true
 compress/lossy_quality=0.7
 compress/uastc_level=0
 compress/rdo_quality_loss=0.0

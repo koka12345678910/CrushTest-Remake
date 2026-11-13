@@ -3,20 +3,21 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://d87v7r5suyfc"
-path="res://.godot/imported/fenrir_wolf_flash2.png-97356e04ddc01e7face065a004f27b9b.ctex"
+path.bptc="res://.godot/imported/fenrir_wolf_flash2.png-97356e04ddc01e7face065a004f27b9b.bptc.ctex"
 metadata={
-"vram_texture": false
+"imported_formats": ["s3tc_bptc"],
+"vram_texture": true
 }
 
 [deps]
 
 source_file="res://VFX/VFX_with_buff/blood_fenrir/fenrir_wolf_flash2.png"
-dest_files=["res://.godot/imported/fenrir_wolf_flash2.png-97356e04ddc01e7face065a004f27b9b.ctex"]
+dest_files=["res://.godot/imported/fenrir_wolf_flash2.png-97356e04ddc01e7face065a004f27b9b.bptc.ctex"]
 
 [params]
 
-compress/mode=0
-compress/high_quality=false
+compress/mode=2
+compress/high_quality=true
 compress/lossy_quality=0.7
 compress/uastc_level=0
 compress/rdo_quality_loss=0.0

@@ -3,20 +3,21 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://ddmysmxt28f1n"
-path="res://.godot/imported/CrouchIdle.png-62c4334a90b92de817b1fb1c9e98b5ff.ctex"
+path.bptc="res://.godot/imported/CrouchIdle.png-62c4334a90b92de817b1fb1c9e98b5ff.bptc.ctex"
 metadata={
-"vram_texture": false
+"imported_formats": ["s3tc_bptc"],
+"vram_texture": true
 }
 
 [deps]
 
 source_file="res://enemy/location_cemetery/skeleton_dexterous/CrouchIdle.png"
-dest_files=["res://.godot/imported/CrouchIdle.png-62c4334a90b92de817b1fb1c9e98b5ff.ctex"]
+dest_files=["res://.godot/imported/CrouchIdle.png-62c4334a90b92de817b1fb1c9e98b5ff.bptc.ctex"]
 
 [params]
 
-compress/mode=0
-compress/high_quality=false
+compress/mode=2
+compress/high_quality=true
 compress/lossy_quality=0.7
 compress/uastc_level=0
 compress/rdo_quality_loss=0.0

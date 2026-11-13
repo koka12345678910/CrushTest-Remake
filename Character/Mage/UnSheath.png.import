@@ -3,20 +3,21 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://n10gt5bun4tt"
-path="res://.godot/imported/UnSheath.png-b3ca71bcd5634fcda5c36eaa549dd3f5.ctex"
+path.bptc="res://.godot/imported/UnSheath.png-b3ca71bcd5634fcda5c36eaa549dd3f5.bptc.ctex"
 metadata={
-"vram_texture": false
+"imported_formats": ["s3tc_bptc"],
+"vram_texture": true
 }
 
 [deps]
 
 source_file="res://Character/Mage/UnSheath.png"
-dest_files=["res://.godot/imported/UnSheath.png-b3ca71bcd5634fcda5c36eaa549dd3f5.ctex"]
+dest_files=["res://.godot/imported/UnSheath.png-b3ca71bcd5634fcda5c36eaa549dd3f5.bptc.ctex"]
 
 [params]
 
-compress/mode=0
-compress/high_quality=false
+compress/mode=2
+compress/high_quality=true
 compress/lossy_quality=0.7
 compress/uastc_level=0
 compress/rdo_quality_loss=0.0

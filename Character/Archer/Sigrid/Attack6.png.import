@@ -3,20 +3,21 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://bchh6gi172htk"
-path="res://.godot/imported/Attack6.png-b097984efd020faa5caab9366031b4ad.ctex"
+path.bptc="res://.godot/imported/Attack6.png-b097984efd020faa5caab9366031b4ad.bptc.ctex"
 metadata={
-"vram_texture": false
+"imported_formats": ["s3tc_bptc"],
+"vram_texture": true
 }
 
 [deps]
 
 source_file="res://Character/Archer/Sigrid/Attack6.png"
-dest_files=["res://.godot/imported/Attack6.png-b097984efd020faa5caab9366031b4ad.ctex"]
+dest_files=["res://.godot/imported/Attack6.png-b097984efd020faa5caab9366031b4ad.bptc.ctex"]
 
 [params]
 
-compress/mode=0
-compress/high_quality=false
+compress/mode=2
+compress/high_quality=true
 compress/lossy_quality=0.7
 compress/uastc_level=0
 compress/rdo_quality_loss=0.0

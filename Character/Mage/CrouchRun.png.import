@@ -3,20 +3,21 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://cr5m3mme8pa2w"
-path="res://.godot/imported/CrouchRun.png-67a4035c567a49ea8ee6b8da3e2f7651.ctex"
+path.bptc="res://.godot/imported/CrouchRun.png-67a4035c567a49ea8ee6b8da3e2f7651.bptc.ctex"
 metadata={
-"vram_texture": false
+"imported_formats": ["s3tc_bptc"],
+"vram_texture": true
 }
 
 [deps]
 
 source_file="res://Character/Mage/CrouchRun.png"
-dest_files=["res://.godot/imported/CrouchRun.png-67a4035c567a49ea8ee6b8da3e2f7651.ctex"]
+dest_files=["res://.godot/imported/CrouchRun.png-67a4035c567a49ea8ee6b8da3e2f7651.bptc.ctex"]
 
 [params]
 
-compress/mode=0
-compress/high_quality=false
+compress/mode=2
+compress/high_quality=true
 compress/lossy_quality=0.7
 compress/uastc_level=0
 compress/rdo_quality_loss=0.0

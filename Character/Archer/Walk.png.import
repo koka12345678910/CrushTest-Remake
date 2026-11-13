@@ -3,20 +3,21 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://cn0sx0pfwktp6"
-path="res://.godot/imported/Walk.png-48dec16a1133be5c5ffc1825f754f851.ctex"
+path.bptc="res://.godot/imported/Walk.png-48dec16a1133be5c5ffc1825f754f851.bptc.ctex"
 metadata={
-"vram_texture": false
+"imported_formats": ["s3tc_bptc"],
+"vram_texture": true
 }
 
 [deps]
 
 source_file="res://Character/Archer/Walk.png"
-dest_files=["res://.godot/imported/Walk.png-48dec16a1133be5c5ffc1825f754f851.ctex"]
+dest_files=["res://.godot/imported/Walk.png-48dec16a1133be5c5ffc1825f754f851.bptc.ctex"]
 
 [params]
 
-compress/mode=0
-compress/high_quality=false
+compress/mode=2
+compress/high_quality=true
 compress/lossy_quality=0.7
 compress/uastc_level=0
 compress/rdo_quality_loss=0.0

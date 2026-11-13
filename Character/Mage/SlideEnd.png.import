@@ -3,20 +3,21 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://ct5lx47a2oey8"
-path="res://.godot/imported/SlideEnd.png-7c1bc6cf93071595f6932b3ab6b8d1c9.ctex"
+path.bptc="res://.godot/imported/SlideEnd.png-7c1bc6cf93071595f6932b3ab6b8d1c9.bptc.ctex"
 metadata={
-"vram_texture": false
+"imported_formats": ["s3tc_bptc"],
+"vram_texture": true
 }
 
 [deps]
 
 source_file="res://Character/Mage/SlideEnd.png"
-dest_files=["res://.godot/imported/SlideEnd.png-7c1bc6cf93071595f6932b3ab6b8d1c9.ctex"]
+dest_files=["res://.godot/imported/SlideEnd.png-7c1bc6cf93071595f6932b3ab6b8d1c9.bptc.ctex"]
 
 [params]
 
-compress/mode=0
-compress/high_quality=false
+compress/mode=2
+compress/high_quality=true
 compress/lossy_quality=0.7
 compress/uastc_level=0
 compress/rdo_quality_loss=0.0

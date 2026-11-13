@@ -3,20 +3,21 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://csuoga2htvuag"
-path="res://.godot/imported/rune_effect_1920x1080.png-f8ac8b710f7ed84ed61d83bfe731b7b1.ctex"
+path.bptc="res://.godot/imported/rune_effect_1920x1080.png-f8ac8b710f7ed84ed61d83bfe731b7b1.bptc.ctex"
 metadata={
-"vram_texture": false
+"imported_formats": ["s3tc_bptc"],
+"vram_texture": true
 }
 
 [deps]
 
 source_file="res://VFX/VFX_with_buff/rune_sacrifice/rune_effect_1920x1080.png"
-dest_files=["res://.godot/imported/rune_effect_1920x1080.png-f8ac8b710f7ed84ed61d83bfe731b7b1.ctex"]
+dest_files=["res://.godot/imported/rune_effect_1920x1080.png-f8ac8b710f7ed84ed61d83bfe731b7b1.bptc.ctex"]
 
 [params]
 
-compress/mode=0
-compress/high_quality=false
+compress/mode=2
+compress/high_quality=true
 compress/lossy_quality=0.7
 compress/uastc_level=0
 compress/rdo_quality_loss=0.0

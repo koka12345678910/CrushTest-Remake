@@ -3,20 +3,21 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://b1i4efj2ir8g6"
-path="res://.godot/imported/eye_amulet_effect_1920x1080.png-28e79f7585d3eb08bb8ee08935248e8a.ctex"
+path.bptc="res://.godot/imported/eye_amulet_effect_1920x1080.png-28e79f7585d3eb08bb8ee08935248e8a.bptc.ctex"
 metadata={
-"vram_texture": false
+"imported_formats": ["s3tc_bptc"],
+"vram_texture": true
 }
 
 [deps]
 
 source_file="res://VFX/VFX_with_buff/eye_amulet/eye_amulet_effect_1920x1080.png"
-dest_files=["res://.godot/imported/eye_amulet_effect_1920x1080.png-28e79f7585d3eb08bb8ee08935248e8a.ctex"]
+dest_files=["res://.godot/imported/eye_amulet_effect_1920x1080.png-28e79f7585d3eb08bb8ee08935248e8a.bptc.ctex"]
 
 [params]
 
-compress/mode=0
-compress/high_quality=false
+compress/mode=2
+compress/high_quality=true
 compress/lossy_quality=0.7
 compress/uastc_level=0
 compress/rdo_quality_loss=0.0

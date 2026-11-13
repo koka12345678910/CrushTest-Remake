@@ -44,3 +44,13 @@ No new outside assets. `Tools/south_zone.gd` paints the ravine, mire, boardwalks
 - stumps and fallen trees, from the sheet's stumps and dead trees turned by a quarter.
 
 The wisp mote is procedural. The reeds still come from the existing `Map/Tileset/Tileset/watertiles.png` (see above).
+
+## Forest trees (2026-11-13)
+
+| File | What it is | Source / licence |
+|---|---|---|
+| `textures/src/forest_sheet.webp` | Sheet of 17 sprites: oaks, red maple, birches, firs, dead trees, bushes, fern, rocks, stump, log | Supplied by the project owner (2026-11-13). Origin and licence not recorded: confirm before shipping. |
+| `textures/forest_trees.png` | The same sprites cut out by alpha, rescaled (1-2 sizes each) and packed into one atlas | Generated from the sheet above by `tools/replace_trees.gd atlas` |
+
+These replaced every tree, dead tree, bush, stump and fallen trunk on the map and in the camp
+(`tools/replace_trees.gd apply`); `autumn_trees.png` is no longer used by either scene.

@@ -3,20 +3,21 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://c6levomr56hfr"
-path="res://.godot/imported/RideIdle.png-6ba76bcb90bde3f588a8a8f9588d51d6.ctex"
+path.bptc="res://.godot/imported/RideIdle.png-6ba76bcb90bde3f588a8a8f9588d51d6.bptc.ctex"
 metadata={
-"vram_texture": false
+"imported_formats": ["s3tc_bptc"],
+"vram_texture": true
 }
 
 [deps]
 
 source_file="res://enemy/location_cemetery/default_skeleton/RideIdle.png"
-dest_files=["res://.godot/imported/RideIdle.png-6ba76bcb90bde3f588a8a8f9588d51d6.ctex"]
+dest_files=["res://.godot/imported/RideIdle.png-6ba76bcb90bde3f588a8a8f9588d51d6.bptc.ctex"]
 
 [params]
 
-compress/mode=0
-compress/high_quality=false
+compress/mode=2
+compress/high_quality=true
 compress/lossy_quality=0.7
 compress/uastc_level=0
 compress/rdo_quality_loss=0.0
