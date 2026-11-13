@@ -78,8 +78,15 @@ static func _smooth(a: float, b: float, x: float) -> float:
 # Квадраты на листе 1536x1024: центры и порядок слоёв в массиве.
 # Слои: 0 грязь, 1 грязь с галькой, 2 грязь с камнями, 3 крупные камни,
 #       4 редкая трава, 5 трава пятнами, 6 трава, 7 и 8 густая трава.
-const TILE := 256
+## Полная детализация: плитка 256 текселей на tile_world (112) мировых px —
+## при обычном зуме ~1 тексель на пиксель экрана, без растяжения.
+## PIXEL_GROUND = true — вариант пиксель-арт (112 текселей, палитра
+## GROUND_COLORS); тогда в шейдере pixel_size = 1.
+const PIXEL_GROUND := false
+const TILE := 112 if PIXEL_GROUND else 256
 const CROP := 256
+## Цветов в общей палитре земли (только для пиксель-арт)
+const GROUND_COLORS := 40
 const SQ_CENTERS := [
 	Vector2i(152, 160), Vector2i(419, 160), Vector2i(686, 160),
 	Vector2i(152, 430), Vector2i(419, 430), Vector2i(686, 430),
@@ -96,8 +103,16 @@ func _step_tiles() -> void:
 		img = _flatten_light(img)
 		img = _tileable(img, true)
 		img = _tileable(img, false)
-		img = _unsharp(img, 0.75)
+		img = _unsharp(img, 0.6)
+		if PIXEL_GROUND:
+			img = _wrap_resize(img, TILE)
+			img = _unsharp(img, 0.45)
 		images.append(img)
+	if PIXEL_GROUND:
+		# Общая палитра на все плитки — переходы между ними без чужих оттенков
+		var pal := _palette(images, GROUND_COLORS)
+		for li in images.size():
+			images[li] = _quantize(images[li], pal)
 	# Texture2DArray не сохраняется в .res с картинками, поэтому слои
 	# пишутся полосой PNG и импортируются Godot как 2D-массив (9 срезов).
 	# После шага нужен импорт: godot --headless --path . --import
@@ -193,6 +208,102 @@ static func _unsharp(img: Image, amount: float) -> Image:
 		for ch in 3:
 			a[i + ch] = clampi(int(a[i + ch] + (a[i + ch] - b[i + ch]) * amount), 0, 255)
 	return Image.create_from_data(w, h, false, Image.FORMAT_RGBA8, a)
+
+
+## Уменьшение бесшовной плитки без шва на краях: уменьшается 3x3 повтор,
+## берётся середина
+static func _wrap_resize(img: Image, size: int) -> Image:
+	var n := img.get_width()
+	var big := Image.create(n * 3, n * 3, false, Image.FORMAT_RGBA8)
+	for k in 9:
+		big.blit_rect(img, Rect2i(0, 0, n, n), Vector2i((k % 3) * n, (k / 3) * n))
+	big.resize(size * 3, size * 3, Image.INTERPOLATE_LANCZOS)
+	return big.get_region(Rect2i(size, size, size, size))
+
+
+## Палитра k-means по непрозрачным пикселям картинок
+static func _palette(images: Array, k: int) -> PackedColorArray:
+	var px := PackedFloat32Array()
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 77
+	for img: Image in images:
+		var d := img.get_data()
+		var n := d.size() / 4
+		var step := maxi(1, n / 6000)
+		for i in range(rng.randi() % step, n, step):
+			if d[i * 4 + 3] > 127:
+				px.append_array(PackedFloat32Array([d[i * 4] / 255.0, d[i * 4 + 1] / 255.0, d[i * 4 + 2] / 255.0]))
+	var cnt := px.size() / 3
+	var cen := PackedFloat32Array()
+	for j in k:
+		var i := rng.randi() % cnt
+		cen.append_array(PackedFloat32Array([px[i * 3], px[i * 3 + 1], px[i * 3 + 2]]))
+	for it in 14:
+		var sum := PackedFloat32Array()
+		sum.resize(k * 4)
+		for i in cnt:
+			var best := 0
+			var bd := INF
+			for j in k:
+				var d := _cdist(px[i * 3], px[i * 3 + 1], px[i * 3 + 2], cen[j * 3], cen[j * 3 + 1], cen[j * 3 + 2])
+				if d < bd:
+					bd = d
+					best = j
+			sum[best * 4] += px[i * 3]
+			sum[best * 4 + 1] += px[i * 3 + 1]
+			sum[best * 4 + 2] += px[i * 3 + 2]
+			sum[best * 4 + 3] += 1.0
+		for j in k:
+			if sum[j * 4 + 3] > 0.0:
+				for ch in 3:
+					cen[j * 3 + ch] = sum[j * 4 + ch] / sum[j * 4 + 3]
+			else:
+				var i := rng.randi() % cnt
+				for ch in 3:
+					cen[j * 3 + ch] = px[i * 3 + ch]
+	var out := PackedColorArray()
+	for j in k:
+		out.append(Color(cen[j * 3], cen[j * 3 + 1], cen[j * 3 + 2]))
+	return out
+
+
+## Расстояние цветов с упором на яркость (глаз к ней чувствительнее)
+static func _cdist(r1: float, g1: float, b1: float, r2: float, g2: float, b2: float) -> float:
+	var dr := r1 - r2
+	var dg := g1 - g2
+	var db := b1 - b2
+	return dr * dr * 2.0 + dg * dg * 4.0 + db * db * 3.0
+
+
+## Каждый пиксель — ближайший цвет палитры; альфа жёсткая (пиксель-арт)
+static func _quantize(img: Image, pal: PackedColorArray) -> Image:
+	var d := img.get_data()
+	var cache := {}
+	for i in range(0, d.size(), 4):
+		if d[i + 3] < 128:
+			d[i] = 0
+			d[i + 1] = 0
+			d[i + 2] = 0
+			d[i + 3] = 0
+			continue
+		var key := ((d[i] >> 2) << 12) | ((d[i + 1] >> 2) << 6) | (d[i + 2] >> 2)
+		var idx: int = cache.get(key, -1)
+		if idx < 0:
+			var r := d[i] / 255.0
+			var g := d[i + 1] / 255.0
+			var b := d[i + 2] / 255.0
+			var bd := INF
+			for j in pal.size():
+				var dd := _cdist(r, g, b, pal[j].r, pal[j].g, pal[j].b)
+				if dd < bd:
+					bd = dd
+					idx = j
+			cache[key] = idx
+		d[i] = int(pal[idx].r * 255.0 + 0.5)
+		d[i + 1] = int(pal[idx].g * 255.0 + 0.5)
+		d[i + 2] = int(pal[idx].b * 255.0 + 0.5)
+		d[i + 3] = 255
+	return Image.create_from_data(img.get_width(), img.get_height(), false, Image.FORMAT_RGBA8, d)
 
 
 ## Кусок листа вдвое крупнее (Lanczos) и с резкостью: стены и лестницы
@@ -399,7 +510,12 @@ func _box_blur(f: PackedFloat32Array, w: int, h: int, r: int) -> PackedFloat32Ar
 
 const CLIFF_TEX := "cliff_face.res"
 ## Текселей запечённой стены на мировой px
-const CF := 2
+## Пиксель-арт для стен, кромки провала и лестниц (1 тексель = 1 px мира,
+## палитра, жёсткая альфа). false — детальный вид: 2 текселя на px мира,
+## все цвета, мягкий край, сглаживание при выводе.
+const PIXEL_FACES := false
+const CF := 1 if PIXEL_FACES else 2
+const FACE_FILTER := CanvasItem.TEXTURE_FILTER_NEAREST if PIXEL_FACES else CanvasItem.TEXTURE_FILTER_LINEAR
 ## Прямые куски с травой на rock_set.png (без торцов)
 const CLIFF_PIECES := [Rect2i(26, 23, 181, 182), Rect2i(246, 22, 186, 181)]
 ## Лестница на rock_set.png
@@ -408,6 +524,11 @@ const STAIRS_RECT := Rect2i(11, 905, 168, 158)
 var _rock: Image
 ## Те же куски вдвое крупнее и резче — из них берётся цвет стены
 var _rock_hi: Image
+var _rock_pal := PackedColorArray()
+## Цветов в палитре скал
+const ROCK_COLORS := 28
+## Порог упорядоченного дизеринга 4x4 (0..1)
+const BAYER4 := [0.03, 0.53, 0.16, 0.66, 0.78, 0.28, 0.91, 0.41, 0.22, 0.72, 0.09, 0.59, 0.97, 0.47, 0.84, 0.34]
 
 
 ## Масштаб куска к миру (src px на мировой px), считается по стенам плато
@@ -613,14 +734,25 @@ func _bake_faces(layer_names: Array, rock_only: bool, min_run: int, stretch: boo
 					# Без растяжения: верх куска у кромки, к низу гаснет в провал
 					sy = lp + fmod((wy - y0) * k, maxf(ft - lp - 6.0, 8.0))
 					fade = _smooth(0.0, 1.0, (y1 + 1 - wy) / 16.0)
-				var c := _bilinear(_rock_hi, sx * 2.0 + 0.5, sy * 2.0 + 0.5)
+				# Среднее по площади арт-пикселя (без мерцающих выборок)
+				var hx := sx * 2.0 + 0.5
+				var hy := sy * 2.0 + 0.5
+				var o := k * 0.55
+				var c := (_bilinear(_rock_hi, hx - o, hy - o) + _bilinear(_rock_hi, hx + o, hy - o)
+						+ _bilinear(_rock_hi, hx - o, hy + o) + _bilinear(_rock_hi, hx + o, hy + o)) * 0.25
 				var a := _smooth(0.55, 0.9, c.a) * fade
-				if a <= 0.0:
-					continue
-				var prev := out.get_pixel(bx, byy)
-				if prev.a > a:
+				if PIXEL_FACES:
+					# Пиксель-арт: альфа жёсткая, затухание — упорядоченным дизерингом
+					if a <= BAYER4[(byy % 4) * 4 + bx % 4]:
+						continue
+					a = 1.0
+				elif a <= 0.0 or out.get_pixel(bx, byy).a > a:
 					continue
 				out.set_pixel(bx, byy, Color(c.r, c.g, c.b, a))
+	if PIXEL_FACES:
+		if _rock_pal.is_empty():
+			_rock_pal = _palette([_rock_hi], ROCK_COLORS)
+		out = _quantize(out, _rock_pal)
 	var err := _save_tex(out, tex_name)
 	lvl.set_meta(meta, rect.position)
 	var prev_dir := OS.get_environment("TERRAIN_PREVIEW")
@@ -706,7 +838,7 @@ func _step_apply() -> void:
 	if ResourceLoader.exists(MATERIAL):
 		# Подобранные вручную параметры не затираются
 		var old := load(MATERIAL) as ShaderMaterial
-		for p in ["tile_world", "brightness", "tint", "grass_bias"]:
+		for p in ["brightness", "tint", "grass_bias", "path_map", "path_rect"]:
 			var v = old.get_shader_parameter(p)
 			if v != null:
 				mat.set_shader_parameter(p, v)
@@ -730,7 +862,7 @@ func _step_apply() -> void:
 	var origin: Vector2i = lvl.get_meta("terrain_cliff_origin", Vector2i.ZERO)
 	face.position = Vector2(origin)
 	face.scale = Vector2(1.0 / CF, 1.0 / CF)
-	face.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS
+	face.texture_filter = FACE_FILTER
 	lvl.add_child(face)
 	face.owner = lvl
 	lvl.move_child(face, cliffs.get_index() + 1)
@@ -742,26 +874,42 @@ func _step_apply() -> void:
 		cf.centered = false
 		cf.position = Vector2(lvl.get_meta("terrain_canyon_origin") as Vector2i)
 		cf.scale = Vector2(1.0 / CF, 1.0 / CF)
-		cf.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS
+		cf.texture_filter = FACE_FILTER
 		lvl.add_child(cf)
 		cf.owner = lvl
 		lvl.move_child(cf, lvl.get_node("Chasm").get_index() + 1)
 
 	# Лестницы в проходах стены — поверх затенения со старыми ступенями
 	var shade := lvl.get_node("ReliefShade")
-	var stairs_tex: Texture2D = ResourceLoader.load(OUT + "stairs.res", "", ResourceLoader.CACHE_MODE_REPLACE)
+	var stairs_img := (ResourceLoader.load(OUT + "stairs.res", "", ResourceLoader.CACHE_MODE_REPLACE) as Texture2D).get_image()
+	if stairs_img.is_compressed():
+		stairs_img.decompress()
+	stairs_img.convert(Image.FORMAT_RGBA8)
+	if PIXEL_FACES and _rock_pal.is_empty():
+		if _rock == null:
+			_rock = _src_image("rock_set.png")
+			_rock_hi = _hi_res(_rock, Rect2i(0, 0, 460, 215))
+		_rock_pal = _palette([_rock_hi], ROCK_COLORS)
 	var i := 0
 	for r: Rect2 in lvl.get_meta("relief_stairs", []):
 		var s := Sprite2D.new()
 		s.name = "CliffStairs%d" % i
-		s.texture = stairs_tex
+		# Своя картинка ровно под размер на карте (CF текселей на px мира):
+		# без дробного растяжения при выводе — не мылится
+		var w := int(round(r.size.x * 1.34))
+		var h := int(round(r.size.y + 14.0))
+		var im := stairs_img.duplicate() as Image
+		im.resize(w * CF, h * CF, Image.INTERPOLATE_LANCZOS)
+		im = _unsharp(im, 0.4)
+		if PIXEL_FACES:
+			im = _quantize(im, _rock_pal)
+		_save_tex(im, "stairs_%d.res" % i)
+		s.texture = ResourceLoader.load(OUT + "stairs_%d.res" % i, "", ResourceLoader.CACHE_MODE_REPLACE)
 		s.centered = false
-		s.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS
+		s.scale = Vector2(1.0 / CF, 1.0 / CF)
+		s.texture_filter = FACE_FILTER
 		# Боковые бортики заходят на торцы стены, низ — чуть на нижнюю землю
-		var w := r.size.x * 1.34
-		var h := r.size.y + 14.0
-		s.scale = Vector2(w / stairs_tex.get_width(), h / stairs_tex.get_height())
-		s.position = Vector2(r.position.x + r.size.x * 0.5 - w * 0.5, r.position.y - 8.0)
+		s.position = Vector2(round(r.position.x + r.size.x * 0.5 - w * 0.5), r.position.y - 8.0)
 		lvl.add_child(s)
 		s.owner = lvl
 		lvl.move_child(s, shade.get_index() + 1 + i)
