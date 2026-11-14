@@ -1,9 +1,11 @@
 extends SceneTree
 ## Новая земля и обрывы reference_map из присланных наборов.
 ##
-## Исходники лежат в reference_map_level/textures/source/ (там .gdignore):
-##   ground_set.png — плитки земли и травы (3x3 квадрата слева сверху);
-##   rock_set.png   — скальные куски с травой, стены, лестницы.
+## Исходники — чёткие картинки в reference_map_level/textures/src/hd/ (там .gdignore):
+##   ground_*.png — текстуры земли (островок на прозрачном фоне, берётся
+##   середина), cliff_ledge.png / cliff_chasm.png — полосы стены плато и кромки
+##   пропасти, stairs.png — лестница. Старые листы в textures/source/ больше
+##   не используются (кроме пиксельного варианта PIXEL_FACES).
 ## Всё готовое пишется в reference_map_level/textures/terrain/ как .res
 ## (импорт не нужен, как у relief_shade.res).
 ##
@@ -37,7 +39,7 @@ var report: Array[String] = []
 func _initialize() -> void:
 	var steps := Array(OS.get_cmdline_user_args())
 	if steps.is_empty():
-		steps = ["tiles", "masks", "wear", "cliffs", "canyon", "apply"]
+		steps = ["tiles", "masks", "wear", "zones", "cliffs", "canyon", "apply"]
 	DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path(OUT))
 	var need_scene := false
 	for s in steps:
@@ -94,16 +96,57 @@ const SQ_CENTERS := [
 const LAYER_FROM_SQ := [0, 1, 6, 2, 3, 7, 4, 5, 8]
 
 
+## Чёткие текстуры (src/hd, по одной на картинку 1254x1254, круглый
+## «островок» на прозрачном фоне): [файл, сторона квадрата из середины,
+## сдвиг квадрата, отразить]. Квадрат уменьшается до TILE — рисунок
+## в ~2.8 раза мельче исходника, след ботинка ~14 px мира.
+## Слои: 0 грязь, 1 грязь с галькой, 2 грязь с камнями, 3 крупные камни,
+##       4 редкая трава (лесная подстилка), 5 трава пятнами (сырая почва
+##       с мхом), 6 трава, 7/8 густая; 9 болотная грязь, 10 багровый мох.
+const HD_DIR := "res://reference_map_level/textures/src/hd/"
+const GROUND_HD := [
+	["ground_dirt_tracks", 720, Vector2i.ZERO, false],
+	["ground_cracked", 700, Vector2i.ZERO, false],
+	["ground_stony_round", 720, Vector2i.ZERO, false],
+	["ground_stony", 720, Vector2i.ZERO, false],
+	["ground_forest_floor", 720, Vector2i.ZERO, false],
+	["ground_wet_soil", 720, Vector2i.ZERO, false],
+	["ground_grass_flowers", 560, Vector2i.ZERO, false],
+	["ground_grass_flowers", 560, Vector2i.ZERO, true],
+	["ground_grass_flowers", 500, Vector2i(30, 30), false],
+	["ground_swamp", 720, Vector2i.ZERO, false],
+	["ground_crimson_moss", 720, Vector2i.ZERO, false],
+]
+
+
+func _hd_image(name: String) -> Image:
+	var img := Image.load_from_file(ProjectSettings.globalize_path(HD_DIR + name + ".png"))
+	img.convert(Image.FORMAT_RGBA8)
+	return img
+
+
 func _step_tiles() -> void:
-	var sheet := _src_image("ground_set.png")
 	var images: Array[Image] = []
-	for li in LAYER_FROM_SQ.size():
-		var c: Vector2i = SQ_CENTERS[LAYER_FROM_SQ[li]]
-		var img := sheet.get_region(Rect2i(c - Vector2i(CROP / 2, CROP / 2), Vector2i(CROP, CROP)))
+	for spec in GROUND_HD:
+		var src := _hd_image(spec[0])
+		var crop: int = spec[1]
+		var c: Vector2i = src.get_size() / 2 + spec[2]
+		var img := src.get_region(Rect2i(c - Vector2i(crop / 2, crop / 2), Vector2i(crop, crop)))
+		if spec[3]:
+			img.flip_x()
+		# Квадрат должен быть целиком непрозрачным
+		var holes := 0
+		for y in range(0, crop, 4):
+			for x in range(0, crop, 4):
+				if img.get_pixel(x, y).a < 0.9:
+					holes += 1
+		if holes > 0:
+			report.append("tiles: %s — %d прозрачных точек в квадрате, уменьши сторону" % [spec[0], holes])
+		img.resize(TILE, TILE, Image.INTERPOLATE_LANCZOS)
 		img = _flatten_light(img)
 		img = _tileable(img, true)
 		img = _tileable(img, false)
-		img = _unsharp(img, 0.6)
+		img = _unsharp(img, 0.3)
 		if PIXEL_GROUND:
 			img = _wrap_resize(img, TILE)
 			img = _unsharp(img, 0.45)
@@ -129,7 +172,7 @@ func _step_tiles() -> void:
 	# Превью: каждый слой 2x2 повтором — видно, есть ли швы
 	var prev_dir := OS.get_environment("TERRAIN_PREVIEW")
 	if prev_dir != "":
-		var sheet_out := Image.create(TILE * 2 * 3, TILE * 2 * 3, false, Image.FORMAT_RGBA8)
+		var sheet_out := Image.create(TILE * 2 * 3, TILE * 2 * 4, false, Image.FORMAT_RGBA8)
 		for li in images.size():
 			var im := images[li]
 			for k in 4:
@@ -468,6 +511,51 @@ func _step_wear() -> void:
 	report.append("wear: %dx%d, домов %d (%s)" % [w, h, houses, error_string(err)])
 
 
+# ───────────────────────── зоны ─────────────────────────
+## Болото на юге (как MIRE в replace_trees.gd, с тем же «вождением» границы
+## шумом): R = 1 — болото. Тексель 16 мировых px.
+const ZONE_PX := 16
+const MIRE := Rect2(-1800, 2200, 3900, 1750)
+
+
+func _step_zones() -> void:
+	var w := WORLD.size.x / ZONE_PX
+	var h := WORLD.size.y / ZONE_PX
+	var warp := FastNoiseLite.new()
+	warp.seed = 3
+	warp.frequency = 1.0 / 900.0
+	var f := PackedFloat32Array()
+	f.resize(w * h)
+	for y in h:
+		for x in w:
+			var wp := Vector2(WORLD.position.x + (x + 0.5) * ZONE_PX, WORLD.position.y + (y + 0.5) * ZONE_PX)
+			var p := wp + Vector2(warp.get_noise_2d(wp.x, wp.y), warp.get_noise_2d(wp.y + 777.0, wp.x - 333.0)) * 260.0
+			f[y * w + x] = 1.0 if MIRE.has_point(p) else 0.0
+	for i in 3:
+		f = _box_blur(f, w, h, 4)
+	# G — проклятый лес: где лежат клетки PurpleGround (край размыт ~100 px,
+	# дальше его рвёт шум в шейдере)
+	var pg := PackedFloat32Array()
+	pg.resize(w * h)
+	var pl := lvl.get_node("PurpleGround") as TileMapLayer
+	var pcell := pl.tile_set.tile_size.x * pl.scale.x
+	for c in pl.get_used_cells():
+		var wx := int((c.x * pcell + pcell * 0.5 - WORLD.position.x) / ZONE_PX)
+		var wy := int((c.y * pcell + pcell * 0.5 - WORLD.position.y) / ZONE_PX)
+		if wx >= 0 and wy >= 0 and wx < w and wy < h:
+			pg[wy * w + wx] = 1.0
+	for i in 3:
+		pg = _box_blur(pg, w, h, 3)
+	var d := PackedByteArray()
+	d.resize(w * h * 4)
+	for i in w * h:
+		d[i * 4] = int(clampf(f[i], 0.0, 1.0) * 255.0)
+		d[i * 4 + 1] = int(clampf(pg[i] * 1.6, 0.0, 1.0) * 255.0)
+		d[i * 4 + 3] = 255
+	var img := Image.create_from_data(w, h, false, Image.FORMAT_RGBA8, d)
+	report.append("zones: %dx%d (%s)" % [w, h, error_string(_save_tex(img, "zones.res"))])
+
+
 func _wear_rect(f: PackedFloat32Array, w: int, h: int, r: Rect2, v: float) -> void:
 	var x0 := clampi(int((r.position.x - WORLD.position.x) / WEAR_PX), 0, w - 1)
 	var y0 := clampi(int((r.position.y - WORLD.position.y) / WEAR_PX), 0, h - 1)
@@ -535,17 +623,56 @@ const BAYER4 := [0.03, 0.53, 0.16, 0.66, 0.78, 0.28, 0.91, 0.41, 0.22, 0.72, 0.0
 var _face_k := 0.0
 
 
+## Стены и кромка пропасти — из чётких полос (src/hd): скала с травяным
+## гребнем сверху, по горизонтали бесшовная
+const CLIFF_STRIP := "cliff_ledge"
+const CANYON_STRIP := "cliff_chasm"
+## Лестница — отдельная картинка (src/hd/stairs.png)
+const STAIRS_HD := "stairs"
+## Сколько мировых px занимает вся высота полосы пропасти (трава, скала,
+## уход в темноту): видимая глубина кромки ограничена 46 px (_smooth_runs)
+const CANYON_FACE_PX := 58.0
+
+
 func _step_cliffs() -> void:
-	report.append(_bake_faces(["Cliffs"], false, 14, true, CLIFF_TEX, "terrain_cliff_origin"))
-	var st := _hi_res(_rock, STAIRS_RECT)
+	report.append(_bake_faces(["Cliffs"], false, 14, true, CLIFF_TEX, "terrain_cliff_origin", CLIFF_STRIP))
+	var st := _hd_image(STAIRS_HD)
+	st = st.get_region(st.get_used_rect())
+	# В .res хватит 512 px: на карте лестница ~100x90 px мира (x CF)
+	var s := 512.0 / maxf(st.get_width(), st.get_height())
+	st.premultiply_alpha()
+	st.resize(roundi(st.get_width() * s), roundi(st.get_height() * s), Image.INTERPOLATE_LANCZOS)
+	st = _unpremultiply(st)
 	report.append("лестница: %s" % error_string(_save_tex(st, "stairs.res")))
 
 
 # Кромка пропасти (слои Canyon и Chasm): серые скальные полосы старого
-# рисунка — тоже стены, только низ уходит в темноту провала. Скала кладётся
-# в том же масштабе, что и стены плато, без растяжения, и гаснет к низу.
+# рисунка — тоже стены, только низ уходит в темноту провала. Полоса
+# кладётся без растяжения, к низу уходит во тьму (так нарисована).
 func _step_canyon() -> void:
-	report.append(_bake_faces(["Canyon", "Chasm"], true, 5, false, "canyon_face.res", "terrain_canyon_origin"))
+	report.append(_bake_faces(["Canyon", "Chasm"], true, 5, false, "canyon_face.res", "terrain_canyon_origin", CANYON_STRIP))
+
+
+static func _unpremultiply(img: Image) -> Image:
+	var d := img.get_data()
+	for i in range(0, d.size(), 4):
+		var a := d[i + 3]
+		if a < 8:
+			d[i] = 0
+			d[i + 1] = 0
+			d[i + 2] = 0
+			d[i + 3] = 0
+			continue
+		for ch in 3:
+			d[i + ch] = clampi(int(d[i + ch] * 255.0 / a + 0.5), 0, 255)
+	return Image.create_from_data(img.get_width(), img.get_height(), false, Image.FORMAT_RGBA8, d)
+
+
+## Темнота провала: вместе с камнем кромки — одна область, стена кромки
+## рисуется только от её верха (иначе каждый камень внутри провала
+## получал свою «кромку с травой»)
+static func _void_key(c: Color) -> bool:
+	return c.a > 0.5 and _lum(c) < 0.07
 
 
 ## Серый камень старого рисунка (кромка провала), не земля и не чернота
@@ -557,10 +684,8 @@ static func _rock_key(c: Color) -> bool:
 
 
 func _bake_faces(layer_names: Array, rock_only: bool, min_run: int, stretch: bool,
-		tex_name: String, meta: String) -> String:
-	if _rock == null:
-		_rock = _src_image("rock_set.png")
-		_rock_hi = _hi_res(_rock, Rect2i(0, 0, 460, 215))
+		tex_name: String, meta: String, strip: String) -> String:
+	var rock := _hd_image(strip)
 	var cell := 16
 	var rect := Rect2i()
 	var first := true
@@ -601,7 +726,7 @@ func _bake_faces(layer_names: Array, rock_only: bool, min_run: int, stretch: boo
 					var sy: int = (cell - 1 - ty) if fv else ty
 					var px := img.get_pixel(region.position.x + sx * step + step / 2,
 							region.position.y + sy * step + step / 2)
-					if (_rock_key(px) if rock_only else px.a > 0.5):
+					if ((_rock_key(px) or _void_key(px)) if rock_only else px.a > 0.5):
 						solid[(by + ty) * ww + bx + tx] = 1
 	# Столбцы стены
 	var runs := []          # [x, y0, y1]
@@ -627,15 +752,16 @@ func _bake_faces(layer_names: Array, rock_only: bool, min_run: int, stretch: boo
 			if y1 - y0 + 1 >= min_run:
 				runs.append([x, y0, y1])
 				hs.append(y1 - y0 + 1)
-	if not stretch:
-		runs = _smooth_runs(runs, ww, 46)
+	# Верх и низ стены — по соседним столбцам: у тайлов они ступеньками
+	runs = _smooth_runs(runs, ww, 46, 12) if not stretch else _smooth_runs(runs, ww, 100000, 12)
 	hs.sort()
 	var hp_med: int = hs[hs.size() / 2] if hs.size() > 0 else 80
 
 	# Куски: кромка травы и подножие по каждому столбцу, расщелины
 	var pieces := []
 	var face_hs: Array[float] = []
-	for pr: Rect2i in CLIFF_PIECES:
+	var grass_hs: Array[float] = []
+	for pr: Rect2i in [rock.get_used_rect()]:
 		var lip := PackedFloat32Array()
 		var foot := PackedFloat32Array()
 		var lum := PackedFloat32Array()
@@ -643,14 +769,14 @@ func _bake_faces(layer_names: Array, rock_only: bool, min_run: int, stretch: boo
 			var top := -1
 			var bot := -1
 			for cy in range(pr.position.y, pr.end.y):
-				if _rock.get_pixel(cx, cy).a > 0.6:
+				if rock.get_pixel(cx, cy).a > 0.6:
 					if top < 0:
 						top = cy
 					bot = cy
 			var lp := top
 			var run := 0
 			for cy in range(top, bot):
-				var p := _rock.get_pixel(cx, cy)
+				var p := rock.get_pixel(cx, cy)
 				if p.g - (p.r + p.b) * 0.5 < 0.03:
 					run += 1
 					if run >= 3:
@@ -659,11 +785,12 @@ func _bake_faces(layer_names: Array, rock_only: bool, min_run: int, stretch: boo
 				else:
 					run = 0
 			lip.append(lp)
+			grass_hs.append(lp - top)
 			foot.append(bot)
 			face_hs.append(bot - lp)
 			var s := 0.0
 			for cy in range(lp, bot):
-				s += _lum(_rock.get_pixel(cx, cy))
+				s += _lum(rock.get_pixel(cx, cy))
 			lum.append(s / maxf(bot - lp, 1))
 		# Расщелины — локальные минимумы яркости столбца
 		var crev: Array[int] = []
@@ -672,13 +799,34 @@ func _bake_faces(layer_names: Array, rock_only: bool, min_run: int, stretch: boo
 			if v <= lum[i - 1] and v <= lum[i + 1] and v <= lum[i - 2] and v <= lum[i + 2] \
 					and v < (lum[i - 3] + lum[i + 3]) * 0.5 - 0.01:
 				crev.append(i)
+		# Гребень травы на полосе волнистый: если каждый столбец тянуть от
+		# своей кромки, скала рвётся на вертикальные полосы. Кромка и низ —
+		# общие для всей полосы, волны травы остаются в самой картинке
+		var ls := Array(lip)
+		ls.sort()
+		var fs := Array(foot)
+		fs.sort()
+		var lp_all: float = ls[int(ls.size() * 0.35)]
+		var ft_all: float = fs[fs.size() / 2]
+		for i in lip.size():
+			lip[i] = lp_all
+			foot[i] = ft_all
 		pieces.append({"x": pr.position.x, "lip": lip, "foot": foot, "crev": crev, "w": pr.size.x})
 	face_hs.sort()
 	var face_med: float = face_hs[face_hs.size() / 2]
 	# Масштаб: высота фаса куска ~ типичная высота стены
-	if stretch or _face_k <= 0.0:
-		_face_k = face_med / float(hp_med if stretch else 90)
-	var k: float = _face_k
+	var k: float = face_med / (float(hp_med) if stretch else CANYON_FACE_PX)
+	_face_k = k
+	# Исходник уменьшается так, чтобы на тексель стены приходился ~1 его
+	# пиксель: выборка без растяжения и без усреднения — резко
+	var hik := clampf(CF / k, 0.05, 1.0)
+	var hi := rock.duplicate() as Image
+	hi.premultiply_alpha()
+	hi.resize(maxi(roundi(rock.get_width() * hik), 2), maxi(roundi(rock.get_height() * hik), 2), Image.INTERPOLATE_LANCZOS)
+	hi = _unpremultiply(hi)
+	hi = _unsharp(hi, 0.3)
+	grass_hs.sort()
+	var grass_med: float = grass_hs[grass_hs.size() / 2]
 
 	# Раскладка кусков вдоль x (одна на всю карту стен — соседние столбцы
 	# любой стены непрерывны)
@@ -688,30 +836,54 @@ func _bake_faces(layer_names: Array, rock_only: bool, min_run: int, stretch: boo
 	var col_src := PackedFloat32Array()
 	col_piece.resize(bw)
 	col_src.resize(bw)
+	# Стык кусков — плавный: несколько px мира после стыка видна ещё и
+	# продолжающаяся старая часть полосы (col_prev), её вес col_w гаснет
+	var col_prev := PackedFloat32Array()
+	var col_w := PackedFloat32Array()
+	col_prev.resize(bw)
+	col_w.resize(bw)
+	var blend_n := 10 * CF
+	var old_sc := 0.0
+	var since := blend_n
 	var rng := RandomNumberGenerator.new()
 	rng.seed = 7041
 	var pi := 0
 	var sc: float = pieces[0]["crev"][0]
-	var stop := _next_stop(pieces[0], sc, rng)
+	var stop := _next_stop(pieces[0], sc, rng, k)
 	for bx in bw:
 		col_piece[bx] = pi
 		col_src[bx] = sc
+		col_prev[bx] = old_sc
+		col_w[bx] = 0.0 if since >= blend_n else 1.0 - _smooth(0.0, 1.0, float(since) / blend_n)
 		sc += k / CF
+		old_sc += k / CF
+		since += 1
 		if sc >= stop:
+			old_sc = sc
+			since = 0
 			pi = rng.randi() % pieces.size()
 			var cr: Array[int] = pieces[pi]["crev"]
 			sc = cr[rng.randi() % maxi(cr.size() - 2, 1)]
-			stop = _next_stop(pieces[pi], sc, rng)
+			stop = _next_stop(pieces[pi], sc, rng, k)
 
 	# Запекание
 	var out := Image.create(bw, bh, false, Image.FORMAT_RGBA8)
 	out.fill(Color(0, 0, 0, 0))
-	var fringe := 7.0
+	# Трава над кромкой: столько, сколько её нарисовано над скалой
+	var fringe := clampf(grass_med / k, 6.0, 13.0)
 	for r in runs:
 		var x: int = r[0]
 		var y0: int = r[1]
 		var y1: int = r[2]
 		var hp := float(y1 - y0 + 1)
+		# Крутой боковой край провала с камеры почти не виден: стена кромки
+		# там гаснет (иначе трава каждого столбца — косые полосы)
+		var side := 1.0
+		if not stretch and r.size() > 3:
+			side = 1.0 - _smooth(0.9, 2.6, r[3])
+			if side <= 0.0:
+				continue
+		var fr := fringe * side
 		for sub in CF:
 			var bx: int = x * CF + sub
 			var p: Dictionary = pieces[col_piece[bx]]
@@ -719,7 +891,7 @@ func _bake_faces(layer_names: Array, rock_only: bool, min_run: int, stretch: boo
 			var sx: float = p["x"] + col_src[bx]
 			var lp: float = p["lip"][ci]
 			var ft: float = p["foot"][ci]
-			for byy in range(int((y0 - fringe) * CF), (y1 + 1) * CF):
+			for byy in range(int((y0 - fr) * CF), (y1 + 1) * CF):
 				if byy < 0 or byy >= bh:
 					continue
 				var wy := float(byy) / CF
@@ -727,20 +899,18 @@ func _bake_faces(layer_names: Array, rock_only: bool, min_run: int, stretch: boo
 				var fade := 1.0
 				if wy < y0:
 					sy = lp - (y0 - wy) * k
-					fade = pow(1.0 - (y0 - wy) / fringe, 1.5)
+					fade = 1.0 - _smooth(0.65, 1.0, (y0 - wy) / maxf(fr, 0.5))
 				elif stretch:
 					sy = lp + (wy - y0) / hp * (ft - lp + 1.0)
 				else:
 					# Без растяжения: верх куска у кромки, к низу гаснет в провал
 					sy = lp + fmod((wy - y0) * k, maxf(ft - lp - 6.0, 8.0))
 					fade = _smooth(0.0, 1.0, (y1 + 1 - wy) / 16.0)
-				# Среднее по площади арт-пикселя (без мерцающих выборок)
-				var hx := sx * 2.0 + 0.5
-				var hy := sy * 2.0 + 0.5
-				var o := k * 0.55
-				var c := (_bilinear(_rock_hi, hx - o, hy - o) + _bilinear(_rock_hi, hx + o, hy - o)
-						+ _bilinear(_rock_hi, hx - o, hy + o) + _bilinear(_rock_hi, hx + o, hy + o)) * 0.25
-				var a := _smooth(0.55, 0.9, c.a) * fade
+				var c := _bilinear(hi, (sx + 0.5) * hik - 0.5, (sy + 0.5) * hik - 0.5)
+				if col_w[bx] > 0.0:
+					var sx2: float = p["x"] + minf(col_prev[bx], p["w"] - 1.0)
+					c = c.lerp(_bilinear(hi, (sx2 + 0.5) * hik - 0.5, (sy + 0.5) * hik - 0.5), col_w[bx])
+				var a := _smooth(0.2, 0.85, c.a) * fade * side
 				if PIXEL_FACES:
 					# Пиксель-арт: альфа жёсткая, затухание — упорядоченным дизерингом
 					if a <= BAYER4[(byy % 4) * 4 + bx % 4]:
@@ -751,7 +921,7 @@ func _bake_faces(layer_names: Array, rock_only: bool, min_run: int, stretch: boo
 				out.set_pixel(bx, byy, Color(c.r, c.g, c.b, a))
 	if PIXEL_FACES:
 		if _rock_pal.is_empty():
-			_rock_pal = _palette([_rock_hi], ROCK_COLORS)
+			_rock_pal = _palette([hi], ROCK_COLORS)
 		out = _quantize(out, _rock_pal)
 	var err := _save_tex(out, tex_name)
 	lvl.set_meta(meta, rect.position)
@@ -765,7 +935,7 @@ func _bake_faces(layer_names: Array, rock_only: bool, min_run: int, stretch: boo
 ## Кромка провала нарисована ступеньками пикселей: верх и низ каждого
 ## столбца усредняются с соседними столбцами (той же кромки), глубина
 ## скалы ограничена — ниже она уходит в темноту, а не висит полосами.
-func _smooth_runs(runs: Array, ww: int, max_depth: int) -> Array:
+func _smooth_runs(runs: Array, ww: int, max_depth: int, rad: int) -> Array:
 	var by_x := []
 	by_x.resize(ww)
 	for i in ww:
@@ -773,7 +943,6 @@ func _smooth_runs(runs: Array, ww: int, max_depth: int) -> Array:
 	for r in runs:
 		by_x[r[0]].append(r)
 	var out := []
-	var rad := 7
 	for r in runs:
 		var x: int = r[0]
 		var s0 := 0.0
@@ -796,12 +965,31 @@ func _smooth_runs(runs: Array, ww: int, max_depth: int) -> Array:
 		var y1 := int(round(s1 / n))
 		if y1 - y0 >= 4:
 			out.append([x, y0, y1])
+	# Крутизна кромки (px по y на px по x): у соседей через 4 столбца — та же
+	# кромка (ближайший верх)
+	var ox := []
+	ox.resize(ww)
+	for i in ww:
+		ox[i] = []
+	for r in out:
+		ox[r[0]].append(r)
+	for r in out:
+		var sl := 0.0
+		for dx in [-4, 4]:
+			var xx: int = r[0] + dx
+			var best := 1e9
+			if xx >= 0 and xx < ww:
+				for q in ox[xx]:
+					best = minf(best, absf(q[1] - r[1]))
+			sl = maxf(sl, minf(best, 60.0) / 4.0)
+		r.append(sl)
 	return out
 
 
-func _next_stop(p: Dictionary, from: float, rng: RandomNumberGenerator) -> float:
+func _next_stop(p: Dictionary, from: float, rng: RandomNumberGenerator, k: float) -> float:
 	var crev: Array[int] = p["crev"]
-	var min_len := 34.0 + rng.randf() * 50.0
+	# Кусок полосы между стыками — 50..140 px мира
+	var min_len := (50.0 + rng.randf() * 90.0) * k
 	for c in crev:
 		if c >= from + min_len:
 			return c
@@ -835,6 +1023,8 @@ func _step_apply() -> void:
 	mat.set_shader_parameter("mask_canyon", load(OUT + "mask_canyon.res"))
 	mat.set_shader_parameter("wear_map", load(OUT + "wear.res"))
 	mat.set_shader_parameter("wear_rect", Vector4(WORLD.position.x, WORLD.position.y, WORLD.size.x, WORLD.size.y))
+	mat.set_shader_parameter("zone_map", load(OUT + "zones.res"))
+	mat.set_shader_parameter("zone_rect", Vector4(WORLD.position.x, WORLD.position.y, WORLD.size.x, WORLD.size.y))
 	if ResourceLoader.exists(MATERIAL):
 		# Подобранные вручную параметры не затираются
 		var old := load(MATERIAL) as ShaderMaterial
@@ -846,6 +1036,17 @@ func _step_apply() -> void:
 	mat = ResourceLoader.load(MATERIAL, "", ResourceLoader.CACHE_MODE_REPLACE)
 	for ln in GROUND_LAYERS:
 		(lvl.get_node(ln) as CanvasItem).material = mat
+	# Слои провала — тот же материал, но старый серый камень кромки уходит
+	# в темноту (стену кромки рисует CanyonFace)
+	var void_mat := mat.duplicate() as ShaderMaterial
+	void_mat.set_shader_parameter("rock_to_void", 1.0)
+	ResourceSaver.save(void_mat, OUT + "ground_material_chasm.tres")
+	void_mat = ResourceLoader.load(OUT + "ground_material_chasm.tres", "", ResourceLoader.CACHE_MODE_REPLACE)
+	for ln in ["Canyon", "Chasm"]:
+		(lvl.get_node(ln) as CanvasItem).material = void_mat
+	# Проклятый лес: багровый мох по зоне (G в zones.res); фиолетовый тон
+	# со слоя земли снят — он обрывал новую землю прямой линией по клеткам
+	(lvl.get_node("PurpleGround") as CanvasItem).modulate = Color.WHITE
 
 	# Стены: старый слой прячется (он только картинка, коллизия отдельно)
 	var cliffs := lvl.get_node("Cliffs") as TileMapLayer

@@ -532,132 +532,132 @@ sources/0 = SubResource("TileSetAtlasSource_dt65y")
 
 [sub_resource type="TileSetAtlasSource" id="TileSetAtlasSource_qresc"]
 texture = ExtResource("4_dm4dp")
-margins = Vector2i(1632, 448)
-texture_region_size = Vector2i(224, 307)
+margins = Vector2i(458, 878)
+texture_region_size = Vector2i(229, 340)
 use_texture_padding = false
 0:0/next_alternative_id = 2
 0:0/0 = 0
-0:0/0/texture_origin = Vector2i(0, 128)
+0:0/0/texture_origin = Vector2i(0, 146)
 0:0/1 = 1
 0:0/1/flip_h = true
-0:0/1/texture_origin = Vector2i(0, 128)
+0:0/1/texture_origin = Vector2i(0, 146)
 metadata/forest_variant = "maple_red_1"
 
 [sub_resource type="TileSetAtlasSource" id="TileSetAtlasSource_v4fan"]
 texture = ExtResource("4_dm4dp")
-margins = Vector2i(1172, 448)
-texture_region_size = Vector2i(188, 326)
+margins = Vector2i(1166, 474)
+texture_region_size = Vector2i(243, 370)
 use_texture_padding = false
 0:0/next_alternative_id = 2
 0:0/0 = 0
-0:0/0/texture_origin = Vector2i(0, 137)
+0:0/0/texture_origin = Vector2i(0, 166)
 0:0/1 = 1
 0:0/1/flip_h = true
-0:0/1/texture_origin = Vector2i(0, 137)
+0:0/1/texture_origin = Vector2i(0, 166)
 metadata/forest_variant = "birch_weeping_1"
 
 [sub_resource type="TileSetAtlasSource" id="TileSetAtlasSource_gj77d"]
 texture = ExtResource("4_dm4dp")
-margins = Vector2i(1364, 448)
-texture_region_size = Vector2i(264, 325)
+margins = Vector2i(1656, 474)
+texture_region_size = Vector2i(227, 340)
 use_texture_padding = false
 0:0/next_alternative_id = 2
 0:0/0 = 0
-0:0/0/texture_origin = Vector2i(0, 136)
+0:0/0/texture_origin = Vector2i(0, 146)
 0:0/1 = 1
 0:0/1/flip_h = true
-0:0/1/texture_origin = Vector2i(0, 136)
+0:0/1/texture_origin = Vector2i(0, 146)
 metadata/forest_variant = "dead_broken_0"
 
 [sub_resource type="TileSetAtlasSource" id="TileSetAtlasSource_fxsqc"]
 texture = ExtResource("4_dm4dp")
-margins = Vector2i(423, 810)
-texture_region_size = Vector2i(278, 289)
+margins = Vector2i(1413, 474)
+texture_region_size = Vector2i(239, 360)
 use_texture_padding = false
 0:0/next_alternative_id = 2
 0:0/0 = 0
-0:0/0/texture_origin = Vector2i(0, 121)
+0:0/0/texture_origin = Vector2i(0, 158)
 0:0/1 = 1
 0:0/1/flip_h = true
-0:0/1/texture_origin = Vector2i(0, 121)
+0:0/1/texture_origin = Vector2i(0, 158)
 metadata/forest_variant = "oak_1"
 
 [sub_resource type="TileSetAtlasSource" id="TileSetAtlasSource_nlohb"]
 texture = ExtResource("4_dm4dp")
-margins = Vector2i(0, 448)
-texture_region_size = Vector2i(243, 358)
+margins = Vector2i(1579, 0)
+texture_region_size = Vector2i(262, 400)
 use_texture_padding = false
 0:0/next_alternative_id = 2
 0:0/0 = 0
-0:0/0/texture_origin = Vector2i(0, 150)
+0:0/0/texture_origin = Vector2i(0, 184)
 0:0/1 = 1
 0:0/1/flip_h = true
-0:0/1/texture_origin = Vector2i(0, 150)
+0:0/1/texture_origin = Vector2i(0, 184)
 metadata/forest_variant = "birch_autumn_0"
 
 [sub_resource type="TileSetAtlasSource" id="TileSetAtlasSource_3usws"]
 texture = ExtResource("4_dm4dp")
-margins = Vector2i(576, 448)
-texture_region_size = Vector2i(329, 342)
+margins = Vector2i(747, 0)
+texture_region_size = Vector2i(279, 420)
 use_texture_padding = false
 0:0/next_alternative_id = 2
 0:0/0 = 0
-0:0/0/texture_origin = Vector2i(0, 144)
+0:0/0/texture_origin = Vector2i(0, 185)
 0:0/1 = 1
 0:0/1/flip_h = true
-0:0/1/texture_origin = Vector2i(0, 144)
+0:0/1/texture_origin = Vector2i(0, 185)
 metadata/forest_variant = "oak_0"
 
 [sub_resource type="TileSetAtlasSource" id="TileSetAtlasSource_u4j73"]
 texture = ExtResource("4_dm4dp")
-margins = Vector2i(979, 0)
-texture_region_size = Vector2i(222, 385)
+margins = Vector2i(1030, 0)
+texture_region_size = Vector2i(272, 410)
 use_texture_padding = false
 0:0/next_alternative_id = 2
 0:0/0 = 0
-0:0/0/texture_origin = Vector2i(0, 161)
+0:0/0/texture_origin = Vector2i(0, 184)
 0:0/1 = 1
 0:0/1/flip_h = true
-0:0/1/texture_origin = Vector2i(0, 161)
+0:0/1/texture_origin = Vector2i(0, 184)
 metadata/forest_variant = "birch_weeping_0"
 
 [sub_resource type="TileSetAtlasSource" id="TileSetAtlasSource_u0fyv"]
 texture = ExtResource("4_dm4dp")
-margins = Vector2i(213, 810)
-texture_region_size = Vector2i(206, 303)
+margins = Vector2i(231, 878)
+texture_region_size = Vector2i(223, 340)
 use_texture_padding = false
 0:0/next_alternative_id = 2
 0:0/0 = 0
-0:0/0/texture_origin = Vector2i(0, 127)
+0:0/0/texture_origin = Vector2i(0, 156)
 0:0/1 = 1
 0:0/1/flip_h = true
-0:0/1/texture_origin = Vector2i(0, 127)
+0:0/1/texture_origin = Vector2i(0, 156)
 metadata/forest_variant = "birch_autumn_1"
 
 [sub_resource type="TileSetAtlasSource" id="TileSetAtlasSource_vcet7"]
 texture = ExtResource("4_dm4dp")
-margins = Vector2i(1699, 0)
-texture_region_size = Vector2i(265, 363)
+margins = Vector2i(1306, 0)
+texture_region_size = Vector2i(269, 400)
 use_texture_padding = false
 0:0/next_alternative_id = 2
 0:0/0 = 0
-0:0/0/texture_origin = Vector2i(0, 152)
+0:0/0/texture_origin = Vector2i(0, 172)
 0:0/1 = 1
 0:0/1/flip_h = true
-0:0/1/texture_origin = Vector2i(0, 152)
+0:0/1/texture_origin = Vector2i(0, 172)
 metadata/forest_variant = "maple_red_0"
 
 [sub_resource type="TileSetAtlasSource" id="TileSetAtlasSource_yrufw"]
 texture = ExtResource("4_dm4dp")
-margins = Vector2i(705, 810)
-texture_region_size = Vector2i(223, 275)
+margins = Vector2i(905, 878)
+texture_region_size = Vector2i(193, 290)
 use_texture_padding = false
 0:0/next_alternative_id = 2
 0:0/0 = 0
-0:0/0/texture_origin = Vector2i(0, 115)
+0:0/0/texture_origin = Vector2i(0, 125)
 0:0/1 = 1
 0:0/1/flip_h = true
-0:0/1/texture_origin = Vector2i(0, 115)
+0:0/1/texture_origin = Vector2i(0, 125)
 metadata/forest_variant = "dead_broken_1"
 
 [sub_resource type="TileSet" id="TileSet_5dgt6"]
@@ -1032,6 +1032,7 @@ data = PackedFloat32Array(0, 1544, 674, 0.5, 0.5, -39, -32, 762, 1576, 78, 64, 0
 
 [node name="Objects" type="Node2D" parent="." unique_id=546354]
 y_sort_enabled = true
+texture_filter = 2
 
 [node name="Trees" type="TileMapLayer" parent="Objects" unique_id=1767563096]
 y_sort_enabled = true

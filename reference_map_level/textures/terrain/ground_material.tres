@@ -7,6 +7,7 @@
 [ext_resource type="Texture2D" path="res://reference_map_level/textures/terrain/mask_reskin.res" id="5_wvbla"]
 [ext_resource type="Texture2D" path="res://reference_map_level/textures/terrain/wear.res" id="6_v715v"]
 [ext_resource type="Texture2D" path="res://reference_map_level/textures/terrain/paths.res" id="6_xce4f"]
+[ext_resource type="Texture2D" path="res://reference_map_level/textures/terrain/zones.res" id="8_r07ce"]
 
 [resource]
 shader = ExtResource("1_w34u0")
@@ -25,3 +26,7 @@ shader_parameter/tint = null
 shader_parameter/grass_bias = null
 shader_parameter/path_light = null
 shader_parameter/path_tint = null
+shader_parameter/rock_to_void = null
+shader_parameter/zone_map = ExtResource("8_r07ce")
+shader_parameter/zone_rect = Vector4(-3520, -704, 8640, 5120)
+shader_parameter/zone_force = null

@@ -1,7 +1,7 @@
 extends SceneTree
 ## Земляные тропинки и вдвое более редкий лес на reference_map.
 ##
-## Шаги (по умолчанию безопасные: paths, clear, sharp, leaves):
+## Шаги (по умолчанию безопасные: paths, clear, leaves):
 ##   paths — тропы по навмешу между важными местами (старт, костры, мосты,
 ##           болото, лагерь, форт, босс, выходы). Путь сглаживается и чуть
 ##           виляет; результат — reference_map_level/paths.json (линии) и
@@ -18,7 +18,7 @@ extends SceneTree
 ##   under — подлесок (кусты, папоротник, камни, пни, коряги) вдвое реже,
 ##           так же равномерно, как деревья.
 ##   pixel — атлас леса в пиксель-арт (см. _step_pixel).
-##   sharp — вместо pixel: деревья из оригинала атласа, но резче (см. _step_sharp).
+##   sharp — устарел: атлас леса теперь из tools/hd_art.gd (шаг пропускается).
 ##   leaves — убрать кучи опавших листьев (декали) со всей карты.
 ##
 ## Запуск:
@@ -84,7 +84,7 @@ var report: Array[String] = []
 func _initialize() -> void:
 	var steps := Array(OS.get_cmdline_user_args())
 	if steps.is_empty():
-		steps = ["paths", "clear", "sharp", "leaves"]
+		steps = ["paths", "clear", "leaves"]
 	_run(steps)
 
 
@@ -123,6 +123,8 @@ const TREE_COLORS := 64
 
 
 func _step_pixel() -> void:
+	if _hd_atlas():
+		return
 	var atlas_path := ProjectSettings.globalize_path(ATLAS)
 	var smooth_path := ProjectSettings.globalize_path(SMOOTH)
 	if not FileAccess.file_exists(smooth_path):
@@ -550,6 +552,8 @@ const SHARP_AMOUNT := 0.85
 
 
 func _step_sharp() -> void:
+	if _hd_atlas():
+		return
 	var atlas_path := ProjectSettings.globalize_path(ATLAS)
 	var smooth_path := ProjectSettings.globalize_path(SMOOTH)
 	if not FileAccess.file_exists(smooth_path):
@@ -606,3 +610,12 @@ func _step_leaves() -> void:
 static func _scene_ok(lvl: Node) -> bool:
 	var g := lvl.get_node_or_null("Ground") as CanvasItem
 	return g == null or g.material != null
+
+
+## Атлас леса теперь собирает tools/hd_art.gd из чётких картинок (src/hd);
+## шаги pixel и sharp брали старый атлас и затёрли бы новый
+func _hd_atlas() -> bool:
+	if FileAccess.get_file_as_string(META).contains("tuft_0"):
+		report.append("pixel/sharp пропущены: атлас леса из tools/hd_art.gd, старый исходник не нужен")
+		return true
+	return false

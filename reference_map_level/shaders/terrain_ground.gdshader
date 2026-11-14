@@ -32,9 +32,24 @@ uniform float brightness = 0.82;
 uniform vec3 tint : source_color = vec3(1.0, 0.97, 0.9);
 // +: больше травы, -: больше голой земли
 uniform float grass_bias = 0.0;
+// Как «жилое место» (у домов, дорог; R в wear_map) меняет траву: 1.15 — голая
+// вытоптанная земля, 0 — как везде, меньше нуля — в деревне больше травы
+// (лужайки у домов, голые только тропы и небольшие пятна)
+uniform float wear_grass = -0.6;
 // Тропа: насколько светлее земли вокруг и её оттенок
 uniform float path_light = 0.38;
 uniform vec3 path_tint : source_color = vec3(1.08, 0.96, 0.8);
+// Слои провала (Canyon, Chasm): старый серый камень кромки уходит в темноту —
+// видимую стену кромки рисует CanyonFace (build_terrain.gd), а боковые и
+// дальние стенки с этой камеры не видны
+uniform float rock_to_void = 0.0;
+// Зоны (build_terrain.gd, шаг zones): R — болото, там трава уступает болотной
+// грязи (слой 9)
+uniform sampler2D zone_map : filter_linear;
+uniform vec4 zone_rect = vec4(-3520.0, -704.0, 8640.0, 5120.0);
+// G — проклятый лес: там трава уступает багровому мху (слой 10).
+// zone_force — заменять всю землю слоя, кроме серого камня (сейчас не нужен)
+uniform float zone_force = 0.0;
 
 varying vec2 world_pos;
 varying vec4 vert_color;
@@ -170,6 +185,24 @@ void fragment() {
 	} else if (abs(ts.x - 3008.0) < 0.5 && abs(ts.y - 4736.0) < 0.5) {
 		m = texture(mask_canyon, UV).r;
 	}
+	// Внутри проклятого леса старая тёмная листва тоже становится землёй (мох)
+	float zgf = texture(zone_map, (wp - zone_rect.xy) / zone_rect.zw).g;
+	if ((zone_force > 0.0 || zgf + jag * 0.3 > 0.62) && orig.a > 0.5 && lum(orig.rgb) < 0.45) {
+		float zmx = max(orig.r, max(orig.g, orig.b));
+		float zmn = min(orig.r, min(orig.g, orig.b));
+		if (zmx - zmn > 0.06 || lum(orig.rgb) < 0.1) {
+			m = 1.0;
+		}
+	}
+
+	if (rock_to_void > 0.0 && m < 0.5) {
+		float mx = max(orig.r, max(orig.g, orig.b));
+		float mn = min(orig.r, min(orig.g, orig.b));
+		float l = lum(orig.rgb);
+		if (orig.a > 0.5 && mx - mn < 0.09 && l > 0.1 && l < 0.66) {
+			COLOR.rgb = orig.rgb * mix(1.0, 0.14, rock_to_void);
+		}
+	}
 
 	if (m > 0.5) {
 		// R — вытоптанность, G/B/A — запечённые шумы (см. build_terrain.gd, шаг wear)
@@ -179,7 +212,7 @@ void fragment() {
 		float n2 = wm.b;
 		float n3 = wm.a;
 		// Трава: крупные пятна шумом, у дорог, домов и на тропах — вытоптано
-		float g = clamp((n1 - 0.5) * 2.4 + 0.62 + grass_bias - wear * 1.15 - p * 0.9, 0.0, 1.0);
+		float g = clamp((n1 - 0.5) * 2.4 + 0.62 + grass_bias - wear * wear_grass - p * 0.9, 0.0, 1.0);
 		g *= 1.0 - on_path;
 		float rocky = smoothstep(0.5, 0.85, wear) * smoothstep(0.5, 0.72, n3) * 0.85;
 		rocky *= 1.0 - on_path * 0.7;
@@ -194,6 +227,22 @@ void fragment() {
 		} else {
 			terr = hpick(level_color(i0, uv, ddx, ddy, n2, rocky),
 					level_color(i0 + 1, uv, ddx, ddy, n2, rocky), t);
+		}
+		// Болото: трава уступает грязи с лужами, граница — пятнами по шуму
+		float zr = texture(zone_map, (wp - zone_rect.xy) / zone_rect.zw).r;
+		if (zr > 0.01) {
+			float ts_ = smoothstep(0.35, 0.65, zr * 0.78 + (n2 - 0.5) * 0.9) * (1.0 - on_path * 0.7);
+			if (ts_ > 0.01) {
+				terr = hpick(terr, hex_sample(uv, 9.0, ddx, ddy), ts_);
+			}
+		}
+		// Проклятый лес (G зон): трава уступает багровому мху, край — пятнами
+		float zg = texture(zone_map, (wp - zone_rect.xy) / zone_rect.zw).g;
+		if (zg > 0.01) {
+			float tz = smoothstep(0.4, 0.6, zg + (n2 - 0.5) * 0.7) * smoothstep(0.0, 0.3, g) * (1.0 - on_path);
+			if (tz > 0.01) {
+				terr = hpick(terr, hex_sample(uv, 10.0, ddx, ddy), tz);
+			}
 		}
 		// Неровность освещения крупными пятнами. Тропа — светлая тёплая
 		// утоптанная земля, кромка вокруг — темнее: дорожка видна издалека

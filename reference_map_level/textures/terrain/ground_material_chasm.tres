@@ -1,0 +1,32 @@
+[gd_resource type="ShaderMaterial" format=3]
+
+[ext_resource type="Shader" path="res://reference_map_level/shaders/terrain_ground.gdshader" id="1_i1s8x"]
+[ext_resource type="CompressedTexture2DArray" path="res://reference_map_level/textures/terrain/ground_layers.png" id="2_a5ifl"]
+[ext_resource type="Texture2D" path="res://reference_map_level/textures/terrain/mask_canyon.res" id="3_a1gdb"]
+[ext_resource type="Texture2D" path="res://reference_map_level/textures/terrain/mask_medieval.res" id="4_7wiws"]
+[ext_resource type="Texture2D" path="res://reference_map_level/textures/terrain/mask_reskin.res" id="5_0j8jk"]
+[ext_resource type="Texture2D" path="res://reference_map_level/textures/terrain/paths.res" id="6_3t5bs"]
+[ext_resource type="Texture2D" path="res://reference_map_level/textures/terrain/wear.res" id="7_wawrp"]
+[ext_resource type="Texture2D" path="res://reference_map_level/textures/terrain/zones.res" id="8_a5ifl"]
+
+[resource]
+shader = ExtResource("1_i1s8x")
+shader_parameter/ground_layers = ExtResource("2_a5ifl")
+shader_parameter/mask_medieval = ExtResource("4_7wiws")
+shader_parameter/mask_reskin = ExtResource("5_0j8jk")
+shader_parameter/mask_canyon = ExtResource("3_a1gdb")
+shader_parameter/wear_map = ExtResource("7_wawrp")
+shader_parameter/wear_rect = Vector4(-3520, -704, 8640, 5120)
+shader_parameter/path_map = ExtResource("6_3t5bs")
+shader_parameter/path_rect = Vector4(-3520, -704, 8640, 5120)
+shader_parameter/pixel_size = null
+shader_parameter/tile_world = null
+shader_parameter/brightness = null
+shader_parameter/tint = null
+shader_parameter/grass_bias = null
+shader_parameter/path_light = null
+shader_parameter/path_tint = null
+shader_parameter/rock_to_void = 1.0
+shader_parameter/zone_map = ExtResource("8_a5ifl")
+shader_parameter/zone_rect = Vector4(-3520, -704, 8640, 5120)
+shader_parameter/zone_force = null
