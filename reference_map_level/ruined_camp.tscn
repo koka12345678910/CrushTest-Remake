@@ -6,6 +6,7 @@
 [ext_resource type="Texture2D" path="res://reference_map_level/textures/medieval_atlas.png" id="4_2fihv"]
 [ext_resource type="Texture2D" path="res://reference_map_level/textures/forest_trees.png" id="4_dm4dp"]
 [ext_resource type="Script" path="res://reference_map_level/scripts/camp_darkness.gd" id="5_5ppmi"]
+[ext_resource type="Texture2D" path="res://reference_map_level/textures/hd_props.png" id="5_qresc"]
 [ext_resource type="Script" path="res://reference_map_level/scripts/free_camera.gd" id="6_ff1pc"]
 [ext_resource type="Script" path="res://Levels/static_shapes.gd" id="6_qresc"]
 
@@ -1043,3335 +1044,3701 @@ tile_set = SubResource("TileSet_5dgt6")
 [node name="S1" type="Sprite2D" parent="Objects" unique_id=339231929]
 position = Vector2(1440, 640)
 scale = Vector2(0.5, 0.5)
-texture = ExtResource("2_g1qqt")
+texture = ExtResource("5_qresc")
 centered = false
-offset = Vector2(-416, -565.88)
+offset = Vector2(-415, -744)
 region_enabled = true
-region_rect = Rect2(0, 0, 832, 602)
+region_rect = Rect2(248, 0, 831, 780)
+metadata/hd_prop = "tent_cone@831x780"
 
 [node name="S2" type="Sprite2D" parent="Objects" unique_id=99437805]
 position = Vector2(1382, 658)
 scale = Vector2(0.5, 0.5)
-texture = ExtResource("2_g1qqt")
+texture = ExtResource("5_qresc")
 centered = false
-offset = Vector2(-23, -135.36)
+offset = Vector2(-41, -135)
 region_enabled = true
-region_rect = Rect2(2646, 1224, 46, 144)
+region_rect = Rect2(1176, 1938, 81, 144)
+metadata/hd_prop = "port_lantern@81x144"
 
 [node name="S3" type="Sprite2D" parent="Objects" unique_id=564158746]
 position = Vector2(1498, 662)
 scale = Vector2(0.5, 0.5)
-texture = ExtResource("2_g1qqt")
+texture = ExtResource("5_qresc")
 centered = false
-offset = Vector2(-49, -48)
+offset = Vector2(-49, -71)
 region_enabled = true
-region_rect = Rect2(922, 1576, 98, 56)
+region_rect = Rect2(1806, 2087, 98, 79)
+metadata/hd_prop = "chest@98x79"
 
 [node name="S6" type="Sprite2D" parent="Objects" unique_id=1749461844]
 position = Vector2(136, 200)
 scale = Vector2(0.5, 0.5)
-texture = ExtResource("2_g1qqt")
+texture = ExtResource("5_qresc")
 centered = false
-offset = Vector2(-126, -116)
+offset = Vector2(-126, -94)
 region_enabled = true
-region_rect = Rect2(1478, 1438, 252, 124)
+region_rect = Rect2(936, 2087, 252, 101)
+metadata/hd_prop = "palisade@252x101"
 
 [node name="S7" type="Sprite2D" parent="Objects" unique_id=782493356]
 position = Vector2(206, 200)
 scale = Vector2(0.5, 0.5)
-texture = ExtResource("2_g1qqt")
+texture = ExtResource("5_qresc")
 centered = false
-offset = Vector2(-126, -116)
+offset = Vector2(-126, -146)
 region_enabled = true
-region_rect = Rect2(1478, 1438, 252, 124)
+region_rect = Rect2(2833, 1736, 252, 153)
+metadata/hd_prop = "palisade_broken@252x153"
 
 [node name="S8" type="Sprite2D" parent="Objects" unique_id=1801808978]
 position = Vector2(275, 200)
 scale = Vector2(0.5, 0.5)
-texture = ExtResource("2_g1qqt")
+texture = ExtResource("5_qresc")
 centered = false
-offset = Vector2(-97, -122)
+offset = Vector2(-97, -110)
 region_enabled = true
-region_rect = Rect2(684, 1438, 194, 130)
+region_rect = Rect2(3512, 1938, 194, 118)
+metadata/hd_prop = "palisade_broken@194x118"
 
 [node name="S9" type="Sprite2D" parent="Objects" unique_id=872847484]
 position = Vector2(415, 200)
 scale = Vector2(0.5, 0.5)
-texture = ExtResource("2_g1qqt")
+texture = ExtResource("5_qresc")
 centered = false
-offset = Vector2(-97, -122)
+offset = Vector2(-97, -70)
 region_enabled = true
-region_rect = Rect2(684, 1438, 194, 130)
+region_rect = Rect2(1906, 2087, 194, 78)
+metadata/hd_prop = "palisade@194x78"
 
 [node name="S10" type="Sprite2D" parent="Objects" unique_id=1578274229]
 position = Vector2(485, 200)
 scale = Vector2(0.5, 0.5)
-texture = ExtResource("2_g1qqt")
+texture = ExtResource("5_qresc")
 centered = false
-offset = Vector2(-126, -116)
+offset = Vector2(-126, -94)
 region_enabled = true
-region_rect = Rect2(1478, 1438, 252, 124)
+region_rect = Rect2(936, 2087, 252, 101)
+metadata/hd_prop = "palisade@252x101"
 
 [node name="S11" type="Sprite2D" parent="Objects" unique_id=45141862]
 position = Vector2(554, 200)
 scale = Vector2(0.5, 0.5)
-texture = ExtResource("2_g1qqt")
+texture = ExtResource("5_qresc")
 centered = false
-offset = Vector2(-126, -116)
+offset = Vector2(-126, -146)
 region_enabled = true
-region_rect = Rect2(1478, 1438, 252, 124)
+region_rect = Rect2(2833, 1736, 252, 153)
+metadata/hd_prop = "palisade_broken@252x153"
 
 [node name="S12" type="Sprite2D" parent="Objects" unique_id=1395586185]
 position = Vector2(624, 200)
 scale = Vector2(0.5, 0.5)
-texture = ExtResource("2_g1qqt")
+texture = ExtResource("5_qresc")
 centered = false
-offset = Vector2(-126, -116)
+offset = Vector2(-126, -94)
 region_enabled = true
-region_rect = Rect2(1478, 1438, 252, 124)
+region_rect = Rect2(936, 2087, 252, 101)
+metadata/hd_prop = "palisade@252x101"
 
 [node name="S13" type="Sprite2D" parent="Objects" unique_id=1021537487]
 position = Vector2(694, 200)
 scale = Vector2(0.5, 0.5)
-texture = ExtResource("2_g1qqt")
+texture = ExtResource("5_qresc")
 centered = false
-offset = Vector2(-97, -122)
+offset = Vector2(-97, -110)
 region_enabled = true
-region_rect = Rect2(684, 1438, 194, 130)
+region_rect = Rect2(3512, 1938, 194, 118)
+metadata/hd_prop = "palisade_broken@194x118"
 
 [node name="S14" type="Sprite2D" parent="Objects" unique_id=1270003508]
 position = Vector2(764, 200)
 scale = Vector2(0.5, 0.5)
-texture = ExtResource("2_g1qqt")
+texture = ExtResource("5_qresc")
 centered = false
-offset = Vector2(-126, -116)
+offset = Vector2(-126, -146)
 region_enabled = true
-region_rect = Rect2(1478, 1438, 252, 124)
+region_rect = Rect2(2833, 1736, 252, 153)
+metadata/hd_prop = "palisade_broken@252x153"
 
 [node name="S15" type="Sprite2D" parent="Objects" unique_id=927847292]
 position = Vector2(833, 200)
 scale = Vector2(0.5, 0.5)
-texture = ExtResource("2_g1qqt")
+texture = ExtResource("5_qresc")
 centered = false
-offset = Vector2(-126, -116)
+offset = Vector2(-126, -94)
 region_enabled = true
-region_rect = Rect2(1478, 1438, 252, 124)
+region_rect = Rect2(936, 2087, 252, 101)
+metadata/hd_prop = "palisade@252x101"
 
 [node name="S16" type="Sprite2D" parent="Objects" unique_id=1316975261]
 position = Vector2(903, 200)
 scale = Vector2(0.5, 0.5)
-texture = ExtResource("2_g1qqt")
+texture = ExtResource("5_qresc")
 centered = false
-offset = Vector2(-126, -116)
+offset = Vector2(-126, -94)
 region_enabled = true
-region_rect = Rect2(1478, 1438, 252, 124)
+region_rect = Rect2(936, 2087, 252, 101)
+metadata/hd_prop = "palisade@252x101"
 
 [node name="S17" type="Sprite2D" parent="Objects" unique_id=1776946578]
 position = Vector2(973, 200)
 scale = Vector2(0.5, 0.5)
-texture = ExtResource("2_g1qqt")
+texture = ExtResource("5_qresc")
 centered = false
-offset = Vector2(-126, -116)
+offset = Vector2(-126, -146)
 region_enabled = true
-region_rect = Rect2(1478, 1438, 252, 124)
+region_rect = Rect2(2833, 1736, 252, 153)
+metadata/hd_prop = "palisade_broken@252x153"
 
 [node name="S18" type="Sprite2D" parent="Objects" unique_id=326581916]
 position = Vector2(1043, 200)
 scale = Vector2(0.5, 0.5)
-texture = ExtResource("2_g1qqt")
+texture = ExtResource("5_qresc")
 centered = false
-offset = Vector2(-97, -122)
+offset = Vector2(-97, -70)
 region_enabled = true
-region_rect = Rect2(684, 1438, 194, 130)
+region_rect = Rect2(1906, 2087, 194, 78)
+metadata/hd_prop = "palisade@194x78"
 
 [node name="S19" type="Sprite2D" parent="Objects" unique_id=1595567482]
 position = Vector2(1112, 200)
 scale = Vector2(0.5, 0.5)
-texture = ExtResource("2_g1qqt")
+texture = ExtResource("5_qresc")
 centered = false
-offset = Vector2(-126, -116)
+offset = Vector2(-126, -94)
 region_enabled = true
-region_rect = Rect2(1478, 1438, 252, 124)
+region_rect = Rect2(936, 2087, 252, 101)
+metadata/hd_prop = "palisade@252x101"
 
 [node name="S20" type="Sprite2D" parent="Objects" unique_id=1025868800]
 position = Vector2(1182, 200)
 scale = Vector2(0.5, 0.5)
-texture = ExtResource("2_g1qqt")
+texture = ExtResource("5_qresc")
 centered = false
-offset = Vector2(-97, -122)
+offset = Vector2(-97, -110)
 region_enabled = true
-region_rect = Rect2(684, 1438, 194, 130)
+region_rect = Rect2(3512, 1938, 194, 118)
+metadata/hd_prop = "palisade_broken@194x118"
 
 [node name="S21" type="Sprite2D" parent="Objects" unique_id=1707899447]
 position = Vector2(1322, 200)
 scale = Vector2(0.5, 0.5)
-texture = ExtResource("2_g1qqt")
+texture = ExtResource("5_qresc")
 centered = false
-offset = Vector2(-76, -120)
+offset = Vector2(-76, -50)
 region_enabled = true
-region_rect = Rect2(882, 1438, 152, 128)
+region_rect = Rect2(3018, 2087, 152, 58)
+metadata/hd_prop = "palisade_gap@152x58"
 
 [node name="S22" type="Sprite2D" parent="Objects" unique_id=667585339]
 position = Vector2(1391, 200)
 scale = Vector2(0.5, 0.5)
-texture = ExtResource("2_g1qqt")
+texture = ExtResource("5_qresc")
 centered = false
-offset = Vector2(-126, -116)
+offset = Vector2(-126, -94)
 region_enabled = true
-region_rect = Rect2(1478, 1438, 252, 124)
+region_rect = Rect2(936, 2087, 252, 101)
+metadata/hd_prop = "palisade@252x101"
 
 [node name="S23" type="Sprite2D" parent="Objects" unique_id=1497058544]
 position = Vector2(1461, 200)
 scale = Vector2(0.5, 0.5)
-texture = ExtResource("2_g1qqt")
+texture = ExtResource("5_qresc")
 centered = false
-offset = Vector2(-126, -116)
+offset = Vector2(-126, -94)
 region_enabled = true
-region_rect = Rect2(1478, 1438, 252, 124)
+region_rect = Rect2(936, 2087, 252, 101)
+metadata/hd_prop = "palisade@252x101"
 
 [node name="S24" type="Sprite2D" parent="Objects" unique_id=682262386]
 position = Vector2(1531, 200)
 scale = Vector2(0.5, 0.5)
-texture = ExtResource("2_g1qqt")
+texture = ExtResource("5_qresc")
 centered = false
-offset = Vector2(-126, -116)
+offset = Vector2(-126, -146)
 region_enabled = true
-region_rect = Rect2(1478, 1438, 252, 124)
+region_rect = Rect2(2833, 1736, 252, 153)
+metadata/hd_prop = "palisade_broken@252x153"
 
 [node name="S25" type="Sprite2D" parent="Objects" unique_id=424778639]
 position = Vector2(1601, 200)
 scale = Vector2(0.5, 0.5)
-texture = ExtResource("2_g1qqt")
+texture = ExtResource("5_qresc")
 centered = false
-offset = Vector2(-76, -120)
+offset = Vector2(-76, -50)
 region_enabled = true
-region_rect = Rect2(882, 1438, 152, 128)
+region_rect = Rect2(3018, 2087, 152, 58)
+metadata/hd_prop = "palisade_gap@152x58"
 
 [node name="S26" type="Sprite2D" parent="Objects" unique_id=1519427643]
 position = Vector2(1670, 200)
 scale = Vector2(0.5, 0.5)
-texture = ExtResource("2_g1qqt")
+texture = ExtResource("5_qresc")
 centered = false
-offset = Vector2(-126, -116)
+offset = Vector2(-126, -94)
 region_enabled = true
-region_rect = Rect2(1478, 1438, 252, 124)
+region_rect = Rect2(936, 2087, 252, 101)
+metadata/hd_prop = "palisade@252x101"
 
 [node name="S27" type="Sprite2D" parent="Objects" unique_id=1802585045]
 position = Vector2(1740, 200)
 scale = Vector2(0.5, 0.5)
-texture = ExtResource("2_g1qqt")
+texture = ExtResource("5_qresc")
 centered = false
-offset = Vector2(-97, -122)
+offset = Vector2(-97, -70)
 region_enabled = true
-region_rect = Rect2(684, 1438, 194, 130)
+region_rect = Rect2(1906, 2087, 194, 78)
+metadata/hd_prop = "palisade@194x78"
 
 [node name="S28" type="Sprite2D" parent="Objects" unique_id=1065772682]
 position = Vector2(1960, 200)
 scale = Vector2(0.5, 0.5)
-texture = ExtResource("2_g1qqt")
+texture = ExtResource("5_qresc")
 centered = false
-offset = Vector2(-126, -116)
+offset = Vector2(-126, -94)
 region_enabled = true
-region_rect = Rect2(1478, 1438, 252, 124)
+region_rect = Rect2(936, 2087, 252, 101)
+metadata/hd_prop = "palisade@252x101"
 
 [node name="S29" type="Sprite2D" parent="Objects" unique_id=1315610090]
 position = Vector2(2029, 200)
 scale = Vector2(0.5, 0.5)
-texture = ExtResource("2_g1qqt")
+texture = ExtResource("5_qresc")
 centered = false
-offset = Vector2(-126, -116)
+offset = Vector2(-126, -94)
 region_enabled = true
-region_rect = Rect2(1478, 1438, 252, 124)
+region_rect = Rect2(936, 2087, 252, 101)
+metadata/hd_prop = "palisade@252x101"
 
 [node name="S30" type="Sprite2D" parent="Objects" unique_id=797437481]
 position = Vector2(2097, 200)
 scale = Vector2(0.5, 0.5)
-texture = ExtResource("2_g1qqt")
+texture = ExtResource("5_qresc")
 centered = false
-offset = Vector2(-97, -122)
+offset = Vector2(-97, -70)
 region_enabled = true
-region_rect = Rect2(684, 1438, 194, 130)
+region_rect = Rect2(1906, 2087, 194, 78)
+metadata/hd_prop = "palisade@194x78"
 
 [node name="S31" type="Sprite2D" parent="Objects" unique_id=374052460]
 position = Vector2(2166, 200)
 scale = Vector2(0.5, 0.5)
-texture = ExtResource("2_g1qqt")
+texture = ExtResource("5_qresc")
 centered = false
-offset = Vector2(-126, -116)
+offset = Vector2(-126, -146)
 region_enabled = true
-region_rect = Rect2(1478, 1438, 252, 124)
+region_rect = Rect2(2833, 1736, 252, 153)
+metadata/hd_prop = "palisade_broken@252x153"
 
 [node name="S32" type="Sprite2D" parent="Objects" unique_id=193993451]
 position = Vector2(2234, 200)
 scale = Vector2(0.5, 0.5)
-texture = ExtResource("2_g1qqt")
+texture = ExtResource("5_qresc")
 centered = false
-offset = Vector2(-126, -116)
+offset = Vector2(-126, -94)
 region_enabled = true
-region_rect = Rect2(1478, 1438, 252, 124)
+region_rect = Rect2(936, 2087, 252, 101)
+metadata/hd_prop = "palisade@252x101"
 
 [node name="S33" type="Sprite2D" parent="Objects" unique_id=1162814181]
 position = Vector2(2303, 200)
 scale = Vector2(0.5, 0.5)
-texture = ExtResource("2_g1qqt")
+texture = ExtResource("5_qresc")
 centered = false
-offset = Vector2(-76, -120)
+offset = Vector2(-76, -50)
 region_enabled = true
-region_rect = Rect2(882, 1438, 152, 128)
+region_rect = Rect2(3018, 2087, 152, 58)
+metadata/hd_prop = "palisade_gap@152x58"
 
 [node name="S34" type="Sprite2D" parent="Objects" unique_id=37956543]
 position = Vector2(2371, 200)
 scale = Vector2(0.5, 0.5)
-texture = ExtResource("2_g1qqt")
+texture = ExtResource("5_qresc")
 centered = false
-offset = Vector2(-97, -122)
+offset = Vector2(-97, -70)
 region_enabled = true
-region_rect = Rect2(684, 1438, 194, 130)
+region_rect = Rect2(1906, 2087, 194, 78)
+metadata/hd_prop = "palisade@194x78"
 
 [node name="S35" type="Sprite2D" parent="Objects" unique_id=172408323]
 position = Vector2(2440, 200)
 scale = Vector2(0.5, 0.5)
-texture = ExtResource("2_g1qqt")
+texture = ExtResource("5_qresc")
 centered = false
-offset = Vector2(-126, -116)
+offset = Vector2(-126, -94)
 region_enabled = true
-region_rect = Rect2(1478, 1438, 252, 124)
+region_rect = Rect2(936, 2087, 252, 101)
+metadata/hd_prop = "palisade@252x101"
 
 [node name="S36" type="Sprite2D" parent="Objects" unique_id=896228778]
 position = Vector2(2431, 214)
 scale = Vector2(0.5, 0.5)
-texture = ExtResource("2_g1qqt")
+texture = ExtResource("5_qresc")
 centered = false
-offset = Vector2(-17, -116)
+offset = Vector2(-17, -119)
 region_enabled = true
-region_rect = Rect2(1440, 1438, 34, 124)
+region_rect = Rect2(3097, 1938, 34, 127)
+metadata/hd_prop = "stake_a@34x127"
 
 [node name="S37" type="Sprite2D" parent="Objects" unique_id=1077891741]
 position = Vector2(2449, 214)
 scale = Vector2(0.5, 0.5)
-texture = ExtResource("2_g1qqt")
+texture = ExtResource("5_qresc")
 centered = false
-offset = Vector2(-17, -116)
+offset = Vector2(-17, -145)
 region_enabled = true
-region_rect = Rect2(1440, 1438, 34, 124)
+region_rect = Rect2(3087, 1736, 34, 153)
+metadata/hd_prop = "stake_b@34x153"
 
 [node name="S38" type="Sprite2D" parent="Objects" unique_id=1878720713]
 position = Vector2(2440, 218)
 scale = Vector2(0.5, 0.5)
-texture = ExtResource("2_g1qqt")
+texture = ExtResource("5_qresc")
 centered = false
-offset = Vector2(-17, -116)
+offset = Vector2(-17, -119)
 region_enabled = true
-region_rect = Rect2(1440, 1438, 34, 124)
+region_rect = Rect2(3097, 1938, 34, 127)
+metadata/hd_prop = "stake_a@34x127"
 
 [node name="S39" type="Sprite2D" parent="Objects" unique_id=603029179]
 position = Vector2(2431, 227)
 scale = Vector2(0.5, 0.5)
-texture = ExtResource("2_g1qqt")
+texture = ExtResource("5_qresc")
 centered = false
-offset = Vector2(-17, -116)
+offset = Vector2(-17, -145)
 region_enabled = true
-region_rect = Rect2(1440, 1438, 34, 124)
+region_rect = Rect2(3087, 1736, 34, 153)
+metadata/hd_prop = "stake_b@34x153"
 
 [node name="S40" type="Sprite2D" parent="Objects" unique_id=541312215]
 position = Vector2(2449, 227)
 scale = Vector2(0.5, 0.5)
-texture = ExtResource("2_g1qqt")
+texture = ExtResource("5_qresc")
 centered = false
-offset = Vector2(-17, -116)
+offset = Vector2(-17, -145)
 region_enabled = true
-region_rect = Rect2(1440, 1438, 34, 124)
+region_rect = Rect2(3087, 1736, 34, 153)
+metadata/hd_prop = "stake_b@34x153"
 
 [node name="S41" type="Sprite2D" parent="Objects" unique_id=1097110843]
 position = Vector2(2440, 231)
 scale = Vector2(0.5, 0.5)
-texture = ExtResource("2_g1qqt")
+texture = ExtResource("5_qresc")
 centered = false
-offset = Vector2(-18, -116)
+offset = Vector2(-18, -115)
 region_enabled = true
-region_rect = Rect2(1400, 1438, 36, 124)
+region_rect = Rect2(3289, 1938, 33, 123)
+metadata/hd_prop = "stake_a@33x123"
 
 [node name="S42" type="Sprite2D" parent="Objects" unique_id=1940499968]
 position = Vector2(2431, 240)
 scale = Vector2(0.5, 0.5)
-texture = ExtResource("2_g1qqt")
+texture = ExtResource("5_qresc")
 centered = false
-offset = Vector2(-16, -94)
+offset = Vector2(-16, -111)
 region_enabled = true
-region_rect = Rect2(2704, 1438, 32, 102)
+region_rect = Rect2(3324, 1938, 32, 119)
+metadata/hd_prop = "stake_a@32x119"
 
 [node name="S43" type="Sprite2D" parent="Objects" unique_id=396679102]
 position = Vector2(2449, 240)
 scale = Vector2(0.5, 0.5)
-texture = ExtResource("2_g1qqt")
+texture = ExtResource("5_qresc")
 centered = false
-offset = Vector2(-18, -116)
+offset = Vector2(-18, -115)
 region_enabled = true
-region_rect = Rect2(1400, 1438, 36, 124)
+region_rect = Rect2(3289, 1938, 33, 123)
+metadata/hd_prop = "stake_a@33x123"
 
 [node name="S44" type="Sprite2D" parent="Objects" unique_id=870799444]
 position = Vector2(2440, 244)
 scale = Vector2(0.5, 0.5)
-texture = ExtResource("2_g1qqt")
+texture = ExtResource("5_qresc")
 centered = false
-offset = Vector2(-18, -116)
+offset = Vector2(-18, -140)
 region_enabled = true
-region_rect = Rect2(1400, 1438, 36, 124)
+region_rect = Rect2(3713, 1736, 33, 148)
+metadata/hd_prop = "stake_b@33x148"
 
 [node name="S45" type="Sprite2D" parent="Objects" unique_id=512922517]
 position = Vector2(2431, 253)
 scale = Vector2(0.5, 0.5)
-texture = ExtResource("2_g1qqt")
+texture = ExtResource("5_qresc")
 centered = false
-offset = Vector2(-18, -116)
+offset = Vector2(-18, -115)
 region_enabled = true
-region_rect = Rect2(1400, 1438, 36, 124)
+region_rect = Rect2(3289, 1938, 33, 123)
+metadata/hd_prop = "stake_a@33x123"
 
 [node name="S46" type="Sprite2D" parent="Objects" unique_id=1677058470]
 position = Vector2(2449, 253)
 scale = Vector2(0.5, 0.5)
-texture = ExtResource("2_g1qqt")
+texture = ExtResource("5_qresc")
 centered = false
-offset = Vector2(-18, -116)
+offset = Vector2(-18, -140)
 region_enabled = true
-region_rect = Rect2(1400, 1438, 36, 124)
+region_rect = Rect2(3713, 1736, 33, 148)
+metadata/hd_prop = "stake_b@33x148"
 
 [node name="S47" type="Sprite2D" parent="Objects" unique_id=631668184]
 position = Vector2(2440, 257)
 scale = Vector2(0.5, 0.5)
-texture = ExtResource("2_g1qqt")
+texture = ExtResource("5_qresc")
 centered = false
-offset = Vector2(-16, -94)
+offset = Vector2(-16, -136)
 region_enabled = true
-region_rect = Rect2(2704, 1438, 32, 102)
+region_rect = Rect2(1142, 1938, 32, 144)
+metadata/hd_prop = "stake_b@32x144"
 
 [node name="S48" type="Sprite2D" parent="Objects" unique_id=1850681750]
 position = Vector2(2431, 266)
 scale = Vector2(0.5, 0.5)
-texture = ExtResource("2_g1qqt")
+texture = ExtResource("5_qresc")
 centered = false
-offset = Vector2(-18, -116)
+offset = Vector2(-18, -140)
 region_enabled = true
-region_rect = Rect2(1400, 1438, 36, 124)
+region_rect = Rect2(3713, 1736, 33, 148)
+metadata/hd_prop = "stake_b@33x148"
 
 [node name="S49" type="Sprite2D" parent="Objects" unique_id=1077130575]
 position = Vector2(2449, 266)
 scale = Vector2(0.5, 0.5)
-texture = ExtResource("2_g1qqt")
+texture = ExtResource("5_qresc")
 centered = false
-offset = Vector2(-18, -116)
+offset = Vector2(-18, -115)
 region_enabled = true
-region_rect = Rect2(1400, 1438, 36, 124)
+region_rect = Rect2(3289, 1938, 33, 123)
+metadata/hd_prop = "stake_a@33x123"
 
 [node name="S50" type="Sprite2D" parent="Objects" unique_id=575446184]
 position = Vector2(2440, 270)
 scale = Vector2(0.5, 0.5)
-texture = ExtResource("2_g1qqt")
+texture = ExtResource("5_qresc")
 centered = false
-offset = Vector2(-17, -116)
+offset = Vector2(-17, -119)
 region_enabled = true
-region_rect = Rect2(1440, 1438, 34, 124)
+region_rect = Rect2(3097, 1938, 34, 127)
+metadata/hd_prop = "stake_a@34x127"
 
 [node name="S51" type="Sprite2D" parent="Objects" unique_id=732959096]
 position = Vector2(2431, 279)
 scale = Vector2(0.5, 0.5)
-texture = ExtResource("2_g1qqt")
+texture = ExtResource("5_qresc")
 centered = false
-offset = Vector2(-18, -116)
+offset = Vector2(-18, -140)
 region_enabled = true
-region_rect = Rect2(1400, 1438, 36, 124)
+region_rect = Rect2(3713, 1736, 33, 148)
+metadata/hd_prop = "stake_b@33x148"
 
 [node name="S52" type="Sprite2D" parent="Objects" unique_id=666868183]
 position = Vector2(2449, 279)
 scale = Vector2(0.5, 0.5)
-texture = ExtResource("2_g1qqt")
+texture = ExtResource("5_qresc")
 centered = false
-offset = Vector2(-18, -116)
+offset = Vector2(-18, -115)
 region_enabled = true
-region_rect = Rect2(1400, 1438, 36, 124)
+region_rect = Rect2(3289, 1938, 33, 123)
+metadata/hd_prop = "stake_a@33x123"
 
 [node name="S53" type="Sprite2D" parent="Objects" unique_id=76931056]
 position = Vector2(2440, 283)
 scale = Vector2(0.5, 0.5)
-texture = ExtResource("2_g1qqt")
+texture = ExtResource("5_qresc")
 centered = false
-offset = Vector2(-17, -116)
+offset = Vector2(-17, -145)
 region_enabled = true
-region_rect = Rect2(1440, 1438, 34, 124)
+region_rect = Rect2(3087, 1736, 34, 153)
+metadata/hd_prop = "stake_b@34x153"
 
 [node name="S54" type="Sprite2D" parent="Objects" unique_id=128215539]
 position = Vector2(2431, 292)
 scale = Vector2(0.5, 0.5)
-texture = ExtResource("2_g1qqt")
+texture = ExtResource("5_qresc")
 centered = false
-offset = Vector2(-17, -116)
+offset = Vector2(-17, -119)
 region_enabled = true
-region_rect = Rect2(1440, 1438, 34, 124)
+region_rect = Rect2(3097, 1938, 34, 127)
+metadata/hd_prop = "stake_a@34x127"
 
 [node name="S55" type="Sprite2D" parent="Objects" unique_id=1063007817]
 position = Vector2(2449, 292)
 scale = Vector2(0.5, 0.5)
-texture = ExtResource("2_g1qqt")
+texture = ExtResource("5_qresc")
 centered = false
-offset = Vector2(-18, -116)
+offset = Vector2(-18, -140)
 region_enabled = true
-region_rect = Rect2(1400, 1438, 36, 124)
+region_rect = Rect2(3713, 1736, 33, 148)
+metadata/hd_prop = "stake_b@33x148"
 
 [node name="S56" type="Sprite2D" parent="Objects" unique_id=666006675]
 position = Vector2(2440, 296)
 scale = Vector2(0.5, 0.5)
-texture = ExtResource("2_g1qqt")
+texture = ExtResource("5_qresc")
 centered = false
-offset = Vector2(-16, -94)
+offset = Vector2(-16, -136)
 region_enabled = true
-region_rect = Rect2(2704, 1438, 32, 102)
+region_rect = Rect2(1142, 1938, 32, 144)
+metadata/hd_prop = "stake_b@32x144"
 
 [node name="S57" type="Sprite2D" parent="Objects" unique_id=43921158]
 position = Vector2(2431, 305)
 scale = Vector2(0.5, 0.5)
-texture = ExtResource("2_g1qqt")
+texture = ExtResource("5_qresc")
 centered = false
-offset = Vector2(-16, -94)
+offset = Vector2(-16, -111)
 region_enabled = true
-region_rect = Rect2(2704, 1438, 32, 102)
+region_rect = Rect2(3324, 1938, 32, 119)
+metadata/hd_prop = "stake_a@32x119"
 
 [node name="S58" type="Sprite2D" parent="Objects" unique_id=1499037539]
 position = Vector2(2449, 305)
 scale = Vector2(0.5, 0.5)
-texture = ExtResource("2_g1qqt")
+texture = ExtResource("5_qresc")
 centered = false
-offset = Vector2(-16, -94)
+offset = Vector2(-16, -136)
 region_enabled = true
-region_rect = Rect2(2704, 1438, 32, 102)
+region_rect = Rect2(1142, 1938, 32, 144)
+metadata/hd_prop = "stake_b@32x144"
 
 [node name="S59" type="Sprite2D" parent="Objects" unique_id=2100293101]
 position = Vector2(2440, 309)
 scale = Vector2(0.5, 0.5)
-texture = ExtResource("2_g1qqt")
+texture = ExtResource("5_qresc")
 centered = false
-offset = Vector2(-17, -116)
+offset = Vector2(-17, -145)
 region_enabled = true
-region_rect = Rect2(1440, 1438, 34, 124)
+region_rect = Rect2(3087, 1736, 34, 153)
+metadata/hd_prop = "stake_b@34x153"
 
 [node name="S60" type="Sprite2D" parent="Objects" unique_id=527999163]
 position = Vector2(2431, 318)
 scale = Vector2(0.5, 0.5)
-texture = ExtResource("2_g1qqt")
+texture = ExtResource("5_qresc")
 centered = false
-offset = Vector2(-17, -116)
+offset = Vector2(-17, -145)
 region_enabled = true
-region_rect = Rect2(1440, 1438, 34, 124)
+region_rect = Rect2(3087, 1736, 34, 153)
+metadata/hd_prop = "stake_b@34x153"
 
 [node name="S61" type="Sprite2D" parent="Objects" unique_id=404752346]
 position = Vector2(2449, 318)
 scale = Vector2(0.5, 0.5)
-texture = ExtResource("2_g1qqt")
+texture = ExtResource("5_qresc")
 centered = false
-offset = Vector2(-18, -116)
+offset = Vector2(-18, -115)
 region_enabled = true
-region_rect = Rect2(1400, 1438, 36, 124)
+region_rect = Rect2(3289, 1938, 33, 123)
+metadata/hd_prop = "stake_a@33x123"
 
 [node name="S62" type="Sprite2D" parent="Objects" unique_id=1433996962]
 position = Vector2(2440, 322)
 scale = Vector2(0.5, 0.5)
-texture = ExtResource("2_g1qqt")
+texture = ExtResource("5_qresc")
 centered = false
-offset = Vector2(-17, -116)
+offset = Vector2(-17, -145)
 region_enabled = true
-region_rect = Rect2(1440, 1438, 34, 124)
+region_rect = Rect2(3087, 1736, 34, 153)
+metadata/hd_prop = "stake_b@34x153"
 
 [node name="S63" type="Sprite2D" parent="Objects" unique_id=1577986482]
 position = Vector2(2431, 331)
 scale = Vector2(0.5, 0.5)
-texture = ExtResource("2_g1qqt")
+texture = ExtResource("5_qresc")
 centered = false
-offset = Vector2(-16, -94)
+offset = Vector2(-16, -136)
 region_enabled = true
-region_rect = Rect2(2704, 1438, 32, 102)
+region_rect = Rect2(1142, 1938, 32, 144)
+metadata/hd_prop = "stake_b@32x144"
 
 [node name="S64" type="Sprite2D" parent="Objects" unique_id=1361063073]
 position = Vector2(2449, 331)
 scale = Vector2(0.5, 0.5)
-texture = ExtResource("2_g1qqt")
+texture = ExtResource("5_qresc")
 centered = false
-offset = Vector2(-18, -116)
+offset = Vector2(-18, -140)
 region_enabled = true
-region_rect = Rect2(1400, 1438, 36, 124)
+region_rect = Rect2(3713, 1736, 33, 148)
+metadata/hd_prop = "stake_b@33x148"
 
 [node name="S65" type="Sprite2D" parent="Objects" unique_id=1951663284]
 position = Vector2(2440, 335)
 scale = Vector2(0.5, 0.5)
-texture = ExtResource("2_g1qqt")
+texture = ExtResource("5_qresc")
 centered = false
-offset = Vector2(-17, -116)
+offset = Vector2(-17, -119)
 region_enabled = true
-region_rect = Rect2(1440, 1438, 34, 124)
+region_rect = Rect2(3097, 1938, 34, 127)
+metadata/hd_prop = "stake_a@34x127"
 
 [node name="S66" type="Sprite2D" parent="Objects" unique_id=78329565]
 position = Vector2(2431, 344)
 scale = Vector2(0.5, 0.5)
-texture = ExtResource("2_g1qqt")
+texture = ExtResource("5_qresc")
 centered = false
-offset = Vector2(-16, -94)
+offset = Vector2(-16, -111)
 region_enabled = true
-region_rect = Rect2(2704, 1438, 32, 102)
+region_rect = Rect2(3324, 1938, 32, 119)
+metadata/hd_prop = "stake_a@32x119"
 
 [node name="S67" type="Sprite2D" parent="Objects" unique_id=670999308]
 position = Vector2(2449, 344)
 scale = Vector2(0.5, 0.5)
-texture = ExtResource("2_g1qqt")
+texture = ExtResource("5_qresc")
 centered = false
-offset = Vector2(-17, -116)
+offset = Vector2(-17, -119)
 region_enabled = true
-region_rect = Rect2(1440, 1438, 34, 124)
+region_rect = Rect2(3097, 1938, 34, 127)
+metadata/hd_prop = "stake_a@34x127"
 
 [node name="S68" type="Sprite2D" parent="Objects" unique_id=1233061630]
 position = Vector2(2440, 348)
 scale = Vector2(0.5, 0.5)
-texture = ExtResource("2_g1qqt")
+texture = ExtResource("5_qresc")
 centered = false
-offset = Vector2(-18, -116)
+offset = Vector2(-18, -140)
 region_enabled = true
-region_rect = Rect2(1400, 1438, 36, 124)
+region_rect = Rect2(3713, 1736, 33, 148)
+metadata/hd_prop = "stake_b@33x148"
 
 [node name="S69" type="Sprite2D" parent="Objects" unique_id=735362573]
 position = Vector2(2431, 357)
 scale = Vector2(0.5, 0.5)
-texture = ExtResource("2_g1qqt")
+texture = ExtResource("5_qresc")
 centered = false
-offset = Vector2(-17, -116)
+offset = Vector2(-17, -119)
 region_enabled = true
-region_rect = Rect2(1440, 1438, 34, 124)
+region_rect = Rect2(3097, 1938, 34, 127)
+metadata/hd_prop = "stake_a@34x127"
 
 [node name="S70" type="Sprite2D" parent="Objects" unique_id=1607699913]
 position = Vector2(2449, 357)
 scale = Vector2(0.5, 0.5)
-texture = ExtResource("2_g1qqt")
+texture = ExtResource("5_qresc")
 centered = false
-offset = Vector2(-18, -116)
+offset = Vector2(-18, -115)
 region_enabled = true
-region_rect = Rect2(1400, 1438, 36, 124)
+region_rect = Rect2(3289, 1938, 33, 123)
+metadata/hd_prop = "stake_a@33x123"
 
 [node name="S71" type="Sprite2D" parent="Objects" unique_id=1864890209]
 position = Vector2(2440, 361)
 scale = Vector2(0.5, 0.5)
-texture = ExtResource("2_g1qqt")
+texture = ExtResource("5_qresc")
 centered = false
-offset = Vector2(-18, -116)
+offset = Vector2(-18, -140)
 region_enabled = true
-region_rect = Rect2(1400, 1438, 36, 124)
+region_rect = Rect2(3713, 1736, 33, 148)
+metadata/hd_prop = "stake_b@33x148"
 
 [node name="S72" type="Sprite2D" parent="Objects" unique_id=1914528569]
 position = Vector2(2431, 370)
 scale = Vector2(0.5, 0.5)
-texture = ExtResource("2_g1qqt")
+texture = ExtResource("5_qresc")
 centered = false
-offset = Vector2(-17, -116)
+offset = Vector2(-17, -119)
 region_enabled = true
-region_rect = Rect2(1440, 1438, 34, 124)
+region_rect = Rect2(3097, 1938, 34, 127)
+metadata/hd_prop = "stake_a@34x127"
 
 [node name="S73" type="Sprite2D" parent="Objects" unique_id=887101416]
 position = Vector2(2449, 370)
 scale = Vector2(0.5, 0.5)
-texture = ExtResource("2_g1qqt")
+texture = ExtResource("5_qresc")
 centered = false
-offset = Vector2(-16, -94)
+offset = Vector2(-16, -111)
 region_enabled = true
-region_rect = Rect2(2704, 1438, 32, 102)
+region_rect = Rect2(3324, 1938, 32, 119)
+metadata/hd_prop = "stake_a@32x119"
 
 [node name="S74" type="Sprite2D" parent="Objects" unique_id=739165881]
 position = Vector2(2440, 374)
 scale = Vector2(0.5, 0.5)
-texture = ExtResource("2_g1qqt")
+texture = ExtResource("5_qresc")
 centered = false
-offset = Vector2(-16, -94)
+offset = Vector2(-16, -136)
 region_enabled = true
-region_rect = Rect2(2704, 1438, 32, 102)
+region_rect = Rect2(1142, 1938, 32, 144)
+metadata/hd_prop = "stake_b@32x144"
 
 [node name="S75" type="Sprite2D" parent="Objects" unique_id=1618356836]
 position = Vector2(2431, 383)
 scale = Vector2(0.5, 0.5)
-texture = ExtResource("2_g1qqt")
+texture = ExtResource("5_qresc")
 centered = false
-offset = Vector2(-18, -116)
+offset = Vector2(-18, -140)
 region_enabled = true
-region_rect = Rect2(1400, 1438, 36, 124)
+region_rect = Rect2(3713, 1736, 33, 148)
+metadata/hd_prop = "stake_b@33x148"
 
 [node name="S76" type="Sprite2D" parent="Objects" unique_id=628424778]
 position = Vector2(2449, 383)
 scale = Vector2(0.5, 0.5)
-texture = ExtResource("2_g1qqt")
+texture = ExtResource("5_qresc")
 centered = false
-offset = Vector2(-17, -116)
+offset = Vector2(-17, -119)
 region_enabled = true
-region_rect = Rect2(1440, 1438, 34, 124)
+region_rect = Rect2(3097, 1938, 34, 127)
+metadata/hd_prop = "stake_a@34x127"
 
 [node name="S77" type="Sprite2D" parent="Objects" unique_id=1117040029]
 position = Vector2(2440, 387)
 scale = Vector2(0.5, 0.5)
-texture = ExtResource("2_g1qqt")
+texture = ExtResource("5_qresc")
 centered = false
-offset = Vector2(-17, -116)
+offset = Vector2(-17, -145)
 region_enabled = true
-region_rect = Rect2(1440, 1438, 34, 124)
+region_rect = Rect2(3087, 1736, 34, 153)
+metadata/hd_prop = "stake_b@34x153"
 
 [node name="S78" type="Sprite2D" parent="Objects" unique_id=1418505834]
 position = Vector2(2431, 396)
 scale = Vector2(0.5, 0.5)
-texture = ExtResource("2_g1qqt")
+texture = ExtResource("5_qresc")
 centered = false
-offset = Vector2(-18, -116)
+offset = Vector2(-18, -115)
 region_enabled = true
-region_rect = Rect2(1400, 1438, 36, 124)
+region_rect = Rect2(3289, 1938, 33, 123)
+metadata/hd_prop = "stake_a@33x123"
 
 [node name="S79" type="Sprite2D" parent="Objects" unique_id=142868432]
 position = Vector2(2449, 396)
 scale = Vector2(0.5, 0.5)
-texture = ExtResource("2_g1qqt")
+texture = ExtResource("5_qresc")
 centered = false
-offset = Vector2(-16, -94)
+offset = Vector2(-16, -111)
 region_enabled = true
-region_rect = Rect2(2704, 1438, 32, 102)
+region_rect = Rect2(3324, 1938, 32, 119)
+metadata/hd_prop = "stake_a@32x119"
 
 [node name="S80" type="Sprite2D" parent="Objects" unique_id=1980780753]
 position = Vector2(2440, 400)
 scale = Vector2(0.5, 0.5)
-texture = ExtResource("2_g1qqt")
+texture = ExtResource("5_qresc")
 centered = false
-offset = Vector2(-16, -94)
+offset = Vector2(-16, -111)
 region_enabled = true
-region_rect = Rect2(2704, 1438, 32, 102)
+region_rect = Rect2(3324, 1938, 32, 119)
+metadata/hd_prop = "stake_a@32x119"
 
 [node name="S81" type="Sprite2D" parent="Objects" unique_id=759690953]
 position = Vector2(2431, 409)
 scale = Vector2(0.5, 0.5)
-texture = ExtResource("2_g1qqt")
+texture = ExtResource("5_qresc")
 centered = false
-offset = Vector2(-18, -116)
+offset = Vector2(-18, -115)
 region_enabled = true
-region_rect = Rect2(1400, 1438, 36, 124)
+region_rect = Rect2(3289, 1938, 33, 123)
+metadata/hd_prop = "stake_a@33x123"
 
 [node name="S82" type="Sprite2D" parent="Objects" unique_id=1883721403]
 position = Vector2(2449, 409)
 scale = Vector2(0.5, 0.5)
-texture = ExtResource("2_g1qqt")
+texture = ExtResource("5_qresc")
 centered = false
-offset = Vector2(-16, -94)
+offset = Vector2(-16, -111)
 region_enabled = true
-region_rect = Rect2(2704, 1438, 32, 102)
+region_rect = Rect2(3324, 1938, 32, 119)
+metadata/hd_prop = "stake_a@32x119"
 
 [node name="S83" type="Sprite2D" parent="Objects" unique_id=969016446]
 position = Vector2(2440, 413)
 scale = Vector2(0.5, 0.5)
-texture = ExtResource("2_g1qqt")
+texture = ExtResource("5_qresc")
 centered = false
-offset = Vector2(-16, -94)
+offset = Vector2(-16, -136)
 region_enabled = true
-region_rect = Rect2(2704, 1438, 32, 102)
+region_rect = Rect2(1142, 1938, 32, 144)
+metadata/hd_prop = "stake_b@32x144"
 
 [node name="S84" type="Sprite2D" parent="Objects" unique_id=203194864]
 position = Vector2(2431, 422)
 scale = Vector2(0.5, 0.5)
-texture = ExtResource("2_g1qqt")
+texture = ExtResource("5_qresc")
 centered = false
-offset = Vector2(-17, -116)
+offset = Vector2(-17, -145)
 region_enabled = true
-region_rect = Rect2(1440, 1438, 34, 124)
+region_rect = Rect2(3087, 1736, 34, 153)
+metadata/hd_prop = "stake_b@34x153"
 
 [node name="S85" type="Sprite2D" parent="Objects" unique_id=1371917553]
 position = Vector2(2449, 422)
 scale = Vector2(0.5, 0.5)
-texture = ExtResource("2_g1qqt")
+texture = ExtResource("5_qresc")
 centered = false
-offset = Vector2(-17, -116)
+offset = Vector2(-17, -119)
 region_enabled = true
-region_rect = Rect2(1440, 1438, 34, 124)
+region_rect = Rect2(3097, 1938, 34, 127)
+metadata/hd_prop = "stake_a@34x127"
 
 [node name="S86" type="Sprite2D" parent="Objects" unique_id=1980928383]
 position = Vector2(2440, 426)
 scale = Vector2(0.5, 0.5)
-texture = ExtResource("2_g1qqt")
+texture = ExtResource("5_qresc")
 centered = false
-offset = Vector2(-16, -94)
+offset = Vector2(-16, -111)
 region_enabled = true
-region_rect = Rect2(2704, 1438, 32, 102)
+region_rect = Rect2(3324, 1938, 32, 119)
+metadata/hd_prop = "stake_a@32x119"
 
 [node name="S87" type="Sprite2D" parent="Objects" unique_id=2113729798]
 position = Vector2(2431, 435)
 scale = Vector2(0.5, 0.5)
-texture = ExtResource("2_g1qqt")
+texture = ExtResource("5_qresc")
 centered = false
-offset = Vector2(-16, -94)
+offset = Vector2(-16, -136)
 region_enabled = true
-region_rect = Rect2(2704, 1438, 32, 102)
+region_rect = Rect2(1142, 1938, 32, 144)
+metadata/hd_prop = "stake_b@32x144"
 
 [node name="S88" type="Sprite2D" parent="Objects" unique_id=109464889]
 position = Vector2(2449, 435)
 scale = Vector2(0.5, 0.5)
-texture = ExtResource("2_g1qqt")
+texture = ExtResource("5_qresc")
 centered = false
-offset = Vector2(-17, -116)
+offset = Vector2(-17, -145)
 region_enabled = true
-region_rect = Rect2(1440, 1438, 34, 124)
+region_rect = Rect2(3087, 1736, 34, 153)
+metadata/hd_prop = "stake_b@34x153"
 
 [node name="S89" type="Sprite2D" parent="Objects" unique_id=1723395093]
 position = Vector2(2440, 439)
 scale = Vector2(0.5, 0.5)
-texture = ExtResource("2_g1qqt")
+texture = ExtResource("5_qresc")
 centered = false
-offset = Vector2(-17, -116)
+offset = Vector2(-17, -119)
 region_enabled = true
-region_rect = Rect2(1440, 1438, 34, 124)
+region_rect = Rect2(3097, 1938, 34, 127)
+metadata/hd_prop = "stake_a@34x127"
 
 [node name="S90" type="Sprite2D" parent="Objects" unique_id=710451849]
 position = Vector2(2431, 448)
 scale = Vector2(0.5, 0.5)
-texture = ExtResource("2_g1qqt")
+texture = ExtResource("5_qresc")
 centered = false
-offset = Vector2(-17, -116)
+offset = Vector2(-17, -119)
 region_enabled = true
-region_rect = Rect2(1440, 1438, 34, 124)
+region_rect = Rect2(3097, 1938, 34, 127)
+metadata/hd_prop = "stake_a@34x127"
 
 [node name="S91" type="Sprite2D" parent="Objects" unique_id=1536395848]
 position = Vector2(2449, 448)
 scale = Vector2(0.5, 0.5)
-texture = ExtResource("2_g1qqt")
+texture = ExtResource("5_qresc")
 centered = false
-offset = Vector2(-16, -94)
+offset = Vector2(-16, -111)
 region_enabled = true
-region_rect = Rect2(2704, 1438, 32, 102)
+region_rect = Rect2(3324, 1938, 32, 119)
+metadata/hd_prop = "stake_a@32x119"
 
 [node name="S92" type="Sprite2D" parent="Objects" unique_id=1407711962]
 position = Vector2(2440, 452)
 scale = Vector2(0.5, 0.5)
-texture = ExtResource("2_g1qqt")
+texture = ExtResource("5_qresc")
 centered = false
-offset = Vector2(-18, -116)
+offset = Vector2(-18, -115)
 region_enabled = true
-region_rect = Rect2(1400, 1438, 36, 124)
+region_rect = Rect2(3289, 1938, 33, 123)
+metadata/hd_prop = "stake_a@33x123"
 
 [node name="S93" type="Sprite2D" parent="Objects" unique_id=904970289]
 position = Vector2(2431, 461)
 scale = Vector2(0.5, 0.5)
-texture = ExtResource("2_g1qqt")
+texture = ExtResource("5_qresc")
 centered = false
-offset = Vector2(-16, -94)
+offset = Vector2(-16, -111)
 region_enabled = true
-region_rect = Rect2(2704, 1438, 32, 102)
+region_rect = Rect2(3324, 1938, 32, 119)
+metadata/hd_prop = "stake_a@32x119"
 
 [node name="S94" type="Sprite2D" parent="Objects" unique_id=498849534]
 position = Vector2(2449, 461)
 scale = Vector2(0.5, 0.5)
-texture = ExtResource("2_g1qqt")
+texture = ExtResource("5_qresc")
 centered = false
-offset = Vector2(-16, -94)
+offset = Vector2(-16, -136)
 region_enabled = true
-region_rect = Rect2(2704, 1438, 32, 102)
+region_rect = Rect2(1142, 1938, 32, 144)
+metadata/hd_prop = "stake_b@32x144"
 
 [node name="S95" type="Sprite2D" parent="Objects" unique_id=1299436484]
 position = Vector2(2440, 465)
 scale = Vector2(0.5, 0.5)
-texture = ExtResource("2_g1qqt")
+texture = ExtResource("5_qresc")
 centered = false
-offset = Vector2(-16, -94)
+offset = Vector2(-16, -111)
 region_enabled = true
-region_rect = Rect2(2704, 1438, 32, 102)
+region_rect = Rect2(3324, 1938, 32, 119)
+metadata/hd_prop = "stake_a@32x119"
 
 [node name="S96" type="Sprite2D" parent="Objects" unique_id=742408878]
 position = Vector2(2431, 474)
 scale = Vector2(0.5, 0.5)
-texture = ExtResource("2_g1qqt")
+texture = ExtResource("5_qresc")
 centered = false
-offset = Vector2(-16, -94)
+offset = Vector2(-16, -136)
 region_enabled = true
-region_rect = Rect2(2704, 1438, 32, 102)
+region_rect = Rect2(1142, 1938, 32, 144)
+metadata/hd_prop = "stake_b@32x144"
 
 [node name="S97" type="Sprite2D" parent="Objects" unique_id=250121098]
 position = Vector2(2449, 474)
 scale = Vector2(0.5, 0.5)
-texture = ExtResource("2_g1qqt")
+texture = ExtResource("5_qresc")
 centered = false
-offset = Vector2(-16, -94)
+offset = Vector2(-16, -111)
 region_enabled = true
-region_rect = Rect2(2704, 1438, 32, 102)
+region_rect = Rect2(3324, 1938, 32, 119)
+metadata/hd_prop = "stake_a@32x119"
 
 [node name="S98" type="Sprite2D" parent="Objects" unique_id=1936488748]
 position = Vector2(2440, 478)
 scale = Vector2(0.5, 0.5)
-texture = ExtResource("2_g1qqt")
+texture = ExtResource("5_qresc")
 centered = false
-offset = Vector2(-16, -94)
+offset = Vector2(-16, -136)
 region_enabled = true
-region_rect = Rect2(2704, 1438, 32, 102)
+region_rect = Rect2(1142, 1938, 32, 144)
+metadata/hd_prop = "stake_b@32x144"
 
 [node name="S99" type="Sprite2D" parent="Objects" unique_id=628211923]
 position = Vector2(2431, 487)
 scale = Vector2(0.5, 0.5)
-texture = ExtResource("2_g1qqt")
+texture = ExtResource("5_qresc")
 centered = false
-offset = Vector2(-16, -94)
+offset = Vector2(-16, -111)
 region_enabled = true
-region_rect = Rect2(2704, 1438, 32, 102)
+region_rect = Rect2(3324, 1938, 32, 119)
+metadata/hd_prop = "stake_a@32x119"
 
 [node name="S100" type="Sprite2D" parent="Objects" unique_id=126460443]
 position = Vector2(2449, 487)
 scale = Vector2(0.5, 0.5)
-texture = ExtResource("2_g1qqt")
+texture = ExtResource("5_qresc")
 centered = false
-offset = Vector2(-18, -116)
+offset = Vector2(-18, -115)
 region_enabled = true
-region_rect = Rect2(1400, 1438, 36, 124)
+region_rect = Rect2(3289, 1938, 33, 123)
+metadata/hd_prop = "stake_a@33x123"
 
 [node name="S101" type="Sprite2D" parent="Objects" unique_id=1853903880]
 position = Vector2(2440, 491)
 scale = Vector2(0.5, 0.5)
-texture = ExtResource("2_g1qqt")
+texture = ExtResource("5_qresc")
 centered = false
-offset = Vector2(-17, -116)
+offset = Vector2(-17, -145)
 region_enabled = true
-region_rect = Rect2(1440, 1438, 34, 124)
+region_rect = Rect2(3087, 1736, 34, 153)
+metadata/hd_prop = "stake_b@34x153"
 
 [node name="S102" type="Sprite2D" parent="Objects" unique_id=1060906331]
 position = Vector2(2431, 500)
 scale = Vector2(0.5, 0.5)
-texture = ExtResource("2_g1qqt")
+texture = ExtResource("5_qresc")
 centered = false
-offset = Vector2(-18, -116)
+offset = Vector2(-18, -115)
 region_enabled = true
-region_rect = Rect2(1400, 1438, 36, 124)
+region_rect = Rect2(3289, 1938, 33, 123)
+metadata/hd_prop = "stake_a@33x123"
 
 [node name="S103" type="Sprite2D" parent="Objects" unique_id=885695490]
 position = Vector2(2449, 500)
 scale = Vector2(0.5, 0.5)
-texture = ExtResource("2_g1qqt")
+texture = ExtResource("5_qresc")
 centered = false
-offset = Vector2(-16, -94)
+offset = Vector2(-16, -111)
 region_enabled = true
-region_rect = Rect2(2704, 1438, 32, 102)
+region_rect = Rect2(3324, 1938, 32, 119)
+metadata/hd_prop = "stake_a@32x119"
 
 [node name="S104" type="Sprite2D" parent="Objects" unique_id=1038655538]
 position = Vector2(2440, 504)
 scale = Vector2(0.5, 0.5)
-texture = ExtResource("2_g1qqt")
+texture = ExtResource("5_qresc")
 centered = false
-offset = Vector2(-17, -116)
+offset = Vector2(-17, -119)
 region_enabled = true
-region_rect = Rect2(1440, 1438, 34, 124)
+region_rect = Rect2(3097, 1938, 34, 127)
+metadata/hd_prop = "stake_a@34x127"
 
 [node name="S105" type="Sprite2D" parent="Objects" unique_id=1293069668]
 position = Vector2(2431, 514)
 scale = Vector2(0.5, 0.5)
-texture = ExtResource("2_g1qqt")
+texture = ExtResource("5_qresc")
 centered = false
-offset = Vector2(-18, -116)
+offset = Vector2(-18, -140)
 region_enabled = true
-region_rect = Rect2(1400, 1438, 36, 124)
+region_rect = Rect2(3713, 1736, 33, 148)
+metadata/hd_prop = "stake_b@33x148"
 
 [node name="S106" type="Sprite2D" parent="Objects" unique_id=392742553]
 position = Vector2(2449, 514)
 scale = Vector2(0.5, 0.5)
-texture = ExtResource("2_g1qqt")
+texture = ExtResource("5_qresc")
 centered = false
-offset = Vector2(-17, -116)
+offset = Vector2(-17, -119)
 region_enabled = true
-region_rect = Rect2(1440, 1438, 34, 124)
+region_rect = Rect2(3097, 1938, 34, 127)
+metadata/hd_prop = "stake_a@34x127"
 
 [node name="S107" type="Sprite2D" parent="Objects" unique_id=1005839716]
 position = Vector2(2440, 518)
 scale = Vector2(0.5, 0.5)
-texture = ExtResource("2_g1qqt")
+texture = ExtResource("5_qresc")
 centered = false
-offset = Vector2(-18, -116)
+offset = Vector2(-18, -140)
 region_enabled = true
-region_rect = Rect2(1400, 1438, 36, 124)
+region_rect = Rect2(3713, 1736, 33, 148)
+metadata/hd_prop = "stake_b@33x148"
 
 [node name="S108" type="Sprite2D" parent="Objects" unique_id=305474989]
 position = Vector2(2431, 527)
 scale = Vector2(0.5, 0.5)
-texture = ExtResource("2_g1qqt")
+texture = ExtResource("5_qresc")
 centered = false
-offset = Vector2(-17, -116)
+offset = Vector2(-17, -119)
 region_enabled = true
-region_rect = Rect2(1440, 1438, 34, 124)
+region_rect = Rect2(3097, 1938, 34, 127)
+metadata/hd_prop = "stake_a@34x127"
 
 [node name="S109" type="Sprite2D" parent="Objects" unique_id=1970542469]
 position = Vector2(2449, 527)
 scale = Vector2(0.5, 0.5)
-texture = ExtResource("2_g1qqt")
+texture = ExtResource("5_qresc")
 centered = false
-offset = Vector2(-18, -116)
+offset = Vector2(-18, -140)
 region_enabled = true
-region_rect = Rect2(1400, 1438, 36, 124)
+region_rect = Rect2(3713, 1736, 33, 148)
+metadata/hd_prop = "stake_b@33x148"
 
 [node name="S110" type="Sprite2D" parent="Objects" unique_id=1039749536]
 position = Vector2(2440, 531)
 scale = Vector2(0.5, 0.5)
-texture = ExtResource("2_g1qqt")
+texture = ExtResource("5_qresc")
 centered = false
-offset = Vector2(-16, -94)
+offset = Vector2(-16, -111)
 region_enabled = true
-region_rect = Rect2(2704, 1438, 32, 102)
+region_rect = Rect2(3324, 1938, 32, 119)
+metadata/hd_prop = "stake_a@32x119"
 
 [node name="S111" type="Sprite2D" parent="Objects" unique_id=1467940110]
 position = Vector2(2431, 540)
 scale = Vector2(0.5, 0.5)
-texture = ExtResource("2_g1qqt")
+texture = ExtResource("5_qresc")
 centered = false
-offset = Vector2(-18, -116)
+offset = Vector2(-18, -115)
 region_enabled = true
-region_rect = Rect2(1400, 1438, 36, 124)
+region_rect = Rect2(3289, 1938, 33, 123)
+metadata/hd_prop = "stake_a@33x123"
 
 [node name="S112" type="Sprite2D" parent="Objects" unique_id=689839847]
 position = Vector2(2449, 540)
 scale = Vector2(0.5, 0.5)
-texture = ExtResource("2_g1qqt")
+texture = ExtResource("5_qresc")
 centered = false
-offset = Vector2(-17, -116)
+offset = Vector2(-17, -145)
 region_enabled = true
-region_rect = Rect2(1440, 1438, 34, 124)
+region_rect = Rect2(3087, 1736, 34, 153)
+metadata/hd_prop = "stake_b@34x153"
 
 [node name="S113" type="Sprite2D" parent="Objects" unique_id=853158531]
 position = Vector2(2440, 544)
 scale = Vector2(0.5, 0.5)
-texture = ExtResource("2_g1qqt")
+texture = ExtResource("5_qresc")
 centered = false
-offset = Vector2(-16, -94)
+offset = Vector2(-16, -136)
 region_enabled = true
-region_rect = Rect2(2704, 1438, 32, 102)
+region_rect = Rect2(1142, 1938, 32, 144)
+metadata/hd_prop = "stake_b@32x144"
 
 [node name="S114" type="Sprite2D" parent="Objects" unique_id=391782676]
 position = Vector2(2431, 553)
 scale = Vector2(0.5, 0.5)
-texture = ExtResource("2_g1qqt")
+texture = ExtResource("5_qresc")
 centered = false
-offset = Vector2(-16, -94)
+offset = Vector2(-16, -111)
 region_enabled = true
-region_rect = Rect2(2704, 1438, 32, 102)
+region_rect = Rect2(3324, 1938, 32, 119)
+metadata/hd_prop = "stake_a@32x119"
 
 [node name="S115" type="Sprite2D" parent="Objects" unique_id=2036708714]
 position = Vector2(2449, 553)
 scale = Vector2(0.5, 0.5)
-texture = ExtResource("2_g1qqt")
+texture = ExtResource("5_qresc")
 centered = false
-offset = Vector2(-18, -116)
+offset = Vector2(-18, -115)
 region_enabled = true
-region_rect = Rect2(1400, 1438, 36, 124)
+region_rect = Rect2(3289, 1938, 33, 123)
+metadata/hd_prop = "stake_a@33x123"
 
 [node name="S116" type="Sprite2D" parent="Objects" unique_id=984393412]
 position = Vector2(2440, 557)
 scale = Vector2(0.5, 0.5)
-texture = ExtResource("2_g1qqt")
+texture = ExtResource("5_qresc")
 centered = false
-offset = Vector2(-18, -116)
+offset = Vector2(-18, -140)
 region_enabled = true
-region_rect = Rect2(1400, 1438, 36, 124)
+region_rect = Rect2(3713, 1736, 33, 148)
+metadata/hd_prop = "stake_b@33x148"
 
 [node name="S117" type="Sprite2D" parent="Objects" unique_id=692088213]
 position = Vector2(2431, 566)
 scale = Vector2(0.5, 0.5)
-texture = ExtResource("2_g1qqt")
+texture = ExtResource("5_qresc")
 centered = false
-offset = Vector2(-17, -116)
+offset = Vector2(-17, -119)
 region_enabled = true
-region_rect = Rect2(1440, 1438, 34, 124)
+region_rect = Rect2(3097, 1938, 34, 127)
+metadata/hd_prop = "stake_a@34x127"
 
 [node name="S118" type="Sprite2D" parent="Objects" unique_id=986132594]
 position = Vector2(2449, 566)
 scale = Vector2(0.5, 0.5)
-texture = ExtResource("2_g1qqt")
+texture = ExtResource("5_qresc")
 centered = false
-offset = Vector2(-18, -116)
+offset = Vector2(-18, -140)
 region_enabled = true
-region_rect = Rect2(1400, 1438, 36, 124)
+region_rect = Rect2(3713, 1736, 33, 148)
+metadata/hd_prop = "stake_b@33x148"
 
 [node name="S119" type="Sprite2D" parent="Objects" unique_id=1205583766]
 position = Vector2(2440, 570)
 scale = Vector2(0.5, 0.5)
-texture = ExtResource("2_g1qqt")
+texture = ExtResource("5_qresc")
 centered = false
-offset = Vector2(-18, -116)
+offset = Vector2(-18, -115)
 region_enabled = true
-region_rect = Rect2(1400, 1438, 36, 124)
+region_rect = Rect2(3289, 1938, 33, 123)
+metadata/hd_prop = "stake_a@33x123"
 
 [node name="S120" type="Sprite2D" parent="Objects" unique_id=1136567471]
 position = Vector2(2431, 579)
 scale = Vector2(0.5, 0.5)
-texture = ExtResource("2_g1qqt")
+texture = ExtResource("5_qresc")
 centered = false
-offset = Vector2(-17, -116)
+offset = Vector2(-17, -119)
 region_enabled = true
-region_rect = Rect2(1440, 1438, 34, 124)
+region_rect = Rect2(3097, 1938, 34, 127)
+metadata/hd_prop = "stake_a@34x127"
 
 [node name="S121" type="Sprite2D" parent="Objects" unique_id=1088799668]
 position = Vector2(2449, 579)
 scale = Vector2(0.5, 0.5)
-texture = ExtResource("2_g1qqt")
+texture = ExtResource("5_qresc")
 centered = false
-offset = Vector2(-17, -116)
+offset = Vector2(-17, -145)
 region_enabled = true
-region_rect = Rect2(1440, 1438, 34, 124)
+region_rect = Rect2(3087, 1736, 34, 153)
+metadata/hd_prop = "stake_b@34x153"
 
 [node name="S122" type="Sprite2D" parent="Objects" unique_id=600350774]
 position = Vector2(2440, 583)
 scale = Vector2(0.5, 0.5)
-texture = ExtResource("2_g1qqt")
+texture = ExtResource("5_qresc")
 centered = false
-offset = Vector2(-18, -116)
+offset = Vector2(-18, -115)
 region_enabled = true
-region_rect = Rect2(1400, 1438, 36, 124)
+region_rect = Rect2(3289, 1938, 33, 123)
+metadata/hd_prop = "stake_a@33x123"
 
 [node name="S123" type="Sprite2D" parent="Objects" unique_id=910195087]
 position = Vector2(2431, 592)
 scale = Vector2(0.5, 0.5)
-texture = ExtResource("2_g1qqt")
+texture = ExtResource("5_qresc")
 centered = false
-offset = Vector2(-18, -116)
+offset = Vector2(-18, -140)
 region_enabled = true
-region_rect = Rect2(1400, 1438, 36, 124)
+region_rect = Rect2(3713, 1736, 33, 148)
+metadata/hd_prop = "stake_b@33x148"
 
 [node name="S124" type="Sprite2D" parent="Objects" unique_id=731342922]
 position = Vector2(2449, 592)
 scale = Vector2(0.5, 0.5)
-texture = ExtResource("2_g1qqt")
+texture = ExtResource("5_qresc")
 centered = false
-offset = Vector2(-17, -116)
+offset = Vector2(-17, -119)
 region_enabled = true
-region_rect = Rect2(1440, 1438, 34, 124)
+region_rect = Rect2(3097, 1938, 34, 127)
+metadata/hd_prop = "stake_a@34x127"
 
 [node name="S125" type="Sprite2D" parent="Objects" unique_id=437674869]
 position = Vector2(2440, 596)
 scale = Vector2(0.5, 0.5)
-texture = ExtResource("2_g1qqt")
+texture = ExtResource("5_qresc")
 centered = false
-offset = Vector2(-16, -94)
+offset = Vector2(-16, -111)
 region_enabled = true
-region_rect = Rect2(2704, 1438, 32, 102)
+region_rect = Rect2(3324, 1938, 32, 119)
+metadata/hd_prop = "stake_a@32x119"
 
 [node name="S126" type="Sprite2D" parent="Objects" unique_id=102383419]
 position = Vector2(2431, 605)
 scale = Vector2(0.5, 0.5)
-texture = ExtResource("2_g1qqt")
+texture = ExtResource("5_qresc")
 centered = false
-offset = Vector2(-16, -94)
+offset = Vector2(-16, -136)
 region_enabled = true
-region_rect = Rect2(2704, 1438, 32, 102)
+region_rect = Rect2(1142, 1938, 32, 144)
+metadata/hd_prop = "stake_b@32x144"
 
 [node name="S127" type="Sprite2D" parent="Objects" unique_id=1364994489]
 position = Vector2(2449, 605)
 scale = Vector2(0.5, 0.5)
-texture = ExtResource("2_g1qqt")
+texture = ExtResource("5_qresc")
 centered = false
-offset = Vector2(-16, -94)
+offset = Vector2(-16, -111)
 region_enabled = true
-region_rect = Rect2(2704, 1438, 32, 102)
+region_rect = Rect2(3324, 1938, 32, 119)
+metadata/hd_prop = "stake_a@32x119"
 
 [node name="S128" type="Sprite2D" parent="Objects" unique_id=1711138439]
 position = Vector2(2440, 609)
 scale = Vector2(0.5, 0.5)
-texture = ExtResource("2_g1qqt")
+texture = ExtResource("5_qresc")
 centered = false
-offset = Vector2(-16, -94)
+offset = Vector2(-16, -136)
 region_enabled = true
-region_rect = Rect2(2704, 1438, 32, 102)
+region_rect = Rect2(1142, 1938, 32, 144)
+metadata/hd_prop = "stake_b@32x144"
 
 [node name="S129" type="Sprite2D" parent="Objects" unique_id=1510285449]
 position = Vector2(2431, 618)
 scale = Vector2(0.5, 0.5)
-texture = ExtResource("2_g1qqt")
+texture = ExtResource("5_qresc")
 centered = false
-offset = Vector2(-17, -116)
+offset = Vector2(-17, -145)
 region_enabled = true
-region_rect = Rect2(1440, 1438, 34, 124)
+region_rect = Rect2(3087, 1736, 34, 153)
+metadata/hd_prop = "stake_b@34x153"
 
 [node name="S130" type="Sprite2D" parent="Objects" unique_id=220325906]
 position = Vector2(2449, 618)
 scale = Vector2(0.5, 0.5)
-texture = ExtResource("2_g1qqt")
+texture = ExtResource("5_qresc")
 centered = false
-offset = Vector2(-18, -116)
+offset = Vector2(-18, -140)
 region_enabled = true
-region_rect = Rect2(1400, 1438, 36, 124)
+region_rect = Rect2(3713, 1736, 33, 148)
+metadata/hd_prop = "stake_b@33x148"
 
 [node name="S131" type="Sprite2D" parent="Objects" unique_id=977937854]
 position = Vector2(2440, 622)
 scale = Vector2(0.5, 0.5)
-texture = ExtResource("2_g1qqt")
+texture = ExtResource("5_qresc")
 centered = false
-offset = Vector2(-17, -116)
+offset = Vector2(-17, -119)
 region_enabled = true
-region_rect = Rect2(1440, 1438, 34, 124)
+region_rect = Rect2(3097, 1938, 34, 127)
+metadata/hd_prop = "stake_a@34x127"
 
 [node name="S132" type="Sprite2D" parent="Objects" unique_id=2114488317]
 position = Vector2(2431, 631)
 scale = Vector2(0.5, 0.5)
-texture = ExtResource("2_g1qqt")
+texture = ExtResource("5_qresc")
 centered = false
-offset = Vector2(-16, -94)
+offset = Vector2(-16, -111)
 region_enabled = true
-region_rect = Rect2(2704, 1438, 32, 102)
+region_rect = Rect2(3324, 1938, 32, 119)
+metadata/hd_prop = "stake_a@32x119"
 
 [node name="S133" type="Sprite2D" parent="Objects" unique_id=1410477003]
 position = Vector2(2449, 631)
 scale = Vector2(0.5, 0.5)
-texture = ExtResource("2_g1qqt")
+texture = ExtResource("5_qresc")
 centered = false
-offset = Vector2(-17, -116)
+offset = Vector2(-17, -119)
 region_enabled = true
-region_rect = Rect2(1440, 1438, 34, 124)
+region_rect = Rect2(3097, 1938, 34, 127)
+metadata/hd_prop = "stake_a@34x127"
 
 [node name="S134" type="Sprite2D" parent="Objects" unique_id=1490877899]
 position = Vector2(2440, 635)
 scale = Vector2(0.5, 0.5)
-texture = ExtResource("2_g1qqt")
+texture = ExtResource("5_qresc")
 centered = false
-offset = Vector2(-16, -94)
+offset = Vector2(-16, -111)
 region_enabled = true
-region_rect = Rect2(2704, 1438, 32, 102)
+region_rect = Rect2(3324, 1938, 32, 119)
+metadata/hd_prop = "stake_a@32x119"
 
 [node name="S135" type="Sprite2D" parent="Objects" unique_id=2073170939]
 position = Vector2(2431, 644)
 scale = Vector2(0.5, 0.5)
-texture = ExtResource("2_g1qqt")
+texture = ExtResource("5_qresc")
 centered = false
-offset = Vector2(-17, -116)
+offset = Vector2(-17, -119)
 region_enabled = true
-region_rect = Rect2(1440, 1438, 34, 124)
+region_rect = Rect2(3097, 1938, 34, 127)
+metadata/hd_prop = "stake_a@34x127"
 
 [node name="S136" type="Sprite2D" parent="Objects" unique_id=475491274]
 position = Vector2(2449, 644)
 scale = Vector2(0.5, 0.5)
-texture = ExtResource("2_g1qqt")
+texture = ExtResource("5_qresc")
 centered = false
-offset = Vector2(-18, -116)
+offset = Vector2(-18, -140)
 region_enabled = true
-region_rect = Rect2(1400, 1438, 36, 124)
+region_rect = Rect2(3713, 1736, 33, 148)
+metadata/hd_prop = "stake_b@33x148"
 
 [node name="S137" type="Sprite2D" parent="Objects" unique_id=1877295757]
 position = Vector2(2440, 648)
 scale = Vector2(0.5, 0.5)
-texture = ExtResource("2_g1qqt")
+texture = ExtResource("5_qresc")
 centered = false
-offset = Vector2(-18, -116)
+offset = Vector2(-18, -115)
 region_enabled = true
-region_rect = Rect2(1400, 1438, 36, 124)
+region_rect = Rect2(3289, 1938, 33, 123)
+metadata/hd_prop = "stake_a@33x123"
 
 [node name="S138" type="Sprite2D" parent="Objects" unique_id=394005914]
 position = Vector2(2431, 657)
 scale = Vector2(0.5, 0.5)
-texture = ExtResource("2_g1qqt")
+texture = ExtResource("5_qresc")
 centered = false
-offset = Vector2(-16, -94)
+offset = Vector2(-16, -111)
 region_enabled = true
-region_rect = Rect2(2704, 1438, 32, 102)
+region_rect = Rect2(3324, 1938, 32, 119)
+metadata/hd_prop = "stake_a@32x119"
 
 [node name="S139" type="Sprite2D" parent="Objects" unique_id=1823538526]
 position = Vector2(2449, 657)
 scale = Vector2(0.5, 0.5)
-texture = ExtResource("2_g1qqt")
+texture = ExtResource("5_qresc")
 centered = false
-offset = Vector2(-16, -94)
+offset = Vector2(-16, -136)
 region_enabled = true
-region_rect = Rect2(2704, 1438, 32, 102)
+region_rect = Rect2(1142, 1938, 32, 144)
+metadata/hd_prop = "stake_b@32x144"
 
 [node name="S140" type="Sprite2D" parent="Objects" unique_id=766548258]
 position = Vector2(2440, 661)
 scale = Vector2(0.5, 0.5)
-texture = ExtResource("2_g1qqt")
+texture = ExtResource("5_qresc")
 centered = false
-offset = Vector2(-18, -116)
+offset = Vector2(-18, -115)
 region_enabled = true
-region_rect = Rect2(1400, 1438, 36, 124)
+region_rect = Rect2(3289, 1938, 33, 123)
+metadata/hd_prop = "stake_a@33x123"
 
 [node name="S141" type="Sprite2D" parent="Objects" unique_id=682848871]
 position = Vector2(2431, 670)
 scale = Vector2(0.5, 0.5)
-texture = ExtResource("2_g1qqt")
+texture = ExtResource("5_qresc")
 centered = false
-offset = Vector2(-18, -116)
+offset = Vector2(-18, -140)
 region_enabled = true
-region_rect = Rect2(1400, 1438, 36, 124)
+region_rect = Rect2(3713, 1736, 33, 148)
+metadata/hd_prop = "stake_b@33x148"
 
 [node name="S142" type="Sprite2D" parent="Objects" unique_id=247294562]
 position = Vector2(2449, 670)
 scale = Vector2(0.5, 0.5)
-texture = ExtResource("2_g1qqt")
+texture = ExtResource("5_qresc")
 centered = false
-offset = Vector2(-18, -116)
+offset = Vector2(-18, -115)
 region_enabled = true
-region_rect = Rect2(1400, 1438, 36, 124)
+region_rect = Rect2(3289, 1938, 33, 123)
+metadata/hd_prop = "stake_a@33x123"
 
 [node name="S143" type="Sprite2D" parent="Objects" unique_id=665777287]
 position = Vector2(2440, 674)
 scale = Vector2(0.5, 0.5)
-texture = ExtResource("2_g1qqt")
+texture = ExtResource("5_qresc")
 centered = false
-offset = Vector2(-17, -116)
+offset = Vector2(-17, -145)
 region_enabled = true
-region_rect = Rect2(1440, 1438, 34, 124)
+region_rect = Rect2(3087, 1736, 34, 153)
+metadata/hd_prop = "stake_b@34x153"
 
 [node name="S144" type="Sprite2D" parent="Objects" unique_id=763961911]
 position = Vector2(2431, 683)
 scale = Vector2(0.5, 0.5)
-texture = ExtResource("2_g1qqt")
+texture = ExtResource("5_qresc")
 centered = false
-offset = Vector2(-16, -94)
+offset = Vector2(-16, -136)
 region_enabled = true
-region_rect = Rect2(2704, 1438, 32, 102)
+region_rect = Rect2(1142, 1938, 32, 144)
+metadata/hd_prop = "stake_b@32x144"
 
 [node name="S145" type="Sprite2D" parent="Objects" unique_id=895399099]
 position = Vector2(2449, 683)
 scale = Vector2(0.5, 0.5)
-texture = ExtResource("2_g1qqt")
+texture = ExtResource("5_qresc")
 centered = false
-offset = Vector2(-16, -94)
+offset = Vector2(-16, -111)
 region_enabled = true
-region_rect = Rect2(2704, 1438, 32, 102)
+region_rect = Rect2(3324, 1938, 32, 119)
+metadata/hd_prop = "stake_a@32x119"
 
 [node name="S146" type="Sprite2D" parent="Objects" unique_id=1103374822]
 position = Vector2(2440, 687)
 scale = Vector2(0.5, 0.5)
-texture = ExtResource("2_g1qqt")
+texture = ExtResource("5_qresc")
 centered = false
-offset = Vector2(-17, -116)
+offset = Vector2(-17, -119)
 region_enabled = true
-region_rect = Rect2(1440, 1438, 34, 124)
+region_rect = Rect2(3097, 1938, 34, 127)
+metadata/hd_prop = "stake_a@34x127"
 
 [node name="S147" type="Sprite2D" parent="Objects" unique_id=1305170810]
 position = Vector2(2431, 696)
 scale = Vector2(0.5, 0.5)
-texture = ExtResource("2_g1qqt")
+texture = ExtResource("5_qresc")
 centered = false
-offset = Vector2(-17, -116)
+offset = Vector2(-17, -145)
 region_enabled = true
-region_rect = Rect2(1440, 1438, 34, 124)
+region_rect = Rect2(3087, 1736, 34, 153)
+metadata/hd_prop = "stake_b@34x153"
 
 [node name="S148" type="Sprite2D" parent="Objects" unique_id=991015148]
 position = Vector2(2449, 696)
 scale = Vector2(0.5, 0.5)
-texture = ExtResource("2_g1qqt")
+texture = ExtResource("5_qresc")
 centered = false
-offset = Vector2(-16, -94)
+offset = Vector2(-16, -136)
 region_enabled = true
-region_rect = Rect2(2704, 1438, 32, 102)
+region_rect = Rect2(1142, 1938, 32, 144)
+metadata/hd_prop = "stake_b@32x144"
 
 [node name="S149" type="Sprite2D" parent="Objects" unique_id=1474043881]
 position = Vector2(2440, 700)
 scale = Vector2(0.5, 0.5)
-texture = ExtResource("2_g1qqt")
+texture = ExtResource("5_qresc")
 centered = false
-offset = Vector2(-17, -116)
+offset = Vector2(-17, -145)
 region_enabled = true
-region_rect = Rect2(1440, 1438, 34, 124)
+region_rect = Rect2(3087, 1736, 34, 153)
+metadata/hd_prop = "stake_b@34x153"
 
 [node name="S150" type="Sprite2D" parent="Objects" unique_id=601968279]
 position = Vector2(2431, 709)
 scale = Vector2(0.5, 0.5)
-texture = ExtResource("2_g1qqt")
+texture = ExtResource("5_qresc")
 centered = false
-offset = Vector2(-16, -94)
+offset = Vector2(-16, -111)
 region_enabled = true
-region_rect = Rect2(2704, 1438, 32, 102)
+region_rect = Rect2(3324, 1938, 32, 119)
+metadata/hd_prop = "stake_a@32x119"
 
 [node name="S151" type="Sprite2D" parent="Objects" unique_id=1021203608]
 position = Vector2(2449, 709)
 scale = Vector2(0.5, 0.5)
-texture = ExtResource("2_g1qqt")
+texture = ExtResource("5_qresc")
 centered = false
-offset = Vector2(-16, -94)
+offset = Vector2(-16, -136)
 region_enabled = true
-region_rect = Rect2(2704, 1438, 32, 102)
+region_rect = Rect2(1142, 1938, 32, 144)
+metadata/hd_prop = "stake_b@32x144"
 
 [node name="S152" type="Sprite2D" parent="Objects" unique_id=958631483]
 position = Vector2(2440, 713)
 scale = Vector2(0.5, 0.5)
-texture = ExtResource("2_g1qqt")
+texture = ExtResource("5_qresc")
 centered = false
-offset = Vector2(-18, -116)
+offset = Vector2(-18, -140)
 region_enabled = true
-region_rect = Rect2(1400, 1438, 36, 124)
+region_rect = Rect2(3713, 1736, 33, 148)
+metadata/hd_prop = "stake_b@33x148"
 
 [node name="S153" type="Sprite2D" parent="Objects" unique_id=82064795]
 position = Vector2(2431, 722)
 scale = Vector2(0.5, 0.5)
-texture = ExtResource("2_g1qqt")
+texture = ExtResource("5_qresc")
 centered = false
-offset = Vector2(-16, -94)
+offset = Vector2(-16, -136)
 region_enabled = true
-region_rect = Rect2(2704, 1438, 32, 102)
+region_rect = Rect2(1142, 1938, 32, 144)
+metadata/hd_prop = "stake_b@32x144"
 
 [node name="S154" type="Sprite2D" parent="Objects" unique_id=1111996659]
 position = Vector2(2449, 722)
 scale = Vector2(0.5, 0.5)
-texture = ExtResource("2_g1qqt")
+texture = ExtResource("5_qresc")
 centered = false
-offset = Vector2(-17, -116)
+offset = Vector2(-17, -145)
 region_enabled = true
-region_rect = Rect2(1440, 1438, 34, 124)
+region_rect = Rect2(3087, 1736, 34, 153)
+metadata/hd_prop = "stake_b@34x153"
 
 [node name="S155" type="Sprite2D" parent="Objects" unique_id=188404741]
 position = Vector2(2440, 726)
 scale = Vector2(0.5, 0.5)
-texture = ExtResource("2_g1qqt")
+texture = ExtResource("5_qresc")
 centered = false
-offset = Vector2(-18, -116)
+offset = Vector2(-18, -115)
 region_enabled = true
-region_rect = Rect2(1400, 1438, 36, 124)
+region_rect = Rect2(3289, 1938, 33, 123)
+metadata/hd_prop = "stake_a@33x123"
 
 [node name="S156" type="Sprite2D" parent="Objects" unique_id=416204928]
 position = Vector2(2431, 735)
 scale = Vector2(0.5, 0.5)
-texture = ExtResource("2_g1qqt")
+texture = ExtResource("5_qresc")
 centered = false
-offset = Vector2(-16, -94)
+offset = Vector2(-16, -111)
 region_enabled = true
-region_rect = Rect2(2704, 1438, 32, 102)
+region_rect = Rect2(3324, 1938, 32, 119)
+metadata/hd_prop = "stake_a@32x119"
 
 [node name="S157" type="Sprite2D" parent="Objects" unique_id=457600547]
 position = Vector2(2449, 735)
 scale = Vector2(0.5, 0.5)
-texture = ExtResource("2_g1qqt")
+texture = ExtResource("5_qresc")
 centered = false
-offset = Vector2(-17, -116)
+offset = Vector2(-17, -119)
 region_enabled = true
-region_rect = Rect2(1440, 1438, 34, 124)
+region_rect = Rect2(3097, 1938, 34, 127)
+metadata/hd_prop = "stake_a@34x127"
 
 [node name="S158" type="Sprite2D" parent="Objects" unique_id=26586132]
 position = Vector2(2440, 739)
 scale = Vector2(0.5, 0.5)
-texture = ExtResource("2_g1qqt")
+texture = ExtResource("5_qresc")
 centered = false
-offset = Vector2(-18, -116)
+offset = Vector2(-18, -140)
 region_enabled = true
-region_rect = Rect2(1400, 1438, 36, 124)
+region_rect = Rect2(3713, 1736, 33, 148)
+metadata/hd_prop = "stake_b@33x148"
 
 [node name="S159" type="Sprite2D" parent="Objects" unique_id=1403389660]
 position = Vector2(2431, 748)
 scale = Vector2(0.5, 0.5)
-texture = ExtResource("2_g1qqt")
+texture = ExtResource("5_qresc")
 centered = false
-offset = Vector2(-18, -116)
+offset = Vector2(-18, -115)
 region_enabled = true
-region_rect = Rect2(1400, 1438, 36, 124)
+region_rect = Rect2(3289, 1938, 33, 123)
+metadata/hd_prop = "stake_a@33x123"
 
 [node name="S160" type="Sprite2D" parent="Objects" unique_id=2124583794]
 position = Vector2(2449, 748)
 scale = Vector2(0.5, 0.5)
-texture = ExtResource("2_g1qqt")
+texture = ExtResource("5_qresc")
 centered = false
-offset = Vector2(-17, -116)
+offset = Vector2(-17, -119)
 region_enabled = true
-region_rect = Rect2(1440, 1438, 34, 124)
+region_rect = Rect2(3097, 1938, 34, 127)
+metadata/hd_prop = "stake_a@34x127"
 
 [node name="S161" type="Sprite2D" parent="Objects" unique_id=1644331191]
 position = Vector2(2440, 752)
 scale = Vector2(0.5, 0.5)
-texture = ExtResource("2_g1qqt")
+texture = ExtResource("5_qresc")
 centered = false
-offset = Vector2(-16, -94)
+offset = Vector2(-16, -111)
 region_enabled = true
-region_rect = Rect2(2704, 1438, 32, 102)
+region_rect = Rect2(3324, 1938, 32, 119)
+metadata/hd_prop = "stake_a@32x119"
 
 [node name="S162" type="Sprite2D" parent="Objects" unique_id=387100871]
 position = Vector2(2431, 761)
 scale = Vector2(0.5, 0.5)
-texture = ExtResource("2_g1qqt")
+texture = ExtResource("5_qresc")
 centered = false
-offset = Vector2(-18, -116)
+offset = Vector2(-18, -115)
 region_enabled = true
-region_rect = Rect2(1400, 1438, 36, 124)
+region_rect = Rect2(3289, 1938, 33, 123)
+metadata/hd_prop = "stake_a@33x123"
 
 [node name="S163" type="Sprite2D" parent="Objects" unique_id=1180293166]
 position = Vector2(2449, 761)
 scale = Vector2(0.5, 0.5)
-texture = ExtResource("2_g1qqt")
+texture = ExtResource("5_qresc")
 centered = false
-offset = Vector2(-17, -116)
+offset = Vector2(-17, -145)
 region_enabled = true
-region_rect = Rect2(1440, 1438, 34, 124)
+region_rect = Rect2(3087, 1736, 34, 153)
+metadata/hd_prop = "stake_b@34x153"
 
 [node name="S164" type="Sprite2D" parent="Objects" unique_id=1629605646]
 position = Vector2(2440, 765)
 scale = Vector2(0.5, 0.5)
-texture = ExtResource("2_g1qqt")
+texture = ExtResource("5_qresc")
 centered = false
-offset = Vector2(-17, -116)
+offset = Vector2(-17, -119)
 region_enabled = true
-region_rect = Rect2(1440, 1438, 34, 124)
+region_rect = Rect2(3097, 1938, 34, 127)
+metadata/hd_prop = "stake_a@34x127"
 
 [node name="S165" type="Sprite2D" parent="Objects" unique_id=155152255]
 position = Vector2(2431, 774)
 scale = Vector2(0.5, 0.5)
-texture = ExtResource("2_g1qqt")
+texture = ExtResource("5_qresc")
 centered = false
-offset = Vector2(-17, -116)
+offset = Vector2(-17, -145)
 region_enabled = true
-region_rect = Rect2(1440, 1438, 34, 124)
+region_rect = Rect2(3087, 1736, 34, 153)
+metadata/hd_prop = "stake_b@34x153"
 
 [node name="S166" type="Sprite2D" parent="Objects" unique_id=1253541561]
 position = Vector2(2449, 774)
 scale = Vector2(0.5, 0.5)
-texture = ExtResource("2_g1qqt")
+texture = ExtResource("5_qresc")
 centered = false
-offset = Vector2(-17, -116)
+offset = Vector2(-17, -119)
 region_enabled = true
-region_rect = Rect2(1440, 1438, 34, 124)
+region_rect = Rect2(3097, 1938, 34, 127)
+metadata/hd_prop = "stake_a@34x127"
 
 [node name="S167" type="Sprite2D" parent="Objects" unique_id=2097563158]
 position = Vector2(2440, 778)
 scale = Vector2(0.5, 0.5)
-texture = ExtResource("2_g1qqt")
+texture = ExtResource("5_qresc")
 centered = false
-offset = Vector2(-16, -94)
+offset = Vector2(-16, -111)
 region_enabled = true
-region_rect = Rect2(2704, 1438, 32, 102)
+region_rect = Rect2(3324, 1938, 32, 119)
+metadata/hd_prop = "stake_a@32x119"
 
 [node name="S168" type="Sprite2D" parent="Objects" unique_id=1337181693]
 position = Vector2(2431, 787)
 scale = Vector2(0.5, 0.5)
-texture = ExtResource("2_g1qqt")
+texture = ExtResource("5_qresc")
 centered = false
-offset = Vector2(-18, -116)
+offset = Vector2(-18, -115)
 region_enabled = true
-region_rect = Rect2(1400, 1438, 36, 124)
+region_rect = Rect2(3289, 1938, 33, 123)
+metadata/hd_prop = "stake_a@33x123"
 
 [node name="S169" type="Sprite2D" parent="Objects" unique_id=1412458644]
 position = Vector2(2449, 787)
 scale = Vector2(0.5, 0.5)
-texture = ExtResource("2_g1qqt")
+texture = ExtResource("5_qresc")
 centered = false
-offset = Vector2(-16, -94)
+offset = Vector2(-16, -111)
 region_enabled = true
-region_rect = Rect2(2704, 1438, 32, 102)
+region_rect = Rect2(3324, 1938, 32, 119)
+metadata/hd_prop = "stake_a@32x119"
 
 [node name="S170" type="Sprite2D" parent="Objects" unique_id=1726764522]
 position = Vector2(2440, 791)
 scale = Vector2(0.5, 0.5)
-texture = ExtResource("2_g1qqt")
+texture = ExtResource("5_qresc")
 centered = false
-offset = Vector2(-18, -116)
+offset = Vector2(-18, -140)
 region_enabled = true
-region_rect = Rect2(1400, 1438, 36, 124)
+region_rect = Rect2(3713, 1736, 33, 148)
+metadata/hd_prop = "stake_b@33x148"
 
 [node name="S171" type="Sprite2D" parent="Objects" unique_id=801988566]
 position = Vector2(2431, 800)
 scale = Vector2(0.5, 0.5)
-texture = ExtResource("2_g1qqt")
+texture = ExtResource("5_qresc")
 centered = false
-offset = Vector2(-18, -116)
+offset = Vector2(-18, -115)
 region_enabled = true
-region_rect = Rect2(1400, 1438, 36, 124)
+region_rect = Rect2(3289, 1938, 33, 123)
+metadata/hd_prop = "stake_a@33x123"
 
 [node name="S172" type="Sprite2D" parent="Objects" unique_id=2079090939]
 position = Vector2(2449, 800)
 scale = Vector2(0.5, 0.5)
-texture = ExtResource("2_g1qqt")
+texture = ExtResource("5_qresc")
 centered = false
-offset = Vector2(-16, -94)
+offset = Vector2(-16, -111)
 region_enabled = true
-region_rect = Rect2(2704, 1438, 32, 102)
+region_rect = Rect2(3324, 1938, 32, 119)
+metadata/hd_prop = "stake_a@32x119"
 
 [node name="S173" type="Sprite2D" parent="Objects" unique_id=2106561390]
 position = Vector2(2440, 804)
 scale = Vector2(0.5, 0.5)
-texture = ExtResource("2_g1qqt")
+texture = ExtResource("5_qresc")
 centered = false
-offset = Vector2(-18, -116)
+offset = Vector2(-18, -115)
 region_enabled = true
-region_rect = Rect2(1400, 1438, 36, 124)
+region_rect = Rect2(3289, 1938, 33, 123)
+metadata/hd_prop = "stake_a@33x123"
 
 [node name="S174" type="Sprite2D" parent="Objects" unique_id=81282331]
 position = Vector2(136, 708)
 scale = Vector2(0.5, 0.5)
-texture = ExtResource("2_g1qqt")
+texture = ExtResource("5_qresc")
 centered = false
-offset = Vector2(-97, -122)
+offset = Vector2(-97, -110)
 region_enabled = true
-region_rect = Rect2(684, 1438, 194, 130)
+region_rect = Rect2(3512, 1938, 194, 118)
+metadata/hd_prop = "palisade_broken@194x118"
 
 [node name="S175" type="Sprite2D" parent="Objects" unique_id=366209103]
 position = Vector2(220, 708)
 scale = Vector2(0.5, 0.5)
-texture = ExtResource("2_g1qqt")
+texture = ExtResource("5_qresc")
 centered = false
-offset = Vector2(-97, -122)
+offset = Vector2(-97, -70)
 region_enabled = true
-region_rect = Rect2(684, 1438, 194, 130)
+region_rect = Rect2(1906, 2087, 194, 78)
+metadata/hd_prop = "palisade@194x78"
 
 [node name="S176" type="Sprite2D" parent="Objects" unique_id=35980404]
 position = Vector2(303, 708)
 scale = Vector2(0.5, 0.5)
-texture = ExtResource("2_g1qqt")
+texture = ExtResource("5_qresc")
 centered = false
-offset = Vector2(-97, -122)
+offset = Vector2(-97, -110)
 region_enabled = true
-region_rect = Rect2(684, 1438, 194, 130)
+region_rect = Rect2(3512, 1938, 194, 118)
+metadata/hd_prop = "palisade_broken@194x118"
 
 [node name="S177" type="Sprite2D" parent="Objects" unique_id=2049811081]
 position = Vector2(387, 708)
 scale = Vector2(0.5, 0.5)
-texture = ExtResource("2_g1qqt")
+texture = ExtResource("5_qresc")
 centered = false
-offset = Vector2(-126, -116)
+offset = Vector2(-126, -94)
 region_enabled = true
-region_rect = Rect2(1478, 1438, 252, 124)
+region_rect = Rect2(936, 2087, 252, 101)
+metadata/hd_prop = "palisade@252x101"
 
 [node name="S178" type="Sprite2D" parent="Objects" unique_id=947360473]
 position = Vector2(470, 708)
 scale = Vector2(0.5, 0.5)
-texture = ExtResource("2_g1qqt")
+texture = ExtResource("5_qresc")
 centered = false
-offset = Vector2(-126, -116)
+offset = Vector2(-126, -146)
 region_enabled = true
-region_rect = Rect2(1478, 1438, 252, 124)
+region_rect = Rect2(2833, 1736, 252, 153)
+metadata/hd_prop = "palisade_broken@252x153"
 
 [node name="S179" type="Sprite2D" parent="Objects" unique_id=961565648]
 position = Vector2(431, 1090)
 scale = Vector2(0.5, 0.5)
-texture = ExtResource("2_g1qqt")
+texture = ExtResource("5_qresc")
 centered = false
-offset = Vector2(-18, -116)
+offset = Vector2(-18, -115)
 region_enabled = true
-region_rect = Rect2(1400, 1438, 36, 124)
+region_rect = Rect2(3289, 1938, 33, 123)
+metadata/hd_prop = "stake_a@33x123"
 
 [node name="S180" type="Sprite2D" parent="Objects" unique_id=1205297106]
 position = Vector2(449, 1090)
 scale = Vector2(0.5, 0.5)
-texture = ExtResource("2_g1qqt")
+texture = ExtResource("5_qresc")
 centered = false
-offset = Vector2(-16, -94)
+offset = Vector2(-16, -136)
 region_enabled = true
-region_rect = Rect2(2704, 1438, 32, 102)
+region_rect = Rect2(1142, 1938, 32, 144)
+metadata/hd_prop = "stake_b@32x144"
 
 [node name="S181" type="Sprite2D" parent="Objects" unique_id=53507763]
 position = Vector2(440, 1094)
 scale = Vector2(0.5, 0.5)
-texture = ExtResource("2_g1qqt")
+texture = ExtResource("5_qresc")
 centered = false
-offset = Vector2(-18, -116)
+offset = Vector2(-18, -140)
 region_enabled = true
-region_rect = Rect2(1400, 1438, 36, 124)
+region_rect = Rect2(3713, 1736, 33, 148)
+metadata/hd_prop = "stake_b@33x148"
 
 [node name="S182" type="Sprite2D" parent="Objects" unique_id=399582307]
 position = Vector2(431, 1103)
 scale = Vector2(0.5, 0.5)
-texture = ExtResource("2_g1qqt")
+texture = ExtResource("5_qresc")
 centered = false
-offset = Vector2(-16, -94)
+offset = Vector2(-16, -136)
 region_enabled = true
-region_rect = Rect2(2704, 1438, 32, 102)
+region_rect = Rect2(1142, 1938, 32, 144)
+metadata/hd_prop = "stake_b@32x144"
 
 [node name="S183" type="Sprite2D" parent="Objects" unique_id=1625270925]
 position = Vector2(449, 1103)
 scale = Vector2(0.5, 0.5)
-texture = ExtResource("2_g1qqt")
+texture = ExtResource("5_qresc")
 centered = false
-offset = Vector2(-17, -116)
+offset = Vector2(-17, -145)
 region_enabled = true
-region_rect = Rect2(1440, 1438, 34, 124)
+region_rect = Rect2(3087, 1736, 34, 153)
+metadata/hd_prop = "stake_b@34x153"
 
 [node name="S184" type="Sprite2D" parent="Objects" unique_id=752255968]
 position = Vector2(440, 1107)
 scale = Vector2(0.5, 0.5)
-texture = ExtResource("2_g1qqt")
+texture = ExtResource("5_qresc")
 centered = false
-offset = Vector2(-18, -116)
+offset = Vector2(-18, -115)
 region_enabled = true
-region_rect = Rect2(1400, 1438, 36, 124)
+region_rect = Rect2(3289, 1938, 33, 123)
+metadata/hd_prop = "stake_a@33x123"
 
 [node name="S185" type="Sprite2D" parent="Objects" unique_id=1803607717]
 position = Vector2(431, 1116)
 scale = Vector2(0.5, 0.5)
-texture = ExtResource("2_g1qqt")
+texture = ExtResource("5_qresc")
 centered = false
-offset = Vector2(-18, -116)
+offset = Vector2(-18, -140)
 region_enabled = true
-region_rect = Rect2(1400, 1438, 36, 124)
+region_rect = Rect2(3713, 1736, 33, 148)
+metadata/hd_prop = "stake_b@33x148"
 
 [node name="S186" type="Sprite2D" parent="Objects" unique_id=1313569919]
 position = Vector2(449, 1116)
 scale = Vector2(0.5, 0.5)
-texture = ExtResource("2_g1qqt")
+texture = ExtResource("5_qresc")
 centered = false
-offset = Vector2(-16, -94)
+offset = Vector2(-16, -136)
 region_enabled = true
-region_rect = Rect2(2704, 1438, 32, 102)
+region_rect = Rect2(1142, 1938, 32, 144)
+metadata/hd_prop = "stake_b@32x144"
 
 [node name="S187" type="Sprite2D" parent="Objects" unique_id=1659792547]
 position = Vector2(440, 1120)
 scale = Vector2(0.5, 0.5)
-texture = ExtResource("2_g1qqt")
+texture = ExtResource("5_qresc")
 centered = false
-offset = Vector2(-17, -116)
+offset = Vector2(-17, -145)
 region_enabled = true
-region_rect = Rect2(1440, 1438, 34, 124)
+region_rect = Rect2(3087, 1736, 34, 153)
+metadata/hd_prop = "stake_b@34x153"
 
 [node name="S188" type="Sprite2D" parent="Objects" unique_id=1700431295]
 position = Vector2(431, 1130)
 scale = Vector2(0.5, 0.5)
-texture = ExtResource("2_g1qqt")
+texture = ExtResource("5_qresc")
 centered = false
-offset = Vector2(-18, -116)
+offset = Vector2(-18, -115)
 region_enabled = true
-region_rect = Rect2(1400, 1438, 36, 124)
+region_rect = Rect2(3289, 1938, 33, 123)
+metadata/hd_prop = "stake_a@33x123"
 
 [node name="S189" type="Sprite2D" parent="Objects" unique_id=587762432]
 position = Vector2(449, 1130)
 scale = Vector2(0.5, 0.5)
-texture = ExtResource("2_g1qqt")
+texture = ExtResource("5_qresc")
 centered = false
-offset = Vector2(-16, -94)
+offset = Vector2(-16, -111)
 region_enabled = true
-region_rect = Rect2(2704, 1438, 32, 102)
+region_rect = Rect2(3324, 1938, 32, 119)
+metadata/hd_prop = "stake_a@32x119"
 
 [node name="S190" type="Sprite2D" parent="Objects" unique_id=2146536790]
 position = Vector2(440, 1134)
 scale = Vector2(0.5, 0.5)
-texture = ExtResource("2_g1qqt")
+texture = ExtResource("5_qresc")
 centered = false
-offset = Vector2(-16, -94)
+offset = Vector2(-16, -111)
 region_enabled = true
-region_rect = Rect2(2704, 1438, 32, 102)
+region_rect = Rect2(3324, 1938, 32, 119)
+metadata/hd_prop = "stake_a@32x119"
 
 [node name="S191" type="Sprite2D" parent="Objects" unique_id=814305219]
 position = Vector2(431, 1143)
 scale = Vector2(0.5, 0.5)
-texture = ExtResource("2_g1qqt")
+texture = ExtResource("5_qresc")
 centered = false
-offset = Vector2(-18, -116)
+offset = Vector2(-18, -115)
 region_enabled = true
-region_rect = Rect2(1400, 1438, 36, 124)
+region_rect = Rect2(3289, 1938, 33, 123)
+metadata/hd_prop = "stake_a@33x123"
 
 [node name="S192" type="Sprite2D" parent="Objects" unique_id=380783954]
 position = Vector2(449, 1143)
 scale = Vector2(0.5, 0.5)
-texture = ExtResource("2_g1qqt")
+texture = ExtResource("5_qresc")
 centered = false
-offset = Vector2(-16, -94)
+offset = Vector2(-16, -111)
 region_enabled = true
-region_rect = Rect2(2704, 1438, 32, 102)
+region_rect = Rect2(3324, 1938, 32, 119)
+metadata/hd_prop = "stake_a@32x119"
 
 [node name="S193" type="Sprite2D" parent="Objects" unique_id=1200387395]
 position = Vector2(440, 1147)
 scale = Vector2(0.5, 0.5)
-texture = ExtResource("2_g1qqt")
+texture = ExtResource("5_qresc")
 centered = false
-offset = Vector2(-18, -116)
+offset = Vector2(-18, -115)
 region_enabled = true
-region_rect = Rect2(1400, 1438, 36, 124)
+region_rect = Rect2(3289, 1938, 33, 123)
+metadata/hd_prop = "stake_a@33x123"
 
 [node name="S194" type="Sprite2D" parent="Objects" unique_id=785912322]
 position = Vector2(431, 1156)
 scale = Vector2(0.5, 0.5)
-texture = ExtResource("2_g1qqt")
+texture = ExtResource("5_qresc")
 centered = false
-offset = Vector2(-18, -116)
+offset = Vector2(-18, -140)
 region_enabled = true
-region_rect = Rect2(1400, 1438, 36, 124)
+region_rect = Rect2(3713, 1736, 33, 148)
+metadata/hd_prop = "stake_b@33x148"
 
 [node name="S195" type="Sprite2D" parent="Objects" unique_id=589952841]
 position = Vector2(449, 1156)
 scale = Vector2(0.5, 0.5)
-texture = ExtResource("2_g1qqt")
+texture = ExtResource("5_qresc")
 centered = false
-offset = Vector2(-16, -94)
+offset = Vector2(-16, -136)
 region_enabled = true
-region_rect = Rect2(2704, 1438, 32, 102)
+region_rect = Rect2(1142, 1938, 32, 144)
+metadata/hd_prop = "stake_b@32x144"
 
 [node name="S196" type="Sprite2D" parent="Objects" unique_id=1935915931]
 position = Vector2(440, 1160)
 scale = Vector2(0.5, 0.5)
-texture = ExtResource("2_g1qqt")
+texture = ExtResource("5_qresc")
 centered = false
-offset = Vector2(-16, -94)
+offset = Vector2(-16, -111)
 region_enabled = true
-region_rect = Rect2(2704, 1438, 32, 102)
+region_rect = Rect2(3324, 1938, 32, 119)
+metadata/hd_prop = "stake_a@32x119"
 
 [node name="S197" type="Sprite2D" parent="Objects" unique_id=969433376]
 position = Vector2(431, 1169)
 scale = Vector2(0.5, 0.5)
-texture = ExtResource("2_g1qqt")
+texture = ExtResource("5_qresc")
 centered = false
-offset = Vector2(-17, -116)
+offset = Vector2(-17, -119)
 region_enabled = true
-region_rect = Rect2(1440, 1438, 34, 124)
+region_rect = Rect2(3097, 1938, 34, 127)
+metadata/hd_prop = "stake_a@34x127"
 
 [node name="S198" type="Sprite2D" parent="Objects" unique_id=745283394]
 position = Vector2(449, 1169)
 scale = Vector2(0.5, 0.5)
-texture = ExtResource("2_g1qqt")
+texture = ExtResource("5_qresc")
 centered = false
-offset = Vector2(-17, -116)
+offset = Vector2(-17, -145)
 region_enabled = true
-region_rect = Rect2(1440, 1438, 34, 124)
+region_rect = Rect2(3087, 1736, 34, 153)
+metadata/hd_prop = "stake_b@34x153"
 
 [node name="S199" type="Sprite2D" parent="Objects" unique_id=1067027982]
 position = Vector2(440, 1173)
 scale = Vector2(0.5, 0.5)
-texture = ExtResource("2_g1qqt")
+texture = ExtResource("5_qresc")
 centered = false
-offset = Vector2(-16, -94)
+offset = Vector2(-16, -136)
 region_enabled = true
-region_rect = Rect2(2704, 1438, 32, 102)
+region_rect = Rect2(1142, 1938, 32, 144)
+metadata/hd_prop = "stake_b@32x144"
 
 [node name="S200" type="Sprite2D" parent="Objects" unique_id=112715374]
 position = Vector2(431, 1182)
 scale = Vector2(0.5, 0.5)
-texture = ExtResource("2_g1qqt")
+texture = ExtResource("5_qresc")
 centered = false
-offset = Vector2(-17, -116)
+offset = Vector2(-17, -145)
 region_enabled = true
-region_rect = Rect2(1440, 1438, 34, 124)
+region_rect = Rect2(3087, 1736, 34, 153)
+metadata/hd_prop = "stake_b@34x153"
 
 [node name="S201" type="Sprite2D" parent="Objects" unique_id=1132434342]
 position = Vector2(449, 1182)
 scale = Vector2(0.5, 0.5)
-texture = ExtResource("2_g1qqt")
+texture = ExtResource("5_qresc")
 centered = false
-offset = Vector2(-18, -116)
+offset = Vector2(-18, -115)
 region_enabled = true
-region_rect = Rect2(1400, 1438, 36, 124)
+region_rect = Rect2(3289, 1938, 33, 123)
+metadata/hd_prop = "stake_a@33x123"
 
 [node name="S202" type="Sprite2D" parent="Objects" unique_id=1634847136]
 position = Vector2(440, 1186)
 scale = Vector2(0.5, 0.5)
-texture = ExtResource("2_g1qqt")
+texture = ExtResource("5_qresc")
 centered = false
-offset = Vector2(-16, -94)
+offset = Vector2(-16, -111)
 region_enabled = true
-region_rect = Rect2(2704, 1438, 32, 102)
+region_rect = Rect2(3324, 1938, 32, 119)
+metadata/hd_prop = "stake_a@32x119"
 
 [node name="S203" type="Sprite2D" parent="Objects" unique_id=1897162516]
 position = Vector2(431, 1196)
 scale = Vector2(0.5, 0.5)
-texture = ExtResource("2_g1qqt")
+texture = ExtResource("5_qresc")
 centered = false
-offset = Vector2(-17, -116)
+offset = Vector2(-17, -119)
 region_enabled = true
-region_rect = Rect2(1440, 1438, 34, 124)
+region_rect = Rect2(3097, 1938, 34, 127)
+metadata/hd_prop = "stake_a@34x127"
 
 [node name="S204" type="Sprite2D" parent="Objects" unique_id=787533803]
 position = Vector2(449, 1196)
 scale = Vector2(0.5, 0.5)
-texture = ExtResource("2_g1qqt")
+texture = ExtResource("5_qresc")
 centered = false
-offset = Vector2(-17, -116)
+offset = Vector2(-17, -145)
 region_enabled = true
-region_rect = Rect2(1440, 1438, 34, 124)
+region_rect = Rect2(3087, 1736, 34, 153)
+metadata/hd_prop = "stake_b@34x153"
 
 [node name="S205" type="Sprite2D" parent="Objects" unique_id=250654619]
 position = Vector2(440, 1200)
 scale = Vector2(0.5, 0.5)
-texture = ExtResource("2_g1qqt")
+texture = ExtResource("5_qresc")
 centered = false
-offset = Vector2(-18, -116)
+offset = Vector2(-18, -115)
 region_enabled = true
-region_rect = Rect2(1400, 1438, 36, 124)
+region_rect = Rect2(3289, 1938, 33, 123)
+metadata/hd_prop = "stake_a@33x123"
 
 [node name="S206" type="Sprite2D" parent="Objects" unique_id=1381144312]
 position = Vector2(431, 1209)
 scale = Vector2(0.5, 0.5)
-texture = ExtResource("2_g1qqt")
+texture = ExtResource("5_qresc")
 centered = false
-offset = Vector2(-17, -116)
+offset = Vector2(-17, -145)
 region_enabled = true
-region_rect = Rect2(1440, 1438, 34, 124)
+region_rect = Rect2(3087, 1736, 34, 153)
+metadata/hd_prop = "stake_b@34x153"
 
 [node name="S207" type="Sprite2D" parent="Objects" unique_id=1278620993]
 position = Vector2(449, 1209)
 scale = Vector2(0.5, 0.5)
-texture = ExtResource("2_g1qqt")
+texture = ExtResource("5_qresc")
 centered = false
-offset = Vector2(-16, -94)
+offset = Vector2(-16, -136)
 region_enabled = true
-region_rect = Rect2(2704, 1438, 32, 102)
+region_rect = Rect2(1142, 1938, 32, 144)
+metadata/hd_prop = "stake_b@32x144"
 
 [node name="S208" type="Sprite2D" parent="Objects" unique_id=1515790269]
 position = Vector2(440, 1213)
 scale = Vector2(0.5, 0.5)
-texture = ExtResource("2_g1qqt")
+texture = ExtResource("5_qresc")
 centered = false
-offset = Vector2(-18, -116)
+offset = Vector2(-18, -140)
 region_enabled = true
-region_rect = Rect2(1400, 1438, 36, 124)
+region_rect = Rect2(3713, 1736, 33, 148)
+metadata/hd_prop = "stake_b@33x148"
 
 [node name="S209" type="Sprite2D" parent="Objects" unique_id=1147704218]
 position = Vector2(431, 1222)
 scale = Vector2(0.5, 0.5)
-texture = ExtResource("2_g1qqt")
+texture = ExtResource("5_qresc")
 centered = false
-offset = Vector2(-17, -116)
+offset = Vector2(-17, -119)
 region_enabled = true
-region_rect = Rect2(1440, 1438, 34, 124)
+region_rect = Rect2(3097, 1938, 34, 127)
+metadata/hd_prop = "stake_a@34x127"
 
 [node name="S210" type="Sprite2D" parent="Objects" unique_id=462277116]
 position = Vector2(449, 1222)
 scale = Vector2(0.5, 0.5)
-texture = ExtResource("2_g1qqt")
+texture = ExtResource("5_qresc")
 centered = false
-offset = Vector2(-17, -116)
+offset = Vector2(-17, -119)
 region_enabled = true
-region_rect = Rect2(1440, 1438, 34, 124)
+region_rect = Rect2(3097, 1938, 34, 127)
+metadata/hd_prop = "stake_a@34x127"
 
 [node name="S211" type="Sprite2D" parent="Objects" unique_id=1110837599]
 position = Vector2(440, 1226)
 scale = Vector2(0.5, 0.5)
-texture = ExtResource("2_g1qqt")
+texture = ExtResource("5_qresc")
 centered = false
-offset = Vector2(-18, -116)
+offset = Vector2(-18, -140)
 region_enabled = true
-region_rect = Rect2(1400, 1438, 36, 124)
+region_rect = Rect2(3713, 1736, 33, 148)
+metadata/hd_prop = "stake_b@33x148"
 
 [node name="S212" type="Sprite2D" parent="Objects" unique_id=710794732]
 position = Vector2(431, 1235)
 scale = Vector2(0.5, 0.5)
-texture = ExtResource("2_g1qqt")
+texture = ExtResource("5_qresc")
 centered = false
-offset = Vector2(-16, -94)
+offset = Vector2(-16, -136)
 region_enabled = true
-region_rect = Rect2(2704, 1438, 32, 102)
+region_rect = Rect2(1142, 1938, 32, 144)
+metadata/hd_prop = "stake_b@32x144"
 
 [node name="S213" type="Sprite2D" parent="Objects" unique_id=449530103]
 position = Vector2(449, 1235)
 scale = Vector2(0.5, 0.5)
-texture = ExtResource("2_g1qqt")
+texture = ExtResource("5_qresc")
 centered = false
-offset = Vector2(-17, -116)
+offset = Vector2(-17, -145)
 region_enabled = true
-region_rect = Rect2(1440, 1438, 34, 124)
+region_rect = Rect2(3087, 1736, 34, 153)
+metadata/hd_prop = "stake_b@34x153"
 
 [node name="S214" type="Sprite2D" parent="Objects" unique_id=1008022662]
 position = Vector2(440, 1239)
 scale = Vector2(0.5, 0.5)
-texture = ExtResource("2_g1qqt")
+texture = ExtResource("5_qresc")
 centered = false
-offset = Vector2(-17, -116)
+offset = Vector2(-17, -119)
 region_enabled = true
-region_rect = Rect2(1440, 1438, 34, 124)
+region_rect = Rect2(3097, 1938, 34, 127)
+metadata/hd_prop = "stake_a@34x127"
 
 [node name="S215" type="Sprite2D" parent="Objects" unique_id=615703346]
 position = Vector2(431, 1248)
 scale = Vector2(0.5, 0.5)
-texture = ExtResource("2_g1qqt")
+texture = ExtResource("5_qresc")
 centered = false
-offset = Vector2(-17, -116)
+offset = Vector2(-17, -145)
 region_enabled = true
-region_rect = Rect2(1440, 1438, 34, 124)
+region_rect = Rect2(3087, 1736, 34, 153)
+metadata/hd_prop = "stake_b@34x153"
 
 [node name="S216" type="Sprite2D" parent="Objects" unique_id=887489460]
 position = Vector2(449, 1248)
 scale = Vector2(0.5, 0.5)
-texture = ExtResource("2_g1qqt")
+texture = ExtResource("5_qresc")
 centered = false
-offset = Vector2(-16, -94)
+offset = Vector2(-16, -136)
 region_enabled = true
-region_rect = Rect2(2704, 1438, 32, 102)
+region_rect = Rect2(1142, 1938, 32, 144)
+metadata/hd_prop = "stake_b@32x144"
 
 [node name="S217" type="Sprite2D" parent="Objects" unique_id=217664734]
 position = Vector2(440, 1252)
 scale = Vector2(0.5, 0.5)
-texture = ExtResource("2_g1qqt")
+texture = ExtResource("5_qresc")
 centered = false
-offset = Vector2(-17, -116)
+offset = Vector2(-17, -145)
 region_enabled = true
-region_rect = Rect2(1440, 1438, 34, 124)
+region_rect = Rect2(3087, 1736, 34, 153)
+metadata/hd_prop = "stake_b@34x153"
 
 [node name="S218" type="Sprite2D" parent="Objects" unique_id=294170719]
 position = Vector2(431, 1262)
 scale = Vector2(0.5, 0.5)
-texture = ExtResource("2_g1qqt")
+texture = ExtResource("5_qresc")
 centered = false
-offset = Vector2(-18, -116)
+offset = Vector2(-18, -115)
 region_enabled = true
-region_rect = Rect2(1400, 1438, 36, 124)
+region_rect = Rect2(3289, 1938, 33, 123)
+metadata/hd_prop = "stake_a@33x123"
 
 [node name="S219" type="Sprite2D" parent="Objects" unique_id=1149865372]
 position = Vector2(449, 1262)
 scale = Vector2(0.5, 0.5)
-texture = ExtResource("2_g1qqt")
+texture = ExtResource("5_qresc")
 centered = false
-offset = Vector2(-16, -94)
+offset = Vector2(-16, -111)
 region_enabled = true
-region_rect = Rect2(2704, 1438, 32, 102)
+region_rect = Rect2(3324, 1938, 32, 119)
+metadata/hd_prop = "stake_a@32x119"
 
 [node name="S220" type="Sprite2D" parent="Objects" unique_id=1637550672]
 position = Vector2(440, 1266)
 scale = Vector2(0.5, 0.5)
-texture = ExtResource("2_g1qqt")
+texture = ExtResource("5_qresc")
 centered = false
-offset = Vector2(-16, -94)
+offset = Vector2(-16, -111)
 region_enabled = true
-region_rect = Rect2(2704, 1438, 32, 102)
+region_rect = Rect2(3324, 1938, 32, 119)
+metadata/hd_prop = "stake_a@32x119"
 
 [node name="S221" type="Sprite2D" parent="Objects" unique_id=486183895]
 position = Vector2(431, 1275)
 scale = Vector2(0.5, 0.5)
-texture = ExtResource("2_g1qqt")
+texture = ExtResource("5_qresc")
 centered = false
-offset = Vector2(-16, -94)
+offset = Vector2(-16, -136)
 region_enabled = true
-region_rect = Rect2(2704, 1438, 32, 102)
+region_rect = Rect2(1142, 1938, 32, 144)
+metadata/hd_prop = "stake_b@32x144"
 
 [node name="S222" type="Sprite2D" parent="Objects" unique_id=1300898546]
 position = Vector2(449, 1275)
 scale = Vector2(0.5, 0.5)
-texture = ExtResource("2_g1qqt")
+texture = ExtResource("5_qresc")
 centered = false
-offset = Vector2(-17, -116)
+offset = Vector2(-17, -145)
 region_enabled = true
-region_rect = Rect2(1440, 1438, 34, 124)
+region_rect = Rect2(3087, 1736, 34, 153)
+metadata/hd_prop = "stake_b@34x153"
 
 [node name="S223" type="Sprite2D" parent="Objects" unique_id=1968674325]
 position = Vector2(440, 1279)
 scale = Vector2(0.5, 0.5)
-texture = ExtResource("2_g1qqt")
+texture = ExtResource("5_qresc")
 centered = false
-offset = Vector2(-17, -116)
+offset = Vector2(-17, -119)
 region_enabled = true
-region_rect = Rect2(1440, 1438, 34, 124)
+region_rect = Rect2(3097, 1938, 34, 127)
+metadata/hd_prop = "stake_a@34x127"
 
 [node name="S224" type="Sprite2D" parent="Objects" unique_id=1619538238]
 position = Vector2(431, 1288)
 scale = Vector2(0.5, 0.5)
-texture = ExtResource("2_g1qqt")
+texture = ExtResource("5_qresc")
 centered = false
-offset = Vector2(-17, -116)
+offset = Vector2(-17, -145)
 region_enabled = true
-region_rect = Rect2(1440, 1438, 34, 124)
+region_rect = Rect2(3087, 1736, 34, 153)
+metadata/hd_prop = "stake_b@34x153"
 
 [node name="S225" type="Sprite2D" parent="Objects" unique_id=2080156174]
 position = Vector2(449, 1288)
 scale = Vector2(0.5, 0.5)
-texture = ExtResource("2_g1qqt")
+texture = ExtResource("5_qresc")
 centered = false
-offset = Vector2(-18, -116)
+offset = Vector2(-18, -115)
 region_enabled = true
-region_rect = Rect2(1400, 1438, 36, 124)
+region_rect = Rect2(3289, 1938, 33, 123)
+metadata/hd_prop = "stake_a@33x123"
 
 [node name="S226" type="Sprite2D" parent="Objects" unique_id=529885541]
 position = Vector2(440, 1292)
 scale = Vector2(0.5, 0.5)
-texture = ExtResource("2_g1qqt")
+texture = ExtResource("5_qresc")
 centered = false
-offset = Vector2(-17, -116)
+offset = Vector2(-17, -145)
 region_enabled = true
-region_rect = Rect2(1440, 1438, 34, 124)
+region_rect = Rect2(3087, 1736, 34, 153)
+metadata/hd_prop = "stake_b@34x153"
 
 [node name="S227" type="Sprite2D" parent="Objects" unique_id=100774477]
 position = Vector2(431, 1301)
 scale = Vector2(0.5, 0.5)
-texture = ExtResource("2_g1qqt")
+texture = ExtResource("5_qresc")
 centered = false
-offset = Vector2(-17, -116)
+offset = Vector2(-17, -119)
 region_enabled = true
-region_rect = Rect2(1440, 1438, 34, 124)
+region_rect = Rect2(3097, 1938, 34, 127)
+metadata/hd_prop = "stake_a@34x127"
 
 [node name="S228" type="Sprite2D" parent="Objects" unique_id=1192092968]
 position = Vector2(449, 1301)
 scale = Vector2(0.5, 0.5)
-texture = ExtResource("2_g1qqt")
+texture = ExtResource("5_qresc")
 centered = false
-offset = Vector2(-17, -116)
+offset = Vector2(-17, -145)
 region_enabled = true
-region_rect = Rect2(1440, 1438, 34, 124)
+region_rect = Rect2(3087, 1736, 34, 153)
+metadata/hd_prop = "stake_b@34x153"
 
 [node name="S229" type="Sprite2D" parent="Objects" unique_id=1444983055]
 position = Vector2(440, 1305)
 scale = Vector2(0.5, 0.5)
-texture = ExtResource("2_g1qqt")
+texture = ExtResource("5_qresc")
 centered = false
-offset = Vector2(-18, -116)
+offset = Vector2(-18, -115)
 region_enabled = true
-region_rect = Rect2(1400, 1438, 36, 124)
+region_rect = Rect2(3289, 1938, 33, 123)
+metadata/hd_prop = "stake_a@33x123"
 
 [node name="S230" type="Sprite2D" parent="Objects" unique_id=956044674]
 position = Vector2(431, 1314)
 scale = Vector2(0.5, 0.5)
-texture = ExtResource("2_g1qqt")
+texture = ExtResource("5_qresc")
 centered = false
-offset = Vector2(-17, -116)
+offset = Vector2(-17, -119)
 region_enabled = true
-region_rect = Rect2(1440, 1438, 34, 124)
+region_rect = Rect2(3097, 1938, 34, 127)
+metadata/hd_prop = "stake_a@34x127"
 
 [node name="S231" type="Sprite2D" parent="Objects" unique_id=971735054]
 position = Vector2(449, 1314)
 scale = Vector2(0.5, 0.5)
-texture = ExtResource("2_g1qqt")
+texture = ExtResource("5_qresc")
 centered = false
-offset = Vector2(-18, -116)
+offset = Vector2(-18, -140)
 region_enabled = true
-region_rect = Rect2(1400, 1438, 36, 124)
+region_rect = Rect2(3713, 1736, 33, 148)
+metadata/hd_prop = "stake_b@33x148"
 
 [node name="S232" type="Sprite2D" parent="Objects" unique_id=1554351635]
 position = Vector2(440, 1318)
 scale = Vector2(0.5, 0.5)
-texture = ExtResource("2_g1qqt")
+texture = ExtResource("5_qresc")
 centered = false
-offset = Vector2(-17, -116)
+offset = Vector2(-17, -119)
 region_enabled = true
-region_rect = Rect2(1440, 1438, 34, 124)
+region_rect = Rect2(3097, 1938, 34, 127)
+metadata/hd_prop = "stake_a@34x127"
 
 [node name="S233" type="Sprite2D" parent="Objects" unique_id=51398733]
 position = Vector2(431, 1328)
 scale = Vector2(0.5, 0.5)
-texture = ExtResource("2_g1qqt")
+texture = ExtResource("5_qresc")
 centered = false
-offset = Vector2(-16, -94)
+offset = Vector2(-16, -111)
 region_enabled = true
-region_rect = Rect2(2704, 1438, 32, 102)
+region_rect = Rect2(3324, 1938, 32, 119)
+metadata/hd_prop = "stake_a@32x119"
 
 [node name="S234" type="Sprite2D" parent="Objects" unique_id=482874144]
 position = Vector2(449, 1328)
 scale = Vector2(0.5, 0.5)
-texture = ExtResource("2_g1qqt")
+texture = ExtResource("5_qresc")
 centered = false
-offset = Vector2(-18, -116)
+offset = Vector2(-18, -115)
 region_enabled = true
-region_rect = Rect2(1400, 1438, 36, 124)
+region_rect = Rect2(3289, 1938, 33, 123)
+metadata/hd_prop = "stake_a@33x123"
 
 [node name="S235" type="Sprite2D" parent="Objects" unique_id=1828398443]
 position = Vector2(440, 1332)
 scale = Vector2(0.5, 0.5)
-texture = ExtResource("2_g1qqt")
+texture = ExtResource("5_qresc")
 centered = false
-offset = Vector2(-17, -116)
+offset = Vector2(-17, -145)
 region_enabled = true
-region_rect = Rect2(1440, 1438, 34, 124)
+region_rect = Rect2(3087, 1736, 34, 153)
+metadata/hd_prop = "stake_b@34x153"
 
 [node name="S236" type="Sprite2D" parent="Objects" unique_id=132608017]
 position = Vector2(431, 1341)
 scale = Vector2(0.5, 0.5)
-texture = ExtResource("2_g1qqt")
+texture = ExtResource("5_qresc")
 centered = false
-offset = Vector2(-18, -116)
+offset = Vector2(-18, -115)
 region_enabled = true
-region_rect = Rect2(1400, 1438, 36, 124)
+region_rect = Rect2(3289, 1938, 33, 123)
+metadata/hd_prop = "stake_a@33x123"
 
 [node name="S237" type="Sprite2D" parent="Objects" unique_id=1754099322]
 position = Vector2(449, 1341)
 scale = Vector2(0.5, 0.5)
-texture = ExtResource("2_g1qqt")
+texture = ExtResource("5_qresc")
 centered = false
-offset = Vector2(-18, -116)
+offset = Vector2(-18, -140)
 region_enabled = true
-region_rect = Rect2(1400, 1438, 36, 124)
+region_rect = Rect2(3713, 1736, 33, 148)
+metadata/hd_prop = "stake_b@33x148"
 
 [node name="S238" type="Sprite2D" parent="Objects" unique_id=1090717828]
 position = Vector2(440, 1345)
 scale = Vector2(0.5, 0.5)
-texture = ExtResource("2_g1qqt")
+texture = ExtResource("5_qresc")
 centered = false
-offset = Vector2(-18, -116)
+offset = Vector2(-18, -115)
 region_enabled = true
-region_rect = Rect2(1400, 1438, 36, 124)
+region_rect = Rect2(3289, 1938, 33, 123)
+metadata/hd_prop = "stake_a@33x123"
 
 [node name="S239" type="Sprite2D" parent="Objects" unique_id=59734915]
 position = Vector2(431, 1354)
 scale = Vector2(0.5, 0.5)
-texture = ExtResource("2_g1qqt")
+texture = ExtResource("5_qresc")
 centered = false
-offset = Vector2(-18, -116)
+offset = Vector2(-18, -140)
 region_enabled = true
-region_rect = Rect2(1400, 1438, 36, 124)
+region_rect = Rect2(3713, 1736, 33, 148)
+metadata/hd_prop = "stake_b@33x148"
 
 [node name="S240" type="Sprite2D" parent="Objects" unique_id=1546635233]
 position = Vector2(449, 1354)
 scale = Vector2(0.5, 0.5)
-texture = ExtResource("2_g1qqt")
+texture = ExtResource("5_qresc")
 centered = false
-offset = Vector2(-16, -94)
+offset = Vector2(-16, -111)
 region_enabled = true
-region_rect = Rect2(2704, 1438, 32, 102)
+region_rect = Rect2(3324, 1938, 32, 119)
+metadata/hd_prop = "stake_a@32x119"
 
 [node name="S241" type="Sprite2D" parent="Objects" unique_id=1787411531]
 position = Vector2(440, 1358)
 scale = Vector2(0.5, 0.5)
-texture = ExtResource("2_g1qqt")
+texture = ExtResource("5_qresc")
 centered = false
-offset = Vector2(-17, -116)
+offset = Vector2(-17, -119)
 region_enabled = true
-region_rect = Rect2(1440, 1438, 34, 124)
+region_rect = Rect2(3097, 1938, 34, 127)
+metadata/hd_prop = "stake_a@34x127"
 
 [node name="S242" type="Sprite2D" parent="Objects" unique_id=1206280385]
 position = Vector2(431, 1367)
 scale = Vector2(0.5, 0.5)
-texture = ExtResource("2_g1qqt")
+texture = ExtResource("5_qresc")
 centered = false
-offset = Vector2(-16, -94)
+offset = Vector2(-16, -111)
 region_enabled = true
-region_rect = Rect2(2704, 1438, 32, 102)
+region_rect = Rect2(3324, 1938, 32, 119)
+metadata/hd_prop = "stake_a@32x119"
 
 [node name="S243" type="Sprite2D" parent="Objects" unique_id=60263588]
 position = Vector2(449, 1367)
 scale = Vector2(0.5, 0.5)
-texture = ExtResource("2_g1qqt")
+texture = ExtResource("5_qresc")
 centered = false
-offset = Vector2(-18, -116)
+offset = Vector2(-18, -115)
 region_enabled = true
-region_rect = Rect2(1400, 1438, 36, 124)
+region_rect = Rect2(3289, 1938, 33, 123)
+metadata/hd_prop = "stake_a@33x123"
 
 [node name="S244" type="Sprite2D" parent="Objects" unique_id=1052291096]
 position = Vector2(440, 1371)
 scale = Vector2(0.5, 0.5)
-texture = ExtResource("2_g1qqt")
+texture = ExtResource("5_qresc")
 centered = false
-offset = Vector2(-17, -116)
+offset = Vector2(-17, -145)
 region_enabled = true
-region_rect = Rect2(1440, 1438, 34, 124)
+region_rect = Rect2(3087, 1736, 34, 153)
+metadata/hd_prop = "stake_b@34x153"
 
 [node name="S245" type="Sprite2D" parent="Objects" unique_id=93006015]
 position = Vector2(431, 1380)
 scale = Vector2(0.5, 0.5)
-texture = ExtResource("2_g1qqt")
+texture = ExtResource("5_qresc")
 centered = false
-offset = Vector2(-17, -116)
+offset = Vector2(-17, -119)
 region_enabled = true
-region_rect = Rect2(1440, 1438, 34, 124)
+region_rect = Rect2(3097, 1938, 34, 127)
+metadata/hd_prop = "stake_a@34x127"
 
 [node name="S246" type="Sprite2D" parent="Objects" unique_id=1427840667]
 position = Vector2(449, 1380)
 scale = Vector2(0.5, 0.5)
-texture = ExtResource("2_g1qqt")
+texture = ExtResource("5_qresc")
 centered = false
-offset = Vector2(-16, -94)
+offset = Vector2(-16, -111)
 region_enabled = true
-region_rect = Rect2(2704, 1438, 32, 102)
+region_rect = Rect2(3324, 1938, 32, 119)
+metadata/hd_prop = "stake_a@32x119"
 
 [node name="S247" type="Sprite2D" parent="Objects" unique_id=541698642]
 position = Vector2(440, 1384)
 scale = Vector2(0.5, 0.5)
-texture = ExtResource("2_g1qqt")
+texture = ExtResource("5_qresc")
 centered = false
-offset = Vector2(-17, -116)
+offset = Vector2(-17, -119)
 region_enabled = true
-region_rect = Rect2(1440, 1438, 34, 124)
+region_rect = Rect2(3097, 1938, 34, 127)
+metadata/hd_prop = "stake_a@34x127"
 
 [node name="S248" type="Sprite2D" parent="Objects" unique_id=1254349168]
 position = Vector2(431, 1394)
 scale = Vector2(0.5, 0.5)
-texture = ExtResource("2_g1qqt")
+texture = ExtResource("5_qresc")
 centered = false
-offset = Vector2(-16, -94)
+offset = Vector2(-16, -111)
 region_enabled = true
-region_rect = Rect2(2704, 1438, 32, 102)
+region_rect = Rect2(3324, 1938, 32, 119)
+metadata/hd_prop = "stake_a@32x119"
 
 [node name="S249" type="Sprite2D" parent="Objects" unique_id=1381524238]
 position = Vector2(449, 1394)
 scale = Vector2(0.5, 0.5)
-texture = ExtResource("2_g1qqt")
+texture = ExtResource("5_qresc")
 centered = false
-offset = Vector2(-16, -94)
+offset = Vector2(-16, -136)
 region_enabled = true
-region_rect = Rect2(2704, 1438, 32, 102)
+region_rect = Rect2(1142, 1938, 32, 144)
+metadata/hd_prop = "stake_b@32x144"
 
 [node name="S250" type="Sprite2D" parent="Objects" unique_id=505429293]
 position = Vector2(440, 1398)
 scale = Vector2(0.5, 0.5)
-texture = ExtResource("2_g1qqt")
+texture = ExtResource("5_qresc")
 centered = false
-offset = Vector2(-16, -94)
+offset = Vector2(-16, -136)
 region_enabled = true
-region_rect = Rect2(2704, 1438, 32, 102)
+region_rect = Rect2(1142, 1938, 32, 144)
+metadata/hd_prop = "stake_b@32x144"
 
 [node name="S251" type="Sprite2D" parent="Objects" unique_id=185411716]
 position = Vector2(431, 1407)
 scale = Vector2(0.5, 0.5)
-texture = ExtResource("2_g1qqt")
+texture = ExtResource("5_qresc")
 centered = false
-offset = Vector2(-18, -116)
+offset = Vector2(-18, -140)
 region_enabled = true
-region_rect = Rect2(1400, 1438, 36, 124)
+region_rect = Rect2(3713, 1736, 33, 148)
+metadata/hd_prop = "stake_b@33x148"
 
 [node name="S252" type="Sprite2D" parent="Objects" unique_id=1937385670]
 position = Vector2(449, 1407)
 scale = Vector2(0.5, 0.5)
-texture = ExtResource("2_g1qqt")
+texture = ExtResource("5_qresc")
 centered = false
-offset = Vector2(-18, -116)
+offset = Vector2(-18, -115)
 region_enabled = true
-region_rect = Rect2(1400, 1438, 36, 124)
+region_rect = Rect2(3289, 1938, 33, 123)
+metadata/hd_prop = "stake_a@33x123"
 
 [node name="S253" type="Sprite2D" parent="Objects" unique_id=1947143858]
 position = Vector2(440, 1411)
 scale = Vector2(0.5, 0.5)
-texture = ExtResource("2_g1qqt")
+texture = ExtResource("5_qresc")
 centered = false
-offset = Vector2(-18, -116)
+offset = Vector2(-18, -140)
 region_enabled = true
-region_rect = Rect2(1400, 1438, 36, 124)
+region_rect = Rect2(3713, 1736, 33, 148)
+metadata/hd_prop = "stake_b@33x148"
 
 [node name="S254" type="Sprite2D" parent="Objects" unique_id=1946212209]
 position = Vector2(431, 1420)
 scale = Vector2(0.5, 0.5)
-texture = ExtResource("2_g1qqt")
+texture = ExtResource("5_qresc")
 centered = false
-offset = Vector2(-18, -116)
+offset = Vector2(-18, -115)
 region_enabled = true
-region_rect = Rect2(1400, 1438, 36, 124)
+region_rect = Rect2(3289, 1938, 33, 123)
+metadata/hd_prop = "stake_a@33x123"
 
 [node name="S255" type="Sprite2D" parent="Objects" unique_id=1612530716]
 position = Vector2(449, 1420)
 scale = Vector2(0.5, 0.5)
-texture = ExtResource("2_g1qqt")
+texture = ExtResource("5_qresc")
 centered = false
-offset = Vector2(-17, -116)
+offset = Vector2(-17, -145)
 region_enabled = true
-region_rect = Rect2(1440, 1438, 34, 124)
+region_rect = Rect2(3087, 1736, 34, 153)
+metadata/hd_prop = "stake_b@34x153"
 
 [node name="S256" type="Sprite2D" parent="Objects" unique_id=341573251]
 position = Vector2(440, 1424)
 scale = Vector2(0.5, 0.5)
-texture = ExtResource("2_g1qqt")
+texture = ExtResource("5_qresc")
 centered = false
-offset = Vector2(-16, -94)
+offset = Vector2(-16, -136)
 region_enabled = true
-region_rect = Rect2(2704, 1438, 32, 102)
+region_rect = Rect2(1142, 1938, 32, 144)
+metadata/hd_prop = "stake_b@32x144"
 
 [node name="S257" type="Sprite2D" parent="Objects" unique_id=910475396]
 position = Vector2(150, 1500)
 scale = Vector2(0.5, 0.5)
-texture = ExtResource("2_g1qqt")
+texture = ExtResource("5_qresc")
 centered = false
-offset = Vector2(-126, -116)
+offset = Vector2(-126, -94)
 region_enabled = true
-region_rect = Rect2(1478, 1438, 252, 124)
+region_rect = Rect2(936, 2087, 252, 101)
+metadata/hd_prop = "palisade@252x101"
 
 [node name="S258" type="Sprite2D" parent="Objects" unique_id=104970808]
 position = Vector2(233, 1500)
 scale = Vector2(0.5, 0.5)
-texture = ExtResource("2_g1qqt")
+texture = ExtResource("5_qresc")
 centered = false
-offset = Vector2(-126, -116)
+offset = Vector2(-126, -146)
 region_enabled = true
-region_rect = Rect2(1478, 1438, 252, 124)
+region_rect = Rect2(2833, 1736, 252, 153)
+metadata/hd_prop = "palisade_broken@252x153"
 
 [node name="S259" type="Sprite2D" parent="Objects" unique_id=1008862915]
 position = Vector2(317, 1500)
 scale = Vector2(0.5, 0.5)
-texture = ExtResource("2_g1qqt")
+texture = ExtResource("5_qresc")
 centered = false
-offset = Vector2(-126, -116)
+offset = Vector2(-126, -94)
 region_enabled = true
-region_rect = Rect2(1478, 1438, 252, 124)
+region_rect = Rect2(936, 2087, 252, 101)
+metadata/hd_prop = "palisade@252x101"
 
 [node name="S260" type="Sprite2D" parent="Objects" unique_id=2053983784]
 position = Vector2(400, 1500)
 scale = Vector2(0.5, 0.5)
-texture = ExtResource("2_g1qqt")
+texture = ExtResource("5_qresc")
 centered = false
-offset = Vector2(-126, -116)
+offset = Vector2(-126, -94)
 region_enabled = true
-region_rect = Rect2(1478, 1438, 252, 124)
+region_rect = Rect2(936, 2087, 252, 101)
+metadata/hd_prop = "palisade@252x101"
 
 [node name="S261" type="Sprite2D" parent="Objects" unique_id=520259365]
 position = Vector2(300, 210)
 scale = Vector2(0.5, 0.5)
-texture = ExtResource("2_g1qqt")
+texture = ExtResource("5_qresc")
 centered = false
-offset = Vector2(-67, -282)
+offset = Vector2(-67, -291)
 region_enabled = true
-region_rect = Rect2(408, 918, 134, 300)
+region_rect = Rect2(1908, 1130, 134, 309)
+metadata/hd_prop = "banner@134x309"
 
 [node name="S262" type="Sprite2D" parent="Objects" unique_id=1439342631]
 position = Vector2(404, 210)
 scale = Vector2(0.5, 0.5)
-texture = ExtResource("2_g1qqt")
+texture = ExtResource("5_qresc")
 centered = false
-offset = Vector2(-67, -282)
+offset = Vector2(-67, -291)
 flip_h = true
 region_enabled = true
-region_rect = Rect2(408, 918, 134, 300)
+region_rect = Rect2(1908, 1130, 134, 309)
+metadata/hd_prop = "banner@134x309"
 
 [node name="S263" type="Sprite2D" parent="Objects" unique_id=152016741]
 position = Vector2(1760, 1340)
 scale = Vector2(0.5, 0.5)
-texture = ExtResource("2_g1qqt")
+texture = ExtResource("5_qresc")
 centered = false
-offset = Vector2(-97, -122)
+offset = Vector2(-97, -70)
 region_enabled = true
-region_rect = Rect2(684, 1438, 194, 130)
+region_rect = Rect2(1906, 2087, 194, 78)
+metadata/hd_prop = "palisade@194x78"
 
 [node name="S264" type="Sprite2D" parent="Objects" unique_id=1565940630]
 position = Vector2(1824, 1304)
 scale = Vector2(0.5, 0.5)
-texture = ExtResource("2_g1qqt")
+texture = ExtResource("5_qresc")
 centered = false
-offset = Vector2(-97, -122)
+offset = Vector2(-97, -110)
 region_enabled = true
-region_rect = Rect2(684, 1438, 194, 130)
+region_rect = Rect2(3512, 1938, 194, 118)
+metadata/hd_prop = "palisade_broken@194x118"
 
 [node name="S265" type="Sprite2D" parent="Objects" unique_id=1582271521]
 position = Vector2(1889, 1269)
 scale = Vector2(0.5, 0.5)
-texture = ExtResource("2_g1qqt")
+texture = ExtResource("5_qresc")
 centered = false
-offset = Vector2(-126, -116)
+offset = Vector2(-126, -146)
 region_enabled = true
-region_rect = Rect2(1478, 1438, 252, 124)
+region_rect = Rect2(2833, 1736, 252, 153)
+metadata/hd_prop = "palisade_broken@252x153"
 
 [node name="S266" type="Sprite2D" parent="Objects" unique_id=721568880]
 position = Vector2(1953, 1233)
 scale = Vector2(0.5, 0.5)
-texture = ExtResource("2_g1qqt")
+texture = ExtResource("5_qresc")
 centered = false
-offset = Vector2(-97, -122)
+offset = Vector2(-97, -110)
 region_enabled = true
-region_rect = Rect2(684, 1438, 194, 130)
+region_rect = Rect2(3512, 1938, 194, 118)
+metadata/hd_prop = "palisade_broken@194x118"
 
 [node name="S267" type="Sprite2D" parent="Objects" unique_id=1036179617]
 position = Vector2(2017, 1197)
 scale = Vector2(0.5, 0.5)
-texture = ExtResource("2_g1qqt")
+texture = ExtResource("5_qresc")
 centered = false
-offset = Vector2(-126, -116)
+offset = Vector2(-126, -94)
 region_enabled = true
-region_rect = Rect2(1478, 1438, 252, 124)
+region_rect = Rect2(936, 2087, 252, 101)
+metadata/hd_prop = "palisade@252x101"
 
 [node name="S268" type="Sprite2D" parent="Objects" unique_id=1011366016]
 position = Vector2(2081, 1161)
 scale = Vector2(0.5, 0.5)
-texture = ExtResource("2_g1qqt")
+texture = ExtResource("5_qresc")
 centered = false
-offset = Vector2(-76, -120)
+offset = Vector2(-76, -50)
 region_enabled = true
-region_rect = Rect2(882, 1438, 152, 128)
+region_rect = Rect2(3018, 2087, 152, 58)
+metadata/hd_prop = "palisade_gap@152x58"
 
 [node name="S269" type="Sprite2D" parent="Objects" unique_id=243838874]
 position = Vector2(2146, 1126)
 scale = Vector2(0.5, 0.5)
-texture = ExtResource("2_g1qqt")
+texture = ExtResource("5_qresc")
 centered = false
-offset = Vector2(-126, -116)
+offset = Vector2(-126, -94)
 region_enabled = true
-region_rect = Rect2(1478, 1438, 252, 124)
+region_rect = Rect2(936, 2087, 252, 101)
+metadata/hd_prop = "palisade@252x101"
 
 [node name="S270" type="Sprite2D" parent="Objects" unique_id=1616008971]
 position = Vector2(2210, 1090)
 scale = Vector2(0.5, 0.5)
-texture = ExtResource("2_g1qqt")
+texture = ExtResource("5_qresc")
 centered = false
-offset = Vector2(-97, -122)
+offset = Vector2(-97, -70)
 region_enabled = true
-region_rect = Rect2(684, 1438, 194, 130)
+region_rect = Rect2(1906, 2087, 194, 78)
+metadata/hd_prop = "palisade@194x78"
 
 [node name="S271" type="Sprite2D" parent="Objects" unique_id=323527503]
 position = Vector2(1820, 1430)
 scale = Vector2(0.5, 0.5)
-texture = ExtResource("2_g1qqt")
+texture = ExtResource("5_qresc")
 centered = false
-offset = Vector2(-94, -70)
+offset = Vector2(-75, -110)
 flip_h = true
 region_enabled = true
-region_rect = Rect2(424, 1576, 188, 78)
+region_rect = Rect2(3708, 1938, 150, 118)
+metadata/hd_prop = "sacks@150x118"
 
 [node name="S272" type="Sprite2D" parent="Objects" unique_id=290032322]
 position = Vector2(1900, 1388)
 scale = Vector2(0.5, 0.5)
-texture = ExtResource("2_g1qqt")
+texture = ExtResource("5_qresc")
 centered = false
-offset = Vector2(-94, -70)
+offset = Vector2(-75, -110)
 region_enabled = true
-region_rect = Rect2(424, 1576, 188, 78)
+region_rect = Rect2(3708, 1938, 150, 118)
+metadata/hd_prop = "sacks@150x118"
 
 [node name="S273" type="Sprite2D" parent="Objects" unique_id=507077925]
 position = Vector2(1980, 1347)
 scale = Vector2(0.5, 0.5)
-texture = ExtResource("2_g1qqt")
+texture = ExtResource("5_qresc")
 centered = false
-offset = Vector2(-94, -70)
+offset = Vector2(-75, -110)
 region_enabled = true
-region_rect = Rect2(424, 1576, 188, 78)
+region_rect = Rect2(3708, 1938, 150, 118)
+metadata/hd_prop = "sacks@150x118"
 
 [node name="S274" type="Sprite2D" parent="Objects" unique_id=1028083610]
 position = Vector2(2060, 1305)
 scale = Vector2(0.5, 0.5)
-texture = ExtResource("2_g1qqt")
+texture = ExtResource("5_qresc")
 centered = false
-offset = Vector2(-94, -70)
+offset = Vector2(-75, -110)
 flip_h = true
 region_enabled = true
-region_rect = Rect2(424, 1576, 188, 78)
+region_rect = Rect2(3708, 1938, 150, 118)
+metadata/hd_prop = "sacks@150x118"
 
 [node name="S275" type="Sprite2D" parent="Objects" unique_id=1678782727]
 position = Vector2(2140, 1263)
 scale = Vector2(0.5, 0.5)
-texture = ExtResource("2_g1qqt")
+texture = ExtResource("5_qresc")
 centered = false
-offset = Vector2(-94, -70)
+offset = Vector2(-75, -110)
 region_enabled = true
-region_rect = Rect2(424, 1576, 188, 78)
+region_rect = Rect2(3708, 1938, 150, 118)
+metadata/hd_prop = "sacks@150x118"
 
 [node name="S276" type="Sprite2D" parent="Objects" unique_id=1453176768]
 position = Vector2(2220, 1222)
 scale = Vector2(0.5, 0.5)
-texture = ExtResource("2_g1qqt")
+texture = ExtResource("5_qresc")
 centered = false
-offset = Vector2(-94, -70)
+offset = Vector2(-75, -110)
 region_enabled = true
-region_rect = Rect2(424, 1576, 188, 78)
+region_rect = Rect2(3708, 1938, 150, 118)
+metadata/hd_prop = "sacks@150x118"
 
 [node name="S277" type="Sprite2D" parent="Objects" unique_id=1175583220]
 position = Vector2(2300, 1180)
 scale = Vector2(0.5, 0.5)
-texture = ExtResource("2_g1qqt")
+texture = ExtResource("5_qresc")
 centered = false
-offset = Vector2(-94, -70)
+offset = Vector2(-75, -110)
 flip_h = true
 region_enabled = true
-region_rect = Rect2(424, 1576, 188, 78)
+region_rect = Rect2(3708, 1938, 150, 118)
+metadata/hd_prop = "sacks@150x118"
 
 [node name="S278" type="Sprite2D" parent="Objects" unique_id=1090928218]
 position = Vector2(1830, 1250)
 scale = Vector2(0.5, 0.5)
-texture = ExtResource("2_g1qqt")
+texture = ExtResource("5_qresc")
 centered = false
-offset = Vector2(-94, -104)
+offset = Vector2(-94, -125)
 region_enabled = true
-region_rect = Rect2(2346, 1438, 188, 112)
+region_rect = Rect2(1683, 1938, 188, 133)
+metadata/hd_prop = "cart_broken@188x133"
 
 [node name="S279" type="Sprite2D" parent="Objects" unique_id=1886012593]
 position = Vector2(1980, 1170)
 scale = Vector2(0.5, 0.5)
-texture = ExtResource("2_g1qqt")
+texture = ExtResource("5_qresc")
 centered = false
-offset = Vector2(-94, -104)
+offset = Vector2(-94, -125)
 region_enabled = true
-region_rect = Rect2(2346, 1438, 188, 112)
+region_rect = Rect2(1683, 1938, 188, 133)
+metadata/hd_prop = "cart_broken@188x133"
 
 [node name="S280" type="Sprite2D" parent="Objects" unique_id=2009286444]
 position = Vector2(2130, 1080)
 scale = Vector2(0.5, 0.5)
-texture = ExtResource("2_g1qqt")
+texture = ExtResource("5_qresc")
 centered = false
-offset = Vector2(-94, -104)
+offset = Vector2(-94, -125)
 region_enabled = true
-region_rect = Rect2(2346, 1438, 188, 112)
+region_rect = Rect2(1683, 1938, 188, 133)
+metadata/hd_prop = "cart_broken@188x133"
 
 [node name="S281" type="Sprite2D" parent="Objects" unique_id=657128954]
 position = Vector2(1720, 1420)
 scale = Vector2(0.5, 0.5)
-texture = ExtResource("2_g1qqt")
+texture = ExtResource("5_qresc")
 centered = false
-offset = Vector2(-126, -108)
+offset = Vector2(-126, -170)
 flip_h = true
 region_enabled = true
-region_rect = Rect2(2090, 1438, 252, 116)
+region_rect = Rect2(632, 1736, 252, 178)
+metadata/hd_prop = "cart_broken@252x178"
 
 [node name="S282" type="Sprite2D" parent="Objects" unique_id=13967401]
 position = Vector2(560, 330)
 scale = Vector2(0.5, 0.5)
-texture = ExtResource("2_g1qqt")
+texture = ExtResource("5_qresc")
 centered = false
-offset = Vector2(-188, -291.4)
+offset = Vector2(-188, -340)
 flip_h = true
 region_enabled = true
-region_rect = Rect2(2280, 0, 376, 310)
+region_rect = Rect2(3622, 0, 376, 359)
+metadata/hd_prop = "tent_cone_red@376x359"
 
 [node name="S283" type="Sprite2D" parent="Objects" unique_id=1660481676]
 position = Vector2(700, 300)
 scale = Vector2(0.5, 0.5)
-texture = ExtResource("2_g1qqt")
+texture = ExtResource("5_qresc")
 centered = false
-offset = Vector2(-138, -191.76)
+offset = Vector2(-138, -247)
 region_enabled = true
-region_rect = Rect2(820, 1224, 276, 204)
+region_rect = Rect2(871, 1464, 276, 259)
+metadata/hd_prop = "tent_cone@276x259"
 
 [node name="S284" type="Sprite2D" parent="Objects" unique_id=1962106657]
 position = Vector2(860, 410)
 scale = Vector2(0.5, 0.5)
-texture = ExtResource("2_g1qqt")
+texture = ExtResource("5_qresc")
 centered = false
-offset = Vector2(-219, -289.52)
+offset = Vector2(-219, -274)
 region_enabled = true
-region_rect = Rect2(0, 606, 438, 308)
+region_rect = Rect2(3210, 1130, 438, 292)
+metadata/hd_prop = "tent_ridge@438x292"
 
 [node name="S285" type="Sprite2D" parent="Objects" unique_id=2108140575]
 position = Vector2(1020, 330)
 scale = Vector2(0.5, 0.5)
-texture = ExtResource("2_g1qqt")
+texture = ExtResource("5_qresc")
 centered = false
-offset = Vector2(-196, -285.76)
+offset = Vector2(-196, -350)
 region_enabled = true
-region_rect = Rect2(1768, 606, 392, 304)
+region_rect = Rect2(3092, 0, 392, 368)
+metadata/hd_prop = "tent_cone@392x368"
 
 [node name="S286" type="Sprite2D" parent="Objects" unique_id=847427419]
 position = Vector2(1130, 440)
 scale = Vector2(0.5, 0.5)
-texture = ExtResource("2_g1qqt")
+texture = ExtResource("5_qresc")
 centered = false
-offset = Vector2(-139, -191.76)
+offset = Vector2(-139, -253)
 region_enabled = true
-region_rect = Rect2(1100, 1224, 278, 204)
+region_rect = Rect2(592, 1464, 277, 264)
+metadata/hd_prop = "tent_cone_red@277x264"
 
 [node name="S287" type="Sprite2D" parent="Objects" unique_id=1925497597]
 position = Vector2(240, 850)
 scale = Vector2(0.5, 0.5)
-texture = ExtResource("2_g1qqt")
+texture = ExtResource("5_qresc")
 centered = false
-offset = Vector2(-199, -283.88)
+offset = Vector2(-199, -354)
 flip_h = true
 region_enabled = true
-region_rect = Rect2(2164, 606, 398, 302)
+region_rect = Rect2(2693, 0, 397, 372)
+metadata/hd_prop = "tent_cone@397x372"
 
 [node name="S288" type="Sprite2D" parent="Objects" unique_id=1215465183]
 position = Vector2(390, 820)
 scale = Vector2(0.5, 0.5)
-texture = ExtResource("2_g1qqt")
+texture = ExtResource("5_qresc")
 centered = false
-offset = Vector2(-136, -189.88)
+offset = Vector2(-135, -243)
 region_enabled = true
-region_rect = Rect2(1382, 1224, 272, 202)
+region_rect = Rect2(1149, 1464, 271, 254)
+metadata/hd_prop = "tent_cone@271x254"
 
 [node name="S289" type="Sprite2D" parent="Objects" unique_id=364674100]
 position = Vector2(590, 910)
 scale = Vector2(0.5, 0.5)
-texture = ExtResource("2_g1qqt")
+texture = ExtResource("5_qresc")
 centered = false
-offset = Vector2(-249, -282)
+offset = Vector2(-248, -314)
 flip_h = true
 region_enabled = true
-region_rect = Rect2(546, 918, 498, 300)
+region_rect = Rect2(0, 1130, 497, 332)
+metadata/hd_prop = "tent_ridge@497x332"
 
 [node name="S290" type="Sprite2D" parent="Objects" unique_id=62246082]
 position = Vector2(780, 830)
 scale = Vector2(0.5, 0.5)
-texture = ExtResource("2_g1qqt")
+texture = ExtResource("5_qresc")
 centered = false
-offset = Vector2(-196, -289.52)
+offset = Vector2(-196, -356)
 region_enabled = true
-region_rect = Rect2(442, 606, 392, 308)
+region_rect = Rect2(2299, 0, 392, 374)
+metadata/hd_prop = "tent_cone_red@392x374"
 
 [node name="S291" type="Sprite2D" parent="Objects" unique_id=26687068]
 position = Vector2(950, 900)
 scale = Vector2(0.5, 0.5)
-texture = ExtResource("2_g1qqt")
+texture = ExtResource("5_qresc")
 centered = false
-offset = Vector2(-142, -193.64)
+offset = Vector2(-142, -254)
 region_enabled = true
-region_rect = Rect2(532, 1224, 284, 206)
+region_rect = Rect2(306, 1464, 284, 266)
+metadata/hd_prop = "tent_cone@284x266"
 
 [node name="S292" type="Sprite2D" parent="Objects" unique_id=1720889513]
 position = Vector2(290, 1040)
 scale = Vector2(0.5, 0.5)
-texture = ExtResource("2_g1qqt")
+texture = ExtResource("5_qresc")
 centered = false
-offset = Vector2(-219, -289.52)
+offset = Vector2(-219, -274)
 flip_h = true
 region_enabled = true
-region_rect = Rect2(0, 606, 438, 308)
+region_rect = Rect2(3210, 1130, 438, 292)
+metadata/hd_prop = "tent_ridge@438x292"
 
 [node name="S293" type="Sprite2D" parent="Objects" unique_id=2105595286]
 position = Vector2(660, 1060)
 scale = Vector2(0.5, 0.5)
-texture = ExtResource("2_g1qqt")
+texture = ExtResource("5_qresc")
 centered = false
-offset = Vector2(-196, -285.76)
+offset = Vector2(-196, -350)
 region_enabled = true
-region_rect = Rect2(1768, 606, 392, 304)
+region_rect = Rect2(3092, 0, 392, 368)
+metadata/hd_prop = "tent_cone@392x368"
 
 [node name="S294" type="Sprite2D" parent="Objects" unique_id=1524109377]
 position = Vector2(1060, 1040)
 scale = Vector2(0.5, 0.5)
-texture = ExtResource("2_g1qqt")
+texture = ExtResource("5_qresc")
 centered = false
-offset = Vector2(-231, -285.76)
+offset = Vector2(-231, -310)
 region_enabled = true
-region_rect = Rect2(1302, 606, 462, 304)
+region_rect = Rect2(499, 1130, 462, 328)
+metadata/hd_prop = "tent_ridge_red@462x328"
 
 [node name="S295" type="Sprite2D" parent="Objects" unique_id=1108135460]
 position = Vector2(580, 1320)
 scale = Vector2(0.5, 0.5)
-texture = ExtResource("2_g1qqt")
+texture = ExtResource("5_qresc")
 centered = false
-offset = Vector2(-138, -191.76)
+offset = Vector2(-138, -247)
 region_enabled = true
-region_rect = Rect2(820, 1224, 276, 204)
+region_rect = Rect2(871, 1464, 276, 259)
+metadata/hd_prop = "tent_cone@276x259"
 
 [node name="S296" type="Sprite2D" parent="Objects" unique_id=837576429]
 position = Vector2(740, 1430)
 scale = Vector2(0.5, 0.5)
-texture = ExtResource("2_g1qqt")
+texture = ExtResource("5_qresc")
 centered = false
-offset = Vector2(-188, -291.4)
+offset = Vector2(-188, -340)
 flip_h = true
 region_enabled = true
-region_rect = Rect2(2280, 0, 376, 310)
+region_rect = Rect2(3622, 0, 376, 359)
+metadata/hd_prop = "tent_cone_red@376x359"
 
 [node name="S297" type="Sprite2D" parent="Objects" unique_id=751339447]
 position = Vector2(930, 1330)
 scale = Vector2(0.5, 0.5)
-texture = ExtResource("2_g1qqt")
+texture = ExtResource("5_qresc")
 centered = false
-offset = Vector2(-230, -285.76)
+offset = Vector2(-230, -309)
 flip_h = true
 region_enabled = true
-region_rect = Rect2(838, 606, 460, 304)
+region_rect = Rect2(963, 1130, 460, 326)
+metadata/hd_prop = "tent_ridge_red@460x326"
 
 [node name="S298" type="Sprite2D" parent="Objects" unique_id=735390995]
 position = Vector2(1110, 1440)
 scale = Vector2(0.5, 0.5)
-texture = ExtResource("2_g1qqt")
+texture = ExtResource("5_qresc")
 centered = false
-offset = Vector2(-136, -189.88)
+offset = Vector2(-135, -243)
 region_enabled = true
-region_rect = Rect2(1382, 1224, 272, 202)
+region_rect = Rect2(1149, 1464, 271, 254)
+metadata/hd_prop = "tent_cone@271x254"
 
 [node name="S299" type="Sprite2D" parent="Objects" unique_id=1613257753]
 position = Vector2(1270, 1330)
 scale = Vector2(0.5, 0.5)
-texture = ExtResource("2_g1qqt")
+texture = ExtResource("5_qresc")
 centered = false
-offset = Vector2(-202, -283.88)
+offset = Vector2(-202, -361)
 region_enabled = true
-region_rect = Rect2(0, 918, 404, 302)
+region_rect = Rect2(1752, 0, 404, 379)
+metadata/hd_prop = "tent_cone@404x379"
 
 [node name="S300" type="Sprite2D" parent="Objects" unique_id=485076015]
 position = Vector2(1450, 1450)
 scale = Vector2(0.5, 0.5)
-texture = ExtResource("2_g1qqt")
+texture = ExtResource("5_qresc")
 centered = false
-offset = Vector2(-142, -193.64)
+offset = Vector2(-142, -254)
 flip_h = true
 region_enabled = true
-region_rect = Rect2(532, 1224, 284, 206)
+region_rect = Rect2(306, 1464, 284, 266)
+metadata/hd_prop = "tent_cone@284x266"
 
 [node name="S301" type="Sprite2D" parent="Objects" unique_id=1334678405]
 position = Vector2(1610, 1330)
 scale = Vector2(0.5, 0.5)
-texture = ExtResource("2_g1qqt")
+texture = ExtResource("5_qresc")
 centered = false
-offset = Vector2(-196, -289.52)
+offset = Vector2(-196, -356)
 region_enabled = true
-region_rect = Rect2(442, 606, 392, 308)
+region_rect = Rect2(2299, 0, 392, 374)
+metadata/hd_prop = "tent_cone_red@392x374"
 
 [node name="S302" type="Sprite2D" parent="Objects" unique_id=1417719920]
 position = Vector2(1840, 330)
 scale = Vector2(0.5, 0.5)
-texture = ExtResource("2_g1qqt")
+texture = ExtResource("5_qresc")
 centered = false
-offset = Vector2(-139, -191.76)
+offset = Vector2(-138, -253)
 flip_h = true
 region_enabled = true
-region_rect = Rect2(1100, 1224, 278, 204)
+region_rect = Rect2(592, 1464, 277, 264)
+metadata/hd_prop = "tent_cone_red@277x264"
 
 [node name="S303" type="Sprite2D" parent="Objects" unique_id=1929252415]
 position = Vector2(2090, 340)
 scale = Vector2(0.5, 0.5)
-texture = ExtResource("2_g1qqt")
+texture = ExtResource("5_qresc")
 centered = false
-offset = Vector2(-335, -392.92)
+offset = Vector2(-334, -421)
 region_enabled = true
-region_rect = Rect2(1606, 0, 670, 418)
+region_rect = Rect2(1081, 0, 669, 446)
+metadata/hd_prop = "tent_ridge@669x446"
 
 [node name="S304" type="Sprite2D" parent="Objects" unique_id=2122242600]
 position = Vector2(1890, 870)
 scale = Vector2(0.5, 0.5)
-texture = ExtResource("2_g1qqt")
+texture = ExtResource("5_qresc")
 centered = false
-offset = Vector2(-139, -191.76)
+offset = Vector2(-139, -253)
 region_enabled = true
-region_rect = Rect2(1100, 1224, 278, 204)
+region_rect = Rect2(592, 1464, 277, 264)
+metadata/hd_prop = "tent_cone_red@277x264"
 
 [node name="S305" type="Sprite2D" parent="Objects" unique_id=1724622935]
 position = Vector2(2570, 330)
 scale = Vector2(0.5, 0.5)
-texture = ExtResource("2_g1qqt")
+texture = ExtResource("5_qresc")
 centered = false
-offset = Vector2(-196, -285.76)
+offset = Vector2(-196, -350)
 region_enabled = true
-region_rect = Rect2(1768, 606, 392, 304)
+region_rect = Rect2(3092, 0, 392, 368)
+metadata/hd_prop = "tent_cone@392x368"
 
 [node name="S306" type="Sprite2D" parent="Objects" unique_id=1908104905]
 position = Vector2(2570, 560)
 scale = Vector2(0.5, 0.5)
-texture = ExtResource("2_g1qqt")
+texture = ExtResource("5_qresc")
 centered = false
-offset = Vector2(-230, -285.76)
+offset = Vector2(-230, -309)
 flip_h = true
 region_enabled = true
-region_rect = Rect2(838, 606, 460, 304)
+region_rect = Rect2(963, 1130, 460, 326)
+metadata/hd_prop = "tent_ridge_red@460x326"
 
 [node name="S307" type="Sprite2D" parent="Objects" unique_id=1915778171]
 position = Vector2(2570, 800)
 scale = Vector2(0.5, 0.5)
-texture = ExtResource("2_g1qqt")
+texture = ExtResource("5_qresc")
 centered = false
-offset = Vector2(-188, -291.4)
+offset = Vector2(-188, -340)
 flip_h = true
 region_enabled = true
-region_rect = Rect2(2280, 0, 376, 310)
+region_rect = Rect2(3622, 0, 376, 359)
+metadata/hd_prop = "tent_cone_red@376x359"
 
 [node name="S308" type="Sprite2D" parent="Objects" unique_id=715066288]
 position = Vector2(1040, 640)
 scale = Vector2(0.5, 0.5)
-texture = ExtResource("2_g1qqt")
+texture = ExtResource("5_qresc")
 centered = false
-offset = Vector2(-196, -285.76)
+offset = Vector2(-196, -350)
 region_enabled = true
-region_rect = Rect2(1768, 606, 392, 304)
+region_rect = Rect2(3092, 0, 392, 368)
+metadata/hd_prop = "tent_cone@392x368"
 
 [node name="S309" type="Sprite2D" parent="Objects" unique_id=1072145705]
 position = Vector2(1190, 600)
 scale = Vector2(0.5, 0.5)
-texture = ExtResource("2_g1qqt")
+texture = ExtResource("5_qresc")
 centered = false
-offset = Vector2(-142, -193.64)
+offset = Vector2(-142, -254)
 region_enabled = true
-region_rect = Rect2(532, 1224, 284, 206)
+region_rect = Rect2(306, 1464, 284, 266)
+metadata/hd_prop = "tent_cone@284x266"
 
 [node name="S310" type="Sprite2D" parent="Objects" unique_id=895739027]
 position = Vector2(1700, 560)
 scale = Vector2(0.5, 0.5)
-texture = ExtResource("2_g1qqt")
+texture = ExtResource("5_qresc")
 centered = false
-offset = Vector2(-242, -283.88)
+offset = Vector2(-239, -303)
 flip_h = true
 region_enabled = true
-region_rect = Rect2(2566, 606, 484, 302)
+region_rect = Rect2(1425, 1130, 481, 321)
+metadata/hd_prop = "tent_ridge@481x321"
 
 [node name="S311" type="Sprite2D" parent="Objects" unique_id=868974519]
 position = Vector2(1880, 470)
 scale = Vector2(0.5, 0.5)
-texture = ExtResource("2_g1qqt")
+texture = ExtResource("5_qresc")
 centered = false
-offset = Vector2(-188, -291.4)
+offset = Vector2(-188, -340)
 flip_h = true
 region_enabled = true
-region_rect = Rect2(2280, 0, 376, 310)
+region_rect = Rect2(3622, 0, 376, 359)
+metadata/hd_prop = "tent_cone_red@376x359"
 
 [node name="S312" type="Sprite2D" parent="Objects" unique_id=1000248064]
 position = Vector2(1640, 1000)
 scale = Vector2(0.5, 0.5)
-texture = ExtResource("2_g1qqt")
+texture = ExtResource("5_qresc")
 centered = false
-offset = Vector2(-138, -191.76)
+offset = Vector2(-138, -247)
 region_enabled = true
-region_rect = Rect2(820, 1224, 276, 204)
+region_rect = Rect2(871, 1464, 276, 259)
+metadata/hd_prop = "tent_cone@276x259"
 
 [node name="S313" type="Sprite2D" parent="Objects" unique_id=1271953734]
 position = Vector2(820, 640)
 scale = Vector2(0.5, 0.5)
-texture = ExtResource("2_g1qqt")
+texture = ExtResource("5_qresc")
 centered = false
-offset = Vector2(-199, -283.88)
+offset = Vector2(-199, -354)
 flip_h = true
 region_enabled = true
-region_rect = Rect2(2164, 606, 398, 302)
+region_rect = Rect2(2693, 0, 397, 372)
+metadata/hd_prop = "tent_cone@397x372"
 
 [node name="S314" type="Sprite2D" parent="Objects" unique_id=715672862]
 position = Vector2(1150, 1300)
 scale = Vector2(0.5, 0.5)
-texture = ExtResource("2_g1qqt")
+texture = ExtResource("5_qresc")
 centered = false
-offset = Vector2(-145, -195.52)
+offset = Vector2(-145, -264)
 region_enabled = true
-region_rect = Rect2(238, 1224, 290, 208)
+region_rect = Rect2(3787, 1130, 289, 276)
+metadata/hd_prop = "tent_cone_red@289x276"
 
 [node name="S315" type="Sprite2D" parent="Objects" unique_id=1461183185]
 position = Vector2(2330, 400)
 scale = Vector2(0.5, 0.5)
-texture = ExtResource("2_g1qqt")
+texture = ExtResource("5_qresc")
 centered = false
-offset = Vector2(-202, -283.88)
+offset = Vector2(-202, -361)
 flip_h = true
 region_enabled = true
-region_rect = Rect2(0, 918, 404, 302)
+region_rect = Rect2(1752, 0, 404, 379)
+metadata/hd_prop = "tent_cone@404x379"
 
 [node name="S316" type="Sprite2D" parent="Objects" unique_id=1219683045]
 position = Vector2(300, 1170)
 scale = Vector2(0.5, 0.5)
-texture = ExtResource("2_g1qqt")
+texture = ExtResource("5_qresc")
 centered = false
-offset = Vector2(-142, -193.64)
+offset = Vector2(-142, -254)
 flip_h = true
 region_enabled = true
-region_rect = Rect2(532, 1224, 284, 206)
+region_rect = Rect2(306, 1464, 284, 266)
+metadata/hd_prop = "tent_cone@284x266"
 
 [node name="S317" type="Sprite2D" parent="Objects" unique_id=247496135]
 position = Vector2(2580, 1030)
 scale = Vector2(0.5, 0.5)
-texture = ExtResource("2_g1qqt")
+texture = ExtResource("5_qresc")
 centered = false
-offset = Vector2(-142, -193.64)
+offset = Vector2(-142, -254)
 region_enabled = true
-region_rect = Rect2(532, 1224, 284, 206)
+region_rect = Rect2(306, 1464, 284, 266)
+metadata/hd_prop = "tent_cone@284x266"
 
 [node name="S318" type="Sprite2D" parent="Objects" unique_id=1498347760]
 position = Vector2(2590, 1250)
 scale = Vector2(0.5, 0.5)
-texture = ExtResource("4_2fihv")
+texture = ExtResource("5_qresc")
 centered = false
-offset = Vector2(-125, -230)
+offset = Vector2(-125, -184)
 flip_h = true
 region_enabled = true
-region_rect = Rect2(1056, 1588, 250, 236)
+region_rect = Rect2(380, 1736, 250, 190)
+metadata/hd_prop = "wagon@250x190"
 
 [node name="S319" type="Sprite2D" parent="Objects" unique_id=1928607914]
 position = Vector2(1680, 300)
 scale = Vector2(0.5, 0.5)
-texture = ExtResource("4_2fihv")
+texture = ExtResource("5_qresc")
 centered = false
-offset = Vector2(-125, -230)
+offset = Vector2(-125, -184)
 region_enabled = true
-region_rect = Rect2(1056, 1588, 250, 236)
+region_rect = Rect2(380, 1736, 250, 190)
+metadata/hd_prop = "wagon@250x190"
 
 [node name="S320" type="Sprite2D" parent="Objects" unique_id=894319502]
 position = Vector2(260, 1300)
 scale = Vector2(0.5, 0.5)
-texture = ExtResource("2_g1qqt")
+texture = ExtResource("5_qresc")
 centered = false
-offset = Vector2(-126, -108)
+offset = Vector2(-126, -170)
 region_enabled = true
-region_rect = Rect2(2090, 1438, 252, 116)
+region_rect = Rect2(632, 1736, 252, 178)
+metadata/hd_prop = "cart_broken@252x178"
 
 [node name="S326" type="Sprite2D" parent="Objects" unique_id=1864404316]
 position = Vector2(2150, 660)
 scale = Vector2(0.5, 0.5)
-texture = ExtResource("2_g1qqt")
+texture = ExtResource("5_qresc")
 centered = false
-offset = Vector2(-213, -105)
+offset = Vector2(-213, -120)
 region_enabled = true
-region_rect = Rect2(2624, 918, 426, 210)
+region_rect = Rect2(2396, 1464, 426, 225)
+metadata/hd_prop = "pile_a@426x225"
 
 [node name="S327" type="Sprite2D" parent="Objects" unique_id=637399680]
 position = Vector2(690, 520)
 scale = Vector2(0.5, 0.5)
-texture = ExtResource("2_g1qqt")
+texture = ExtResource("5_qresc")
 centered = false
-offset = Vector2(-219, -105)
+offset = Vector2(-219, -126)
 flip_h = true
 region_enabled = true
-region_rect = Rect2(2182, 918, 438, 210)
+region_rect = Rect2(1670, 1464, 438, 231)
+metadata/hd_prop = "pile_a@438x231"
 
 [node name="S328" type="Sprite2D" parent="Objects" unique_id=1655348630]
 position = Vector2(680, 1180)
 scale = Vector2(0.5, 0.5)
-texture = ExtResource("2_g1qqt")
+texture = ExtResource("5_qresc")
 centered = false
-offset = Vector2(-210, -94)
+offset = Vector2(-210, -128)
 flip_h = true
 region_enabled = true
-region_rect = Rect2(1658, 1224, 420, 188)
+region_rect = Rect2(2824, 1464, 420, 222)
+metadata/hd_prop = "pile_a@420x222"
 
 [node name="S329" type="Sprite2D" parent="Objects" unique_id=1143770886]
 position = Vector2(1310, 1150)
 scale = Vector2(0.5, 0.5)
-texture = ExtResource("2_g1qqt")
+texture = ExtResource("5_qresc")
 centered = false
-offset = Vector2(-219, -105)
+offset = Vector2(-219, -126)
 flip_h = true
 region_enabled = true
-region_rect = Rect2(2182, 918, 438, 210)
+region_rect = Rect2(1670, 1464, 438, 231)
+metadata/hd_prop = "pile_a@438x231"
 
 [node name="S330" type="Sprite2D" parent="Objects" unique_id=940756673]
 position = Vector2(300, 610)
 scale = Vector2(0.5, 0.5)
-texture = ExtResource("2_g1qqt")
+texture = ExtResource("5_qresc")
 centered = false
-offset = Vector2(-189, -114)
+offset = Vector2(-189, -86)
 region_enabled = true
-region_rect = Rect2(1488, 918, 378, 228)
+region_rect = Rect2(0, 1736, 378, 200)
+metadata/hd_prop = "pile_a@378x200"
 
 [node name="S331" type="Sprite2D" parent="Objects" unique_id=1437153320]
 position = Vector2(2590, 1460)
 scale = Vector2(0.5, 0.5)
-texture = ExtResource("2_g1qqt")
+texture = ExtResource("5_qresc")
 centered = false
-offset = Vector2(-154, -112)
+offset = Vector2(-154, -51)
 region_enabled = true
-region_rect = Rect2(1870, 918, 308, 224)
+region_rect = Rect2(2187, 1736, 308, 163)
+metadata/hd_prop = "pile_a@308x163"
 
 [node name="S332" type="Sprite2D" parent="Objects" unique_id=1552434565]
 position = Vector2(2500, 1440)
 scale = Vector2(0.5, 0.5)
-texture = ExtResource("4_2fihv")
+texture = ExtResource("5_qresc")
 centered = false
-offset = Vector2(-54, -164)
+offset = Vector2(-39, -164)
 region_enabled = true
-region_rect = Rect2(2184, 848, 108, 170)
+region_rect = Rect2(1470, 1736, 77, 170)
+metadata/hd_prop = "armor_stand@77x170"
 
 [node name="S333" type="Sprite2D" parent="Objects" unique_id=1897476117]
 position = Vector2(2668, 1446)
 scale = Vector2(0.5, 0.5)
-texture = ExtResource("4_2fihv")
+texture = ExtResource("5_qresc")
 centered = false
-offset = Vector2(-30, -170)
+offset = Vector2(-56, -152)
 region_enabled = true
-region_rect = Rect2(2320, 844, 60, 176)
+region_rect = Rect2(2607, 1736, 112, 158)
+metadata/hd_prop = "weapon_rack@112x158"
 
 [node name="S334" type="Sprite2D" parent="Objects" unique_id=1787896195]
 position = Vector2(2650, 1380)
 scale = Vector2(0.5, 0.5)
-texture = ExtResource("4_2fihv")
+texture = ExtResource("5_qresc")
 centered = false
-offset = Vector2(-45, -166)
+offset = Vector2(-55, -149)
 region_enabled = true
-region_rect = Rect2(2218, 658, 90, 172)
+region_rect = Rect2(2721, 1736, 110, 155)
+metadata/hd_prop = "weapon_rack@110x155"
 
 [node name="S335" type="Sprite2D" parent="Objects" unique_id=603691345]
 position = Vector2(2530, 1490)
 scale = Vector2(0.5, 0.5)
-texture = ExtResource("4_2fihv")
+texture = ExtResource("5_qresc")
 centered = false
-offset = Vector2(-77, -116)
+offset = Vector2(-77, -118)
 region_enabled = true
-region_rect = Rect2(2408, 888, 154, 122)
+region_rect = Rect2(3133, 1938, 154, 124)
+metadata/hd_prop = "chest@154x124"
 
 [node name="S339" type="Sprite2D" parent="Objects" unique_id=1328077826]
 position = Vector2(497, 300)
 scale = Vector2(0.5, 0.5)
-texture = ExtResource("4_2fihv")
+texture = ExtResource("5_qresc")
 centered = false
-offset = Vector2(-44, -86)
+offset = Vector2(-44, -105)
 region_enabled = true
-region_rect = Rect2(1328, 1794, 88, 92)
+region_rect = Rect2(224, 2087, 88, 111)
+metadata/hd_prop = "crate@88x111"
 
 [node name="S340" type="Sprite2D" parent="Objects" unique_id=1393119827]
 position = Vector2(472, 297)
 scale = Vector2(0.5, 0.5)
-texture = ExtResource("4_2fihv")
+texture = ExtResource("5_qresc")
 centered = false
-offset = Vector2(-44, -86)
+offset = Vector2(-44, -105)
 region_enabled = true
-region_rect = Rect2(1328, 1794, 88, 92)
+region_rect = Rect2(224, 2087, 88, 111)
+metadata/hd_prop = "crate@88x111"
 
 [node name="S341" type="Sprite2D" parent="Objects" unique_id=275795265]
 position = Vector2(469, 291)
 scale = Vector2(0.5, 0.5)
-texture = ExtResource("4_2fihv")
+texture = ExtResource("5_qresc")
 centered = false
-offset = Vector2(-45, -126)
+offset = Vector2(-45, -128)
 flip_h = true
 region_enabled = true
-region_rect = Rect2(400, 1584, 90, 132)
+region_rect = Rect2(1591, 1938, 90, 134)
+metadata/hd_prop = "barrel@90x134"
 
 [node name="S342" type="Sprite2D" parent="Objects" unique_id=1690909113]
 position = Vector2(1204, 333)
 scale = Vector2(0.5, 0.5)
-texture = ExtResource("4_2fihv")
+texture = ExtResource("5_qresc")
 centered = false
-offset = Vector2(-54, -112)
+offset = Vector2(-54, -155)
 flip_h = true
 region_enabled = true
-region_rect = Rect2(174, 1762, 108, 118)
+region_rect = Rect2(2497, 1736, 108, 161)
+metadata/hd_prop = "barrel@108x161"
 
 [node name="S343" type="Sprite2D" parent="Objects" unique_id=1874008533]
 position = Vector2(1197, 342)
 scale = Vector2(0.5, 0.5)
-texture = ExtResource("4_2fihv")
+texture = ExtResource("5_qresc")
 centered = false
-offset = Vector2(-54, -112)
+offset = Vector2(-54, -155)
 flip_h = true
 region_enabled = true
-region_rect = Rect2(174, 1762, 108, 118)
+region_rect = Rect2(2497, 1736, 108, 161)
+metadata/hd_prop = "barrel@108x161"
 
 [node name="S344" type="Sprite2D" parent="Objects" unique_id=2024738125]
 position = Vector2(1187, 338)
 scale = Vector2(0.5, 0.5)
-texture = ExtResource("4_2fihv")
+texture = ExtResource("5_qresc")
 centered = false
-offset = Vector2(-44, -86)
+offset = Vector2(-44, -105)
 flip_h = true
 region_enabled = true
-region_rect = Rect2(1328, 1794, 88, 92)
+region_rect = Rect2(224, 2087, 88, 111)
+metadata/hd_prop = "crate@88x111"
 
 [node name="S345" type="Sprite2D" parent="Objects" unique_id=1801919240]
 position = Vector2(1278, 482)
 scale = Vector2(0.5, 0.5)
-texture = ExtResource("4_2fihv")
+texture = ExtResource("5_qresc")
 centered = false
-offset = Vector2(-44, -86)
+offset = Vector2(-44, -105)
 flip_h = true
 region_enabled = true
-region_rect = Rect2(1328, 1794, 88, 92)
+region_rect = Rect2(224, 2087, 88, 111)
+metadata/hd_prop = "crate@88x111"
 
 [node name="S346" type="Sprite2D" parent="Objects" unique_id=1664460042]
 position = Vector2(1238, 468)
 scale = Vector2(0.5, 0.5)
-texture = ExtResource("4_2fihv")
+texture = ExtResource("5_qresc")
 centered = false
-offset = Vector2(-44, -86)
+offset = Vector2(-44, -105)
 region_enabled = true
-region_rect = Rect2(1328, 1794, 88, 92)
+region_rect = Rect2(224, 2087, 88, 111)
+metadata/hd_prop = "crate@88x111"
 
 [node name="S347" type="Sprite2D" parent="Objects" unique_id=1187207235]
 position = Vector2(1240, 466)
 scale = Vector2(0.5, 0.5)
-texture = ExtResource("4_2fihv")
+texture = ExtResource("5_qresc")
 centered = false
-offset = Vector2(-26, -78)
+offset = Vector2(-26, -71)
 region_enabled = true
-region_rect = Rect2(268, 1584, 52, 84)
+region_rect = Rect2(2102, 2087, 52, 77)
+metadata/hd_prop = "barrel@52x77"
 
 [node name="S348" type="Sprite2D" parent="Objects" unique_id=295020489]
 position = Vector2(193, 753)
 scale = Vector2(0.5, 0.5)
-texture = ExtResource("4_2fihv")
+texture = ExtResource("5_qresc")
 centered = false
-offset = Vector2(-45, -126)
+offset = Vector2(-45, -128)
 region_enabled = true
-region_rect = Rect2(400, 1584, 90, 132)
+region_rect = Rect2(1591, 1938, 90, 134)
+metadata/hd_prop = "barrel@90x134"
 
 [node name="S349" type="Sprite2D" parent="Objects" unique_id=1190459630]
 position = Vector2(228, 772)
 scale = Vector2(0.5, 0.5)
-texture = ExtResource("4_2fihv")
+texture = ExtResource("5_qresc")
 centered = false
-offset = Vector2(-45, -126)
+offset = Vector2(-45, -128)
 region_enabled = true
-region_rect = Rect2(400, 1584, 90, 132)
+region_rect = Rect2(1591, 1938, 90, 134)
+metadata/hd_prop = "barrel@90x134"
 
 [node name="S350" type="Sprite2D" parent="Objects" unique_id=169262072]
 position = Vector2(239, 763)
 scale = Vector2(0.5, 0.5)
-texture = ExtResource("4_2fihv")
+texture = ExtResource("5_qresc")
 centered = false
-offset = Vector2(-43, -96)
+offset = Vector2(-43, -102)
 region_enabled = true
-region_rect = Rect2(1202, 1886, 86, 102)
+region_rect = Rect2(314, 2087, 86, 108)
+metadata/hd_prop = "crate@86x108"
 
 [node name="S351" type="Sprite2D" parent="Objects" unique_id=819069551]
 position = Vector2(1120, 877)
 scale = Vector2(0.5, 0.5)
-texture = ExtResource("4_2fihv")
+texture = ExtResource("5_qresc")
 centered = false
-offset = Vector2(-45, -126)
+offset = Vector2(-45, -128)
 region_enabled = true
-region_rect = Rect2(400, 1584, 90, 132)
+region_rect = Rect2(1591, 1938, 90, 134)
+metadata/hd_prop = "barrel@90x134"
 
 [node name="S352" type="Sprite2D" parent="Objects" unique_id=1967535096]
 position = Vector2(1096, 881)
 scale = Vector2(0.5, 0.5)
-texture = ExtResource("4_2fihv")
+texture = ExtResource("5_qresc")
 centered = false
-offset = Vector2(-45, -126)
+offset = Vector2(-45, -128)
 flip_h = true
 region_enabled = true
-region_rect = Rect2(400, 1584, 90, 132)
+region_rect = Rect2(1591, 1938, 90, 134)
+metadata/hd_prop = "barrel@90x134"
 
 [node name="S353" type="Sprite2D" parent="Objects" unique_id=1337535077]
 position = Vector2(1104, 883)
 scale = Vector2(0.5, 0.5)
-texture = ExtResource("4_2fihv")
+texture = ExtResource("5_qresc")
 centered = false
-offset = Vector2(-45, -126)
+offset = Vector2(-45, -128)
 region_enabled = true
-region_rect = Rect2(400, 1584, 90, 132)
+region_rect = Rect2(1591, 1938, 90, 134)
+metadata/hd_prop = "barrel@90x134"
 
 [node name="S354" type="Sprite2D" parent="Objects" unique_id=44310787]
 position = Vector2(1486, 1244)
 scale = Vector2(0.5, 0.5)
-texture = ExtResource("4_2fihv")
+texture = ExtResource("5_qresc")
 centered = false
-offset = Vector2(-44, -86)
+offset = Vector2(-44, -105)
 region_enabled = true
-region_rect = Rect2(1328, 1794, 88, 92)
+region_rect = Rect2(224, 2087, 88, 111)
+metadata/hd_prop = "crate@88x111"
 
 [node name="S355" type="Sprite2D" parent="Objects" unique_id=1809173534]
 position = Vector2(1950, 330)
 scale = Vector2(0.5, 0.5)
-texture = ExtResource("4_2fihv")
+texture = ExtResource("5_qresc")
 centered = false
-offset = Vector2(-54, -112)
+offset = Vector2(-54, -155)
 region_enabled = true
-region_rect = Rect2(174, 1762, 108, 118)
+region_rect = Rect2(2497, 1736, 108, 161)
+metadata/hd_prop = "barrel@108x161"
 
 [node name="S356" type="Sprite2D" parent="Objects" unique_id=2090118674]
 position = Vector2(1951, 341)
 scale = Vector2(0.5, 0.5)
-texture = ExtResource("4_2fihv")
+texture = ExtResource("5_qresc")
 centered = false
-offset = Vector2(-54, -112)
+offset = Vector2(-54, -155)
 flip_h = true
 region_enabled = true
-region_rect = Rect2(174, 1762, 108, 118)
+region_rect = Rect2(2497, 1736, 108, 161)
+metadata/hd_prop = "barrel@108x161"
 
 [node name="S357" type="Sprite2D" parent="Objects" unique_id=11185079]
 position = Vector2(1998, 341)
 scale = Vector2(0.5, 0.5)
-texture = ExtResource("4_2fihv")
+texture = ExtResource("5_qresc")
 centered = false
-offset = Vector2(-44, -86)
+offset = Vector2(-44, -105)
 region_enabled = true
-region_rect = Rect2(1328, 1794, 88, 92)
+region_rect = Rect2(224, 2087, 88, 111)
+metadata/hd_prop = "crate@88x111"
 
 [node name="S358" type="Sprite2D" parent="Objects" unique_id=968912698]
 position = Vector2(2318, 516)
 scale = Vector2(0.5, 0.5)
-texture = ExtResource("4_2fihv")
+texture = ExtResource("5_qresc")
 centered = false
-offset = Vector2(-45, -126)
+offset = Vector2(-45, -128)
 flip_h = true
 region_enabled = true
-region_rect = Rect2(400, 1584, 90, 132)
+region_rect = Rect2(1591, 1938, 90, 134)
+metadata/hd_prop = "barrel@90x134"
 
 [node name="S359" type="Sprite2D" parent="Objects" unique_id=1259794132]
 position = Vector2(2347, 531)
 scale = Vector2(0.5, 0.5)
-texture = ExtResource("4_2fihv")
+texture = ExtResource("5_qresc")
 centered = false
-offset = Vector2(-24, -74)
+offset = Vector2(-24, -65)
 region_enabled = true
-region_rect = Rect2(332, 1634, 48, 80)
+region_rect = Rect2(2396, 2087, 48, 71)
+metadata/hd_prop = "barrel@48x71"
 
 [node name="S360" type="Sprite2D" parent="Objects" unique_id=1119950284]
 position = Vector2(2303, 515)
 scale = Vector2(0.5, 0.5)
-texture = ExtResource("4_2fihv")
+texture = ExtResource("5_qresc")
 centered = false
-offset = Vector2(-43, -96)
+offset = Vector2(-43, -102)
 region_enabled = true
-region_rect = Rect2(1202, 1886, 86, 102)
+region_rect = Rect2(314, 2087, 86, 108)
+metadata/hd_prop = "crate@86x108"
 
 [node name="S361" type="Sprite2D" parent="Objects" unique_id=313788365]
 position = Vector2(2473, 1141)
 scale = Vector2(0.5, 0.5)
-texture = ExtResource("4_2fihv")
+texture = ExtResource("5_qresc")
 centered = false
-offset = Vector2(-24, -74)
+offset = Vector2(-24, -65)
 region_enabled = true
-region_rect = Rect2(332, 1634, 48, 80)
+region_rect = Rect2(2396, 2087, 48, 71)
+metadata/hd_prop = "barrel@48x71"
 
 [node name="S362" type="Sprite2D" parent="Objects" unique_id=1673784445]
 position = Vector2(2499, 1161)
 scale = Vector2(0.5, 0.5)
-texture = ExtResource("4_2fihv")
+texture = ExtResource("5_qresc")
 centered = false
-offset = Vector2(-43, -96)
+offset = Vector2(-43, -102)
 region_enabled = true
-region_rect = Rect2(1202, 1886, 86, 102)
+region_rect = Rect2(314, 2087, 86, 108)
+metadata/hd_prop = "crate@86x108"
 
 [node name="S363" type="Sprite2D" parent="Objects" unique_id=1960590729]
 position = Vector2(803, 1200)
 scale = Vector2(0.5, 0.5)
-texture = ExtResource("4_2fihv")
+texture = ExtResource("5_qresc")
 centered = false
-offset = Vector2(-43, -96)
+offset = Vector2(-43, -102)
 region_enabled = true
-region_rect = Rect2(1202, 1886, 86, 102)
+region_rect = Rect2(314, 2087, 86, 108)
+metadata/hd_prop = "crate@86x108"
 
 [node name="S364" type="Sprite2D" parent="Objects" unique_id=661696161]
 position = Vector2(825, 1194)
 scale = Vector2(0.5, 0.5)
-texture = ExtResource("4_2fihv")
+texture = ExtResource("5_qresc")
 centered = false
-offset = Vector2(-37, -114)
+offset = Vector2(-48, -70)
 flip_h = true
 region_enabled = true
-region_rect = Rect2(576, 1874, 74, 120)
+region_rect = Rect2(2156, 2087, 96, 76)
+metadata/hd_prop = "sacks@96x76"
 
 [node name="S365" type="Sprite2D" parent="Objects" unique_id=1161601478]
 position = Vector2(817, 1206)
 scale = Vector2(0.5, 0.5)
-texture = ExtResource("4_2fihv")
+texture = ExtResource("5_qresc")
 centered = false
-offset = Vector2(-24, -74)
+offset = Vector2(-24, -65)
 flip_h = true
 region_enabled = true
-region_rect = Rect2(332, 1634, 48, 80)
+region_rect = Rect2(2396, 2087, 48, 71)
+metadata/hd_prop = "barrel@48x71"
 
 [node name="S366" type="Sprite2D" parent="Objects" unique_id=11719633]
 position = Vector2(1764, 1048)
 scale = Vector2(0.5, 0.5)
-texture = ExtResource("4_2fihv")
+texture = ExtResource("5_qresc")
 centered = false
-offset = Vector2(-45, -126)
+offset = Vector2(-45, -128)
 flip_h = true
 region_enabled = true
-region_rect = Rect2(400, 1584, 90, 132)
+region_rect = Rect2(1591, 1938, 90, 134)
+metadata/hd_prop = "barrel@90x134"
 
 [node name="S367" type="Sprite2D" parent="Objects" unique_id=914481856]
 position = Vector2(1763, 1052)
 scale = Vector2(0.5, 0.5)
-texture = ExtResource("4_2fihv")
+texture = ExtResource("5_qresc")
 centered = false
-offset = Vector2(-37, -114)
+offset = Vector2(-48, -70)
 region_enabled = true
-region_rect = Rect2(576, 1874, 74, 120)
+region_rect = Rect2(2156, 2087, 96, 76)
+metadata/hd_prop = "sacks@96x76"
 
 [node name="S368" type="Sprite2D" parent="Objects" unique_id=1214826804]
 position = Vector2(1765, 1040)
 scale = Vector2(0.5, 0.5)
-texture = ExtResource("4_2fihv")
+texture = ExtResource("5_qresc")
 centered = false
-offset = Vector2(-37, -114)
+offset = Vector2(-48, -70)
 flip_h = true
 region_enabled = true
-region_rect = Rect2(576, 1874, 74, 120)
+region_rect = Rect2(2156, 2087, 96, 76)
+metadata/hd_prop = "sacks@96x76"
 
 [node name="S369" type="Sprite2D" parent="Objects" unique_id=173286261]
 position = Vector2(2360, 1358)
 scale = Vector2(0.5, 0.5)
-texture = ExtResource("4_2fihv")
+texture = ExtResource("5_qresc")
 centered = false
-offset = Vector2(-45, -126)
+offset = Vector2(-45, -128)
 region_enabled = true
-region_rect = Rect2(400, 1584, 90, 132)
+region_rect = Rect2(1591, 1938, 90, 134)
+metadata/hd_prop = "barrel@90x134"
 
 [node name="S370" type="Sprite2D" parent="Objects" unique_id=1902221673]
 position = Vector2(2351, 1356)
 scale = Vector2(0.5, 0.5)
-texture = ExtResource("4_2fihv")
+texture = ExtResource("5_qresc")
 centered = false
-offset = Vector2(-54, -112)
+offset = Vector2(-54, -155)
 region_enabled = true
-region_rect = Rect2(174, 1762, 108, 118)
+region_rect = Rect2(2497, 1736, 108, 161)
+metadata/hd_prop = "barrel@108x161"
 
 [node name="S371" type="Sprite2D" parent="Objects" unique_id=324060576]
 position = Vector2(1001, 559)
 scale = Vector2(0.5, 0.5)
-texture = ExtResource("4_2fihv")
+texture = ExtResource("5_qresc")
 centered = false
-offset = Vector2(-45, -126)
+offset = Vector2(-45, -128)
 region_enabled = true
-region_rect = Rect2(400, 1584, 90, 132)
+region_rect = Rect2(1591, 1938, 90, 134)
+metadata/hd_prop = "barrel@90x134"
 
 [node name="S372" type="Sprite2D" parent="Objects" unique_id=195667738]
 position = Vector2(951, 552)
 scale = Vector2(0.5, 0.5)
-texture = ExtResource("4_2fihv")
+texture = ExtResource("5_qresc")
 centered = false
-offset = Vector2(-26, -78)
+offset = Vector2(-26, -71)
 flip_h = true
 region_enabled = true
-region_rect = Rect2(268, 1584, 52, 84)
+region_rect = Rect2(2102, 2087, 52, 77)
+metadata/hd_prop = "barrel@52x77"
 
 [node name="S373" type="Sprite2D" parent="Objects" unique_id=488713610]
 position = Vector2(1645, 478)
 scale = Vector2(0.5, 0.5)
-texture = ExtResource("4_2fihv")
+texture = ExtResource("5_qresc")
 centered = false
-offset = Vector2(-44, -86)
+offset = Vector2(-44, -105)
 flip_h = true
 region_enabled = true
-region_rect = Rect2(1328, 1794, 88, 92)
+region_rect = Rect2(224, 2087, 88, 111)
+metadata/hd_prop = "crate@88x111"
 
 [node name="S374" type="Sprite2D" parent="Objects" unique_id=1194484339]
 position = Vector2(515, 1474)
 scale = Vector2(0.5, 0.5)
-texture = ExtResource("4_2fihv")
+texture = ExtResource("5_qresc")
 centered = false
-offset = Vector2(-43, -96)
+offset = Vector2(-43, -102)
 region_enabled = true
-region_rect = Rect2(1202, 1886, 86, 102)
+region_rect = Rect2(314, 2087, 86, 108)
+metadata/hd_prop = "crate@86x108"
 
 [node name="S375" type="Sprite2D" parent="Objects" unique_id=1426354247]
 position = Vector2(535, 1478)
 scale = Vector2(0.5, 0.5)
-texture = ExtResource("4_2fihv")
+texture = ExtResource("5_qresc")
 centered = false
-offset = Vector2(-37, -114)
+offset = Vector2(-48, -70)
 region_enabled = true
-region_rect = Rect2(576, 1874, 74, 120)
+region_rect = Rect2(2156, 2087, 96, 76)
+metadata/hd_prop = "sacks@96x76"
 
 [node name="S376" type="Sprite2D" parent="Objects" unique_id=562017181]
 position = Vector2(550, 1485)
 scale = Vector2(0.5, 0.5)
-texture = ExtResource("4_2fihv")
+texture = ExtResource("5_qresc")
 centered = false
-offset = Vector2(-37, -114)
+offset = Vector2(-48, -70)
 flip_h = true
 region_enabled = true
-region_rect = Rect2(576, 1874, 74, 120)
+region_rect = Rect2(2156, 2087, 96, 76)
+metadata/hd_prop = "sacks@96x76"
 
 [node name="S377" type="Sprite2D" parent="Objects" unique_id=1774210860]
 position = Vector2(1180, 1210)

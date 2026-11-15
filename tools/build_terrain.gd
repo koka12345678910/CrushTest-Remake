@@ -413,6 +413,13 @@ func _step_masks() -> void:
 				var v := _smooth(0.25, 0.75, s / n)
 				if atlas == "medieval_ground.png" and y < 512:
 					v = 1.0            # верхний квадрат 1024x1024 — сама «листва»
+				# Лесная подстилка: тёмные кляксы, трещины и камушки в ней
+				# смотрелись ямами на новой земле — заменяется вся. reskin —
+				# ряды 0..39, medieval — 64..95 (на карте других рядов в земле нет)
+				if atlas == "reskin_tiles.png" and y < 40 * 16:
+					v = 1.0
+				if atlas == "medieval_ground.png" and y >= 64 * 16 and y < 96 * 16:
+					v = 1.0
 				out[y * w + x] = int(v * 255.0)
 				if v > 0.5:
 					cnt += 1
@@ -1028,7 +1035,9 @@ func _step_apply() -> void:
 	if ResourceLoader.exists(MATERIAL):
 		# Подобранные вручную параметры не затираются
 		var old := load(MATERIAL) as ShaderMaterial
-		for p in ["brightness", "tint", "grass_bias", "path_map", "path_rect"]:
+		# path_* — tools/forest_paths.gd, cobble_* — tools/cobble_road.gd
+		for p in ["brightness", "tint", "grass_bias", "path_map", "path_rect",
+				"cobble_layers", "cobble_map", "cobble_rect"]:
 			var v = old.get_shader_parameter(p)
 			if v != null:
 				mat.set_shader_parameter(p, v)

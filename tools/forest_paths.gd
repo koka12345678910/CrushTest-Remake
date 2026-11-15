@@ -20,6 +20,8 @@ extends SceneTree
 ##   pixel — атлас леса в пиксель-арт (см. _step_pixel).
 ##   sharp — устарел: атлас леса теперь из tools/hd_art.gd (шаг пропускается).
 ##   leaves — убрать кучи опавших листьев (декали) со всей карты.
+##   soot  — убрать старые пятна сажи, кляксы, трещины, ямы и тёмные кучки
+##           земли (декали) со всей карты.
 ##
 ## Запуск:
 ##   godot --headless --path . -s res://tools/forest_paths.gd -- [paths] [thin]
@@ -38,8 +40,12 @@ const MATERIAL := "res://reference_map_level/textures/terrain/ground_material.tr
 const WORLD := Rect2i(-3520, -704, 8640, 5120)
 const PATH_PX := 4
 ## Полуширина тропы (мировые px) и мягкий край
-const HALF_W := 20.0
-const EDGE := 8.0
+const HALF_W := 14.0
+const EDGE := 28.0
+## Деревенские тропинки от дверей (tools/village_houses.gd) — уже лесных
+const VILLAGE_LAYOUT := "res://reference_map_level/village_layout.json"
+const LANE_HALF_W := 8.0
+const LANE_EDGE := 18.0
 ## Насколько далеко от домов и городских тайлов мостовая под тропой ещё
 ## остаётся камнем
 const TOWN_MARGIN := 160.0
@@ -103,6 +109,8 @@ func _run(steps: Array) -> void:
 		_step_sharp()
 	if "leaves" in steps:
 		_step_leaves()
+	if "soot" in steps:
+		_step_soot()
 	for r in report:
 		print(r)
 	quit()
@@ -250,12 +258,33 @@ func _step_paths() -> void:
 	var width := FastNoiseLite.new()
 	width.seed = 9
 	width.frequency = 1.0 / 120.0
+	# Мазки: [линия, полуширина, мягкий край]. Лесные тропы, а ещё деревенские
+	# тропинки от дверей и вытоптанные дворики (tools/village_houses.gd)
+	var strokes := []
 	for line in lines:
+		strokes.append([line, HALF_W, EDGE])
+	var lanes_n := 0
+	if FileAccess.file_exists(VILLAGE_LAYOUT):
+		var vl: Dictionary = JSON.parse_string(FileAccess.get_file_as_string(VILLAGE_LAYOUT))
+		for ln in vl.get("lanes", []):
+			var pts := PackedVector2Array()
+			for q in ln:
+				pts.append(Vector2(q[0], q[1]))
+			strokes.append([pts, LANE_HALF_W, LANE_EDGE])
+			lines.append(pts)
+			lanes_n += 1
+		for y in vl.get("yards", []):
+			var c := Vector2(y[0], y[1])
+			strokes.append([PackedVector2Array([c - Vector2(8, 0), c + Vector2(8, 0)]), float(y[2]) * 0.55, float(y[2]) * 0.7])
+	for st in strokes:
+		var line: PackedVector2Array = st[0]
+		var base_hw: float = st[1]
+		var edge: float = st[2]
 		for i in range(1, line.size()):
 			var a: Vector2 = line[i - 1]
 			var b: Vector2 = line[i]
-			var hw := HALF_W + width.get_noise_2d(a.x, a.y) * 4.0
-			var reach := hw + EDGE
+			var hw := base_hw + width.get_noise_2d(a.x, a.y) * base_hw * 0.28
+			var reach := hw + edge
 			var x0 := int((minf(a.x, b.x) - reach - WORLD.position.x) / PATH_PX)
 			var x1 := int((maxf(a.x, b.x) + reach - WORLD.position.x) / PATH_PX) + 1
 			var y0 := int((minf(a.y, b.y) - reach - WORLD.position.y) / PATH_PX)
@@ -264,7 +293,7 @@ func _step_paths() -> void:
 				for tx in range(maxi(x0, 0), mini(x1, w)):
 					var p := Vector2(WORLD.position.x + (tx + 0.5) * PATH_PX, WORLD.position.y + (ty + 0.5) * PATH_PX)
 					var d := Geometry2D.get_closest_point_to_segment(p, a, b).distance_to(p)
-					var v := clampf(1.0 - (d - hw) / EDGE, 0.0, 1.0)
+					var v := clampf(1.0 - (d - hw) / edge, 0.0, 1.0)
 					if v > f[ty * w + tx]:
 						f[ty * w + tx] = v
 	# R — тропа, G — «вне города» (там камень под тропой заменяется землёй)
@@ -578,8 +607,26 @@ const LEAF_REGIONS := [
 	Rect2i(1706, 748, 256, 140), Rect2i(1332, 1068, 172, 110),
 	Rect2i(364, 748, 348, 164), Rect2i(1036, 1560, 68, 44)]
 
+## Старые пиксельные декали ruin_art: тонкие трещины, пятна сажи с крапом,
+## клякса с чёрной дырой, выжженное пятно. На HD-земле читаются как дыры
+const SOOT_REGIONS := [
+	Rect2i(1556, 1388, 128, 80), Rect2i(1688, 1388, 128, 80), Rect2i(1820, 1388, 128, 80),
+	Rect2i(1066, 934, 220, 128), Rect2i(1066, 1476, 96, 72), Rect2i(1808, 1068, 146, 106),
+	# ямы и тёмные кучки земли
+	Rect2i(872, 1560, 88, 48), Rect2i(0, 1188, 136, 102), Rect2i(738, 1388, 108, 82),
+	Rect2i(1290, 934, 202, 122), Rect2i(556, 1068, 160, 112)]
+
 
 func _step_leaves() -> void:
+	_erase_regions(LEAF_REGIONS, "leaves", "куч листьев")
+
+
+func _step_soot() -> void:
+	_erase_regions(SOOT_REGIONS, "soot", "пятен сажи, трещин и ям")
+
+
+## Стереть со всех слоёв карты и лагеря клетки ruin_art.png с этими регионами
+func _erase_regions(regions: Array, tag: String, what: String) -> void:
 	for path in [MAP, CAMP]:
 		var lvl := (load(path) as PackedScene).instantiate(PackedScene.GEN_EDIT_STATE_MAIN)
 		var n := 0
@@ -590,7 +637,7 @@ func _step_leaves() -> void:
 				var src := layer.tile_set.get_source(layer.get_cell_source_id(c)) as TileSetAtlasSource
 				if src == null or src.texture == null or not src.texture.resource_path.ends_with("ruin_art.png"):
 					continue
-				if src.get_tile_texture_region(layer.get_cell_atlas_coords(c)) in LEAF_REGIONS:
+				if src.get_tile_texture_region(layer.get_cell_atlas_coords(c)) in regions:
 					layer.erase_cell(c)
 					n += 1
 		if not _scene_ok(lvl):
@@ -601,7 +648,7 @@ func _step_leaves() -> void:
 		var err := ps.pack(lvl)
 		if err == OK:
 			err = ResourceSaver.save(ps, path)
-		report.append("leaves %s: убрано %d куч листьев (%s)" % [path.get_file(), n, error_string(err)])
+		report.append("%s %s: убрано %d %s (%s)" % [tag, path.get_file(), n, what, error_string(err)])
 		lvl.free()
 
 

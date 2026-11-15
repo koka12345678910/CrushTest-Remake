@@ -1,8 +1,10 @@
 [gd_resource type="ShaderMaterial" format=3]
 
 [ext_resource type="Shader" path="res://reference_map_level/shaders/terrain_ground.gdshader" id="1_w34u0"]
+[ext_resource type="CompressedTexture2DArray" path="res://reference_map_level/textures/terrain/cobble_layers.png" id="2_wvbla"]
 [ext_resource type="CompressedTexture2DArray" path="res://reference_map_level/textures/terrain/ground_layers.png" id="2_xce4f"]
 [ext_resource type="Texture2D" path="res://reference_map_level/textures/terrain/mask_canyon.res" id="3_r07ce"]
+[ext_resource type="Texture2D" path="res://reference_map_level/textures/terrain/cobble_map.res" id="3_v715v"]
 [ext_resource type="Texture2D" path="res://reference_map_level/textures/terrain/mask_medieval.res" id="4_4yqxo"]
 [ext_resource type="Texture2D" path="res://reference_map_level/textures/terrain/mask_reskin.res" id="5_wvbla"]
 [ext_resource type="Texture2D" path="res://reference_map_level/textures/terrain/wear.res" id="6_v715v"]
@@ -24,9 +26,17 @@ shader_parameter/tile_world = null
 shader_parameter/brightness = null
 shader_parameter/tint = null
 shader_parameter/grass_bias = null
+shader_parameter/wear_grass = null
 shader_parameter/path_light = null
 shader_parameter/path_tint = null
 shader_parameter/rock_to_void = null
 shader_parameter/zone_map = ExtResource("8_r07ce")
 shader_parameter/zone_rect = Vector4(-3520, -704, 8640, 5120)
 shader_parameter/zone_force = null
+shader_parameter/cobble_layers = ExtResource("2_wvbla")
+shader_parameter/cobble_map = ExtResource("3_v715v")
+shader_parameter/cobble_rect = Vector4(-3520, -704, 8640, 5120)
+shader_parameter/cobble_world = null
+shader_parameter/cobble_light = null
+shader_parameter/cobble_moss = null
+shader_parameter/cobble_edge = null

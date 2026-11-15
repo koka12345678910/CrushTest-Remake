@@ -37,8 +37,8 @@ uniform float grass_bias = 0.0;
 // (лужайки у домов, голые только тропы и небольшие пятна)
 uniform float wear_grass = -0.6;
 // Тропа: насколько светлее земли вокруг и её оттенок
-uniform float path_light = 0.38;
-uniform vec3 path_tint : source_color = vec3(1.08, 0.96, 0.8);
+uniform float path_light = 0.05;
+uniform vec3 path_tint : source_color = vec3(1.02, 0.98, 0.93);
 // Слои провала (Canyon, Chasm): старый серый камень кромки уходит в темноту —
 // видимую стену кромки рисует CanyonFace (build_terrain.gd), а боковые и
 // дальние стенки с этой камеры не видны
@@ -50,6 +50,19 @@ uniform vec4 zone_rect = vec4(-3520.0, -704.0, 8640.0, 5120.0);
 // G — проклятый лес: там трава уступает багровому мху (слой 10).
 // zone_force — заменять всю землю слоя, кроме серого камня (сейчас не нужен)
 uniform float zone_force = 0.0;
+// Брусчатка (tools/cobble_road.gd): 2 плитки (0 — обычная, 1 — замшелая),
+// в альфе «высота» камня. Маска мира: R — мягкая «тут дорога»,
+// G — клетка старой мостовой атласа, которую рисуем заново целиком
+uniform sampler2DArray cobble_layers : source_color, filter_linear_mipmap_anisotropic, repeat_enable;
+uniform sampler2D cobble_map : filter_linear;
+uniform vec4 cobble_rect = vec4(-3520.0, -704.0, 8640.0, 5120.0);
+// Сторона плитки брусчатки в мировых px (≈9 камней поперёк, камень ~16 px)
+uniform float cobble_world = 150.0;
+uniform float cobble_light = 1.1;
+// Доля замшелых пятен
+uniform float cobble_moss = 0.35;
+// Ширина края: насколько камни по одному выходят за край дороги / тонут
+uniform float cobble_edge = 0.7;
 
 varying vec2 world_pos;
 varying vec4 vert_color;
@@ -110,6 +123,48 @@ vec4 hex_sample(vec2 uv, float layer, vec2 ddx, vec2 ddy) {
 	return w.y >= w.z ? c2 : c3;
 }
 
+// Брусчатка без видимого повтора: та же треугольная сетка, но крупнее, в
+// каждой вершине свой сдвиг и своя плитка (обычная/замшелая); на стыке
+// побеждает тот рисунок, где камень выше, — камни ложатся поверх щелей
+vec4 cobble_sample(vec2 uv, vec2 ddx, vec2 ddy, float moss) {
+	vec2 g = uv * 0.6;
+	vec2 s = vec2(g.x - 0.57735027 * g.y, 1.15470054 * g.y);
+	vec2 base = floor(s);
+	vec2 f = fract(s);
+	float z = 1.0 - f.x - f.y;
+	vec3 w;
+	vec2 v1;
+	vec2 v2;
+	vec2 v3;
+	if (z > 0.0) {
+		w = vec3(z, f.y, f.x);
+		v1 = base;
+		v2 = base + vec2(0.0, 1.0);
+		v3 = base + vec2(1.0, 0.0);
+	} else {
+		w = vec3(-z, 1.0 - f.y, 1.0 - f.x);
+		v1 = base + vec2(1.0, 1.0);
+		v2 = base + vec2(1.0, 0.0);
+		v3 = base + vec2(0.0, 1.0);
+	}
+	float l1 = step(hash22(v1 + 7.7).x, moss);
+	float l2 = step(hash22(v2 + 7.7).x, moss);
+	float l3 = step(hash22(v3 + 7.7).x, moss);
+	vec4 c1 = textureGrad(cobble_layers, vec3(uv + hash22(v1 + 3.1), l1), ddx, ddy);
+	vec4 c2 = textureGrad(cobble_layers, vec3(uv + hash22(v2 + 3.1), l2), ddx, ddy);
+	vec4 c3 = textureGrad(cobble_layers, vec3(uv + hash22(v3 + 3.1), l3), ddx, ddy);
+	// Резкие веса: почти везде рисунок одной вершины целиком, и только
+	// в узкой полосе на стыке решает высота (иначе три рисунка мешаются
+	// по пикселям в кашу)
+	w = w * w * w;
+	w = w * w * w;
+	w = w * (0.3 + vec3(c1.a, c2.a, c3.a) * 1.4);
+	if (w.x >= w.y && w.x >= w.z) {
+		return c1;
+	}
+	return w.y >= w.z ? c2 : c3;
+}
+
 // Выбор между двумя землями по высоте: на переходе трава прорастает
 // сквозь грязь отдельными пикселями
 vec4 hpick(vec4 a, vec4 b, float t) {
@@ -154,15 +209,21 @@ void fragment() {
 	// Производные — по непрерывным координатам (у ступенчатых они рваные)
 	vec2 ddx = dFdx(world_pos / tile_world);
 	vec2 ddy = dFdy(world_pos / tile_world);
+	vec2 cuv = wp / cobble_world;
+	vec2 cdx = dFdx(world_pos / cobble_world);
+	vec2 cdy = dFdy(world_pos / cobble_world);
+	vec2 cmap = texture(cobble_map, (wp - cobble_rect.xy) / cobble_rect.zw).rg;
 
 	// Тропа: R — тропа, G — «вне города», B — узкая старая каменная дорожка
 	// в лесу (тоже становится земляной тропой). Край рваный по пикселям
 	vec3 pm = texture(path_map, (wp - path_rect.xy) / path_rect.zw).rgb;
 	float p = max(pm.r, pm.b);
 	float jag = hash22(floor(world_pos) * 0.731 + 5.3).x - 0.5;
-	float on_path = step(0.5, p + jag * 0.45);
+	float on_hard = step(0.5, p + jag * 0.45);
+	// Для земли — мягкий переход (трава → подстилка → тропа), без жёсткой кромки
+	float on_path = smoothstep(0.06, 0.94, p + jag * 0.16);
 	// Кромка тропы: узкая полоса вокруг неё — темнее (читается и издалека)
-	float rim = step(0.22, p + jag * 0.45) * (1.0 - on_path);
+	float rim = step(0.22, p + jag * 0.45) * (1.0 - on_hard);
 
 	vec2 ts = 1.0 / TEXTURE_PIXEL_SIZE;
 	float m = 0.0;
@@ -178,8 +239,11 @@ void fragment() {
 		float trail = step(0.22, pm.b + jag * 0.45);
 		bool cobble_row = row >= 48.0 && row < 72.0;
 		bool south_row = row >= 184.0;
-		if (pm.g > 0.5 && lum(orig.rgb) > 0.09
-				&& ((cobble_row && on_path + rim > 0.5) || (south_row && trail > 0.5))) {
+		if (row >= 40.0 && row < 88.0 && cmap.g > 0.5) {
+			// Старая мостовая рисуется заново: брусчатка или земля у края
+			m = 1.0;
+		} else if (pm.g > 0.5 && lum(orig.rgb) > 0.09
+				&& ((cobble_row && on_hard + rim > 0.5) || (south_row && trail > 0.5))) {
 			m = 1.0;
 		}
 	} else if (abs(ts.x - 3008.0) < 0.5 && abs(ts.y - 4736.0) < 0.5) {
@@ -246,8 +310,25 @@ void fragment() {
 		}
 		// Неровность освещения крупными пятнами. Тропа — светлая тёплая
 		// утоптанная земля, кромка вокруг — темнее: дорожка видна издалека
-		float shade = (0.88 + 0.24 * n3) * (1.0 + on_path * path_light) * (1.0 - rim * 0.22);
+		float shade = (0.88 + 0.24 * n3) * (1.0 + on_path * path_light) * (1.0 - rim * 0.04);
 		vec3 tone = mix(tint, path_tint, on_path);
-		COLOR.rgb = terr.rgb * tone * brightness * shade * vert_color.rgb;
+		// Брусчатка поверх земли. У края дороги сначала уходят щели, потом
+		// камни пониже — высокие камни держатся дольше всех и выступают
+		// в землю по одному, край не повторяет клетки
+		bool cob = false;
+		if (cmap.r > 0.02) {
+			vec4 cb = cobble_sample(cuv, cdx, cdy, cobble_moss);
+			if (cmap.r + (cb.a - 0.5) * cobble_edge + jag * 0.04 > 0.5) {
+				terr = cb;
+				cob = true;
+			}
+		}
+		if (cob) {
+			COLOR.rgb = terr.rgb * tint * brightness * cobble_light * (0.9 + 0.2 * n3) * vert_color.rgb;
+		} else {
+			// Земля у самой дороги чуть темнее — забитая грязью кромка
+			shade *= 1.0 - smoothstep(0.05, 0.45, cmap.r) * 0.08;
+			COLOR.rgb = terr.rgb * tone * brightness * shade * vert_color.rgb;
+		}
 	}
 }
