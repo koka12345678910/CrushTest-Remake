@@ -17,6 +17,7 @@ extends SceneTree
 ##            вода остаются как были);
 ##   wear   — карта вытоптанности мира: у дорог, домов и лагеря меньше травы;
 ##   cliffs — стены плато заново из скальных кусков набора + лестницы;
+##   stairs — только лестницы в проходах стены (src/hd/stairs_v2_*), см. STAIRS_V2;
 ##   apply  — вешает материал на слои земли, прячет старый слой Cliffs,
 ##            добавляет CliffFace и лестницы. Сцена правится на месте.
 ##
@@ -43,7 +44,7 @@ func _initialize() -> void:
 	DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path(OUT))
 	var need_scene := false
 	for s in steps:
-		if s in ["wear", "cliffs", "canyon", "apply"]:
+		if s in ["wear", "cliffs", "canyon", "apply", "stairs"]:
 			need_scene = true
 	if need_scene:
 		lvl = (load(SCENE) as PackedScene).instantiate(PackedScene.GEN_EDIT_STATE_MAIN)
@@ -1089,41 +1090,7 @@ func _step_apply() -> void:
 		cf.owner = lvl
 		lvl.move_child(cf, lvl.get_node("Chasm").get_index() + 1)
 
-	# Лестницы в проходах стены — поверх затенения со старыми ступенями
-	var shade := lvl.get_node("ReliefShade")
-	var stairs_img := (ResourceLoader.load(OUT + "stairs.res", "", ResourceLoader.CACHE_MODE_REPLACE) as Texture2D).get_image()
-	if stairs_img.is_compressed():
-		stairs_img.decompress()
-	stairs_img.convert(Image.FORMAT_RGBA8)
-	if PIXEL_FACES and _rock_pal.is_empty():
-		if _rock == null:
-			_rock = _src_image("rock_set.png")
-			_rock_hi = _hi_res(_rock, Rect2i(0, 0, 460, 215))
-		_rock_pal = _palette([_rock_hi], ROCK_COLORS)
-	var i := 0
-	for r: Rect2 in lvl.get_meta("relief_stairs", []):
-		var s := Sprite2D.new()
-		s.name = "CliffStairs%d" % i
-		# Своя картинка ровно под размер на карте (CF текселей на px мира):
-		# без дробного растяжения при выводе — не мылится
-		var w := int(round(r.size.x * 1.34))
-		var h := int(round(r.size.y + 14.0))
-		var im := stairs_img.duplicate() as Image
-		im.resize(w * CF, h * CF, Image.INTERPOLATE_LANCZOS)
-		im = _unsharp(im, 0.4)
-		if PIXEL_FACES:
-			im = _quantize(im, _rock_pal)
-		_save_tex(im, "stairs_%d.res" % i)
-		s.texture = ResourceLoader.load(OUT + "stairs_%d.res" % i, "", ResourceLoader.CACHE_MODE_REPLACE)
-		s.centered = false
-		s.scale = Vector2(1.0 / CF, 1.0 / CF)
-		s.texture_filter = FACE_FILTER
-		# Боковые бортики заходят на торцы стены, низ — чуть на нижнюю землю
-		s.position = Vector2(round(r.position.x + r.size.x * 0.5 - w * 0.5), r.position.y - 8.0)
-		lvl.add_child(s)
-		s.owner = lvl
-		lvl.move_child(s, shade.get_index() + 1 + i)
-		i += 1
+	var i := _place_stairs()
 	lvl.set_meta("terrain_v1", true)
 
 	var ps := PackedScene.new()
@@ -1132,3 +1099,65 @@ func _step_apply() -> void:
 		err2 = ResourceSaver.save(ps, SCENE)
 	report.append("apply: материал на %d слоёв (%s), стены и %d лестницы, сцена (%s)" % [
 		GROUND_LAYERS.size(), error_string(err), i, error_string(err2)])
+
+
+# ───────────────────────── лестницы ─────────────────────────
+# Свои картинки на каждый проход (src/hd, порядок — как relief_stairs):
+# длинная для высокого прохода у форта, короткая и широкая для восточного.
+# Вписываются БЕЗ растяжения: масштаб — наибольший из «по ширине прохода» и
+# «по высоте стены», картинка по центру прохода, верх на кромке. Прежняя
+# версия растягивала одну картинку под каждый проход, лестница стояла косо.
+const STAIRS_V2 := ["stairs_v2_long", "stairs_v2_short"]
+const ArtUtil := preload("res://tools/art_util.gd")
+
+
+## Отдельный шаг: только лестницы, остальное в сцене не трогается
+func _step_stairs() -> void:
+	var n := _place_stairs()
+	var ps := PackedScene.new()
+	var err := ps.pack(lvl)
+	if err == OK:
+		err = ResourceSaver.save(ps, SCENE)
+	report.append("stairs: %d лестницы, сцена (%s)" % [n, error_string(err)])
+
+
+func _place_stairs() -> int:
+	var shade := lvl.get_node("ReliefShade")
+	# Тон — как у камня стены рядом: картинки GPT заметно светлее карты
+	var rock := Color(0.29, 0.26, 0.21)
+	var face := lvl.get_node_or_null("CliffFace") as Sprite2D
+	if face and face.texture:
+		var fi := face.texture.get_image()
+		if fi.is_compressed():
+			fi.decompress()
+		fi.convert(Image.FORMAT_RGBA8)
+		rock = ArtUtil.mean_color(fi)
+	var i := 0
+	for r: Rect2 in lvl.get_meta("relief_stairs", []):
+		var src := ArtUtil.load_hd(HD_DIR, STAIRS_V2[mini(i, STAIRS_V2.size() - 1)])
+		src = ArtUtil.clean_edges(src.get_region(src.get_used_rect()))
+		# Ступени в тон стены (чуть светлее: по ним ходят, их должно быть видно)
+		src = ArtUtil.match_tone(src, rock.lightened(0.03), 1.1)
+		var k := maxf(r.size.x * 1.25 / src.get_width(), (r.size.y + 14.0) / src.get_height())
+		var w := int(round(src.get_width() * k))
+		var h := int(round(src.get_height() * k))
+		# Своя картинка ровно под размер на карте (CF текселей на px мира)
+		var im := ArtUtil.resize_clean(src, w * CF, h * CF)
+		im = ArtUtil.unsharp(im, 0.35)
+		_save_tex(im, "stairs_%d.res" % i)
+		var s := lvl.get_node_or_null("CliffStairs%d" % i) as Sprite2D
+		if s == null:
+			s = Sprite2D.new()
+			s.name = "CliffStairs%d" % i
+			lvl.add_child(s)
+			s.owner = lvl
+			lvl.move_child(s, shade.get_index() + 1 + i)
+		s.texture = ResourceLoader.load(OUT + "stairs_%d.res" % i, "", ResourceLoader.CACHE_MODE_REPLACE)
+		s.centered = false
+		s.scale = Vector2(1.0 / CF, 1.0 / CF)
+		s.texture_filter = FACE_FILTER
+		# Бортики заходят на торцы стены, низ — на нижнюю землю
+		s.position = Vector2(round(r.position.x + r.size.x * 0.5 - w * 0.5), r.position.y - 8.0)
+		report.append("  лестница %d: %s, %dx%d px мира" % [i, STAIRS_V2[mini(i, STAIRS_V2.size() - 1)], w, h])
+		i += 1
+	return i

@@ -41,7 +41,27 @@ const REST_SOUND := preload("res://Sound/ambient_sound/recover_breath.mp3")
 ## тайлы — там ставится 0
 @export var ring_z_index := -17
 
+@export_group("Готовая картинка")
+## Если задана — костёр рисуется картинкой (кольцо, зола, меч целиком), а не
+## спрайтом кольца и мечом из полигонов. Две картинки в одном кадре: потухший
+## и зажжённый. Без них костёр как на кладбище
+@export var art_unlit: Texture2D
+@export var art_lit: Texture2D
+## Смещение картинки: центр кольца камней — в точке узла
+@export var art_offset := Vector2.ZERO
+@export var art_scale := 0.5
+## Коллизия: круг в центре кольца (сквозь камни и меч не пройти)
+@export var art_body_radius := 22.0
+## Пламя (Levels/props/campfire.tscn) над углями зажжённой картинки
+@export var art_flame_offset := Vector2(0, -6)
+@export var art_flame_scale := 1.0
+## Рисованное пиксельное пламя (Glow в campfire.tscn). У готовой картинки
+## угли нарисованы, а пиксельное пламя ложится на меч жёлтым пятном —
+## по умолчанию остаются только свет и искры
+@export var art_flame_sprite := false
+
 var lit := false
+var _art: Sprite2D
 var _near := false
 var _flame: Node2D
 var _ember_light: PointLight2D
@@ -81,6 +101,35 @@ static func find(tree: SceneTree, id: String) -> Node2D:
 # ===================== ВИД =====================
 
 func _build_visuals() -> void:
+	if art_unlit:
+		_build_art()
+	else:
+		_build_ring_and_sword()
+	_build_smolder()
+
+
+## Костёр одной картинкой. Узел стоит в y-sort уровня точкой центра кольца:
+## герой за костром закрыт мечом, перед костром — сам поверх камней
+func _build_art() -> void:
+	_art = Sprite2D.new()
+	_art.name = "Art"
+	_art.texture = art_unlit
+	_art.centered = false
+	_art.offset = art_offset
+	_art.scale = Vector2.ONE * art_scale
+	_art.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR
+	add_child(_art)
+	var body := StaticBody2D.new()
+	body.name = "Body"
+	var cs := CollisionShape2D.new()
+	var circle := CircleShape2D.new()
+	circle.radius = art_body_radius
+	cs.shape = circle
+	body.add_child(cs)
+	add_child(body)
+
+
+func _build_ring_and_sword() -> void:
 	# Кольцо камней с золой — плоско на земле, под всем
 	var ring := Sprite2D.new()
 	var at := AtlasTexture.new()
@@ -96,6 +145,8 @@ func _build_visuals() -> void:
 	_sword = _make_sword()
 	add_child(_sword)
 
+
+func _build_smolder() -> void:
 	# Тление: пара искр и слабый жар, пока костёр не зажжён
 	_ember_light = PointLight2D.new()
 	_ember_light.texture = _radial(64)
@@ -171,18 +222,30 @@ func _apply_lit(on: bool, animate: bool) -> void:
 	lit = on
 	_smolder.emitting = not on
 	_ember_light.visible = not on
+	if _art:
+		_art.texture = art_lit if on and art_lit else art_unlit
 	if on and _flame == null:
 		_flame = CampfireScene.instantiate()
-		_flame.position = Vector2(0, -1)
-		add_child(_flame)
-		move_child(_flame, _sword.get_index())
+		var size := 1.15
+		if _art:
+			# Пламя поверх картинки (угли нарисованы в ней)
+			_flame.position = art_flame_offset
+			size = art_flame_scale
+			add_child(_flame)
+			var glow := _flame.get_node_or_null("Glow") as CanvasItem
+			if glow and not art_flame_sprite:
+				glow.visible = false
+		else:
+			_flame.position = Vector2(0, -1)
+			add_child(_flame)
+			move_child(_flame, _sword.get_index())
 		if animate:
 			_flame.scale = Vector2.ZERO
 			var tw := create_tween()
-			tw.tween_property(_flame, "scale", Vector2.ONE * 1.45, 0.18).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
-			tw.tween_property(_flame, "scale", Vector2.ONE * 1.15, 0.6)
+			tw.tween_property(_flame, "scale", Vector2.ONE * size * 1.26, 0.18).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+			tw.tween_property(_flame, "scale", Vector2.ONE * size, 0.6)
 		else:
-			_flame.scale = Vector2.ONE * 1.15
+			_flame.scale = Vector2.ONE * size
 
 
 # ===================== ВЗАИМОДЕЙСТВИЕ =====================
