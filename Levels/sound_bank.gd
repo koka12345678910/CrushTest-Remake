@@ -22,6 +22,8 @@ const POOLS := {
 	"knight_armor": ["knight/armor_step_", 4],
 	"step_soft": ["footsteps/soft_", 6],
 	"step_stone": ["footsteps/stone_", 6],
+	"step_wood": ["footsteps/wood_", 6],
+	"step_water": ["footsteps/water_", 6],
 	"skel_grunt": ["skeleton/grunt_", 5],
 	"skel_aggro": ["skeleton/aggro_", 4],
 	"skel_moan": ["skeleton/moan_", 5],
@@ -153,7 +155,14 @@ static func loop_stream(rel: String) -> AudioStream:
 
 ## Что под ногами: "stone" (плиты, камень, пол в доме) или "soft" (трава,
 ## земля). Камень — зелёный канал маски земли (Shaders/ground_blend.gdshader)
+## Уровень может ответить сам: узел в группе "surface_provider" с методом
+## surface_at(at) -> "stone" / "wood" / "water" / "soft" (reference_map — immersion.gd)
 static func surface_at(tree: SceneTree, at: Vector2) -> String:
+	var prov := tree.get_first_node_in_group("surface_provider")
+	if prov != null and prov.has_method("surface_at"):
+		var s: String = str(prov.call("surface_at", at))
+		if s != "":
+			return s
 	for h in tree.get_nodes_in_group("house_interior"):
 		if h.has_method("is_roofed") and h.is_roofed(at):
 			return "stone"
@@ -174,4 +183,9 @@ static func surface_at(tree: SceneTree, at: Vector2) -> String:
 
 ## Шаг по текущей поверхности (null — файлов нет, у героя останется старый)
 static func step(tree: SceneTree, at: Vector2) -> AudioStream:
-	return pick("step_stone" if surface_at(tree, at) == "stone" else "step_soft")
+	var s := surface_at(tree, at)
+	if s == "wood" or s == "water":
+		var st := pick("step_" + s)
+		if st:
+			return st
+	return pick("step_stone" if s == "stone" else "step_soft")

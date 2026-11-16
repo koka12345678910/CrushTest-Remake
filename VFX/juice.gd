@@ -21,6 +21,9 @@ extends Node
 ##
 ## Камера. Толчок и наезд — через position/zoom камеры героя: offset каждый
 ## кадр пишет сам рыцарь (тряска, покачивание на бегу), его не трогаем.
+## zone_zoom — множитель зума от уровня (reference_map: ближе в лесу, дальше у
+## обрыва и в поле; ставит reference_map_level/scripts/camera_zones.gd),
+## наезды боя умножаются поверх него. 1 — как задано в камере героя.
 
 const DISTORT_SHADER := preload("res://Shaders/magic_distort.gdshader")
 const OVERLAY_SHADER := preload("res://Shaders/juice_overlay.gdshader")
@@ -53,6 +56,7 @@ var _shake := 0.0
 var _zoom_punch := 0.0
 var _zoom_hold_until := 0
 var _cam_dirty := false
+var zone_zoom := 1.0
 
 # --- экранный слой: канал -> [значение, держать_до_мкс, затухание/с] ---
 var _layer: CanvasLayer
@@ -539,10 +543,10 @@ func _update_camera(now: int, dt: float) -> void:
 		_shake = 0.0
 	if now > _zoom_hold_until:
 		_zoom_punch = move_toward(_zoom_punch, 0.0, (_zoom_punch * 4.0 + 0.02) * dt)
-	var active := off.length() > 0.05 or _zoom_punch > 0.0005
+	var active := off.length() > 0.05 or _zoom_punch > 0.0005 or absf(zone_zoom - 1.0) > 0.0005
 	if active:
 		_cam.position = _cam_base_pos + off
-		_cam.zoom = _cam_base_zoom * (1.0 + _zoom_punch)
+		_cam.zoom = _cam_base_zoom * zone_zoom * (1.0 + _zoom_punch)
 		_cam_dirty = true
 	elif _cam_dirty:
 		_cam.position = _cam_base_pos

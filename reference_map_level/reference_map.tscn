@@ -61,6 +61,7 @@
 [ext_resource type="Script" path="res://Levels/player_spawner.gd" id="gm_spawner"]
 [ext_resource type="Resource" path="res://reference_map_level/hidden_ground_cells.res" id="hg_cull_data"]
 [ext_resource type="Script" path="res://Levels/hidden_ground_cull.gd" id="hg_cull_script"]
+[ext_resource type="Script" path="res://reference_map_level/scripts/immersion.gd" id="imm_script"]
 
 [sub_resource type="TileSetAtlasSource" id="TileSetAtlasSource_qcu3b"]
 texture = ExtResource("1_dmk36")
@@ -58846,3 +58847,6 @@ script = ExtResource("53_34mpf")
 [node name="HiddenGroundCull" type="Node" parent="." unique_id=1730594112]
 script = ExtResource("hg_cull_script")
 data = ExtResource("hg_cull_data")
+
+[node name="Immersion" type="Node2D" parent="."]
+script = ExtResource("imm_script")

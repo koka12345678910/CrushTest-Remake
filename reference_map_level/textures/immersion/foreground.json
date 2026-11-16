@@ -1,0 +1,101 @@
+{
+	"branch_broken": {
+		"kind": "branch",
+		"rect": [
+			1352,
+			0,
+			186,
+			224
+		]
+	},
+	"branch_dead": {
+		"kind": "branch",
+		"rect": [
+			1120,
+			0,
+			228,
+			256
+		]
+	},
+	"bush": {
+		"kind": "grass",
+		"rect": [
+			2127,
+			0,
+			191,
+			192
+		]
+	},
+	"crown_ancient": {
+		"kind": "crown",
+		"rect": [
+			240,
+			0,
+			256,
+			191
+		]
+	},
+	"crown_crimson": {
+		"kind": "crown",
+		"rect": [
+			500,
+			0,
+			239,
+			256
+		]
+	},
+	"crown_oak": {
+		"kind": "crown",
+		"rect": [
+			0,
+			0,
+			236,
+			256
+		]
+	},
+	"crown_spruce": {
+		"kind": "crown",
+		"rect": [
+			743,
+			0,
+			184,
+			224
+		]
+	},
+	"crown_weeping": {
+		"kind": "crown",
+		"rect": [
+			931,
+			0,
+			185,
+			224
+		]
+	},
+	"fern": {
+		"kind": "grass",
+		"rect": [
+			1542,
+			0,
+			191,
+			192
+		]
+	},
+	"grass": {
+		"kind": "grass",
+		"rect": [
+			1737,
+			0,
+			190,
+			192
+		]
+	},
+	"twigs": {
+		"kind": "grass",
+		"rect": [
+			1931,
+			0,
+			192,
+			191
+		]
+	}
+}

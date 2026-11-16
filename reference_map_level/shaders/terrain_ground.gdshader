@@ -64,8 +64,25 @@ uniform float cobble_moss = 0.35;
 // Ширина края: насколько камни по одному выходят за край дороги / тонут
 uniform float cobble_edge = 0.7;
 
+// Рельеф для света огня (tools/normal_bake.gd, шаг ground_layers/cobble_layers):
+// массивы нормалей той же раскладки, что ground_layers и cobble_layers.
+// Нормаль берётся ровно из той выборки, чей цвет победил (Gs.at), поэтому
+// рельеф совпадает с рисунком камень в камень. Свет считает normal_light
+uniform sampler2DArray ground_normals : filter_linear_mipmap_anisotropic, repeat_enable;
+uniform sampler2DArray cobble_normals : filter_linear_mipmap_anisotropic, repeat_enable;
+// Включает scripts/normal_maps.gd, когда выставит массивы (без них — плоско)
+uniform bool use_normals = false;
+
+#include "res://reference_map_level/shaders/normal_light.gdshaderinc"
+
 varying vec2 world_pos;
 varying vec4 vert_color;
+
+// Выборка земли: цвет и откуда он взят (uv со сдвигом, слой массива)
+struct Gs {
+	vec4 c;
+	vec3 at;
+};
 
 void vertex() {
 	world_pos = (MODEL_MATRIX * vec4(VERTEX, 0.0, 1.0)).xy;
@@ -90,7 +107,7 @@ float height_of(vec3 c) {
 // Плитка без видимого повтора: треугольная сетка, в каждой вершине своя
 // случайная подвижка плитки (на целое число пикселей); из трёх выборок
 // берётся одна — где рисунок «выше». Цвет остаётся из палитры плитки.
-vec4 hex_sample(vec2 uv, float layer, vec2 ddx, vec2 ddy) {
+Gs hex_sample(vec2 uv, float layer, vec2 ddx, vec2 ddy) {
 	vec2 g = uv * 2.2;
 	vec2 s = vec2(g.x - 0.57735027 * g.y, 1.15470054 * g.y);
 	vec2 base = floor(s);
@@ -112,21 +129,24 @@ vec4 hex_sample(vec2 uv, float layer, vec2 ddx, vec2 ddy) {
 		v3 = base + vec2(0.0, 1.0);
 	}
 	float n = pixel_size > 0.0 ? tile_world / pixel_size : 65536.0;
-	vec4 c1 = textureGrad(ground_layers, vec3(uv + floor(hash22(v1 + layer * 13.1) * n) / n, layer), ddx, ddy);
-	vec4 c2 = textureGrad(ground_layers, vec3(uv + floor(hash22(v2 + layer * 13.1) * n) / n, layer), ddx, ddy);
-	vec4 c3 = textureGrad(ground_layers, vec3(uv + floor(hash22(v3 + layer * 13.1) * n) / n, layer), ddx, ddy);
+	vec3 a1 = vec3(uv + floor(hash22(v1 + layer * 13.1) * n) / n, layer);
+	vec3 a2 = vec3(uv + floor(hash22(v2 + layer * 13.1) * n) / n, layer);
+	vec3 a3 = vec3(uv + floor(hash22(v3 + layer * 13.1) * n) / n, layer);
+	vec4 c1 = textureGrad(ground_layers, a1, ddx, ddy);
+	vec4 c2 = textureGrad(ground_layers, a2, ddx, ddy);
+	vec4 c3 = textureGrad(ground_layers, a3, ddx, ddy);
 	vec3 h = vec3(lum(c1.rgb), lum(c2.rgb), lum(c3.rgb));
 	w = w * (0.55 + h * 1.8);
 	if (w.x >= w.y && w.x >= w.z) {
-		return c1;
+		return Gs(c1, a1);
 	}
-	return w.y >= w.z ? c2 : c3;
+	return w.y >= w.z ? Gs(c2, a2) : Gs(c3, a3);
 }
 
 // Брусчатка без видимого повтора: та же треугольная сетка, но крупнее, в
 // каждой вершине свой сдвиг и своя плитка (обычная/замшелая); на стыке
 // побеждает тот рисунок, где камень выше, — камни ложатся поверх щелей
-vec4 cobble_sample(vec2 uv, vec2 ddx, vec2 ddy, float moss) {
+Gs cobble_sample(vec2 uv, vec2 ddx, vec2 ddy, float moss) {
 	vec2 g = uv * 0.6;
 	vec2 s = vec2(g.x - 0.57735027 * g.y, 1.15470054 * g.y);
 	vec2 base = floor(s);
@@ -150,9 +170,12 @@ vec4 cobble_sample(vec2 uv, vec2 ddx, vec2 ddy, float moss) {
 	float l1 = step(hash22(v1 + 7.7).x, moss);
 	float l2 = step(hash22(v2 + 7.7).x, moss);
 	float l3 = step(hash22(v3 + 7.7).x, moss);
-	vec4 c1 = textureGrad(cobble_layers, vec3(uv + hash22(v1 + 3.1), l1), ddx, ddy);
-	vec4 c2 = textureGrad(cobble_layers, vec3(uv + hash22(v2 + 3.1), l2), ddx, ddy);
-	vec4 c3 = textureGrad(cobble_layers, vec3(uv + hash22(v3 + 3.1), l3), ddx, ddy);
+	vec3 a1 = vec3(uv + hash22(v1 + 3.1), l1);
+	vec3 a2 = vec3(uv + hash22(v2 + 3.1), l2);
+	vec3 a3 = vec3(uv + hash22(v3 + 3.1), l3);
+	vec4 c1 = textureGrad(cobble_layers, a1, ddx, ddy);
+	vec4 c2 = textureGrad(cobble_layers, a2, ddx, ddy);
+	vec4 c3 = textureGrad(cobble_layers, a3, ddx, ddy);
 	// Резкие веса: почти везде рисунок одной вершины целиком, и только
 	// в узкой полосе на стыке решает высота (иначе три рисунка мешаются
 	// по пикселям в кашу)
@@ -160,23 +183,23 @@ vec4 cobble_sample(vec2 uv, vec2 ddx, vec2 ddy, float moss) {
 	w = w * w * w;
 	w = w * (0.3 + vec3(c1.a, c2.a, c3.a) * 1.4);
 	if (w.x >= w.y && w.x >= w.z) {
-		return c1;
+		return Gs(c1, a1);
 	}
-	return w.y >= w.z ? c2 : c3;
+	return w.y >= w.z ? Gs(c2, a2) : Gs(c3, a3);
 }
 
 // Выбор между двумя землями по высоте: на переходе трава прорастает
 // сквозь грязь отдельными пикселями
-vec4 hpick(vec4 a, vec4 b, float t) {
-	float ha = height_of(a.rgb) + (1.0 - t);
-	float hb = height_of(b.rgb) + t;
+Gs hpick(Gs a, Gs b, float t) {
+	float ha = height_of(a.c.rgb) + (1.0 - t);
+	float hb = height_of(b.c.rgb) + t;
 	return ha >= hb ? a : b;
 }
 
-vec4 level_color(int lv, vec2 uv, vec2 ddx, vec2 ddy, float nv, float rocky) {
+Gs level_color(int lv, vec2 uv, vec2 ddx, vec2 ddy, float nv, float rocky) {
 	if (lv <= 0) {
 		float t = smoothstep(0.4, 0.6, nv);
-		vec4 d;
+		Gs d;
 		if (t < 0.01) {
 			d = hex_sample(uv, 0.0, ddx, ddy);
 		} else if (t > 0.99) {
@@ -203,6 +226,8 @@ vec4 level_color(int lv, vec2 uv, vec2 ddx, vec2 ddy, float nv, float rocky) {
 
 void fragment() {
 	vec4 orig = COLOR;
+	// Старый рисунок атласа (там, где земля не заменяется) — плоский
+	NORMAL_MAP = vec3(0.5, 0.5, 1.0);
 	// Центр арт-пикселя: всё ниже одинаково для всех точек экрана внутри него
 	vec2 wp = pixel_size > 0.0 ? (floor(world_pos / pixel_size) + 0.5) * pixel_size : world_pos;
 	vec2 uv = wp / tile_world;
@@ -283,7 +308,7 @@ void fragment() {
 		float L = g * 4.0;
 		int i0 = int(min(floor(L), 3.0));
 		float t = L - float(i0);
-		vec4 terr;
+		Gs terr;
 		if (t < 0.02) {
 			terr = level_color(i0, uv, ddx, ddy, n2, rocky);
 		} else if (t > 0.98) {
@@ -317,18 +342,24 @@ void fragment() {
 		// в землю по одному, край не повторяет клетки
 		bool cob = false;
 		if (cmap.r > 0.02) {
-			vec4 cb = cobble_sample(cuv, cdx, cdy, cobble_moss);
-			if (cmap.r + (cb.a - 0.5) * cobble_edge + jag * 0.04 > 0.5) {
+			Gs cb = cobble_sample(cuv, cdx, cdy, cobble_moss);
+			if (cmap.r + (cb.c.a - 0.5) * cobble_edge + jag * 0.04 > 0.5) {
 				terr = cb;
 				cob = true;
 			}
 		}
 		if (cob) {
-			COLOR.rgb = terr.rgb * tint * brightness * cobble_light * (0.9 + 0.2 * n3) * vert_color.rgb;
+			COLOR.rgb = terr.c.rgb * tint * brightness * cobble_light * (0.9 + 0.2 * n3) * vert_color.rgb;
+			if (use_normals) {
+				NORMAL_MAP = textureGrad(cobble_normals, terr.at, cdx, cdy).rgb;
+			}
 		} else {
 			// Земля у самой дороги чуть темнее — забитая грязью кромка
 			shade *= 1.0 - smoothstep(0.05, 0.45, cmap.r) * 0.08;
-			COLOR.rgb = terr.rgb * tone * brightness * shade * vert_color.rgb;
+			COLOR.rgb = terr.c.rgb * tone * brightness * shade * vert_color.rgb;
+			if (use_normals) {
+				NORMAL_MAP = textureGrad(ground_normals, terr.at, ddx, ddy).rgb;
+			}
 		}
 	}
 }
