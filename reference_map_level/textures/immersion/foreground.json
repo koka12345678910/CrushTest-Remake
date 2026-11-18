@@ -2,7 +2,7 @@
 	"branch_broken": {
 		"kind": "branch",
 		"rect": [
-			1352,
+			3176,
 			0,
 			186,
 			224
@@ -11,7 +11,7 @@
 	"branch_dead": {
 		"kind": "branch",
 		"rect": [
-			1120,
+			2944,
 			0,
 			228,
 			256
@@ -20,7 +20,7 @@
 	"bush": {
 		"kind": "grass",
 		"rect": [
-			2127,
+			3951,
 			0,
 			191,
 			192
@@ -29,7 +29,7 @@
 	"crown_ancient": {
 		"kind": "crown",
 		"rect": [
-			240,
+			2064,
 			0,
 			256,
 			191
@@ -38,7 +38,7 @@
 	"crown_crimson": {
 		"kind": "crown",
 		"rect": [
-			500,
+			2324,
 			0,
 			239,
 			256
@@ -47,7 +47,7 @@
 	"crown_oak": {
 		"kind": "crown",
 		"rect": [
-			0,
+			1824,
 			0,
 			236,
 			256
@@ -56,7 +56,7 @@
 	"crown_spruce": {
 		"kind": "crown",
 		"rect": [
-			743,
+			2567,
 			0,
 			184,
 			224
@@ -65,7 +65,7 @@
 	"crown_weeping": {
 		"kind": "crown",
 		"rect": [
-			931,
+			2755,
 			0,
 			185,
 			224
@@ -74,7 +74,7 @@
 	"fern": {
 		"kind": "grass",
 		"rect": [
-			1542,
+			3366,
 			0,
 			191,
 			192
@@ -83,16 +83,70 @@
 	"grass": {
 		"kind": "grass",
 		"rect": [
-			1737,
+			3561,
 			0,
 			190,
 			192
 		]
 	},
+	"roof_corner": {
+		"kind": "roof",
+		"rect": [
+			1012,
+			0,
+			256,
+			224
+		]
+	},
+	"roof_dragon": {
+		"kind": "roof",
+		"rect": [
+			1272,
+			0,
+			224,
+			172
+		]
+	},
+	"roof_long": {
+		"kind": "roof",
+		"rect": [
+			648,
+			0,
+			360,
+			82
+		]
+	},
+	"roof_shingle": {
+		"kind": "roof",
+		"rect": [
+			0,
+			0,
+			320,
+			136
+		]
+	},
+	"roof_smithy": {
+		"kind": "roof",
+		"rect": [
+			1500,
+			0,
+			320,
+			103
+		]
+	},
+	"roof_turf": {
+		"kind": "roof",
+		"rect": [
+			324,
+			0,
+			320,
+			99
+		]
+	},
 	"twigs": {
 		"kind": "grass",
 		"rect": [
-			1931,
+			3755,
 			0,
 			192,
 			191

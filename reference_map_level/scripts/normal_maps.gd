@@ -211,13 +211,23 @@ func _tiles_lit(src: TileSetAtlasSource) -> bool:
 func _apply_sprites(sprites: Array[Sprite2D]) -> int:
 	var n := 0
 	for s in sprites:
-		var ct := _canvas_tex(s.texture)
+		# Разбиваемые бочки/ящики (breakables.gd) — кусок атласа: нормаль
+		# берётся у атласа, кусок остаётся тем же
+		var at := s.texture as AtlasTexture
+		var ct := _canvas_tex(at.atlas if at else s.texture)
 		if ct == null:
 			continue
+		var path := (at.atlas if at else s.texture).resource_path
 		if s.material == null and not s.use_parent_material:
-			s.material = _rock if s.texture.resource_path.contains("/terrain/") else _plain
+			s.material = _rock if path.contains("/terrain/") else _plain
 		elif not _lit(s.material):
 			continue
-		s.texture = ct
+		if at:
+			var na := AtlasTexture.new()
+			na.atlas = ct
+			na.region = at.region
+			s.texture = na
+		else:
+			s.texture = ct
 		n += 1
 	return n

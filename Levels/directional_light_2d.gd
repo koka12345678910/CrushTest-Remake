@@ -25,6 +25,13 @@ var _flash_boost := 0.0
 @export_range(0.0, 1.0) var flash_overlay_alpha := 0.2
 ## Холодный оттенок экранной вспышки — чистый белый режет глаз сильнее
 @export var flash_overlay_color := Color(0.75, 0.82, 1.0)
+## Цвет самого света во вспышке. Обычный цвет неба ведёт время суток
+## (на закате он оранжевый) — молния же всегда холодная
+@export var flash_light_color := Color(0.8, 0.87, 1.0)
+## Сила зарницы (далёкая вспышка в тучах) относительно грозовой
+@export_range(0.0, 1.0) var cloud_flash_strength := 0.6
+var _sky_color := Color.WHITE
+var _flash_k := 1.0
 
 # Гром. Свет доходит мгновенно, звук — примерно 343 м/с, поэтому далёкая
 # молния грохочет заметно позже вспышки и тише. Именно эта задержка и делает
@@ -44,6 +51,10 @@ var _flash_boost := 0.0
 ## Радиус, в котором удар отбрасывает и оглушает врагов (без урона)
 @export var strike_stun_radius := 60.0
 @export_range(0.0, 1.0) var far_bolt_chance := 0.45
+## Зарницы: в пасмурную погоду без грозы небо изредка вспыхивает — только
+## свет и далёкий глухой гром, без ударов и разрядов. Доля частоты грозы
+## при сплошных тучах (0 — нет зарниц, как на кладбище)
+@export_range(0.0, 1.0) var cloud_flash_rate := 0.0
 
 const LightningBolt := preload("res://VFX/VFX_scene/lightning_bolt.gd")
 const MageFx := preload("res://Player_scene/mage_fx.gd")
@@ -56,29 +67,44 @@ func _ready() -> void:
 
 func _process(delta: float) -> void:
 	energy = night_energy + _flash_boost
+	# Цвет неба запоминаем, пока вспышки нет (его каждый кадр ставит погода);
+	# во вспышке свет уходит в холодный
+	if _flash_boost <= 0.0:
+		_sky_color = color
+	color = _sky_color.lerp(flash_light_color, clampf(_flash_boost / maxf(flash_energy, 0.01), 0.0, 1.0))
 	# Без грозы неба не рвёт; пока гроза нарастает — молнии редкие, в разгар
 	# грозы — с обычной частотой
 	var storm: float = Weather.storm if Weather.is_active() else 1.0
+	var rate := storm
+	var far_only := false
 	if storm < 0.3:
+		# Зарницы в сплошных тучах (cloud_flash_rate), иначе неба не рвёт
+		var cloud: float = Weather.cloud if Weather.is_active() else 0.0
+		rate = cloud_flash_rate * smoothstep(0.5, 0.8, cloud)
+		far_only = true
+	if rate <= 0.0:
 		lightning_timer = 0.0
 		return
-	lightning_timer += delta * storm
+	lightning_timer += delta * rate
 	if lightning_timer >= next_lightning_time:
 		lightning_timer = 0.0
 		next_lightning_time = randf_range(lightning_interval_min, lightning_interval_max)
-		_trigger_lightning()
+		_trigger_lightning(far_only)
 
-func _trigger_lightning() -> void:
+## far_only — зарница: только свет неба и далёкий гром
+func _trigger_lightning(far_only := false) -> void:
+	_flash_k = cloud_flash_strength if far_only else 1.0
 	var hero := get_tree().get_first_node_in_group("player") as Node2D
-	if hero and randf() < strike_chance and _outdoors(hero.global_position):
+	if not far_only and hero and randf() < strike_chance and _outdoors(hero.global_position):
 		_strike(hero)
 		return
-	if hero and randf() < far_bolt_chance and _outdoors(hero.global_position):
+	if not far_only and hero and randf() < far_bolt_chance and _outdoors(hero.global_position):
 		_far_bolt(hero)
 	# "дальность" удара: 0 = рядом, 1 = у горизонта. Одно и то же число задаёт
 	# и паузу до грома, и его громкость, поэтому близкая молния бьёт резко и
-	# громко, а далёкая долго доходит и глухо перекатывается
-	var distance := randf()
+	# громко, а далёкая долго доходит и глухо перекатывается. Зарница — всегда
+	# далеко: гром поздний и глухой
+	var distance := randf_range(0.65, 1.0) if far_only else randf()
 	_play_thunder(distance)
 
 	var flash_count = randi_range(2, 4)
@@ -112,7 +138,7 @@ func _resolve_lightning_flash() -> ColorRect:
 func _flash() -> void:
 	var tween = create_tween()
 	# Каждый всполох в серии чуть разный по силе — так молния живее
-	var k := randf_range(0.6, 1.0)
+	var k := randf_range(0.6, 1.0) * _flash_k
 	tween.tween_property(self, "_flash_boost", maxf(flash_energy * k - night_energy, 0.0), 0.03)
 	tween.tween_property(self, "_flash_boost", 0.0, 0.12)
 

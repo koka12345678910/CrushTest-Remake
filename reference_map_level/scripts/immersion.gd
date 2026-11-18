@@ -36,6 +36,8 @@ const CRITTERS_SCRIPT := preload("res://reference_map_level/scripts/critters.gd"
 const CAMERA_SCRIPT := preload("res://reference_map_level/scripts/camera_zones.gd")
 const SHADOWS_SCRIPT := preload("res://reference_map_level/scripts/light_shadows.gd")
 const NORMALS_SCRIPT := preload("res://reference_map_level/scripts/normal_maps.gd")
+const WEATHER_SCRIPT := preload("res://reference_map_level/scripts/weather_link.gd")
+const BREAKABLES_SCRIPT := preload("res://reference_map_level/scripts/breakables.gd")
 const GROUND_MATERIAL := "res://reference_map_level/textures/terrain/ground_material.tres"
 
 @export var wind_enabled := true
@@ -58,8 +60,19 @@ const GROUND_MATERIAL := "res://reference_map_level/textures/terrain/ground_mate
 @export var shadows_enabled := true
 ## Свет огня ложится по рельефу HD-арта (карты нормалей textures/normals)
 @export var normals_enabled := true
+## Облака, ветер, передний план, пропасть, река — по времени суток и погоде
+## (автозагрузка Weather)
+@export var weather_enabled := true
+## Бочки и ящики разбиваются (удар, Хальвард влетает) и не стоят стеной
+@export var breakables_enabled := true
+## Старт карты (первый заход за сессию): час 0..24 и погода
+## (0 ясно, 1 пасмурно, 2 туман, 3 дождь, 4 гроза); -1 — как в Weather
+@export var weather_start_hour := 18.0
+@export var weather_start := 1
 ## Общая сила ветра (кроны, ткань, передний план)
 @export_range(0.0, 3.0) var wind_strength := 1.0
+## Доля домов Хольмвика, у которых на переднем плане проплывает свес крыши
+@export_range(0.0, 1.0) var roof_chance := 0.7
 @export var seed_value := 7
 
 ## Слои с деревьями и пропсами (тайлы)
@@ -118,6 +131,13 @@ func _build() -> void:
 	var map := get_parent()
 	_read_occlusion(map)
 	_scan(map)
+	# Бочки и ящики — разбиваемые, без упора; до теней (они читают коллизию)
+	if breakables_enabled:
+		var br := BREAKABLES_SCRIPT.new()
+		br.name = "Breakables"
+		add_child(br)
+		br.call("setup", map)
+		stats["breakables"] = br.get("stats")
 	if wind_enabled:
 		_apply_wind(map)
 	if mist_enabled:
@@ -146,6 +166,14 @@ func _build() -> void:
 		stats["shadows"] = ls.get("stats")
 	if sound_enabled:
 		_build_sound(map)
+	if weather_enabled:
+		var wl := WEATHER_SCRIPT.new()
+		wl.name = "WeatherLink"
+		wl.set("start_hour", weather_start_hour)
+		wl.set("start_weather", weather_start)
+		add_child(wl)
+		wl.call("setup", map, wind_strength)
+		stats["weather"] = wl.get("stats")
 	# Последним: подменяет текстуры на CanvasTexture, а шаги выше смотрят
 	# resource_path текстур
 	if normals_enabled:
@@ -154,7 +182,34 @@ func _build() -> void:
 		add_child(nm)
 		nm.call("setup", map, _mats.values())
 		stats["normals"] = nm.get("stats")
+	# Самым последним — когда все узлы земли уже вставлены (туман, бездна, следы)
+	stats["ground_z"] = _lower_ground(map)
 	print("Immersion: ", stats)
+
+
+## Вся земля карты — ниже наземных эффектов игры.
+##
+## Эффекты на земле (кровь blood_decals.gd -16, выжженная земля мага -15,
+## корни и ростки друидессы, ледяной след, пыль, брызги дождя) рассчитаны на
+## кладбище, где земля лежит на z -19…-17. Здесь земля была на z 0 — эффекты
+## уходили под неё и были не видны. Каждый узел корня карты перед Objects
+## (слои земли, обрывы, мосты, тени, туман, следы, лужи под павшими)
+## опускается на GROUND_Z: их порядок между собой не меняется (тот же сдвиг
+## всем), эффекты оказываются над землёй и под персонажами (Objects, z 0).
+const GROUND_Z := -20
+
+func _lower_ground(map: Node) -> int:
+	var objects := map.get_node_or_null("Objects")
+	if objects == null:
+		return 0
+	var n := 0
+	for c in map.get_children():
+		if c == objects:
+			break
+		if c is CanvasItem and (c as CanvasItem).z_as_relative:
+			(c as CanvasItem).z_index += GROUND_Z
+			n += 1
+	return n
 
 
 func _process(delta: float) -> void:
@@ -612,8 +667,24 @@ func _build_foreground() -> void:
 			cols.append(palette[_rng.randi() % palette.size()])
 		fg.call("add_rope", a, b, _rng.randf_range(1.2, 1.32), cols)
 		ropes += 1
+	# Город: свесы ближних крыш. Дома Хольмвика стоят фасадом к улице, улица —
+	# перед основанием; якорь — за улицей со стороны камеры (ниже основания):
+	# пока герой бежит по улице, крыша проплывает по нижнему краю кадра
+	var roofs := 0
+	var roof_parts := ["roof_shingle", "roof_turf", "roof_long", "roof_corner", "roof_dragon", "roof_smithy"]
+	for h in _houses:
+		if not h.has_meta("town_v2") or _rng.randf() > roof_chance:
+			continue
+		var w := h.region_rect.size.x * absf(h.global_scale.x)
+		var n := 2 if w > 330.0 else 1
+		for j in n:
+			var at := h.global_position + Vector2(_rng.randf_range(-0.45, 0.45) * w, _rng.randf_range(170.0, 250.0))
+			var part: String = roof_parts[_rng.randi() % roof_parts.size()]
+			fg.call("add_part", at, part, _rng.randf_range(0.75, 1.0), _rng.randf_range(-0.06, 0.06), _rng.randf() < 0.5, _rng.randf_range(1.3, 1.45), true)
+			roofs += 1
 	stats["foreground"] = fg.call("item_count")
 	stats["ropes"] = ropes
+	stats["roofs"] = roofs
 
 
 # ---------------------------------------------------------------- звук
@@ -755,7 +826,7 @@ func _build_depth(map: Node) -> void:
 
 # ---------------------------------------------------------------- тень крон
 
-const WORLD := Rect2(-3520, -704, 8640, 5120)
+const WORLD := Rect2(-3520, -704, 9408, 5120)
 
 
 func _build_canopy(map: Node) -> void:
@@ -860,8 +931,11 @@ func _build_critters(map: Node) -> void:
 	if camp:
 		for c in camp.get_children():
 			var nm := str(c.get_meta("hd_prop", ""))
-			if c is Sprite2D and (nm.begins_with("sacks") or nm.begins_with("barrel") or nm.begins_with("crate") or nm.begins_with("cart")):
-				var w := float(nm.get_slice("@", 1).get_slice("x", 0)) * absf((c as Node2D).global_scale.x)
+			# Бочки и ящики — разбиваемые предметы (breakables.gd): картинка
+			# у них в дочернем Sprite
+			var spr := c as Sprite2D if c is Sprite2D else c.get_node_or_null("Sprite") as Sprite2D
+			if spr and (nm.begins_with("sacks") or nm.begins_with("barrel") or nm.begins_with("crate") or nm.begins_with("cart")):
+				var w := float(nm.get_slice("@", 1).get_slice("x", 0)) * absf(spr.global_scale.x)
 				var at: Vector2 = (c as Node2D).global_position + Vector2(_rng.randf_range(-0.45, 0.45) * w, 15.0)
 				var ok := true
 				for s in spots:

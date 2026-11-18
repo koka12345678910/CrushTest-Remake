@@ -13,7 +13,7 @@ extends Node2D
 ## "surface_provider", её выставляет immersion.gd).
 ## Следы и круги рисуются этим узлом под объектами карты, пыль — частицами.
 
-const WORLD := Rect2(-3520, -704, 8640, 5120)
+const WORLD := Rect2(-3520, -704, 9408, 5120)
 const TERRAIN := "res://reference_map_level/textures/terrain/"
 ## Шаг героя для следов, мировые px
 const STEP := 26.0
@@ -50,9 +50,10 @@ func setup(map: Node) -> void:
 	_paths = _img(TERRAIN + "paths.res")
 	_zones = _img(TERRAIN + "zones.res")
 	_cobble = _img(TERRAIN + "cobble_map.res")
-	_camp_mud = _img(TERRAIN + "camp_ground_mask.res")
+	# Маска грязи — в координатах лагеря: без лагеря (убран с карты) её нет
 	var camp := map.get_node_or_null("Objects/RuinedCamp") as Node2D
 	if camp:
+		_camp_mud = _img(TERRAIN + "camp_ground_mask.res")
 		_camp_origin = camp.global_position
 		var mg := camp.get_node_or_null("MudGround") as Sprite2D
 		if mg:

@@ -15,5 +15,10 @@ uniform float relief_height = 90.0;
 void light() {
 	vec3 l = normalize(vec3(LIGHT_POSITION.xy - LIGHT_VERTEX.xy, relief_height));
 	float k = 1.0 + relief_strength * (dot(NORMAL, l) - l.z);
+	// Направленный свет — рассеянный свет неба и вспышки молний (погода):
+	// у него нет точки, откуда светить, рельеф от него не нужен
+	if (LIGHT_IS_DIRECTIONAL) {
+		k = 1.0;
+	}
 	LIGHT = vec4(LIGHT_COLOR.rgb * COLOR.rgb * LIGHT_ENERGY * clamp(k, 0.2, 2.2), LIGHT_COLOR.a);
 }

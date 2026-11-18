@@ -523,7 +523,10 @@ func _step_wear() -> void:
 ## Болото на юге (как MIRE в replace_trees.gd, с тем же «вождением» границы
 ## шумом): R = 1 — болото. Тексель 16 мировых px.
 const ZONE_PX := 16
-const MIRE := Rect2(-1800, 2200, 3900, 1750)
+## 2026-11-18: болото убрано с карты по плану Хольмвика (holmvik_blockout.gd
+## clean обнулил R в zones.res) — пустой прямоугольник, чтобы перезапуск
+## шага zones его не вернул. Было Rect2(-1800, 2200, 3900, 1750)
+const MIRE := Rect2()
 
 
 func _step_zones() -> void:
@@ -640,6 +643,15 @@ const STAIRS_HD := "stairs"
 ## Сколько мировых px занимает вся высота полосы пропасти (трава, скала,
 ## уход в темноту): видимая глубина кромки ограничена 46 px (_smooth_runs)
 const CANYON_FACE_PX := 58.0
+## Ступенька стены плато: крутизна кромки (px по y на px по x), с которой
+## скала берётся плоско, без сдвига столбцов (см. _bake_faces)
+const STEEP_FROM := 0.5
+const STEEP_TO := 1.2
+## ...и во сколько раз столбец выше обычной стены (растяжение полосы)
+const TALL_FROM := 1.3
+const TALL_TO := 1.6
+## Сколько px полосы под кромкой (трава, корни) не идёт в плоскую скалу
+const STEEP_SKIP := 40.0
 
 
 func _step_cliffs() -> void:
@@ -879,7 +891,11 @@ func _bake_faces(layer_names: Array, rock_only: bool, min_run: int, stretch: boo
 	out.fill(Color(0, 0, 0, 0))
 	# Трава над кромкой: столько, сколько её нарисовано над скалой
 	var fringe := clampf(grass_med / k, 6.0, 13.0)
-	for r in runs:
+	var steeps := _steep_runs(runs, ww, hp_med) if stretch else PackedFloat32Array()
+	if not stretch:
+		steeps.resize(runs.size())
+	for ri in runs.size():
+		var r: Array = runs[ri]
 		var x: int = r[0]
 		var y0: int = r[1]
 		var y1: int = r[2]
@@ -892,6 +908,12 @@ func _bake_faces(layer_names: Array, rock_only: bool, min_run: int, stretch: boo
 			if side <= 0.0:
 				continue
 		var fr := fringe * side
+		# Ступенька кромки (стена плато спускается на уровень ниже): столбцы
+		# там сдвинуты друг относительно друга на 3–5 px, и если каждый
+		# столбец тянуть от своего верха, скала срезается в косые полосы
+		# («размазано»). На крутом участке скала берётся плоско, по мировому
+		# y (зеркальный повтор скальной части полосы), сдвига нет.
+		var steep: float = steeps[ri]
 		for sub in CF:
 			var bx: int = x * CF + sub
 			var p: Dictionary = pieces[col_piece[bx]]
@@ -918,6 +940,17 @@ func _bake_faces(layer_names: Array, rock_only: bool, min_run: int, stretch: boo
 				if col_w[bx] > 0.0:
 					var sx2: float = p["x"] + minf(col_prev[bx], p["w"] - 1.0)
 					c = c.lerp(_bilinear(hi, (sx2 + 0.5) * hik - 0.5, (sy + 0.5) * hik - 0.5), col_w[bx])
+				if steep > 0.0 and stretch and wy >= y0:
+					# Под самой кромкой остаётся обычный верх (корни, край)
+					var w_pl := steep * _smooth(0.0, 6.0, wy - y0)
+					if w_pl > 0.0:
+						var cp := _rock_tile(hi, hik, p, col_src[bx], wy, k, lp, ft)
+						if col_w[bx] > 0.0:
+							cp = cp.lerp(_rock_tile(hi, hik, p, col_prev[bx], wy, k, lp, ft), col_w[bx])
+						cp.a = 1.0
+						c = c.lerp(cp, w_pl)
+						# Низ ступеньки — ровный мягкий край
+						fade = lerpf(fade, _smooth(0.0, 3.0, y1 + 1 - wy), w_pl)
 				var a := _smooth(0.2, 0.85, c.a) * fade * side
 				if PIXEL_FACES:
 					# Пиксель-арт: альфа жёсткая, затухание — упорядоченным дизерингом
@@ -938,6 +971,70 @@ func _bake_faces(layer_names: Array, rock_only: bool, min_run: int, stretch: boo
 		out.save_png(prev_dir + "/" + tex_name.get_basename() + ".png")
 	return "%s: %d столбцов, стена ~%d px, фас куска ~%.0f px, масштаб %.2f, %dx%d (%s)" % [
 		tex_name, runs.size(), hp_med, face_med, k, bw, bh, error_string(err)]
+
+
+## Доля «плоской» скалы у каждого столбца стены (0 — обычная полоса от
+## кромки до подножия, 1 — скала по мировому y): крутая кромка, изгиб
+## подножия или сильное растяжение. Сглажена по соседним столбцам той же
+## стены, чтобы переход не давал вертикального шва.
+func _steep_runs(runs: Array, ww: int, hp_med: int) -> PackedFloat32Array:
+	var raw := PackedFloat32Array()
+	raw.resize(runs.size())
+	var by_x := []
+	by_x.resize(ww)
+	for i in ww:
+		by_x[i] = []
+	for i in runs.size():
+		var r: Array = runs[i]
+		by_x[r[0]].append(i)
+		if r.size() > 4:
+			var hp := float(r[2] - r[1] + 1)
+			raw[i] = maxf(_smooth(STEEP_FROM, STEEP_TO, maxf(r[3], r[4])),
+					_smooth(TALL_FROM, TALL_TO, hp / hp_med))
+	var out := PackedFloat32Array()
+	out.resize(runs.size())
+	var rad := 8
+	for i in runs.size():
+		var r: Array = runs[i]
+		var s := 0.0
+		var n := 0.0
+		for dx in range(-rad, rad + 1):
+			var xx: int = r[0] + dx
+			if xx < 0 or xx >= ww:
+				continue
+			for j: int in by_x[xx]:
+				var q: Array = runs[j]
+				if q[2] >= r[1] and q[1] <= r[2]:
+					var wgt := 1.0 - absf(dx) / (rad + 1.0)
+					s += raw[j] * wgt
+					n += wgt
+		# Сглаживание не гасит сам крутой участок
+		out[i] = maxf(s / maxf(n, 0.001), raw[i] * 0.85)
+	return out
+
+
+## Скала без растяжения: скальная часть полосы (ниже травы и корней)
+## повторяется по мировому y. Каждый повтор сдвинут по x (по хешу номера),
+## стык — короткий переход в следующий повтор: ни зеркальных «бантиков»,
+## ни видимой линии.
+func _rock_tile(hi: Image, hik: float, p: Dictionary, u: float, wy: float,
+		k: float, lp: float, ft: float) -> Color:
+	var band := maxf(ft - lp - STEEP_SKIP - 8.0, 32.0)
+	var t := wy * k
+	var idx := floorf(t / band)
+	var f := t - idx * band
+	var c := _rock_at(hi, hik, p, u, idx, f, lp)
+	var blend := 24.0
+	if f > band - blend:
+		c = c.lerp(_rock_at(hi, hik, p, u, idx + 1.0, f - band, lp), _smooth(band - blend, band, f))
+	return c
+
+
+func _rock_at(hi: Image, hik: float, p: Dictionary, u: float, idx: float, f: float, lp: float) -> Color:
+	var w: float = p["w"]
+	var h := fposmod(sin(idx * 12.9898 + 4.1) * 43758.5453, 1.0)
+	var sx: float = p["x"] + fposmod(u + h * w, w)
+	return _bilinear(hi, (sx + 0.5) * hik - 0.5, (lp + STEEP_SKIP + f + 0.5) * hik - 0.5)
 
 
 ## Кромка провала нарисована ступеньками пикселей: верх и низ каждого
@@ -981,16 +1078,23 @@ func _smooth_runs(runs: Array, ww: int, max_depth: int, rad: int) -> Array:
 		ox[i] = []
 	for r in out:
 		ox[r[0]].append(r)
+	# r[4] — то же для подножия (у того же соседа)
 	for r in out:
 		var sl := 0.0
+		var sf := 0.0
 		for dx in [-4, 4]:
 			var xx: int = r[0] + dx
 			var best := 1e9
+			var bf := 1e9
 			if xx >= 0 and xx < ww:
 				for q in ox[xx]:
-					best = minf(best, absf(q[1] - r[1]))
+					if absf(q[1] - r[1]) < best:
+						best = absf(q[1] - r[1])
+						bf = absf(q[2] - r[2])
 			sl = maxf(sl, minf(best, 60.0) / 4.0)
+			sf = maxf(sf, minf(bf, 60.0) / 4.0)
 		r.append(sl)
+		r.append(sf)
 	return out
 
 

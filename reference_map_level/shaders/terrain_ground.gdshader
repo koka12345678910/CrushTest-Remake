@@ -20,10 +20,10 @@ uniform sampler2D mask_medieval : filter_linear;
 uniform sampler2D mask_reskin : filter_linear;
 uniform sampler2D mask_canyon : filter_linear;
 uniform sampler2D wear_map : filter_linear;
-uniform vec4 wear_rect = vec4(-3520.0, -704.0, 8640.0, 5120.0);
+uniform vec4 wear_rect = vec4(-3520.0, -704.0, 9408.0, 5120.0);
 // Тропинки (tools/forest_paths.gd): 1 — середина тропы
 uniform sampler2D path_map : filter_linear;
-uniform vec4 path_rect = vec4(-3520.0, -704.0, 8640.0, 5120.0);
+uniform vec4 path_rect = vec4(-3520.0, -704.0, 9408.0, 5120.0);
 // Размер арт-пикселя в мировых px: 0 — полная детализация без пиксельной
 // сетки (плитки 256 px), 1 — пиксель-арт (плитки 112 px, build_terrain PIXEL_GROUND)
 uniform float pixel_size = 0.0;
@@ -46,7 +46,7 @@ uniform float rock_to_void = 0.0;
 // Зоны (build_terrain.gd, шаг zones): R — болото, там трава уступает болотной
 // грязи (слой 9)
 uniform sampler2D zone_map : filter_linear;
-uniform vec4 zone_rect = vec4(-3520.0, -704.0, 8640.0, 5120.0);
+uniform vec4 zone_rect = vec4(-3520.0, -704.0, 9408.0, 5120.0);
 // G — проклятый лес: там трава уступает багровому мху (слой 10).
 // zone_force — заменять всю землю слоя, кроме серого камня (сейчас не нужен)
 uniform float zone_force = 0.0;
@@ -55,7 +55,7 @@ uniform float zone_force = 0.0;
 // G — клетка старой мостовой атласа, которую рисуем заново целиком
 uniform sampler2DArray cobble_layers : source_color, filter_linear_mipmap_anisotropic, repeat_enable;
 uniform sampler2D cobble_map : filter_linear;
-uniform vec4 cobble_rect = vec4(-3520.0, -704.0, 8640.0, 5120.0);
+uniform vec4 cobble_rect = vec4(-3520.0, -704.0, 9408.0, 5120.0);
 // Сторона плитки брусчатки в мировых px (≈9 камней поперёк, камень ~16 px)
 uniform float cobble_world = 150.0;
 uniform float cobble_light = 1.1;

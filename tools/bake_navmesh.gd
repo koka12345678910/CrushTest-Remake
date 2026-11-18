@@ -32,6 +32,11 @@ func _initialize() -> void:
 		return
 	# Печём по-настоящему, без готового файла
 	region.prebaked = null
+	# reference_map: невидимые упоры убираются и в игре — навмеш печём без
+	# них, чтобы враги не обходили пустые места (scripts/invisible_collision.gd)
+	var inv := args[0].get_base_dir() + "/scripts/invisible_collision.gd"
+	if ResourceLoader.exists(inv):
+		print("[bake_navmesh] невидимых упоров убрано: ", load(inv).apply(level))
 	var t0 := Time.get_ticks_msec()
 	root.add_child(level)
 	await region.baked

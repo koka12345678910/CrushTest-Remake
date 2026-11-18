@@ -1,0 +1,640 @@
+{
+	"houses": [
+		{
+			"flip": false,
+			"name": "temple_baldr",
+			"x": 1090.0,
+			"y": 880.0
+		},
+		{
+			"flip": false,
+			"name": "jarl_hall",
+			"x": -290.0,
+			"y": 905.0
+		},
+		{
+			"flip": false,
+			"name": "market_hall",
+			"x": 230.0,
+			"y": 990.0
+		},
+		{
+			"flip": false,
+			"name": "mead_hall",
+			"x": -800.0,
+			"y": 990.0
+		},
+		{
+			"flip": false,
+			"name": "smithy",
+			"x": -1700.0,
+			"y": 1460.0
+		},
+		{
+			"flip": false,
+			"name": "watchtower",
+			"x": -2200.0,
+			"y": -545.0
+		},
+		{
+			"flip": false,
+			"name": "watchtower",
+			"x": -880.0,
+			"y": -545.0
+		},
+		{
+			"flip": false,
+			"name": "watchtower",
+			"x": 380.0,
+			"y": -545.0
+		},
+		{
+			"flip": false,
+			"name": "watchtower",
+			"x": 1620.0,
+			"y": -545.0
+		},
+		{
+			"flip": false,
+			"name": "house_burnt_v2",
+			"x": -2094.51977539063,
+			"y": -386.562591552734
+		},
+		{
+			"flip": false,
+			"name": "townhouse_b",
+			"x": -1778.21203613281,
+			"y": -381.618957519531
+		},
+		{
+			"flip": true,
+			"name": "townhouse_a_side",
+			"x": -1479.04431152344,
+			"y": -389.862365722656
+		},
+		{
+			"flip": false,
+			"name": "house_burnt_v2",
+			"x": -1142.05017089844,
+			"y": -390.194641113281
+		},
+		{
+			"flip": true,
+			"name": "townhouse_a_side",
+			"x": -879.44580078125,
+			"y": -385.643981933594
+		},
+		{
+			"flip": true,
+			"name": "longhouse_v2",
+			"x": -536.628662109375,
+			"y": -390.305633544922
+		},
+		{
+			"flip": false,
+			"name": "townhouse_a",
+			"x": -186.006713867188,
+			"y": -389.635040283203
+		},
+		{
+			"flip": false,
+			"name": "townhouse_b",
+			"x": 131.857009887695,
+			"y": -387.921478271484
+		},
+		{
+			"flip": false,
+			"name": "longhouse_v2",
+			"x": 573.465209960938,
+			"y": -385.035919189453
+		},
+		{
+			"flip": true,
+			"name": "house_burnt_v2",
+			"x": 926.349060058594,
+			"y": -383.691009521484
+		},
+		{
+			"flip": true,
+			"name": "townhouse_b_side",
+			"x": 1190.85144042969,
+			"y": -384.256408691406
+		},
+		{
+			"flip": true,
+			"name": "longhouse_v2",
+			"x": 1531.82470703125,
+			"y": -394.626373291016
+		},
+		{
+			"flip": false,
+			"name": "merchant_b_back",
+			"x": -2063.93310546875,
+			"y": -181.847427368164
+		},
+		{
+			"flip": false,
+			"name": "townhouse_a_back",
+			"x": -1772.21899414063,
+			"y": -188.244491577148
+		},
+		{
+			"flip": true,
+			"name": "townhouse_b_back",
+			"x": -1257.81811523438,
+			"y": -187.728210449219
+		},
+		{
+			"flip": true,
+			"name": "merchant_b_back",
+			"x": -844.291381835938,
+			"y": -178.824356079102
+		},
+		{
+			"flip": true,
+			"name": "townhouse_b_back",
+			"x": -435.41015625,
+			"y": -180.442230224609
+		},
+		{
+			"flip": false,
+			"name": "townhouse_a_back",
+			"x": -146.484039306641,
+			"y": -179.757690429688
+		},
+		{
+			"flip": false,
+			"name": "townhouse_b_back",
+			"x": 592.486450195313,
+			"y": -183.984436035156
+		},
+		{
+			"flip": false,
+			"name": "merchant_a_back",
+			"x": 954.564697265625,
+			"y": -178.790054321289
+		},
+		{
+			"flip": false,
+			"name": "merchant_b_back",
+			"x": 1288.32958984375,
+			"y": -177.154983520508
+		},
+		{
+			"flip": true,
+			"name": "townhouse_b_back",
+			"x": 1605.45935058594,
+			"y": -188.662033081055
+		},
+		{
+			"flip": false,
+			"name": "house_burnt_v2",
+			"x": -2099.48364257813,
+			"y": 88.641357421875
+		},
+		{
+			"flip": false,
+			"name": "longhouse_v2",
+			"x": -1743.89819335938,
+			"y": 88.9011306762695
+		},
+		{
+			"flip": false,
+			"name": "house_burnt_v2",
+			"x": -1260.09118652344,
+			"y": 84.1087951660156
+		},
+		{
+			"flip": false,
+			"name": "townhouse_b",
+			"x": -950.039245605469,
+			"y": 81.1641998291016
+		},
+		{
+			"flip": true,
+			"name": "townhouse_a",
+			"x": -639.018859863281,
+			"y": 78.0731353759766
+		},
+		{
+			"flip": false,
+			"name": "merchant_b_side",
+			"x": -294.855285644531,
+			"y": 87.7531814575195
+		},
+		{
+			"flip": false,
+			"name": "longhouse_v2",
+			"x": 50.2516098022461,
+			"y": 84.59521484375
+		},
+		{
+			"flip": true,
+			"name": "house_burnt_v2_side",
+			"x": 567.947448730469,
+			"y": 78.7970352172852
+		},
+		{
+			"flip": false,
+			"name": "merchant_a",
+			"x": 808.772766113281,
+			"y": 87.04150390625
+		},
+		{
+			"flip": true,
+			"name": "townhouse_a",
+			"x": 1129.91967773438,
+			"y": 80.2301254272461
+		},
+		{
+			"flip": false,
+			"name": "house_burnt_v2",
+			"x": 1414.10522460938,
+			"y": 81.8932342529297
+		},
+		{
+			"flip": false,
+			"name": "merchant_a_back",
+			"x": -2085.44091796875,
+			"y": 302.806304931641
+		},
+		{
+			"flip": false,
+			"name": "townhouse_a_back",
+			"x": -1820.77136230469,
+			"y": 290.500762939453
+		},
+		{
+			"flip": false,
+			"name": "townhouse_b_back",
+			"x": -1244.85681152344,
+			"y": 300.248016357422
+		},
+		{
+			"flip": false,
+			"name": "merchant_b_back",
+			"x": -969.233520507813,
+			"y": 297.295959472656
+		},
+		{
+			"flip": true,
+			"name": "townhouse_a_back",
+			"x": -685.606506347656,
+			"y": 289.615051269531
+		},
+		{
+			"flip": true,
+			"name": "townhouse_b_back",
+			"x": -327.333740234375,
+			"y": 296.423553466797
+		},
+		{
+			"flip": true,
+			"name": "merchant_b_back",
+			"x": -47.0916442871094,
+			"y": 294.283447265625
+		},
+		{
+			"flip": false,
+			"name": "merchant_a_back",
+			"x": 229.432235717773,
+			"y": 300.723602294922
+		},
+		{
+			"flip": false,
+			"name": "townhouse_b_back",
+			"x": 600.894470214844,
+			"y": 302.075073242188
+		},
+		{
+			"flip": true,
+			"name": "merchant_b_back",
+			"x": 874.970764160156,
+			"y": 301.667236328125
+		},
+		{
+			"flip": true,
+			"name": "merchant_a_back",
+			"x": 1182.83752441406,
+			"y": 298.507690429688
+		},
+		{
+			"flip": false,
+			"name": "townhouse_a_back",
+			"x": 1455.9560546875,
+			"y": 298.422485351563
+		},
+		{
+			"flip": true,
+			"name": "house_burnt_v2",
+			"x": -2075.0048828125,
+			"y": 551.561279296875
+		},
+		{
+			"flip": false,
+			"name": "merchant_a",
+			"x": -1804.26879882813,
+			"y": 543.348510742188
+		},
+		{
+			"flip": false,
+			"name": "townhouse_a",
+			"x": -1260.07739257813,
+			"y": 550.034301757813
+		},
+		{
+			"flip": false,
+			"name": "longhouse_v2",
+			"x": -837.553466796875,
+			"y": 539.827087402344
+		},
+		{
+			"flip": true,
+			"name": "merchant_a_side",
+			"x": -490.702545166016,
+			"y": 549.7958984375
+		},
+		{
+			"flip": false,
+			"name": "townhouse_b",
+			"x": -198.549819946289,
+			"y": 550.926147460938
+		},
+		{
+			"flip": false,
+			"name": "townhouse_a",
+			"x": 112.649139404297,
+			"y": 539.557983398438
+		},
+		{
+			"flip": false,
+			"name": "house_burnt_v2",
+			"x": -2102.38989257813,
+			"y": 982.884216308594
+		},
+		{
+			"flip": true,
+			"name": "townhouse_a",
+			"x": -1821.57629394531,
+			"y": 987.890441894531
+		},
+		{
+			"flip": true,
+			"name": "merchant_a",
+			"x": -1562.80920410156,
+			"y": 981.529968261719
+		},
+		{
+			"flip": true,
+			"name": "house_burnt_v2",
+			"x": -1309.26586914063,
+			"y": 991.278381347656
+		},
+		{
+			"flip": false,
+			"name": "townhouse_a_side",
+			"x": -2101.12329101563,
+			"y": 1463.42407226563
+		},
+		{
+			"flip": false,
+			"name": "townhouse_b",
+			"x": -1240.03295898438,
+			"y": 1450.8994140625
+		},
+		{
+			"flip": false,
+			"name": "longhouse_v2",
+			"x": -865.972351074219,
+			"y": 1450.87561035156
+		},
+		{
+			"flip": true,
+			"name": "house_burnt_v2_side",
+			"x": -527.546325683594,
+			"y": 1457.79760742188
+		},
+		{
+			"flip": false,
+			"name": "merchant_b",
+			"x": 94.5339660644531,
+			"y": 1457.91772460938
+		},
+		{
+			"flip": true,
+			"name": "townhouse_b_back",
+			"x": -1410.95227050781,
+			"y": 1840.39636230469
+		},
+		{
+			"flip": true,
+			"name": "townhouse_a_back",
+			"x": -1121.625,
+			"y": 1838.35412597656
+		},
+		{
+			"flip": false,
+			"name": "townhouse_b_back",
+			"x": -832.002502441406,
+			"y": 1852.68029785156
+		},
+		{
+			"flip": false,
+			"name": "townhouse_a_back",
+			"x": -47.0634307861328,
+			"y": 1844.26025390625
+		},
+		{
+			"flip": true,
+			"name": "townhouse_b_back",
+			"x": 244.105667114258,
+			"y": 1844.31018066406
+		},
+		{
+			"flip": true,
+			"name": "townhouse_a_back",
+			"x": 523.560302734375,
+			"y": 1840.43774414063
+		},
+		{
+			"flip": false,
+			"name": "townhouse_b_back",
+			"x": 802.635192871094,
+			"y": 1838.90832519531
+		},
+		{
+			"flip": false,
+			"name": "townhouse_a_back",
+			"x": 1141.90588378906,
+			"y": 1844.294921875
+		},
+		{
+			"flip": true,
+			"name": "townhouse_b_back",
+			"x": 1431.58117675781,
+			"y": 1843.63342285156
+		},
+		{
+			"flip": false,
+			"name": "house_burnt_v2_side",
+			"x": -2760.0224609375,
+			"y": 2168.48217773438
+		},
+		{
+			"flip": true,
+			"name": "smithy_side",
+			"x": -2511.46557617188,
+			"y": 2170.2958984375
+		},
+		{
+			"flip": true,
+			"name": "townhouse_b",
+			"x": -2231.43701171875,
+			"y": 2165.21508789063
+		},
+		{
+			"flip": true,
+			"name": "house_burnt_v2",
+			"x": -1698.04736328125,
+			"y": 2159.40844726563
+		},
+		{
+			"flip": true,
+			"name": "smithy",
+			"x": -1390.96520996094,
+			"y": 2166.314453125
+		},
+		{
+			"flip": false,
+			"name": "house_burnt_v2",
+			"x": -1030.69970703125,
+			"y": 2168.26416015625
+		},
+		{
+			"flip": true,
+			"name": "smithy_side",
+			"x": -754.626098632813,
+			"y": 2171.21557617188
+		},
+		{
+			"flip": false,
+			"name": "house_burnt_v2",
+			"x": 32.4033660888672,
+			"y": 2161.85498046875
+		},
+		{
+			"flip": true,
+			"name": "merchant_b",
+			"x": 320.793273925781,
+			"y": 2171.41015625
+		},
+		{
+			"flip": false,
+			"name": "townhouse_a",
+			"x": 598.360900878906,
+			"y": 2160.69848632813
+		},
+		{
+			"flip": true,
+			"name": "house_burnt_v2",
+			"x": 954.594116210938,
+			"y": 2169.45166015625
+		},
+		{
+			"flip": true,
+			"name": "merchant_b_side",
+			"x": 1239.42126464844,
+			"y": 2169.3720703125
+		},
+		{
+			"flip": true,
+			"name": "longhouse_v2",
+			"x": 1587.04248046875,
+			"y": 2158.72778320313
+		},
+		{
+			"flip": true,
+			"name": "townhouse_a_back",
+			"x": -2728.68481445313,
+			"y": 2420.52905273438
+		},
+		{
+			"flip": true,
+			"name": "townhouse_b_back",
+			"x": -2452.31225585938,
+			"y": 2418.54052734375
+		},
+		{
+			"flip": true,
+			"name": "merchant_b_back",
+			"x": -2170.494140625,
+			"y": 2418.80053710938
+		},
+		{
+			"flip": true,
+			"name": "townhouse_b_back",
+			"x": -1889.29321289063,
+			"y": 2414.82006835938
+		},
+		{
+			"flip": false,
+			"name": "merchant_b_back",
+			"x": -1541.89831542969,
+			"y": 2408.05200195313
+		},
+		{
+			"flip": false,
+			"name": "merchant_a_back",
+			"x": -1277.14514160156,
+			"y": 2412.56469726563
+		},
+		{
+			"flip": true,
+			"name": "townhouse_b_back",
+			"x": -1004.60192871094,
+			"y": 2413.26171875
+		},
+		{
+			"flip": false,
+			"name": "townhouse_a_back",
+			"x": -656.943908691406,
+			"y": 2409.2216796875
+		},
+		{
+			"flip": true,
+			"name": "townhouse_b_back",
+			"x": -368.310272216797,
+			"y": 2408.08178710938
+		},
+		{
+			"flip": true,
+			"name": "merchant_b_back",
+			"x": -77.5956726074219,
+			"y": 2417.48583984375
+		},
+		{
+			"flip": false,
+			"name": "townhouse_a_back",
+			"x": 208.628921508789,
+			"y": 2414.52124023438
+		},
+		{
+			"flip": false,
+			"name": "townhouse_b_back",
+			"x": 554.953247070313,
+			"y": 2411.43530273438
+		},
+		{
+			"flip": false,
+			"name": "merchant_b_back",
+			"x": 1405.06457519531,
+			"y": 2415.8955078125
+		},
+		{
+			"flip": true,
+			"name": "merchant_a_back",
+			"x": 1671.96728515625,
+			"y": 2417.3330078125
+		}
+	]
+}

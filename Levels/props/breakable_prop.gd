@@ -17,8 +17,19 @@ extends StaticBody2D
 ## Иногда выпадают монеты.
 
 const GoldWisp := preload("res://VFX/VFX_scene/gold_wisp.gd")
-const HIT_SOUND := preload("res://Sound/melee_sound/block.wav")
-const BREAK_SOUND := preload("res://Sound/posture_break.mp3")
+## Дерево: глухой удар и хруст без звона (tools/immersion_bake.gd, шаг props).
+## Раньше были block.wav (щит, звенит) и posture_break.mp3
+const HIT_SOUNDS: Array[AudioStream] = [
+	preload("res://Sound/props/wood_hit_1.wav"),
+	preload("res://Sound/props/wood_hit_2.wav"),
+	preload("res://Sound/props/wood_hit_3.wav"),
+]
+const BREAK_SOUNDS: Array[AudioStream] = [
+	preload("res://Sound/props/wood_break_1.wav"),
+	preload("res://Sound/props/wood_break_2.wav"),
+	preload("res://Sound/props/wood_break_3.wav"),
+	preload("res://Sound/props/wood_break_4.wav"),
+]
 
 ## Сколько попаданий выдерживает
 @export var hits := 2
@@ -30,6 +41,13 @@ const BREAK_SOUND := preload("res://Sound/posture_break.mp3")
 @export var pieces := Vector2i(2, 2)
 ## Сколько лежат обломки, прежде чем погаснуть
 @export var debris_time := 6.0
+## Разбивается, когда герой в него влетает (узел Touch — Area2D у основания,
+## маска — тело героя). Пусто в touch_scenes — любой герой; иначе только
+## герои из этих сцен (на reference_map — Хальвард, Player_scene/player.tscn)
+@export var touch_break := false
+@export var touch_scenes: PackedStringArray = []
+## Скорость героя, с которой касание ломает (стоящий рядом — не ломает)
+@export var touch_speed := 25.0
 
 var is_dead := false
 
@@ -45,7 +63,24 @@ func _ready() -> void:
 	var hb := get_node_or_null("Hurtbox") as Area2D
 	if hb:
 		hb.area_entered.connect(_on_hurtbox_area_entered)
+	var touch := get_node_or_null("Touch") as Area2D
+	if touch and touch_break:
+		touch.body_entered.connect(_on_touch)
 	set_process(false)
+
+
+## Герой влетел в предмет — разлом сразу, обломки летят по ходу героя
+func _on_touch(body: Node) -> void:
+	if is_dead or not body.is_in_group("player"):
+		return
+	if not touch_scenes.is_empty() and not body.scene_file_path in touch_scenes:
+		return
+	var v: Vector2 = body.get("velocity") if "velocity" in body else Vector2.ZERO
+	if v.length() < touch_speed:
+		return
+	hits = 0
+	Juice.hit(self, body as Node2D, 1, false)
+	_break(body)
 
 
 func _physics_process(delta: float) -> void:
@@ -75,7 +110,7 @@ func take_damage(_amount: int = 1, source: Node = null) -> void:
 
 
 func _hit_feedback(source: Node) -> void:
-	_play(HIT_SOUND, randf_range(0.62, 0.78), -4.0)
+	_play(HIT_SOUNDS.pick_random(), randf_range(0.92, 1.08), -3.0)
 	var away := _away_from(source)
 	var t := create_tween()
 	t.tween_property(_sprite, "modulate", Color(2.2, 2.2, 2.2), 0.04)
@@ -109,8 +144,7 @@ func _break(source: Node) -> void:
 	var hb := get_node_or_null("Hurtbox") as Area2D
 	if hb:
 		hb.set_deferred("monitoring", false)
-	_play(BREAK_SOUND, randf_range(0.7, 0.82), -3.0)
-	_play(HIT_SOUND, randf_range(0.5, 0.6), -2.0)
+	_play(BREAK_SOUNDS.pick_random(), randf_range(0.9, 1.06), -1.0)
 	var away := _away_from(source)
 	_splinters(16, away)
 	_spawn_chunks(away)

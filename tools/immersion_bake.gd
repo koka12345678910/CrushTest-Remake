@@ -44,7 +44,98 @@ func _initialize() -> void:
 		_ravine()
 	if step in ["steps", "all"]:
 		_steps()
+	if step in ["props", "all"]:
+		_props()
 	quit()
+
+
+# ======================= ЯЩИКИ И БОЧКИ =======================
+# Sound/props/wood_break_1..4 — разлом, wood_hit_1..3 — удар без разлома.
+# «Сочно, не звонко»: основа — глухой низкий удар и хруст, у досок есть
+# резонансы, но они гаснут за десятки мс (звон — это как раз долгий
+# резонанс). Сухой треск — широкополосные вспышки шума, хруст — россыпь
+# мелких щелчков, потом стук падающих обломков. Лёгкое насыщение — плотнее.
+
+func _props() -> void:
+	_rng.seed = 4242
+	var dir := "res://Sound/props/"
+	DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path(dir))
+	for i in 4:
+		_save_wav("wood_break_%d" % (i + 1), _wood_break(true), dir, 0.92)
+	for i in 3:
+		_save_wav("wood_hit_%d" % (i + 1), _wood_break(false), dir, 0.8)
+	print("props: ok")
+
+
+func _wood_break(full: bool) -> PackedFloat32Array:
+	var dur := 0.95 if full else 0.32
+	var total := int(dur * SR)
+	var buf := PackedFloat32Array()
+	buf.resize(total)
+	# Удар: низкий шум + падающий тон корпуса
+	var thump := Biquad.new("lp", 210.0, 0.7, SR)
+	var f0 := _rng.randf_range(95.0, 125.0)
+	var ph := 0.0
+	# Доски: резонансы гаснут быстро (затухание 70–140 1/с — не звенят)
+	var res := []
+	for f in [_rng.randf_range(160, 230), _rng.randf_range(330, 450), _rng.randf_range(620, 820)]:
+		var r := exp(-PI * _rng.randf_range(70.0, 140.0) / SR)
+		res.append([2.0 * r * cos(TAU * float(f) / SR), -r * r, 0.0, 0.0])
+	# Треск: вспышки шума в первые 120 мс (у удара — одна-две)
+	var cracks := []
+	var n_cr := _rng.randi_range(4, 7) if full else _rng.randi_range(1, 2)
+	for k in n_cr:
+		var t0 := 0.0 if k == 0 else _rng.randf_range(0.004, 0.12 if full else 0.04)
+		cracks.append([int(t0 * SR), _rng.randf_range(0.003, 0.012), Biquad.new("bp", _rng.randf_range(700.0, 2400.0), 0.8, SR), (1.0 if k == 0 else _rng.randf_range(0.35, 0.8))])
+	var crunch_hp := Biquad.new("hp", 1400.0, 0.7, SR)
+	var crunch_lp := Biquad.new("lp", 5200.0, 0.7, SR)
+	var crunch_len := 0.26 if full else 0.07
+	# Обломки: глухие стуки, падают и затихают
+	var knocks := []
+	if full:
+		for k in _rng.randi_range(5, 9):
+			var tk := _rng.randf_range(0.16, 0.8)
+			knocks.append([int(tk * SR), Biquad.new("bp", _rng.randf_range(380.0, 1000.0), 1.1, SR), Biquad.new("lp", 260.0, 0.7, SR), exp(-tk * 2.6) * _rng.randf_range(0.5, 1.0)])
+	for i in total:
+		var t := float(i) / SR
+		# Удар
+		var y := thump.run(_noise()) * exp(-t / 0.045) * 5.0
+		ph += TAU * f0 * (0.55 + 0.45 * exp(-t / 0.05)) / SR
+		y += sin(ph) * exp(-t / 0.08) * 0.55
+		# Возбуждение досок — первые 3 мс и каждый треск
+		var exc := _noise() * 0.6 if i < int(0.003 * SR) else 0.0
+		for c in cracks:
+			var dt := float(i - int(c[0])) / SR
+			if dt >= 0.0 and dt < 0.08:
+				var e: float = exp(-dt / float(c[1])) * float(c[3])
+				var s: float = (c[2] as Biquad).run(_noise()) * e
+				y += s * 1.6
+				exc += s * 0.2
+		for r in res:
+			var v: float = r[0] * r[2] + r[1] * r[3] + exc
+			r[3] = r[2]
+			r[2] = v
+			y += v * 0.05
+		# Хруст щепок: редкие щелчки, чем дальше — тем реже и тише
+		if t < crunch_len:
+			var dens := 1.0 - t / crunch_len
+			if _rng.randf() < 0.07 * dens:
+				y += crunch_lp.run(crunch_hp.run(_noise() * 2.2 * dens))
+			else:
+				y += crunch_lp.run(crunch_hp.run(_noise() * 0.12 * dens))
+		# Обломки
+		for k in knocks:
+			var dk := float(i - int(k[0])) / SR
+			if dk >= 0.0 and dk < 0.06:
+				var n := _noise() * exp(-dk / 0.006) * float(k[3])
+				y += (k[1] as Biquad).run(n) * 0.9 + (k[2] as Biquad).run(n) * 1.6
+		buf[i] = y
+	# Насыщение: плотнее, без цифровых пиков; хвост мягко в ноль
+	buf = _normalize(buf, 1.0)
+	for i in total:
+		var fade := clampf((dur - float(i) / SR) / 0.05, 0.0, 1.0)
+		buf[i] = tanh(buf[i] * 1.8) / tanh(1.8) * fade
+	return buf
 
 
 # ======================= ОВРАГ =======================
@@ -132,8 +223,17 @@ func _keep_big_groups(cells: Array[Vector2i], min_cells: int) -> Array[Vector2i]
 
 # ======================= ПЕРЕДНИЙ ПЛАН =======================
 
-## имя: [файл, доля сверху (0..1, обрезка ствола), макс. размер, сила размытия, вид]
+## имя: [файл, доля сверху (0..1, обрезка ствола), макс. размер, сила размытия, вид,
+##       (необязательно) вырез Rect2 в долях обрезанной картинки]
+## Крыши (вид roof) — из домов Хольмвика (src/hd/houses_v2): свесы ближних
+## крыш проплывают у края кадра, пока герой бежит по улице
 const FG := {
+	"roof_shingle": ["houses_v2/townhouse_a", 0.5, 320, 2, "roof"],
+	"roof_turf": ["houses_v2/townhouse_b", 0.46, 320, 2, "roof"],
+	"roof_long": ["houses_v2/longhouse_v2", 0.46, 360, 2, "roof"],
+	"roof_corner": ["houses_v2/merchant_b", 0.45, 256, 2, "roof", Rect2(0.0, 0.0, 0.58, 1.0)],
+	"roof_dragon": ["houses_v2/townhouse_a", 0.36, 224, 2, "roof", Rect2(0.0, 0.0, 0.4, 1.0)],
+	"roof_smithy": ["houses_v2/smithy", 0.5, 320, 2, "roof"],
 	"crown_oak": ["tree_oak", 0.72, 256, 2, "crown"],
 	"crown_ancient": ["tree_oak_ancient", 0.75, 256, 2, "crown"],
 	"crown_crimson": ["tree_crimson", 0.72, 256, 2, "crown"],
@@ -157,6 +257,10 @@ func _foreground() -> void:
 			continue
 		var used := src.get_used_rect()
 		used.size.y = int(used.size.y * float(d[1]))
+		if d.size() > 5:
+			var cr: Rect2 = d[5]
+			used = Rect2i(used.position.x + int(used.size.x * cr.position.x), used.position.y + int(used.size.y * cr.position.y),
+				int(used.size.x * cr.size.x), int(used.size.y * cr.size.y))
 		var img := src.get_region(used)
 		var mx: int = d[2]
 		var s := float(mx) / maxf(img.get_width(), img.get_height())
@@ -170,6 +274,8 @@ func _foreground() -> void:
 		var sharp := AU.resize_clean(img, w, h)
 		_mix_into(soft, sharp, 0.25)
 		_silhouette(soft, d[4])
+		if d[4] == "roof":
+			_fade_bottom(soft, 0.45)
 		_pad(soft)
 		parts[key] = soft
 	# Упаковка в одну строку-полку
@@ -205,13 +311,31 @@ func _mix_into(dst: Image, src: Image, k: float) -> void:
 ## Тёмный силуэт против света: немного фактуры, почти без цвета
 func _silhouette(img: Image, kind: String) -> void:
 	var tint := Color(0.05, 0.06, 0.05) if kind != "branch" else Color(0.05, 0.05, 0.055)
+	# Крыша: чуть больше своего рисунка (дранка, коньки читаются), тон тёплый
+	var keep := 0.22
+	if kind == "roof":
+		tint = Color(0.055, 0.048, 0.042)
+		keep = 0.34
 	for y in img.get_height():
 		for x in img.get_width():
 			var c := img.get_pixel(x, y)
 			var l := c.get_luminance()
 			var rgb := Color(l, l, l).lerp(c, 0.45)
-			var o := Color(tint.r + rgb.r * 0.22, tint.g + rgb.g * 0.22, tint.b + rgb.b * 0.22, c.a)
+			var o := Color(tint.r + rgb.r * keep, tint.g + rgb.g * keep, tint.b + rgb.b * keep, c.a)
 			img.set_pixel(x, y, o)
+
+
+## Крыша вырезана из дома прямым срезом снизу — низ растворяется (доля высоты),
+## иначе у края кадра виден ровный чёрный прямоугольник
+func _fade_bottom(img: Image, part: float) -> void:
+	var h := img.get_height()
+	var y0 := h * (1.0 - part)
+	for y in range(int(y0), h):
+		var k := 1.0 - smoothstep(y0, float(h), float(y))
+		for x in img.get_width():
+			var c := img.get_pixel(x, y)
+			c.a *= k
+			img.set_pixel(x, y, c)
 
 
 ## Прозрачная рамка в 2 пикселя: линейная фильтрация не тянет край к соседу

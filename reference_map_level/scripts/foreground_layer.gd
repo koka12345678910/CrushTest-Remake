@@ -9,6 +9,9 @@ extends Node2D
 ## Рисуется одним канвас-айтемом: каждый кадр только то, что попало в кадр.
 
 const CELL := 512.0
+## Непрозрачность крыш (bottom) — легче листвы: широкое тёмное пятно у края
+## кадра давит сильнее веток
+const BOTTOM_ALPHA := 0.8
 
 var atlas: Texture2D
 ## имя части -> Rect2 в атласе
@@ -23,12 +26,14 @@ var _grid := {}
 var _max_reach := 0.0
 
 
-func add_part(at: Vector2, part: String, scale_k: float, rot: float, flip: bool, k: float) -> void:
+## bottom — только в нижней части кадра (ближе к камере): так рисуются свесы
+## крыш, сверху кадра ближнего к глазу дома быть не может; плюс без качания
+func add_part(at: Vector2, part: String, scale_k: float, rot: float, flip: bool, k: float, bottom := false) -> void:
 	if not parts.has(part):
 		return
 	var r: Rect2 = parts[part]
 	_add({"type": 0, "a": at, "part": part, "scale": scale_k, "rot": rot, "flip": flip, "k": k,
-		"phase": randf() * TAU, "reach": r.size.length() * scale_k * k * 0.5})
+		"phase": randf() * TAU, "reach": r.size.length() * scale_k * k * 0.5, "bottom": bottom})
 
 
 func add_rope(a: Vector2, b: Vector2, k: float, colors: PackedColorArray) -> void:
@@ -86,23 +91,32 @@ func _draw() -> void:
 				if not view.grow(rr).has_point(d):
 					continue
 				if it["type"] == 0:
-					_draw_part(it, c, t)
+					var fade := 1.0
+					if it.get("bottom", false):
+						# Центр куска — ниже героя: проступает от трети до половины
+						# нижней половины кадра
+						fade = smoothstep(c.y + half.y * 0.2, c.y + half.y * 0.5, d.y) * BOTTOM_ALPHA
+						if fade <= 0.0:
+							continue
+					_draw_part(it, c, t, fade)
 				else:
 					_draw_rope(it, c, t)
 	draw_set_transform_matrix(Transform2D.IDENTITY)
 
 
-func _draw_part(it: Dictionary, c: Vector2, t: float) -> void:
+func _draw_part(it: Dictionary, c: Vector2, t: float, fade := 1.0) -> void:
 	var k: float = it["k"]
 	var a: Vector2 = it["a"]
 	var d := c + (a - c) * k
 	var r: Rect2 = parts[it["part"]]
 	var ph: float = it["phase"]
-	var sway := (sin(t * 0.55 + ph) * 0.7 + sin(t * 1.3 + ph * 2.0) * 0.3) * 0.035 * wind_strength
+	var sway := 0.0
+	if not it.get("bottom", false):
+		sway = (sin(t * 0.55 + ph) * 0.7 + sin(t * 1.3 + ph * 2.0) * 0.3) * 0.035 * wind_strength
 	var s: float = it["scale"] * k
 	var sc := Vector2(-s if it["flip"] else s, s)
 	draw_set_transform(d, it["rot"] + sway, sc)
-	draw_texture_rect_region(atlas, Rect2(-r.size * 0.5, r.size), r)
+	draw_texture_rect_region(atlas, Rect2(-r.size * 0.5, r.size), r, Color(1, 1, 1, fade))
 
 
 func _draw_rope(it: Dictionary, c: Vector2, t: float) -> void:

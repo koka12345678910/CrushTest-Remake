@@ -30,12 +30,24 @@ const FIRE_PREFIXES := ["Torch", "Fire", "Camp", "Brazier", "Beacon"]
 ## Большие сплошные блоки (шатёр, глухой массив) дают уродливые прямоугольные
 ## тени на полкадра — окклюдер ставится, только если узкая сторона меньше этого
 @export var max_thickness := 120.0
-## Окклюдер ближе этого к огню — часть того же предмета, тени не даёт
-@export var fire_margin := 32.0
+## Окклюдер ближе этого к огню — часть того же предмета, тени не даёт.
+## 64, а не меньше: факелы форта висят на лицевой стороне стены, а коллизия
+## стены — у её основания, на 34 px ниже факела, и столб ворот в 52 px сбоку.
+## В виде 3/4 такой прямоугольник для Godot — стена МЕЖДУ огнём и землёй
+## перед фортом: на земле и нарисованной стене получались резкие
+## прямоугольные тени (вертикальная по столбу и горизонтальная по основанию)
+@export var fire_margin := 64.0
 ## Окклюдер ставится, только если над такой долей его площади что-то нарисовано
 @export_range(0.0, 1.0) var min_art_cover := 0.4
 const ART_CELL := 32.0
 var _art := {}
+## Коллизия стен плато (обрывов) тени от огня не даёт. Она лежит плоской
+## полосой по кромке, а нарисован перепад высоты: факелы у лестниц стоят на
+## кромке, и Godot бросал от ступеньки стены резкий прямоугольник тени на
+## нижнюю землю (прямая вертикальная граница слева от лестницы форта)
+@export var cliff_shadows := false
+const CLIFF_CELL := 16.0
+var _cliff := {}
 
 ## Сколько ближайших к камере огней одновременно отбрасывают тень (каждый —
 ## отдельный проход по земле; у причала факелов больше десятка в кадре)
@@ -95,6 +107,8 @@ func setup(map: Node) -> void:
 	var n := 0
 	var skipped := 0
 	var no_art := 0
+	var cliff := 0
+	_mark_cliffs(map)
 	for path in ["Collision", "Objects/RuinedCamp/Collision"]:
 		var body := map.get_node_or_null(path)
 		if body == null or not "shapes" in body:
@@ -131,10 +145,46 @@ func setup(map: Node) -> void:
 			if _art_cover(bb) < min_art_cover:
 				no_art += 1
 				continue
+			if not cliff_shadows and _cliff_cover(bb) > 0.5:
+				cliff += 1
+				continue
 			_add_occluder(canvas, pts)
 			n += 1
-	stats = {"fires": fires.size(), "ground_items": ground, "occluders": n, "skipped": skipped, "no_art": no_art}
+	stats = {"fires": fires.size(), "ground_items": ground, "occluders": n, "skipped": skipped, "no_art": no_art, "cliff": cliff}
 	_art.clear()
+	_cliff.clear()
+
+
+## Клетки стен плато (скрытый слой Cliffs — по нему запечён CliffFace)
+func _mark_cliffs(map: Node) -> void:
+	_cliff.clear()
+	var l := map.get_node_or_null("Cliffs") as TileMapLayer
+	if l == null or l.tile_set == null:
+		return
+	var ts := Vector2(l.tile_set.tile_size) * l.global_scale.abs()
+	for cell in l.get_used_cells():
+		var p := l.to_global(l.map_to_local(cell)) - ts * 0.5
+		var a := Vector2i((p / CLIFF_CELL).floor())
+		var b := Vector2i(((p + ts - Vector2.ONE) / CLIFF_CELL).floor())
+		for y in range(a.y, b.y + 1):
+			for x in range(a.x, b.x + 1):
+				_cliff[Vector2i(x, y)] = true
+
+
+## Доля прямоугольника (шаг 8 px) на клетках стен плато
+func _cliff_cover(r: Rect2) -> float:
+	var hit := 0
+	var all := 0
+	var y := r.position.y + 4.0
+	while y < r.end.y:
+		var x := r.position.x + 4.0
+		while x < r.end.x:
+			all += 1
+			if _cliff.has(Vector2i((Vector2(x, y) / CLIFF_CELL).floor())):
+				hit += 1
+			x += 8.0
+		y += 8.0
+	return 0.0 if all == 0 else float(hit) / float(all)
 
 
 ## Где нарисованы предметы: основания спрайтов и клетки тайлов в Objects,
