@@ -32,6 +32,7 @@ const SOURCES := {
 	"hd_props": [TEX + "hd_props.png", 0.5, 12.0, 1.0, 1.6, 8.0, 0.3],
 	"village_houses_hd": [TEX + "village_houses_hd.png", 0.5, 8.0, 0.6, 1.6, 8.0, 0.26],
 	"town_houses_hd": [TEX + "town_houses_hd.png", 0.5, 8.0, 0.6, 1.6, 8.0, 0.26],
+	"town_art3_hd": [TEX + "town_art3_hd.png", 0.5, 8.0, 0.6, 1.6, 8.0, 0.26],
 	"medieval_houses": [TEX + "medieval_houses.png", 0.5, 8.0, 0.6, 1.6, 8.0, 0.26],
 	"camp_hd": [TEX + "camp_hd.png", 0.5, 12.0, 1.0, 1.6, 8.0, 0.3],
 	"farm_props": [TEX + "farm_props.png", 0.5, 12.0, 1.0, 1.6, 8.0, 0.3],
