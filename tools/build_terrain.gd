@@ -31,7 +31,8 @@ const SCENE := "res://reference_map_level/reference_map.tscn"
 const SHADER := "res://reference_map_level/shaders/terrain_ground.gdshader"
 
 ## Мир карты (как camera_limits): x, y, w, h
-const WORLD := Rect2i(-3520, -704, 8640, 5120)
+## Ширина 9408: карта раздвинута tools/widen_map.gd (2026-11-18)
+const WORLD := Rect2i(-3520, -704, 9408, 5120)
 
 var lvl: Node
 var report: Array[String] = []

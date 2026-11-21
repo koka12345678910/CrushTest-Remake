@@ -18,6 +18,9 @@ uniform float seed = 0.0;
 // сплошной). len_scale растягивает "пыль" и дымку под длину луча
 uniform float fade_start : hint_range(0.0, 1.0) = 0.5;
 uniform float len_scale = 1.0;
+// Доля длины, за которую верх луча проявляется (на кладбище верх за краем
+// карты — 0.03; где луч начинается в воздухе — больше)
+uniform float top_fade = 0.03;
 
 float hash(vec2 p) {
 	return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453);
@@ -45,7 +48,7 @@ void fragment() {
 	float breathe = mix(0.4, 1.0, smoothstep(0.25, 0.75, noise(vec2(seed * 2.7, TIME * 0.035))));
 	// Редкие пылинки/капли, поймавшие свет
 	float dust = smoothstep(0.94, 1.0, noise(vec2(uv.x * 60.0 + seed, uv.y * 40.0 * len_scale - TIME * 0.5))) * 0.35;
-	float vfade = smoothstep(0.0, 0.03, uv.y) * (1.0 - smoothstep(fade_start, 1.0, uv.y));
+	float vfade = smoothstep(0.0, top_fade, uv.y) * (1.0 - smoothstep(fade_start, 1.0, uv.y));
 	// Края гаснут по кривой ~ гауссиане: границы луча не читаются
 	float x = uv.x * 2.0 - 1.0;
 	float hfade = exp(-x * x * 2.5) * (1.0 - smoothstep(0.85, 1.0, abs(x)));

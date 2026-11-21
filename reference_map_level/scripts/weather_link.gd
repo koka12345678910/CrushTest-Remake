@@ -19,6 +19,7 @@ const FG_SHADER := preload("res://reference_map_level/shaders/foreground.gdshade
 const ABYSS_SHADER := preload("res://reference_map_level/shaders/abyss.gdshader")
 const SHEEN_SHADER := preload("res://reference_map_level/shaders/water_sheen.gdshader")
 const WIND_SHADER := preload("res://reference_map_level/shaders/wind_fade.gdshader")
+const TERRAIN_SHADER := preload("res://reference_map_level/shaders/terrain_ground.gdshader")
 
 ## Ночные значения — как настроено в immersion.gd; дневные — здесь
 const NIGHT_MOON := Color(0.55, 0.63, 0.82)
@@ -52,13 +53,26 @@ const WATER_DAY := Color(0.74, 0.74, 0.7)
 var start_hour := -1.0
 var start_weather := -1
 
+## Глубокая ночь (Immersion.night_lock): пока игрок на карте, часы Weather
+## стоят на night_hour, а дождь и гроза сразу уходят обратно в пасмурно —
+## луна и её свет должны быть видны. С карты ушли — время снова идёт
+var night_lock := false
+var night_hour := 1.0
+## Светлая вода под лунным светом (Immersion moon_enabled) горит белым —
+## во сколько раз темнее её ночной цвет
+var water_moon_k := 1.0
+var _was_frozen := false
+var _locked := false
+const NO_RAIN := {3: 1, 4: 1}   # Weather.Kind: RAIN, STORM -> CLOUDY
+
 
 func setup(map: Node, wind_strength: float) -> void:
 	_wind_base = wind_strength
 	_start_once()
+	_lock_night()
 	_water = map.get_node_or_null("Water") as CanvasItem
 	if _water:
-		_water_night = _water.modulate
+		_water_night = _water.modulate * Color(water_moon_k, water_moon_k, water_moon_k)
 	_walk(map)
 	stats = {"clouds": _clouds.size(), "foreground": _fg.size(), "abyss": _abyss.size(),
 		"river": _sheen.size(), "wind": _wind.size()}
@@ -77,6 +91,35 @@ func _start_once() -> void:
 		w.call("set_hour", start_hour)
 	if start_weather >= 0:
 		w.call("set_weather", start_weather, true)
+
+
+func _lock_night() -> void:
+	var w := get_node_or_null("/root/Weather")
+	if w == null or not night_lock:
+		return
+	_locked = true
+	_was_frozen = bool(w.get("time_frozen"))
+	w.set("time_frozen", true)
+	w.call("set_hour", night_hour)
+	_keep_dry(w)
+
+
+## Дождь и гроза -> пасмурно. Погоду решает хост: на клиенте не трогаем
+func _keep_dry(w: Node) -> void:
+	var net := get_node_or_null("/root/Net")
+	if net and net.call("is_client"):
+		return
+	var k := int(w.get("weather"))
+	if NO_RAIN.has(k):
+		w.call("set_weather", NO_RAIN[k])
+
+
+func _exit_tree() -> void:
+	if not _locked:
+		return
+	var w := get_node_or_null("/root/Weather")
+	if w:
+		w.set("time_frozen", _was_frozen)
 
 
 func _walk(n: Node) -> void:
@@ -111,7 +154,7 @@ func _sort(m: ShaderMaterial) -> void:
 	match m.shader:
 		CLOUD_SHADER:
 			_clouds.append(m)
-			keys = ["strength", "moon_strength", "light_keep"]
+			keys = ["strength", "moon_strength", "light_keep", "grade_amount"]
 		FG_SHADER:
 			_fg.append(m)
 			keys = ["darkness"]
@@ -121,6 +164,8 @@ func _sort(m: ShaderMaterial) -> void:
 		SHEEN_SHADER:
 			_sheen.append(m)
 			keys = ["sheen", "glint"]
+		TERRAIN_SHADER:
+			_wind.append(m)
 		WIND_SHADER:
 			_wind.append(m)
 		_:
@@ -143,6 +188,11 @@ func _process(delta: float) -> void:
 	var w := get_node_or_null("/root/Weather")
 	if w == null or not w.call("is_active"):
 		return
+	if _locked:
+		_keep_dry(w)
+		# Кооп-клиент получает час от хоста — у хоста он тоже стоит
+		if absf(float(w.get("hour")) - night_hour) > 0.01:
+			w.call("set_hour", night_hour)
 	var day: float = 1.0 - float(w.get("night"))
 	var cloud: float = w.get("cloud")
 	var wind: float = w.get("wind")
@@ -156,6 +206,8 @@ func _process(delta: float) -> void:
 		# Ночью светлое — это огонь, его облако не гасит; днём светло всё
 		var lk: Vector2 = b["light_keep"]
 		m.set_shader_parameter("light_keep", lk.lerp(Vector2(0.95, 1.4), day))
+		# Ночной цветокор — только ночью
+		m.set_shader_parameter("grade_amount", float(b["grade_amount"]) * (1.0 - day))
 	for m in _fg:
 		m.set_shader_parameter("darkness", lerpf(float(_base[m]["darkness"]), 0.85, day))
 	for m in _abyss:

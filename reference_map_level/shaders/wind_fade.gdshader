@@ -9,6 +9,9 @@ shader_type canvas_item;
 // UV для этого не годится — у тайлов и спрайтов с region это координаты атласа.
 
 #include "res://Shaders/occlusion_fade.gdshaderinc"
+// Силуэт героя сквозь предмет (вместо окна прозрачности, scripts/hero_silhouette.gd)
+#define HERO_SIL
+#include "res://reference_map_level/shaders/hero_silhouette.gdshaderinc"
 // Свет огня по карте нормалей (без карты — как обычно)
 #include "res://reference_map_level/shaders/normal_light.gdshaderinc"
 
@@ -21,10 +24,16 @@ uniform float shimmer_amp = 0.0;
 
 // ---- Ткань ----
 // Рябь, тексели. Режим 1 — висит сверху (знамя: низ гуляет сильнее),
-// 2 — натянута (шатёр: сильнее в середине полотна)
+// 2 — натянута (шатёр: сильнее в середине полотна), 3 — флаг на древке справа
 uniform float flutter_amp = 0.0;
 uniform int flutter_mode = 1;
 uniform float flutter_speed = 3.0;
+// Где на картинке ткань (доли спрайта: x0, y0, x1, y1): вне — не гуляет
+// (перекладина, древко, столбы). Режим 1: закреплена по верху области,
+// 3: флаг на древке справа (свободный край — слева)
+uniform vec4 cloth_rect = vec4(0.0, 0.0, 1.0, 1.0);
+// Складки ловят свет: полотно светлеет и темнеет волнами (объём)
+uniform float flutter_shade = 0.0;
 
 // ---- Маятник (петля виселицы): область в долях спрайта и размах в текселях ----
 uniform vec4 rope_rect = vec4(0.0);
@@ -87,24 +96,52 @@ void fragment() {
 		off += vec2(sin(wp.x * 0.21 + t * 2.9) * sin(wp.y * 0.17 - t * 2.1),
 			sin(wp.x * 0.13 - t * 2.5 + wp.y * 0.11) * 0.6) * shimmer_amp * h * g;
 	}
+	float fold = 0.0;
 	if (flutter_amp > 0.0) {
-		float w = flutter_mode == 1 ? quad_uv.y : sin(3.14159 * quad_uv.y) * sin(3.14159 * quad_uv.x);
+		vec2 q = quad_uv;
+		vec4 cr = cloth_rect;
+		vec2 qc = (q - cr.xy) / max(cr.zw - cr.xy, vec2(0.001));
+		float w;
+		if (flutter_mode == 1) {
+			w = clamp(qc.y, 0.0, 1.0);
+		} else if (flutter_mode == 3) {
+			// Флаг на древке справа: у древка держится, свободный край гуляет
+			w = clamp(1.0 - qc.x, 0.0, 1.0) * (0.55 + 0.45 * clamp(qc.y, 0.0, 1.0));
+		} else {
+			w = sin(3.14159 * clamp(qc.y, 0.0, 1.0)) * sin(3.14159 * clamp(qc.x, 0.0, 1.0));
+		}
+		// Вне ткани (перекладина, древко, столбы) — неподвижно, край мягкий
+		float inside = smoothstep(-0.04, 0.02, qc.x) * smoothstep(-0.04, 0.02, 1.0 - qc.x)
+			* smoothstep(-0.03, 0.0, qc.y) * smoothstep(-0.04, 0.02, 1.0 - qc.y);
+		w *= inside;
 		float g = gust(wp, t);
-		float wave = sin(wp.x * 0.09 + wp.y * 0.05 - t * flutter_speed)
-			+ 0.5 * sin(wp.y * 0.13 - t * flutter_speed * 1.7 + 2.0);
+		float ph = wp.x * 0.09 + wp.y * 0.05 - t * flutter_speed;
+		float ph2 = wp.y * 0.13 - t * flutter_speed * 1.7 + 2.0;
+		float wave = sin(ph) + 0.5 * sin(ph2);
 		off += vec2(wave, 0.35 * cos(wp.x * 0.07 - t * flutter_speed * 1.3)) * flutter_amp * w * g;
+		// Скат складки (производная волны): к свету — светлее, от него — темнее
+		fold = (cos(ph) + 0.6 * cos(ph2)) * w * g;
 	}
 	if (rope_amp > 0.0) {
 		vec2 q = quad_uv;
 		if (q.x > rope_rect.x && q.x < rope_rect.z && q.y > rope_rect.y) {
 			float k = clamp((q.y - rope_rect.y) / max(rope_rect.w - rope_rect.y, 0.001), 0.0, 1.0);
-			float swing = sin(t * 6.2832 / rope_period) * (0.6 + 0.4 * gust(wp, t));
+			// Свой ритм у каждого (по положению спрайта): фонари на улице
+			// качаются вразнобой
+			float ph0 = occlusion_origin.x * 0.013 + occlusion_origin.y * 0.021;
+			float swing = sin(t * 6.2832 / rope_period + ph0) * (0.6 + 0.4 * gust(wp, t));
 			off.x -= swing * rope_amp * k;
 		}
 	}
 	if (off != vec2(0.0)) {
 		COLOR = texture(TEXTURE, UV + off * TEXTURE_PIXEL_SIZE) * vert_color;
 	}
+	if (flutter_shade > 0.0) {
+		COLOR.rgb *= 1.0 + fold * flutter_shade;
+	}
 	COLOR.rgb *= object_brightness;
+	vec3 sil;
+	COLOR = hero_silhouette(COLOR, occlusion_world_pos, occlusion_origin, sil);
+	hero_sil_add = sil;
 	COLOR.a *= occlusion_alpha_depth(occlusion_world_pos, occlusion_origin);
 }

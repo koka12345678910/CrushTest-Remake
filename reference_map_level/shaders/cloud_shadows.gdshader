@@ -6,6 +6,13 @@ render_mode unshaded, blend_premul_alpha;
 // Ночной CanvasModulate не трогает (unshaded). Где светло от факелов и
 // костров, эффект слабеет: облако гасит луну, а не огонь.
 // Узел — reference_map_level/scripts/immersion.gd (_build_clouds).
+//
+// Ночной цветокор (grade_amount > 0) — в этом же проходе, без отдельного
+// слоя и второй копии экрана (отдельный слой стоил ~1.6 мс на GTX 1060):
+//   лунное — приглушено и уведено в холодный серебристо-синий, тени синее;
+//   огненное (тёплое и светлое) — не трогается, огонь остаётся сочным;
+//   края экрана — виньетка.
+// Силу цветокора по времени суток ведёт scripts/weather_link.gd.
 
 uniform sampler2D noise : repeat_enable, filter_linear;
 uniform sampler2D screen_tex : hint_screen_texture, filter_linear;
@@ -25,10 +32,39 @@ uniform float softness = 0.22;
 // Яркость, с которой эффект начинает слабеть, и где пропадает совсем
 uniform vec2 light_keep = vec2(0.16, 0.42);
 
+// Ночной цветокор
+uniform float grade_amount : hint_range(0.0, 1.0) = 0.0;
+uniform float desaturation : hint_range(0.0, 1.0) = 0.42;
+uniform vec3 moon_tint : source_color = vec3(0.78, 0.88, 1.08);
+uniform vec3 shadow_tint : source_color = vec3(0.7, 0.8, 1.05);
+uniform float vignette_strength : hint_range(0.0, 1.0) = 0.5;
+uniform float vignette_radius = 0.92;
+uniform float vignette_softness = 0.62;
+// Экспозиция (адаптация глаза): у яркого огня кадр темнее, в темноте —
+// светлее; задаёт scripts/hero_light.gd по свету вокруг героя. Светлое
+// (огонь, блики) почти не трогается — не пересвечивается и не сереет
+uniform float exposure = 1.0;
+
 varying vec2 world_pos;
 
 void vertex() {
 	world_pos = (MODEL_MATRIX * vec4(VERTEX, 0.0, 1.0)).xy;
+}
+
+vec3 night_grade(vec3 col, vec2 suv, vec2 px) {
+	float luma = dot(col, vec3(0.299, 0.587, 0.114));
+	col *= mix(exposure, 1.0, smoothstep(0.45, 0.95, luma));
+	luma = dot(col, vec3(0.299, 0.587, 0.114));
+	// Насколько пиксель освещён огнём: тёплый оттенок и не совсем тёмный
+	float warm = clamp((col.r - col.b) * 3.0 - 0.15, 0.0, 1.0) * smoothstep(0.06, 0.3, col.r);
+	float lunar = 1.0 - warm;
+	col = mix(col, vec3(luma), desaturation * lunar);
+	vec3 tint = mix(shadow_tint, moon_tint, smoothstep(0.02, 0.35, luma));
+	col *= mix(vec3(1.0), tint, lunar);
+	vec2 uv = suv - vec2(0.5);
+	uv.x *= px.y / px.x;
+	float vig = 1.0 - smoothstep(vignette_radius - vignette_softness, vignette_radius, length(uv));
+	return col * mix(1.0 - vignette_strength, 1.0, vig);
 }
 
 void fragment() {
@@ -41,5 +77,10 @@ void fragment() {
 	float keep = 1.0 - smoothstep(light_keep.x, light_keep.y, lum);
 	float shade = s * strength * keep;
 	vec3 moon = bg * moon_color.rgb * (1.0 - s) * moon_strength * keep;
-	COLOR = vec4(moon, shade);
+	if (grade_amount > 0.001) {
+		vec3 c = bg * (1.0 - shade) + moon;
+		COLOR = vec4(mix(c, night_grade(c, SCREEN_UV, SCREEN_PIXEL_SIZE), grade_amount), 1.0);
+	} else {
+		COLOR = vec4(moon, shade);
+	}
 }

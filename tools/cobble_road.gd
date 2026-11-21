@@ -22,10 +22,17 @@ extends SceneTree
 ##   godot --headless --path . -s res://tools/cobble_road.gd -- mask
 
 const BT := preload("res://tools/build_terrain.gd")
+const AU := preload("res://tools/art_util.gd")
+const HT := preload("res://tools/holmvik_town.gd")
+const NORMALS_PNG := "res://reference_map_level/textures/normals/cobble_layers_n.png"
 const MAP := "res://reference_map_level/reference_map.tscn"
 const MATERIAL := "res://reference_map_level/textures/terrain/ground_material.tres"
 const HD_DIR := "res://reference_map_level/textures/src/hd/"
-const SOURCES := ["road_cobble", "road_cobble_moss"]
+## Срезы массива (порядок = номер среза в шейдере): 0 обычная, 1 замшелая —
+## старые дороги; 2 разорённая улица, 3 разбитая колеями — улицы Хольмвика;
+## 4 плиты площади (src/hd/roads_v2, партия 4)
+const SOURCES := ["road_cobble", "road_cobble_moss", "roads_v2/street_cobble_worn",
+	"roads_v2/street_cobble_ruts", "roads_v2/plaza_flagstones"]
 const LAYERS_PNG := "res://reference_map_level/textures/terrain/cobble_layers.png"
 const MASK_TEX := "res://reference_map_level/textures/terrain/cobble_map.res"
 const PATHS_TEX := "res://reference_map_level/textures/terrain/paths.res"
@@ -39,7 +46,8 @@ const TILE := 627
 const ROW_FROM := 40
 const ROW_TO := 87
 ## Мир карты (как в build_terrain.gd / forest_paths.gd)
-const WORLD := Rect2i(-3520, -704, 8640, 5120)
+## Ширина 9408: карта раздвинута tools/widen_map.gd (2026-11-18)
+const WORLD := Rect2i(-3520, -704, 9408, 5120)
 const PX := 4
 ## Размытие края дороги (текселей маски, два прохода коробкой)
 const BLUR_R := 5
@@ -57,6 +65,9 @@ func _initialize() -> void:
 		_step_textures()
 	if "mask" in steps:
 		await _step_mask()
+	if "streets" in steps:
+		_step_streets()
+
 	for r in report:
 		print(r)
 	quit()
@@ -67,8 +78,7 @@ func _initialize() -> void:
 func _step_textures() -> void:
 	var strip := Image.create(TILE * SOURCES.size(), TILE, false, Image.FORMAT_RGBA8)
 	for i in SOURCES.size():
-		var src := Image.load_from_file(ProjectSettings.globalize_path(HD_DIR + SOURCES[i] + ".webp"))
-		src.convert(Image.FORMAT_RGBA8)
+		var src := AU.load_hd(HD_DIR, SOURCES[i])
 		# Квадрат из середины (картинка и так на весь кадр)
 		var side := mini(src.get_width(), src.get_height())
 		var img := src.get_region(Rect2i((src.get_size() - Vector2i(side, side)) / 2, Vector2i(side, side)))
@@ -89,6 +99,15 @@ func _step_textures() -> void:
 		var f := FileAccess.open(imp, FileAccess.WRITE)
 		f.store_string("[remap]\n\nimporter=\"2d_array_texture\"\ntype=\"CompressedTexture2DArray\"\n\n[params]\n\ncompress/mode=0\nmipmaps/generate=true\nmipmaps/limit=-1\nslices/horizontal=%d\nslices/vertical=1\n" % SOURCES.size())
 		f.close()
+	else:
+		# Число срезов в существующем .import (и у массива нормалей) — под SOURCES
+		for ip in [imp, ProjectSettings.globalize_path(NORMALS_PNG) + ".import"]:
+			if FileAccess.file_exists(ip):
+				var t := FileAccess.get_file_as_string(ip)
+				var re := RegEx.create_from_string("slices/horizontal=\\d+")
+				var f2 := FileAccess.open(ip, FileAccess.WRITE)
+				f2.store_string(re.sub(t, "slices/horizontal=%d" % SOURCES.size()))
+				f2.close()
 	report.append("textures: %d плитки %dpx → %s (%s)" % [SOURCES.size(), TILE, LAYERS_PNG, error_string(err)])
 
 
@@ -329,3 +348,100 @@ static func _dark_share(img: Image, ac: Vector2i) -> float:
 			if c.a > 0.5 and c.r * 0.3 + c.g * 0.59 + c.b * 0.11 < 0.035:
 				n += 1
 	return n / 256.0
+
+
+# ───────────────────────── улицы Хольмвика ─────────────────────────
+## streets — каменные улицы города поверх уже готовой маски (mask не нужен):
+## R — «тут дорога» по линиям holmvik_town.gd STREETS (край виляет по шуму,
+## камни по одному тонут в земле — шейдер), B — вид камня: 0 старая дорога
+## (обычная/замшелая), 0.5 улица города (разорённая/колеи), 1 площадь (плиты).
+## В нижнем городе улицы беднее: камень только по середине полосы, по краям
+## грязь. Маска становится RGBA8. Повторять можно.
+const TOWN_AREA := Rect2(-2290, -640, 4280, 3250)
+const PLAZA := Rect2(-560, 925, 540, 350)
+const LOWER_Y := 1890.0
+const LOWER_WIDTH := 0.55
+const STREET_EDGE := 18.0
+
+
+func _step_streets() -> void:
+	var src := (load(MASK_TEX) as Texture2D).get_image()
+	if src.is_compressed():
+		src.decompress()
+	src.convert(Image.FORMAT_RGBA8)
+	var w := src.get_width()
+	var h := src.get_height()
+	if w * PX != WORLD.size.x:
+		report.append("ОТКАЗ streets: маска %dx%d не под мир %s" % [w, h, WORLD])
+		return
+	var noise := FastNoiseLite.new()
+	noise.seed = 33
+	noise.frequency = 1.0 / 60.0
+	# Всё, что уже дорога в черте города, — тоже улица города (вид 0.5)
+	var town_px := 0
+	for ty in h:
+		for tx in w:
+			var p := Vector2(WORLD.position) + Vector2(tx + 0.5, ty + 0.5) * PX
+			var c := src.get_pixel(tx, ty)
+			c.b = 0.0
+			if c.r > 0.0 and TOWN_AREA.has_point(p):
+				c.b = 0.5
+				town_px += 1
+			src.set_pixel(tx, ty, c)
+	var painted := 0
+	for st in HT.STREETS:
+		var pts: Array = st[0]
+		for i in range(1, pts.size()):
+			var a: Vector2 = pts[i - 1]
+			var b: Vector2 = pts[i]
+			var half: float = float(st[1]) * 0.5
+			if minf(a.y, b.y) > LOWER_Y:
+				half *= LOWER_WIDTH
+			painted += _paint_seg(src, a, b, half, noise)
+	# Площадь — плиты
+	for ty in range(int((PLAZA.position.y - WORLD.position.y) / PX) - 6, int((PLAZA.end.y - WORLD.position.y) / PX) + 6):
+		for tx in range(int((PLAZA.position.x - WORLD.position.x) / PX) - 6, int((PLAZA.end.x - WORLD.position.x) / PX) + 6):
+			if tx < 0 or ty < 0 or tx >= w or ty >= h:
+				continue
+			var p := Vector2(WORLD.position) + Vector2(tx + 0.5, ty + 0.5) * PX
+			var d := _rect_sdf(PLAZA, p) + noise.get_noise_2d(p.x, p.y) * 12.0
+			var v := 1.0 - smoothstep(-STREET_EDGE, STREET_EDGE, d)
+			if v <= 0.0:
+				continue
+			var c := src.get_pixel(tx, ty)
+			c.r = maxf(c.r, v)
+			if v > 0.5:
+				c.b = 1.0
+			src.set_pixel(tx, ty, c)
+	var err := ResourceSaver.save(ImageTexture.create_from_image(src), MASK_TEX, ResourceSaver.FLAG_COMPRESS)
+	report.append("streets: улиц покрашено %d текселей, прежней дороги в городе %d, площадь; маска RGBA8 (%s)" % [painted, town_px, error_string(err)])
+
+
+func _paint_seg(img: Image, a: Vector2, b: Vector2, half: float, noise: FastNoiseLite) -> int:
+	var w := img.get_width()
+	var h := img.get_height()
+	var bb := Rect2(a, Vector2.ZERO).expand(b).grow(half + STREET_EDGE + 16.0)
+	var n := 0
+	for ty in range(maxi(int((bb.position.y - WORLD.position.y) / PX), 0), mini(int((bb.end.y - WORLD.position.y) / PX), h - 1) + 1):
+		for tx in range(maxi(int((bb.position.x - WORLD.position.x) / PX), 0), mini(int((bb.end.x - WORLD.position.x) / PX), w - 1) + 1):
+			var p := Vector2(WORLD.position) + Vector2(tx + 0.5, ty + 0.5) * PX
+			var ab := b - a
+			var t := clampf((p - a).dot(ab) / maxf(ab.length_squared(), 0.001), 0.0, 1.0)
+			var d := p.distance_to(a + ab * t) - half + noise.get_noise_2d(p.x, p.y) * 14.0
+			var v := 1.0 - smoothstep(-STREET_EDGE, STREET_EDGE, d)
+			if v <= 0.0:
+				continue
+			var c := img.get_pixel(tx, ty)
+			if v > c.r:
+				c.r = v
+			c.b = maxf(c.b, 0.5)
+			img.set_pixel(tx, ty, c)
+			n += 1
+	return n
+
+
+## Расстояние со знаком до прямоугольника (внутри — меньше нуля)
+func _rect_sdf(r: Rect2, p: Vector2) -> float:
+	var c := r.get_center()
+	var q := (p - c).abs() - r.size * 0.5
+	return Vector2(maxf(q.x, 0.0), maxf(q.y, 0.0)).length() + minf(maxf(q.x, q.y), 0.0)

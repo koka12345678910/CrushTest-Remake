@@ -20,7 +20,8 @@ extends SceneTree
 
 const MAP := "res://reference_map_level/reference_map.tscn"
 var OUT := "res://reference_map_level/invisible_collision.json"
-const WORLD := Rect2(-3520, -704, 8640, 5120)
+## Ширина 9408: карта раздвинута tools/widen_map.gd (2026-11-18)
+const WORLD := Rect2(-3520, -704, 9408, 5120)
 const MAX_SIDE := 200.0
 var MAX_COVER := 0.4
 ## Прямоугольник «чей-то», если рядом основание нарисованного предмета

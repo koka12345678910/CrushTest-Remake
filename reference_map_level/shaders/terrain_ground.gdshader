@@ -36,6 +36,13 @@ uniform float grass_bias = 0.0;
 // вытоптанная земля, 0 — как везде, меньше нуля — в деревне больше травы
 // (лужайки у домов, голые только тропы и небольшие пятна)
 uniform float wear_grass = -0.6;
+// Ветер в траве (immersion.gd включает на карте): травинки колышутся
+// волнами (сдвиг рисунка травы, мировые px), по траве бегут светлые полосы
+// порывов — ветер приминает траву. Только на траве, не на тропах и камне.
+// 0 — выключено (как было)
+uniform float grass_wind = 0.0;
+uniform float grass_gust = 0.0;
+uniform float wind_strength = 1.0;
 // Тропа: насколько светлее земли вокруг и её оттенок
 uniform float path_light = 0.05;
 uniform vec3 path_tint : source_color = vec3(1.02, 0.98, 0.93);
@@ -50,7 +57,12 @@ uniform vec4 zone_rect = vec4(-3520.0, -704.0, 9408.0, 5120.0);
 // G — проклятый лес: там трава уступает багровому мху (слой 10).
 // zone_force — заменять всю землю слоя, кроме серого камня (сейчас не нужен)
 uniform float zone_force = 0.0;
-// Брусчатка (tools/cobble_road.gd): 2 плитки (0 — обычная, 1 — замшелая),
+// Доля «разбитой колеями» мостовой на улицах города; масштаб плит площади
+// относительно мостовой (меньше 1 — плиты крупнее)
+uniform float cobble_ruts = 0.3;
+uniform float cobble_plaza_k = 0.7;
+// Брусчатка (tools/cobble_road.gd): 5 плиток (0 — обычная, 1 — замшелая,
+// 2 — разорённая улица, 3 — колеи, 4 — плиты площади; вид — B маски),
 // в альфе «высота» камня. Маска мира: R — мягкая «тут дорога»,
 // G — клетка старой мостовой атласа, которую рисуем заново целиком
 uniform sampler2DArray cobble_layers : source_color, filter_linear_mipmap_anisotropic, repeat_enable;
@@ -146,7 +158,20 @@ Gs hex_sample(vec2 uv, float layer, vec2 ddx, vec2 ddy) {
 // Брусчатка без видимого повтора: та же треугольная сетка, но крупнее, в
 // каждой вершине свой сдвиг и своя плитка (обычная/замшелая); на стыке
 // побеждает тот рисунок, где камень выше, — камни ложатся поверх щелей
-Gs cobble_sample(vec2 uv, vec2 ddx, vec2 ddy, float moss) {
+// Срез массива брусчатки по виду камня (B маски): старая дорога —
+// обычная/замшелая (0/1), улица города — разорённая/колеи (2/3), площадь —
+// плиты (4)
+float cobble_layer(float h, float moss, float style) {
+	if (style > 0.75) {
+		return 4.0;
+	}
+	if (style > 0.25) {
+		return h < cobble_ruts ? 3.0 : 2.0;
+	}
+	return step(h, moss);
+}
+
+Gs cobble_sample(vec2 uv, vec2 ddx, vec2 ddy, float moss, float style) {
 	vec2 g = uv * 0.6;
 	vec2 s = vec2(g.x - 0.57735027 * g.y, 1.15470054 * g.y);
 	vec2 base = floor(s);
@@ -167,9 +192,9 @@ Gs cobble_sample(vec2 uv, vec2 ddx, vec2 ddy, float moss) {
 		v2 = base + vec2(1.0, 0.0);
 		v3 = base + vec2(0.0, 1.0);
 	}
-	float l1 = step(hash22(v1 + 7.7).x, moss);
-	float l2 = step(hash22(v2 + 7.7).x, moss);
-	float l3 = step(hash22(v3 + 7.7).x, moss);
+	float l1 = cobble_layer(hash22(v1 + 7.7).x, moss, style);
+	float l2 = cobble_layer(hash22(v2 + 7.7).x, moss, style);
+	float l3 = cobble_layer(hash22(v3 + 7.7).x, moss, style);
 	vec3 a1 = vec3(uv + hash22(v1 + 3.1), l1);
 	vec3 a2 = vec3(uv + hash22(v2 + 3.1), l2);
 	vec3 a3 = vec3(uv + hash22(v3 + 3.1), l3);
@@ -237,7 +262,7 @@ void fragment() {
 	vec2 cuv = wp / cobble_world;
 	vec2 cdx = dFdx(world_pos / cobble_world);
 	vec2 cdy = dFdy(world_pos / cobble_world);
-	vec2 cmap = texture(cobble_map, (wp - cobble_rect.xy) / cobble_rect.zw).rg;
+	vec3 cmap = texture(cobble_map, (wp - cobble_rect.xy) / cobble_rect.zw).rgb;
 
 	// Тропа: R — тропа, G — «вне города», B — узкая старая каменная дорожка
 	// в лесу (тоже становится земляной тропой). Край рваный по пикселям
@@ -308,14 +333,29 @@ void fragment() {
 		float L = g * 4.0;
 		int i0 = int(min(floor(L), 3.0));
 		float t = L - float(i0);
+		// Ветер в траве: порыв — широкие полосы, бегут по ветру; травинки
+		// колышутся мелкими волнами, в порыв — сильнее
+		vec2 guv = uv;
+		float gust_k = 0.0;
+		if (grass_wind > 0.0 || grass_gust > 0.0) {
+			float gm = smoothstep(0.12, 0.55, g);
+			float tt = TIME;
+			float b1 = sin(world_pos.x * 0.0055 - world_pos.y * 0.0021 - tt * 0.85) * 0.5 + 0.5;
+			float b2 = sin(world_pos.x * 0.0105 + world_pos.y * 0.0042 - tt * 1.35 + 1.7) * 0.5 + 0.5;
+			float gst = smoothstep(0.5, 0.95, b1 * 0.65 + b2 * 0.35 + (n2 - 0.5) * 0.35) * wind_strength;
+			float sway = sin(world_pos.y * 0.071 + world_pos.x * 0.029 - tt * 2.2) * 0.6
+					+ sin(world_pos.y * 0.13 + world_pos.x * 0.047 - tt * 3.4) * 0.4;
+			guv.x += sway * (0.35 + gst) * grass_wind * gm / tile_world;
+			gust_k = gst * gm;
+		}
 		Gs terr;
 		if (t < 0.02) {
-			terr = level_color(i0, uv, ddx, ddy, n2, rocky);
+			terr = level_color(i0, guv, ddx, ddy, n2, rocky);
 		} else if (t > 0.98) {
-			terr = level_color(i0 + 1, uv, ddx, ddy, n2, rocky);
+			terr = level_color(i0 + 1, guv, ddx, ddy, n2, rocky);
 		} else {
-			terr = hpick(level_color(i0, uv, ddx, ddy, n2, rocky),
-					level_color(i0 + 1, uv, ddx, ddy, n2, rocky), t);
+			terr = hpick(level_color(i0, guv, ddx, ddy, n2, rocky),
+					level_color(i0 + 1, guv, ddx, ddy, n2, rocky), t);
 		}
 		// Болото: трава уступает грязи с лужами, граница — пятнами по шуму
 		float zr = texture(zone_map, (wp - zone_rect.xy) / zone_rect.zw).r;
@@ -342,7 +382,9 @@ void fragment() {
 		// в землю по одному, край не повторяет клетки
 		bool cob = false;
 		if (cmap.r > 0.02) {
-			Gs cb = cobble_sample(cuv, cdx, cdy, cobble_moss);
+			// Площадь — плиты крупнее камня мостовой
+			float pk = cmap.b > 0.75 ? cobble_plaza_k : 1.0;
+			Gs cb = cobble_sample(cuv * pk, cdx * pk, cdy * pk, cobble_moss, cmap.b);
 			if (cmap.r + (cb.c.a - 0.5) * cobble_edge + jag * 0.04 > 0.5) {
 				terr = cb;
 				cob = true;
@@ -357,6 +399,8 @@ void fragment() {
 			// Земля у самой дороги чуть темнее — забитая грязью кромка
 			shade *= 1.0 - smoothstep(0.05, 0.45, cmap.r) * 0.08;
 			COLOR.rgb = terr.c.rgb * tone * brightness * shade * vert_color.rgb;
+			// Примятая порывом трава показывает светлую изнанку листьев
+			COLOR.rgb *= 1.0 + gust_k * grass_gust;
 			if (use_normals) {
 				NORMAL_MAP = textureGrad(ground_normals, terr.at, ddx, ddy).rgb;
 			}

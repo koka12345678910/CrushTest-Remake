@@ -38,6 +38,12 @@ const SHADOWS_SCRIPT := preload("res://reference_map_level/scripts/light_shadows
 const NORMALS_SCRIPT := preload("res://reference_map_level/scripts/normal_maps.gd")
 const WEATHER_SCRIPT := preload("res://reference_map_level/scripts/weather_link.gd")
 const BREAKABLES_SCRIPT := preload("res://reference_map_level/scripts/breakables.gd")
+const FIRE_SCRIPT := preload("res://reference_map_level/scripts/fire_fx.gd")
+const MOON_SCRIPT := preload("res://Levels/moonlight.gd")
+const MOON_RAYS_SHADER := preload("res://Shaders/moon_rays.gdshader")
+const SILHOUETTE_SCRIPT := preload("res://reference_map_level/scripts/hero_silhouette.gd")
+const HERO_LIGHT_SCRIPT := preload("res://reference_map_level/scripts/hero_light.gd")
+const MOTHS_SCRIPT := preload("res://reference_map_level/scripts/moths.gd")
 const GROUND_MATERIAL := "res://reference_map_level/textures/terrain/ground_material.tres"
 
 @export var wind_enabled := true
@@ -52,7 +58,7 @@ const GROUND_MATERIAL := "res://reference_map_level/textures/terrain/ground_mate
 @export var response_enabled := true
 ## Тень и пятна лунного света под кронами
 @export var canopy_enabled := true
-## Вороны и крысы, которые боятся героя
+## Вороны и крысы, которые боятся героя; мотыльки у фонарей и факелов
 @export var critters_enabled := true
 ## Камера по зонам: ближе в лесу, дальше у обрыва, в поле и в лагере
 @export var camera_enabled := true
@@ -65,10 +71,27 @@ const GROUND_MATERIAL := "res://reference_map_level/textures/terrain/ground_mate
 @export var weather_enabled := true
 ## Бочки и ящики разбиваются (удар, Хальвард влетает) и не стоят стеной
 @export var breakables_enabled := true
+## Живой огонь: горящие дома и факелы — процедурное пламя, угли, искры,
+## пепел, копоть, марево (scripts/fire_fx.gd)
+@export var fire_enabled := true
+## Лунный свет как на кладбище: холодный свет с плывущими пятнами облаков
+## (Levels/moonlight.gd) и косые лунные лучи (Shaders/moon_rays.gdshader)
+@export var moon_enabled := true
+## Глубокая ночь: на этой карте часы стоят на night_hour, а погода не
+## уходит в дождь и грозу (луна должна быть видна). false — сутки идут
+@export var night_lock := true
+@export_range(0.0, 24.0) var night_hour := 1.0
+## Герой за домами, стенами и кронами — силуэтом (контур + лёгкая заливка),
+## а не дырой прозрачности (scripts/hero_silhouette.gd)
+@export var silhouette_enabled := true
+## Герой в свете карты: светотень на фигуре от настоящих источников (огонь
+## спереди — освещён, сзади — в тени с контуром), тени героя от огня и луны,
+## нарисованная тень под ногами убрана (scripts/hero_light.gd)
+@export var hero_light_enabled := true
 ## Старт карты (первый заход за сессию): час 0..24 и погода
 ## (0 ясно, 1 пасмурно, 2 туман, 3 дождь, 4 гроза); -1 — как в Weather
-@export var weather_start_hour := 18.0
-@export var weather_start := 1
+@export var weather_start_hour := 1.0
+@export var weather_start := 0
 ## Общая сила ветра (кроны, ткань, передний план)
 @export_range(0.0, 3.0) var wind_strength := 1.0
 ## Доля домов Хольмвика, у которых на переднем плане проплывает свес крыши
@@ -144,6 +167,15 @@ func _build() -> void:
 		_build_mist(map)
 	if smoke_enabled:
 		_build_smoke(map)
+	if fire_enabled:
+		var fx := FIRE_SCRIPT.new()
+		fx.name = "FireFX"
+		fx.set("wind_strength", wind_strength)
+		add_child(fx)
+		fx.call("setup", map)
+		stats["fire"] = fx.get("stats")
+	if moon_enabled:
+		stats["moon"] = _build_moon(map)
 	if clouds_enabled:
 		_build_clouds()
 	if foreground_enabled:
@@ -156,6 +188,11 @@ func _build() -> void:
 		_build_response(map)
 	if critters_enabled:
 		_build_critters(map)
+		var mo := MOTHS_SCRIPT.new()
+		mo.name = "Moths"
+		add_child(mo)
+		mo.call("setup", map)
+		stats["moths"] = mo.get("stats")
 	if camera_enabled:
 		_build_camera(map)
 	if shadows_enabled:
@@ -171,6 +208,9 @@ func _build() -> void:
 		wl.name = "WeatherLink"
 		wl.set("start_hour", weather_start_hour)
 		wl.set("start_weather", weather_start)
+		wl.set("night_lock", night_lock)
+		wl.set("night_hour", night_hour)
+		wl.set("water_moon_k", 0.5 if moon_enabled else 1.0)
 		add_child(wl)
 		wl.call("setup", map, wind_strength)
 		stats["weather"] = wl.get("stats")
@@ -182,6 +222,19 @@ func _build() -> void:
 		add_child(nm)
 		nm.call("setup", map, _mats.values())
 		stats["normals"] = nm.get("stats")
+	# После карт нормалей: они меняют шейдер общему материалу предметов
+	if silhouette_enabled:
+		var sil := SILHOUETTE_SCRIPT.new()
+		sil.name = "HeroSilhouette"
+		add_child(sil)
+		sil.call("setup", map)
+		stats["silhouette"] = sil.get("stats")
+	if hero_light_enabled:
+		var hl := HERO_LIGHT_SCRIPT.new()
+		hl.name = "HeroLight"
+		add_child(hl)
+		hl.call("setup", map)
+		stats["hero_light"] = hl.get("stats")
 	# Самым последним — когда все узлы земли уже вставлены (туман, бездна, следы)
 	stats["ground_z"] = _lower_ground(map)
 	print("Immersion: ", stats)
@@ -318,6 +371,26 @@ func _wind_mat(key: String, params: Dictionary) -> ShaderMaterial:
 func _prop_wind(name: String) -> Dictionary:
 	if name.begins_with("reeds"):
 		return {"sway_amp": 2.6, "sway_speed": 1.3, "shimmer_amp": 0.3, "push_amp": 7.0, "plant_h": 40.0, "push_radius": 30.0}
+	# Хольмвик (town_props_hd, camp_hd): ткань — только в своей области
+	# (cloth_rect), перекладины, древки и столбы стоят
+	if name == "ds_banner":
+		return {"flutter_amp": 2.2, "flutter_mode": 1, "flutter_speed": 2.6, "flutter_shade": 0.14,
+			"cloth_rect": Vector4(0.08, 0.13, 0.92, 1.0)}
+	if name == "ds_standard":
+		return {"flutter_amp": 2.0, "flutter_mode": 1, "flutter_speed": 2.8, "flutter_shade": 0.14,
+			"cloth_rect": Vector4(0.12, 0.3, 0.88, 0.84)}
+	if name == "banner_ground":
+		return {"flutter_amp": 2.6, "flutter_mode": 3, "flutter_speed": 3.0, "flutter_shade": 0.16,
+			"cloth_rect": Vector4(0.0, 0.0, 0.88, 0.86)}
+	if name == "yard_laundry":
+		return {"flutter_amp": 1.3, "flutter_mode": 1, "flutter_speed": 2.0, "flutter_shade": 0.1,
+			"cloth_rect": Vector4(0.13, 0.19, 0.9, 0.68)}
+	if name == "yard_fishrack":
+		return {"flutter_amp": 0.6, "flutter_mode": 1, "flutter_speed": 1.4,
+			"cloth_rect": Vector4(0.12, 0.14, 0.92, 0.56)}
+	# Фонарь на кронштейне: качается на крюке, у каждого свой ритм
+	if name == "lantern":
+		return {"rope_rect": Vector4(0.6, 0.3, 1.0, 0.66), "rope_amp": 3.0, "rope_period": 2.8}
 	if name.begins_with("tent_cone"):
 		return {"flutter_amp": 0.9, "flutter_mode": 2, "flutter_speed": 1.6}
 	if name.begins_with("banner"):
@@ -382,15 +455,26 @@ func _apply_wind(map: Node) -> void:
 			if not c is Sprite2D:
 				continue
 			var nm := ""
-			if c.has_meta("hd_prop"):
-				nm = str(c.get_meta("hd_prop")).get_slice("@", 0)
-			elif str(c.name).begins_with("HD_standard"):
-				nm = "banner"
+			if c.has_meta("town_prop"):
+				nm = str(c.get_meta("town_prop")).get_slice("@", 0)
+			if nm == "" or _prop_wind(nm).is_empty():
+				if c.has_meta("hd_prop"):
+					nm = str(c.get_meta("hd_prop")).get_slice("@", 0)
+				elif str(c.name).begins_with("HD_standard"):
+					nm = "banner"
+				elif str(c.get_meta("town_v2", "")) == "lantern":
+					nm = "lantern"
 			var params := _prop_wind(nm) if nm != "" else {}
 			if params.is_empty():
 				continue
 			(c as Sprite2D).material = _wind_mat("prop_" + nm, params)
 			sprites += 1
+	# Трава на земле (terrain_ground.gdshader): колышется и ловит порывы
+	var gmat := load(GROUND_MATERIAL) as ShaderMaterial
+	if gmat:
+		gmat.set_shader_parameter("grass_wind", 1.3)
+		gmat.set_shader_parameter("grass_gust", 0.14)
+		gmat.set_shader_parameter("wind_strength", wind_strength)
 	stats["wind_tiles"] = tiles
 	stats["wind_sprites"] = sprites
 
@@ -554,8 +638,10 @@ func _smoke_emitter(at: Vector2, size: float, amount: int, life: float, tex: Tex
 	g.offsets = PackedFloat32Array([0.0, 0.12, 0.55, 1.0])
 	# Цвет больше 1: ночной CanvasModulate (×0.27…0.38) гасит его до
 	# серо-синего дыма в лунном свете, у огня он рыжеет от факелов
-	g.colors = PackedColorArray([Color(1.1, 1.06, 1.0, 0.0), Color(1.15, 1.12, 1.08, 0.4),
-		Color(1.25, 1.25, 1.3, 0.26), Color(1.3, 1.3, 1.35, 0.0)])
+	# При лунном свете (moon_enabled) дым и так освещён луной — темнее
+	var k := 0.6 if moon_enabled else 1.0
+	g.colors = PackedColorArray([Color(1.1, 1.06, 1.0, 0.0) * Color(k, k, k), Color(1.15, 1.12, 1.08, 0.4) * Color(k, k, k),
+		Color(1.25, 1.25, 1.3, 0.26) * Color(k, k, k), Color(1.3, 1.3, 1.35, 0.0) * Color(k, k, k)])
 	p.color_ramp = g
 	return p
 
@@ -609,8 +695,81 @@ func _build_clouds() -> void:
 	var m := ShaderMaterial.new()
 	m.shader = CLOUD_SHADER
 	m.set_shader_parameter("noise", _noise())
+	# Пятна лунного света теперь даёт настоящий свет (_build_moon) со своими
+	# облаками — здесь остаётся только лёгкая тень облаков, без второй луны
+	if moon_enabled:
+		m.set_shader_parameter("moon_strength", 0.0)
+		m.set_shader_parameter("strength", 0.14)
+		# Ночной цветокор (как на кладбище, но огонь не трогает) — тем же
+		# проходом, что и тени облаков: без лишней копии экрана
+		m.set_shader_parameter("grade_amount", 1.0)
 	n.material = m
 	add_child(n)
+
+
+# ---------------------------------------------------------------- луна
+
+## Глубокая ночь: цвет мира (CanvasModulate ведёт Weather) темнее и синее
+## кладбищенского — мета "night_ambient" у корня карты
+const NIGHT_AMBIENT := Color(0.15, 0.175, 0.27)
+## Лучи: [точка у земли, ширина, сила]. Открытые места — поле у ворот,
+## площади, дороги; верх луча начинается в воздухе и тает
+const MOON_RAYS := [
+	[Vector2(1180, 2380), 380.0, 0.2], [Vector2(-300, 1180), 340.0, 0.17],
+	[Vector2(-1350, 760), 300.0, 0.15], [Vector2(560, 1760), 320.0, 0.16],
+	[Vector2(2350, 1120), 360.0, 0.18], [Vector2(-2050, 1720), 300.0, 0.15],
+	[Vector2(3300, 2300), 380.0, 0.18], [Vector2(-800, 2500), 340.0, 0.16],
+]
+const MOON_RAY_LENGTH := 1100.0
+
+
+func _build_moon(map: Node) -> Dictionary:
+	map.set_meta("night_ambient", NIGHT_AMBIENT)
+	# Свет луны сквозь облака — тот же узел, что на кладбище. Имя "Moonlight"
+	# у корня: его находит и ведёт Weather (цвет, сила по часу и тучам)
+	var moon := MOON_SCRIPT.new()
+	moon.name = "Moonlight"
+	moon.set("area", WORLD)
+	moon.set("period", 8192.0)
+	moon.set("cloud_frequency", 0.016)
+	moon.set("energy_scale", 2.0)
+	moon.set("clear_sky", 0.5)
+	moon.set("moon_marker", true)
+	moon.set("wind", Vector2(12.0, 5.0) * wind_strength)
+	map.add_child(moon)
+	# Косые лучи (как на кладбище): Weather гасит их в тучах — ему нужна
+	# исходная сила в мете base_intensity
+	var img := Image.create(4, 4, false, Image.FORMAT_RGBA8)
+	img.fill(Color.WHITE)
+	var tex := ImageTexture.create_from_image(img)
+	var ang := deg_to_rad(-22.0)
+	var up := Vector2(sin(ang), -cos(ang))
+	var holder := Node2D.new()
+	holder.name = "MoonRays"
+	holder.z_index = 46
+	add_child(holder)
+	var seed_k := 0.0
+	for r in MOON_RAYS:
+		var foot: Vector2 = r[0]
+		var s := Sprite2D.new()
+		s.texture = tex
+		s.scale = Vector2(float(r[1]), MOON_RAY_LENGTH) / 4.0
+		s.position = foot + up * (MOON_RAY_LENGTH * 0.5)
+		s.rotation = ang
+		var m := ShaderMaterial.new()
+		m.shader = MOON_RAYS_SHADER
+		m.set_shader_parameter("intensity", r[2])
+		m.set_shader_parameter("seed", seed_k)
+		m.set_shader_parameter("ray_color", Color(0.62, 0.74, 0.98))
+		m.set_shader_parameter("fade_start", 0.55)
+		m.set_shader_parameter("top_fade", 0.42)
+		m.set_shader_parameter("len_scale", MOON_RAY_LENGTH / 450.0)
+		seed_k += 7.3
+		s.material = m
+		s.set_meta("base_intensity", r[2])
+		s.add_to_group("moon_rays", true)
+		holder.add_child(s)
+	return {"rays": MOON_RAYS.size()}
 
 
 # ---------------------------------------------------------------- передний план

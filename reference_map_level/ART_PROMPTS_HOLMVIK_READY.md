@@ -552,4 +552,3 @@ faces LEFT and the viewer looks at its side wall. The camera does not move:
 same high top-down 3/4 orthographic view, roof clearly visible from above, same
 scale and lighting from the top-left. Transparent background, no ground.
 ```
-

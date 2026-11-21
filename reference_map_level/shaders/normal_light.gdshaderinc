@@ -12,13 +12,29 @@ uniform float relief_strength = 1.0;
 // Высота огня над рисунком, экранные px: меньше — свет скользит и рельеф резче
 uniform float relief_height = 90.0;
 
+// Луна (Levels/moonlight.gd с moon_marker): огромные плитки света, центр
+// плитки — не "где луна". Помечена альфой цвета 0.5 (яркость удвоена,
+// Godot умножает свет на альфу — итог тот же) и светит отовсюду с одной
+// стороны — сверху-слева, высоко, рельеф мягче огненного
+const vec3 MOON_DIR = vec3(-0.5, -0.62, 0.6);
+
 void light() {
 	vec3 l = normalize(vec3(LIGHT_POSITION.xy - LIGHT_VERTEX.xy, relief_height));
-	float k = 1.0 + relief_strength * (dot(NORMAL, l) - l.z);
+	float rs = relief_strength;
+	if (abs(LIGHT_COLOR.a - 0.5) < 0.002) {
+		l = normalize(MOON_DIR);
+		rs *= 0.55;
+	}
+	float k = 1.0 + rs * (dot(NORMAL, l) - l.z);
 	// Направленный свет — рассеянный свет неба и вспышки молний (погода):
 	// у него нет точки, откуда светить, рельеф от него не нужен
 	if (LIGHT_IS_DIRECTIONAL) {
 		k = 1.0;
 	}
-	LIGHT = vec4(LIGHT_COLOR.rgb * COLOR.rgb * LIGHT_ENERGY * clamp(k, 0.2, 2.2), LIGHT_COLOR.a);
+	vec3 albedo = COLOR.rgb;
+#ifdef HERO_SIL
+	// Силуэт героя светится сам: свет падает только на предмет под ним
+	albedo = max(albedo - hero_sil_add, vec3(0.0));
+#endif
+	LIGHT = vec4(LIGHT_COLOR.rgb * albedo * LIGHT_ENERGY * clamp(k, 0.2, 2.2), LIGHT_COLOR.a);
 }

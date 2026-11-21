@@ -4,6 +4,9 @@ shader_type canvas_item;
 // (только на reference_map; сам occlusion_fade_plain не тронут).
 
 #include "res://Shaders/occlusion_fade.gdshaderinc"
+// Силуэт героя сквозь предмет (вместо окна прозрачности, scripts/hero_silhouette.gd)
+#define HERO_SIL
+#include "res://reference_map_level/shaders/hero_silhouette.gdshaderinc"
 #include "res://reference_map_level/shaders/normal_light.gdshaderinc"
 
 void vertex() {
@@ -13,5 +16,8 @@ void vertex() {
 
 void fragment() {
 	COLOR.rgb *= object_brightness;
+	vec3 sil;
+	COLOR = hero_silhouette(COLOR, occlusion_world_pos, occlusion_origin, sil);
+	hero_sil_add = sil;
 	COLOR.a *= occlusion_alpha_depth(occlusion_world_pos, occlusion_origin);
 }

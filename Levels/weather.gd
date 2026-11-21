@@ -374,7 +374,12 @@ func _apply() -> void:
 	night = s.night
 	var day := 1.0 - night
 	var dim := 1.0 - cloud * lerpf(0.08, 0.24, day) - storm * 0.08
-	var ambient: Color = s.ambient * dim
+	var base_amb: Color = s.ambient
+	# Карта может задать свою ночь (мета "night_ambient" у корня сцены):
+	# reference_map — глубокая синяя ночь вместо серой кладбищенской
+	if is_instance_valid(_scene) and _scene.has_meta("night_ambient"):
+		base_amb = base_amb.lerp(_scene.get_meta("night_ambient"), night)
+	var ambient: Color = base_amb * dim
 	# В тумане цвета серее
 	var grey := ambient.get_luminance()
 	ambient = ambient.lerp(Color(grey, grey, grey), fog * 0.3)
@@ -389,6 +394,10 @@ func _apply() -> void:
 		# directional_light_2d.gd: базовая яркость, к ней прибавляются вспышки
 		_sky_light.set("night_energy", s.sky_e * (1.0 - cloud * 0.3))
 
+	# Узел луны карта может создать уже после привязки (reference_map строит
+	# его в Immersion кадром позже)
+	if not is_instance_valid(_moon) and is_instance_valid(_scene):
+		_moon = _scene.get_node_or_null("Moonlight")
 	if is_instance_valid(_moon):
 		_moon.set("color", s.sun)
 		# В тучах прогалин нет — свет сквозь облака почти пропадает

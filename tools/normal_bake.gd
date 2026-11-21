@@ -33,6 +33,7 @@ const SOURCES := {
 	"village_houses_hd": [TEX + "village_houses_hd.png", 0.5, 8.0, 0.6, 1.6, 8.0, 0.26],
 	"town_houses_hd": [TEX + "town_houses_hd.png", 0.5, 8.0, 0.6, 1.6, 8.0, 0.26],
 	"town_art3_hd": [TEX + "town_art3_hd.png", 0.5, 8.0, 0.6, 1.6, 8.0, 0.26],
+	"town_walls_hd": [TEX + "town_walls_hd.png", 0.5, 8.0, 0.6, 1.6, 8.0, 0.28],
 	"medieval_houses": [TEX + "medieval_houses.png", 0.5, 8.0, 0.6, 1.6, 8.0, 0.26],
 	"camp_hd": [TEX + "camp_hd.png", 0.5, 12.0, 1.0, 1.6, 8.0, 0.3],
 	"farm_props": [TEX + "farm_props.png", 0.5, 12.0, 1.0, 1.6, 8.0, 0.3],
@@ -52,7 +53,7 @@ const SOURCES := {
 ## камней из неё, щели между ними — впадины.
 const TILED := {
 	"ground_layers": [TEX + "terrain/ground_layers.png", 11, 1.0, 0.0, 6.0, 0.3],
-	"cobble_layers": [TEX + "terrain/cobble_layers.png", 2, 0.5, 1.0, 6.0, 0.42],
+	"cobble_layers": [TEX + "terrain/cobble_layers.png", 5, 0.5, 1.0, 6.0, 0.42],
 	"camp_mud": [TEX + "terrain/camp_mud.png", 1, 0.5, 0.0, 8.0, 0.32],
 	"camp_ash": [TEX + "terrain/camp_ash.png", 1, 0.5, 0.0, 8.0, 0.26],
 }

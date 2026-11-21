@@ -37,7 +37,8 @@ const PATHS_TEX := "res://reference_map_level/textures/terrain/paths.res"
 const MATERIAL := "res://reference_map_level/textures/terrain/ground_material.tres"
 
 ## Мир карты (как в build_terrain.gd)
-const WORLD := Rect2i(-3520, -704, 8640, 5120)
+## Ширина 9408: карта раздвинута tools/widen_map.gd (2026-11-18)
+const WORLD := Rect2i(-3520, -704, 9408, 5120)
 const PATH_PX := 4
 ## Полуширина тропы (мировые px) и мягкий край
 const HALF_W := 14.0

@@ -1344,3 +1344,118 @@ func _fire(objects: Node, lvl: Node, scene: PackedScene, at: Vector2, sc: float)
 	f.set_meta(PROP_TAG, "fire")
 	objects.add_child(f)
 	f.owner = lvl
+
+
+# ───────────────────────── decals (декали улиц) ─────────────────────────
+## Лист textures/src/hd/roads_v2/street_decals.png (8 штук сеткой 4×2:
+## лужа, сажа, выбитые камни, черепица, солома, след огненной стрелы, камни,
+## трещина) → textures/street_decals.png; на улицах ~DECAL_SHARE длины —
+## спрайты в узле StreetDecals прямо перед Objects (земля: под кровью,
+## павшими и героями). Не у ворот и костров. Повторять можно.
+const DECAL_SRC := "res://reference_map_level/textures/src/hd/roads_v2/street_decals.png"
+const DECAL_TEX := TEX + "street_decals.png"
+const DECAL_META := TEX + "street_decals.json"
+const DECAL_GRID := Vector2i(4, 2)
+const DECAL_SHARE := 0.1
+const DECAL_W := Vector2(56, 84)
+const DECAL_KEEP := [Vector2(-1910, 1880), Vector2(1150, 2600), Vector2(-950, 625), Vector2(150, 1540)]
+
+
+func _step_decals_bake() -> void:
+	var img := Image.load_from_file(ProjectSettings.globalize_path(DECAL_SRC))
+	img.convert(Image.FORMAT_RGBA8)
+	var used := img.get_used_rect()
+	var cw := used.size.x / DECAL_GRID.x
+	var ch := used.size.y / DECAL_GRID.y
+	var parts := []
+	for gy in DECAL_GRID.y:
+		for gx in DECAL_GRID.x:
+			var cell := img.get_region(Rect2i(used.position.x + gx * cw, used.position.y + gy * ch, cw, ch))
+			var r := cell.get_used_rect()
+			if r.size.x < 8:
+				continue
+			var p := cell.get_region(r)
+			# 2 текселя на px мира при ширине ~DECAL_W.y
+			var k := DECAL_W.y * 2.0 / p.get_width()
+			p.resize(int(p.get_width() * k), int(p.get_height() * k), Image.INTERPOLATE_LANCZOS)
+			parts.append(p)
+	var x := 0
+	var hmax := 0
+	for p in parts:
+		x += p.get_width() + 4
+		hmax = maxi(hmax, p.get_height())
+	var atlas := Image.create(x, hmax, false, Image.FORMAT_RGBA8)
+	var meta := []
+	x = 0
+	for p in parts:
+		atlas.blit_rect(p, Rect2i(Vector2i.ZERO, p.get_size()), Vector2i(x, 0))
+		meta.append([x, 0, p.get_width(), p.get_height()])
+		x += p.get_width() + 4
+	var err := atlas.save_png(ProjectSettings.globalize_path(DECAL_TEX))
+	AU.write_import(DECAL_TEX, true)
+	var f := FileAccess.open(DECAL_META, FileAccess.WRITE)
+	f.store_string(JSON.stringify(meta))
+	f.close()
+	report.append("decals_bake: %d декалей (%s); дальше --import" % [parts.size(), error_string(err)])
+
+
+func _step_decals() -> void:
+	var tex := load(DECAL_TEX) as Texture2D
+	if tex == null:
+		report.append("ОШИБКА: нет %s — decals_bake и --import" % DECAL_TEX)
+		return
+	var meta: Array = JSON.parse_string(FileAccess.get_file_as_string(DECAL_META))
+	var lvl := (load(SCENE) as PackedScene).instantiate(PackedScene.GEN_EDIT_STATE_MAIN) as Node2D
+	var objects := lvl.get_node("Objects")
+	var holder := lvl.get_node_or_null("StreetDecals") as Node2D
+	if holder:
+		lvl.remove_child(holder)
+		holder.free()
+	holder = Node2D.new()
+	holder.name = "StreetDecals"
+	lvl.add_child(holder)
+	holder.owner = lvl
+	lvl.move_child(holder, objects.get_index())
+	var keep: Array = DECAL_KEEP.duplicate()
+	for b in objects.get_children():
+		if String(b.name).begins_with("Bonfire") or b.name == "PlayerSpawn":
+			keep.append((b as Node2D).position)
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 4242
+	var n := 0
+	for st in STREETS:
+		var pts: Array = st[0]
+		var half: float = float(st[1]) * 0.5
+		for i in range(1, pts.size()):
+			var a: Vector2 = pts[i - 1]
+			var b: Vector2 = pts[i]
+			var seg := a.distance_to(b)
+			var count := int(seg * DECAL_SHARE / ((DECAL_W.x + DECAL_W.y) * 0.5))
+			for j in count:
+				var p := a.lerp(b, rng.randf()) + (b - a).normalized().orthogonal() * rng.randf_range(-half * 0.6, half * 0.6)
+				var ok := true
+				for q in keep:
+					if (q as Vector2).distance_to(p) < 130.0:
+						ok = false
+				if not ok:
+					continue
+				var r: Array = meta[rng.randi() % meta.size()]
+				var s := Sprite2D.new()
+				s.name = "Decal%d" % n
+				s.texture = tex
+				s.region_enabled = true
+				s.region_rect = Rect2(r[0], r[1], r[2], r[3])
+				var wv := rng.randf_range(DECAL_W.x, DECAL_W.y)
+				s.scale = Vector2.ONE * (wv / (float(r[2]) / 2.0)) * 0.5
+				s.rotation = rng.randf() * TAU
+				s.position = p
+				s.modulate = Color(0.85, 0.85, 0.85, 0.92)
+				holder.add_child(s)
+				s.owner = lvl
+				n += 1
+	var ps := PackedScene.new()
+	var err := ps.pack(lvl)
+	if err == OK:
+		err = ResourceSaver.save(ps, SCENE)
+	lvl.free()
+	report.append("decals: %d на улицах; сцена (%s)" % [n, error_string(err)])

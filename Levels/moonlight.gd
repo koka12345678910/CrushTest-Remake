@@ -22,6 +22,15 @@ var wind_scale := 1.0
 @export var period := 4096.0
 ## Частота шума: больше — облака мельче и чаще
 @export var cloud_frequency := 0.011
+## Во сколько раз ярче, чем задаёт погода (энергию ведёт Levels/weather.gd)
+@export var energy_scale := 1.0
+## Ясность неба 0..1: 0 — как на кладбище (почти всё небо в облаках, луна
+## в редких прогалинах), 1 — облаков нет. Тень облака светлеет к единице
+@export_range(0.0, 1.0) var clear_sky := 0.0
+## Пометка для карт нормалей (reference_map normal_light.gdshaderinc): альфа
+## цвета 0.5 при удвоенной яркости — освещение то же, а шейдер узнаёт луну
+## и даёт ей одно направление на всю карту
+@export var moon_marker := false
 
 const TEX_SIZE := 512
 
@@ -46,6 +55,11 @@ func _ready() -> void:
 		Color(0.06, 0.06, 0.06), Color(0.16, 0.16, 0.16),
 		Color(0.8, 0.8, 0.8), Color(1, 1, 1),
 	])
+	if clear_sky > 0.0:
+		var cols := ramp.colors
+		for i in cols.size():
+			cols[i] = cols[i].lerp(Color.WHITE, clear_sky)
+		ramp.colors = cols
 
 	var tex := NoiseTexture2D.new()
 	tex.width = TEX_SIZE
@@ -61,8 +75,8 @@ func _ready() -> void:
 		var l := PointLight2D.new()
 		l.texture = tex
 		l.texture_scale = period / TEX_SIZE
-		l.color = color
-		l.energy = energy
+		l.color = _col()
+		l.energy = _energy()
 		l.blend_mode = Light2D.BLEND_MODE_ADD
 		l.shadow_enabled = false
 		# Под крышей луна на героя не светит (Levels/house_interior.gd)
@@ -76,8 +90,8 @@ func _process(delta: float) -> void:
 	var w := wind * wind_scale
 	_drift = Vector2(fposmod(_drift.x + w.x * delta, period), fposmod(_drift.y + w.y * delta, period))
 	for l in _lights:
-		l.color = color
-		l.energy = energy
+		l.color = _col()
+		l.energy = _energy()
 	_place()
 
 
@@ -86,3 +100,11 @@ func _place() -> void:
 	for i in _lights.size():
 		var c := Vector2(i % _cells.x, floori(float(i) / _cells.x))
 		_lights[i].position = origin + (c + Vector2(0.5, 0.5)) * period
+
+
+func _col() -> Color:
+	return Color(color.r, color.g, color.b, 0.5 if moon_marker else 1.0)
+
+
+func _energy() -> float:
+	return energy * energy_scale * (2.0 if moon_marker else 1.0)

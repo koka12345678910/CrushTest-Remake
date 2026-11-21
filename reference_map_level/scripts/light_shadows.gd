@@ -51,7 +51,7 @@ var _cliff := {}
 
 ## Сколько ближайших к камере огней одновременно отбрасывают тень (каждый —
 ## отдельный проход по земле; у причала факелов больше десятка в кадре)
-@export var max_shadow_lights := 3
+@export var max_shadow_lights := 5
 
 var _fires: Array[PointLight2D] = []
 var _check := 0.0
