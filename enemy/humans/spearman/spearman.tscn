@@ -1,0 +1,51 @@
+[gd_scene format=3]
+
+[ext_resource type="PackedScene" uid="uid://dfw3rfjs5momf" path="res://enemy/Assets/enemy.tscn" id="1_base"]
+[ext_resource type="Script" path="res://enemy/humans/human_enemy.gd" id="2_script"]
+[ext_resource type="SpriteFrames" path="res://enemy/humans/spearman/spearman_frames.tres" id="3_frames"]
+[ext_resource type="AnimationLibrary" path="res://enemy/humans/spearman/spearman_anims.tres" id="4_anims"]
+[ext_resource type="Material" path="res://enemy/humans/human_detail_material.tres" id="5_detail"]
+
+[sub_resource type="CapsuleShape2D" id="CapsuleShape2D_body"]
+radius = 11.0
+height = 28.0
+
+[node name="Spearman" instance=ExtResource("1_base")]
+script = ExtResource("2_script")
+attack_pool = PackedStringArray("attack", "attack2", "attack3")
+impact_fractions = {
+"attack": 0.49,
+"attack2": 0.56,
+"attack3": 0.63
+}
+damage_mults = {
+"attack2": 1.2
+}
+max_health = 5
+walk_speed = 40.0
+run_speed = 84.0
+attack_range = 58
+attack_hitbox_offset = 32.0
+preferred_distance = 50.0
+attack_cooldown = 1.5
+attack_damage_min = 9
+attack_damage_max = 13
+max_posture = 80.0
+block_chance = 0.25
+ranged_block_chance = 0.4
+parry_chance = 0.1
+coin_drop_min = 1
+coin_drop_max = 3
+enemy_grunt_chance = 0.4
+
+[node name="CollisionShape2D" parent="."]
+shape = SubResource("CapsuleShape2D_body")
+
+[node name="AnimatedSprite2D" parent="."]
+material = ExtResource("5_detail")
+scale = Vector2(0.8, 0.8)
+sprite_frames = ExtResource("3_frames")
+animation = &"idle2_down"
+
+[node name="EnemyAnim" parent="."]
+libraries/ = ExtResource("4_anims")

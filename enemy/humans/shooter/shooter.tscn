@@ -1,0 +1,65 @@
+[gd_scene format=3]
+
+[ext_resource type="PackedScene" uid="uid://dfw3rfjs5momf" path="res://enemy/Assets/enemy.tscn" id="1_base"]
+[ext_resource type="Script" path="res://enemy/humans/ranged/ranged_enemy.gd" id="2_script"]
+[ext_resource type="SpriteFrames" path="res://enemy/humans/shooter/shooter_frames.tres" id="3_frames"]
+[ext_resource type="AnimationLibrary" path="res://enemy/humans/shooter/shooter_anims.tres" id="4_anims"]
+[ext_resource type="Material" path="res://enemy/humans/human_detail_material.tres" id="5_detail"]
+[ext_resource type="AudioStream" path="res://Sound/abilities_sound/rune_sound.mp3" id="6_shot"]
+
+[sub_resource type="CapsuleShape2D" id="CapsuleShape2D_body"]
+radius = 10.0
+height = 28.0
+
+[node name="Shooter" instance=ExtResource("1_base")]
+script = ExtResource("2_script")
+attack_pool = PackedStringArray("attack", "attack", "attack2", "attack3")
+impact_fractions = {
+"attack": 0.69,
+"attack2": 0.49,
+"attack3": 0.43
+}
+shots = {
+"attack": [[0.69, 0.0]],
+"attack2": [[0.49, 0.0], [0.83, 0.0]],
+"attack3": [[0.43, 0.0], [0.49, -45.0, "facing"], [0.56, -90.0, "facing"], [0.63, -135.0, "facing"], [0.69, 180.0, "facing"], [0.76, 135.0, "facing"], [0.83, 90.0, "facing"], [0.89, 45.0, "facing"]]
+}
+projectile_speed = 260.0
+projectile_range = 360.0
+projectile_length = 14.0
+projectile_width = 2.4
+projectile_core = Color(1, 0.85, 1, 1)
+projectile_glow = Color(0.72, 0.3, 1, 1)
+shot_sound = ExtResource("6_shot")
+shot_volume_db = -8.0
+shot_pitch = 1.6
+max_health = 5
+walk_speed = 40.0
+run_speed = 80.0
+attack_range = 210
+preferred_distance = 150.0
+vision_range = 320.0
+chase_range = 320.0
+attack_cooldown = 1.8
+attack_damage_min = 7
+attack_damage_max = 10
+attack_speed_scale = 0.9
+max_posture = 70.0
+block_chance = 0.0
+ranged_block_chance = 0.0
+parry_chance = 0.0
+coin_drop_min = 1
+coin_drop_max = 3
+enemy_grunt_chance = 0.3
+
+[node name="CollisionShape2D" parent="."]
+shape = SubResource("CapsuleShape2D_body")
+
+[node name="AnimatedSprite2D" parent="."]
+material = ExtResource("5_detail")
+scale = Vector2(0.8, 0.8)
+sprite_frames = ExtResource("3_frames")
+animation = &"idle2_down"
+
+[node name="EnemyAnim" parent="."]
+libraries/ = ExtResource("4_anims")

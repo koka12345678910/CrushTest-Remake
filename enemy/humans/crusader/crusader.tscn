@@ -1,0 +1,53 @@
+[gd_scene format=3]
+
+[ext_resource type="PackedScene" uid="uid://dfw3rfjs5momf" path="res://enemy/Assets/enemy.tscn" id="1_base"]
+[ext_resource type="Script" path="res://enemy/humans/human_enemy.gd" id="2_script"]
+[ext_resource type="SpriteFrames" path="res://enemy/humans/crusader/crusader_frames.tres" id="3_frames"]
+[ext_resource type="AnimationLibrary" path="res://enemy/humans/crusader/crusader_anims.tres" id="4_anims"]
+[ext_resource type="Material" path="res://enemy/humans/human_detail_material.tres" id="5_detail"]
+
+[sub_resource type="CapsuleShape2D" id="CapsuleShape2D_body"]
+radius = 13.0
+height = 32.0
+
+[node name="Crusader" instance=ExtResource("1_base")]
+script = ExtResource("2_script")
+attack_pool = PackedStringArray("attack", "attack2", "attack3")
+impact_fractions = {
+"attack": 0.5,
+"attack2": 0.62,
+"attack3": 0.63
+}
+damage_mults = {
+"attack2": 1.4,
+"attack3": 1.15
+}
+max_health = 10
+walk_speed = 34.0
+run_speed = 70.0
+attack_range = 52
+attack_hitbox_offset = 30.0
+attack_cooldown = 1.9
+attack_damage_min = 16
+attack_damage_max = 22
+attack_speed_scale = 0.8
+max_posture = 140.0
+block_chance = 0.25
+ranged_block_chance = 0.4
+parry_chance = 0.15
+coin_drop_min = 2
+coin_drop_max = 5
+death_fade_time = 0.7
+enemy_grunt_chance = 0.5
+
+[node name="CollisionShape2D" parent="."]
+shape = SubResource("CapsuleShape2D_body")
+
+[node name="AnimatedSprite2D" parent="."]
+material = ExtResource("5_detail")
+scale = Vector2(0.8, 0.8)
+sprite_frames = ExtResource("3_frames")
+animation = &"idle2_down"
+
+[node name="EnemyAnim" parent="."]
+libraries/ = ExtResource("4_anims")
