@@ -1,0 +1,40 @@
+[gd_scene format=3]
+
+[ext_resource type="PackedScene" path="res://enemy/humans/crusader/crusader.tscn" id="1_crusader"]
+[ext_resource type="Script" path="res://enemy/humans/crusader/crusader_boss.gd" id="2_boss"]
+
+[sub_resource type="CapsuleShape2D" id="CapsuleShape2D_boss"]
+radius = 16.0
+height = 40.0
+
+[node name="CrusaderBoss" instance=ExtResource("1_crusader")]
+script = ExtResource("2_boss")
+max_health = 80
+walk_speed = 42.0
+run_speed = 92.0
+attack_range = 64
+attack_hitbox_offset = 38.0
+attack_cooldown = 1.5
+attack_damage_min = 22
+attack_damage_max = 28
+attack_speed_scale = 0.82
+max_posture = 100.0
+posture_regen_rate = 3.5
+posture_regen_delay = 4.0
+block_chance = 0.0
+ranged_block_chance = 0.0
+parry_chance = 0.0
+vision_range = 900.0
+chase_range = 900.0
+think_rate = 0.15
+coin_drop_min = 40
+coin_drop_max = 60
+skill_points_reward = 3
+death_fade_time = 4.0
+enemy_grunt_chance = 0.7
+
+[node name="CollisionShape2D" parent="."]
+shape = SubResource("CapsuleShape2D_boss")
+
+[node name="AnimatedSprite2D" parent="."]
+scale = Vector2(1.05, 1.05)

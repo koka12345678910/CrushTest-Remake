@@ -359,6 +359,9 @@ static func _dark_share(img: Image, ac: Vector2i) -> float:
 ## грязь. Маска становится RGBA8. Повторять можно.
 const TOWN_AREA := Rect2(-2290, -640, 4280, 3250)
 const PLAZA := Rect2(-560, 925, 540, 350)
+## Плиты: площадь ярлов, двор храма Бальдра (арена босса, tools/temple_court.gd)
+## и площадка перед его вратами
+const PLAZAS := [PLAZA, Rect2(785, 885, 620, 370), Rect2(1030, 1250, 120, 70)]
 const LOWER_Y := 1890.0
 const LOWER_WIDTH := 0.55
 const STREET_EDGE := 18.0
@@ -398,13 +401,23 @@ func _step_streets() -> void:
 			if minf(a.y, b.y) > LOWER_Y:
 				half *= LOWER_WIDTH
 			painted += _paint_seg(src, a, b, half, noise)
-	# Площадь — плиты
-	for ty in range(int((PLAZA.position.y - WORLD.position.y) / PX) - 6, int((PLAZA.end.y - WORLD.position.y) / PX) + 6):
-		for tx in range(int((PLAZA.position.x - WORLD.position.x) / PX) - 6, int((PLAZA.end.x - WORLD.position.x) / PX) + 6):
+	# Площади — плиты
+	for pl: Rect2 in PLAZAS:
+		_paint_plaza(src, pl, noise)
+	var err := ResourceSaver.save(ImageTexture.create_from_image(src), MASK_TEX, ResourceSaver.FLAG_COMPRESS)
+	report.append("streets: улиц покрашено %d текселей, прежней дороги в городе %d, площадей %d; маска RGBA8 (%s)" % [
+		painted, town_px, PLAZAS.size(), error_string(err)])
+
+
+func _paint_plaza(src: Image, pl: Rect2, noise: FastNoiseLite) -> void:
+	var w := src.get_width()
+	var h := src.get_height()
+	for ty in range(int((pl.position.y - WORLD.position.y) / PX) - 6, int((pl.end.y - WORLD.position.y) / PX) + 6):
+		for tx in range(int((pl.position.x - WORLD.position.x) / PX) - 6, int((pl.end.x - WORLD.position.x) / PX) + 6):
 			if tx < 0 or ty < 0 or tx >= w or ty >= h:
 				continue
 			var p := Vector2(WORLD.position) + Vector2(tx + 0.5, ty + 0.5) * PX
-			var d := _rect_sdf(PLAZA, p) + noise.get_noise_2d(p.x, p.y) * 12.0
+			var d := _rect_sdf(pl, p) + noise.get_noise_2d(p.x, p.y) * 12.0
 			var v := 1.0 - smoothstep(-STREET_EDGE, STREET_EDGE, d)
 			if v <= 0.0:
 				continue
@@ -413,8 +426,6 @@ func _step_streets() -> void:
 			if v > 0.5:
 				c.b = 1.0
 			src.set_pixel(tx, ty, c)
-	var err := ResourceSaver.save(ImageTexture.create_from_image(src), MASK_TEX, ResourceSaver.FLAG_COMPRESS)
-	report.append("streets: улиц покрашено %d текселей, прежней дороги в городе %d, площадь; маска RGBA8 (%s)" % [painted, town_px, error_string(err)])
 
 
 func _paint_seg(img: Image, a: Vector2, b: Vector2, half: float, noise: FastNoiseLite) -> int:

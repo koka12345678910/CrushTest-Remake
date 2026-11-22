@@ -447,6 +447,9 @@ func pause_world(on: bool) -> void:
 
 func _physics_process(delta: float) -> void:
 	if not _in_game or not is_online():
+		# Одиночная игра: смерть и возрождение у костра — тем же путём
+		if not is_online() and is_instance_valid(local_character):
+			_death_tick(delta)
 		return
 	if is_instance_valid(local_character):
 		_send_left -= delta
@@ -843,6 +846,7 @@ func _weather_sync(hour: float, kind: int) -> void:
 # трогают (net_puppet.gd: мёртвая кукла уходит из группы "player")
 
 const RESPAWN_DELAY := 10.0
+const RESPAWN_DELAY_SOLO := 4.0
 const BonfireScript := preload("res://Levels/bonfire/bonfire.gd")
 var _dead_time := -1.0
 
@@ -858,7 +862,8 @@ func _death_tick(delta: float) -> void:
 		_dead_time = 0.0
 		_banner("ТЫ ПАЛ")
 	_dead_time += delta
-	if _dead_time >= RESPAWN_DELAY:
+	# Один — встаёт быстрее: ждать союзника некому
+	if _dead_time >= (RESPAWN_DELAY if is_online() else RESPAWN_DELAY_SOLO):
 		_dead_time = -1.0
 		_respawn_local()
 

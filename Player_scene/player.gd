@@ -258,9 +258,6 @@ const PARRY_SOUND := preload("res://Sound/melee_sound/parry.mp3")
 # парирование: оба defensive-действия, звучат в разные моменты, конфликта
 # нет). pulse.mp3 ранее нигде не использовался — свободный ассет в проекте
 const PERFECT_DODGE_SOUND := preload("res://Sound/pulse.mp3")
-# Звук ломающейся концентрации/оглушения — играется, когда игрока
-# контратакуют (receive_parry), звучит на протяжении стана
-const STUN_SOUND := preload("res://Sound/posture_break.mp3")
 # Питьё зелья — общий звук для всех трёх аптечек
 const DRINK_SOUND := preload("res://Sound/abilities_sound/drink_potion_sound.mp3")
 # Крик боли при получении урона — пул из 4 разных вскриков вместо одного, чтобы
@@ -424,9 +421,13 @@ var is_rolling := false
 @export var flurry_lunge_stop := 24.0
 @export var flurry_lunge_reach := 110.0
 @export var flurry_lunge_speed := 250.0
-## Сколько ударов в серии (последний — вихрь)
-@export var combo_length := 4
-## Когда в клипе вихря (Attack_4_) меч бьёт о землю — метод-трек play_fire_ring_vfx
+## Сколько ударов в обычной серии. 4-й удар (Attack_4_) в серию больше не
+## входит: это сокрушительный удар — им бьют только врага (и босса) с
+## пробитой концентрацией (handle_attack_input → _execution_target)
+@export var combo_length := 3
+## Шаг серии сокрушительного удара
+const CRUSH_STEP := 4
+## Когда в клипе Attack_4_ меч бьёт о землю — метод-трек play_fire_ring_vfx
 const SPIN_SLAM_TIME := 0.667
 ## Двойники клинка: интервал между ними (с) на окне удара, начиная со 2-го шага
 @export var flurry_ghost_interval := 0.035
@@ -963,7 +964,9 @@ func _physics_process(delta):
 		velocity = Vector2.ZERO
 		move_and_slide()
 		return
-	if Net.is_online() and health <= 0.0:
+	# Пал — лежит, пока Net не поднимет у костра (в одиночной игре тоже:
+	# без этого у боя с боссом не было поражения)
+	if health <= 0.0:
 		_net_fall()
 		return
 	if is_in_shop:
@@ -1439,11 +1442,18 @@ func _end_roll() -> void:
 	roll_control = 0.0
 
 
+## Выдохшийся катится короче (start_roll)
+var _roll_speed_mult := 1.0
+
 func start_roll():
 	if is_rolling:
 		return
-	if not use_stamina(roll_stamina_cost):
-		return
+	# Перекат — главный ответ на удар босса, он срабатывает ВСЕГДА, в том
+	# числе посреди серии ударов и с пустой выносливостью (раньше при нуле
+	# он молча не начинался, а серия ударов при этом уже была оборвана —
+	# герой застывал под ударом). Выдохшийся катится короче
+	var tired := is_exhausted()
+	use_stamina(roll_stamina_cost)
 	roll_control = 0.0
 	is_rolling = true
 	set_collision_mask_value(3, false)
@@ -1458,7 +1468,8 @@ func start_roll():
 	is_turning = false
 	turn_lock = false
 	_play_restart("Rolling_" + last_direction)
-	dodge_velocity = roll_dir * roll_speed
+	_roll_speed_mult = 0.75 if tired else 1.0
+	dodge_velocity = roll_dir * roll_speed * _roll_speed_mult
 	roll_timer = roll_duration
 
 func play_movement_animation():
@@ -1653,7 +1664,7 @@ func handle_roll(delta):
 	var t: float = clamp(roll_control / roll_duration, 0.0, 1.0) as float
 	var speed_multiplier := sin(t * PI)
 	
-	dodge_velocity = roll_dir * roll_speed * speed_multiplier
+	dodge_velocity = roll_dir * roll_speed * _roll_speed_mult * speed_multiplier
 	velocity = dodge_velocity
 	
 	move_and_slide()
@@ -2146,11 +2157,6 @@ func _guard_break() -> void:
 	shake_camera(stun_shake_strength * 0.5)
 	if anim.has_animation("Stunned_" + last_direction):
 		anim.play("Stunned_" + last_direction)
-	stun_audio.stream = STUN_SOUND
-	var stun_stream := stun_audio.stream as AudioStreamMP3
-	if stun_stream:
-		stun_stream.loop = false
-	_play_varied(stun_audio, 0.06)
 	_start_stun_shake()
 	await get_tree().create_timer(guard_break_stun_duration).timeout
 	_stop_stun_shake()
@@ -2176,9 +2182,9 @@ func handle_attack_input():
 			can_counter = false
 			start_counter_attack()
 			return
-		# Рядом враг с пробитой концентрацией (горит руна) — добивание: сразу
-		# тяжёлый третий удар серии (Attack_3_), прямо в него. Важнее удара
-		# с разбега; посреди серии — встаёт следующим в очередь
+		# Рядом враг с пробитой концентрацией (горит руна) — сокрушительный
+		# удар (Attack_4_), прямо в него. Важнее удара с разбега; посреди
+		# серии — встаёт следующим в очередь
 		var exec_target := _execution_target()
 		if exec_target:
 			_exec_target = exec_target
@@ -2187,8 +2193,8 @@ func handle_attack_input():
 				combo_queued = true
 			elif not is_run_attacking:
 				_consume("attack")
-				combo_step = 3
-				play_attack(3)
+				combo_step = CRUSH_STEP
+				play_attack(CRUSH_STEP)
 			return
 		if is_running and input_vector != Vector2.ZERO and not is_attacking and not is_run_attacking:
 			_consume("attack")
@@ -2255,15 +2261,8 @@ func play_attack(step: int):
 	is_turning = false
 	turn_lock = false
 	_play_restart(anim_name)
-	# Вихрь (4-й удар): на замахе рыцарь собирает силу — пыль тянется к ногам,
-	# камешки подпрыгивают, на груди разгорается свет. Время — до удара о
-	# землю (play_fire_ring_vfx на SPIN_SLAM_TIME клипа) с учётом темпа фаз
-	if step == 4 and anim_name.begins_with("Attack_4") and not _is_riposte and not is_instance_valid(_exec_target):
-		var w := _hit_window(anim_name)
-		var wind_end := maxf(w.x - attack_strike_lead, 0.0)
-		var wind_t := wind_end / maxf(flurry_windup[3] * flurry_speed[3], 0.1)
-		var strike_t := maxf(SPIN_SLAM_TIME - wind_end, 0.0) / maxf(attack_strike_speed * flurry_speed[3], 0.1)
-		_ffx("charge", [self, wind_t + strike_t])
+	# Сокрушительный удар (4-й): без света на замахе — вес дают пыль и
+	# трещина в полу в момент удара о землю (play_fire_ring_vfx)
 
 	# Замах тяжёлый и почти на месте; свист, вскрик и шаг вперёд всем весом —
 	# в момент самого удара (_on_strike_start), а не на замахе
@@ -2496,9 +2495,14 @@ func play_melee_2_hit_vfx():
 	Net.echo_scene(vfx, {"move_direction": vfx.get("move_direction"), "anim_name": vfx.get("anim_name")})
 
 func play_fire_ring_vfx():
-	# Вихревой финишер 4-го удара: урон и отброс по всем врагам вокруг
-	_spin_finisher()
-	_ffx("finisher", [self, spin_radius])
+	# Меч сокрушительного удара бьёт о землю: только пыль и микротрещина в
+	# полу у острия — ни вспышки, ни кольца света, ни урона по толпе (это
+	# удар в одного врага, урон — по его хитбоксу)
+	var dir := facing_dir if facing_dir != Vector2.ZERO else direction_to_vector(last_direction)
+	var at := global_position + Vector2(0, 14) + dir * 30.0
+	SkidDust.slam(get_tree(), at, 34.0, 0.55)
+	Juice.ground_crack(at, 0.55)
+	shake_camera(hit_shake_strength * 0.8)
 
 	if active_ability_name != "fenrir":  # ← кольцо только для Фенрира
 		return
@@ -2631,13 +2635,8 @@ func _on_anim_finished(finished_anim: StringName) -> void:
 	if not finished_anim.begins_with("Attack"):
 		return
 
-	# Серия — combo_length шагов (4: последний — вихрь/spin finisher, флёрри).
-	# Раньше было урезано до 3 — 4-й удар (вихрь/spin finisher) временно
-	# вынут из обычной цепочки, станет отдельным навыком. Код 4-го удара не
-	# удалён (play_attack умеет step==4, _spin_finisher/play_fire_ring_vfx на
-	# месте) — серия просто больше до него не доходит. Когда навык будет
-	# готов и получит свой отдельный вызов play_attack(4), эту цифру можно
-	# вернуть обратно на 4, если 4-й удар снова понадобится и в обычной серии
+	# Серия — combo_length (3) шагов. 4-й удар (Attack_4_) — только
+	# сокрушительный, по врагу с пробитой концентрацией (CRUSH_STEP)
 	_advance_combo()
 
 
@@ -2645,9 +2644,10 @@ func _on_anim_finished(finished_anim: StringName) -> void:
 ## удара и раньше — из окна отмены (_attack_cancel), как только клинок прошёл
 func _advance_combo() -> void:
 	if combo_queued and is_instance_valid(_exec_target) and not _exec_target.is_dead:
-		# В очереди добивание — следующим идёт Attack_3_, с какого бы шага
-		combo_step = 3
-		play_attack(3)
+		# В очереди добивание — следующим идёт сокрушительный Attack_4_, с
+		# какого бы шага
+		combo_step = CRUSH_STEP
+		play_attack(CRUSH_STEP)
 	elif combo_queued and combo_step < combo_length:
 		_exec_target = null
 		combo_step += 1
@@ -3339,9 +3339,6 @@ func receive_parry(posture_damage: float) -> void:
 
 	anim.play("Stunned_" + last_direction)
 
-	stun_audio.stream = STUN_SOUND
-	var stun_stream := stun_audio.stream as AudioStreamMP3
-
 	# Тряска всегда через постоянную дрожь (_start_stun_shake), а не разовый
 	# затухающий импульс — раньше короткий стан тряс один раз и гас сам по
 	# себе быстрее, чем доигрывала анимация. Теперь длительность тряски
@@ -3349,25 +3346,18 @@ func receive_parry(posture_damage: float) -> void:
 	_start_stun_shake()
 
 	if current_posture >= max_posture:
-		# Концентрация полная — долгий стан. Тряска и звук держатся весь
+		# Концентрация полная — долгий стан. Тряска держится весь
 		# фиксированный таймер — игрок должен физически чувствовать, что
 		# застрял в стане, а не что его один раз тряхнуло
 		is_invulnerable = false  # ← игрок открыт для урона
-		if stun_stream:
-			stun_stream.loop = true
-		_play_varied(stun_audio, 0.06)
 		await get_tree().create_timer(full_stun_duration).timeout
 		_stop_stun_shake()
-		stun_audio.stop()
 		is_stunned = false
 		# Стан уже отбыт — только обнуляем шкалу (_posture_break застанил бы снова)
 		_reset_posture()
 	else:
 		# pummel — короткий стан, тряска держится РОВНО пока играет анимация
 		# Stunned_, а не гаснет раньше неё
-		if stun_stream:
-			stun_stream.loop = false
-		_play_varied(stun_audio, 0.06)
 		is_invulnerable = false  # ← тоже открыт
 		await anim.animation_finished
 		_stop_stun_shake()

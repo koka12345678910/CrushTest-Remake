@@ -214,6 +214,33 @@ var _wander_look_dir := Vector2.DOWN
 var _stuck_time := 0.0
 var _stuck_from := Vector2.ZERO
 
+# ============== ОТРЯД (enemy/enemy_squads.gd) ==============
+# Враг в отряде не бродит: вне боя стоит на своём посту лицом туда, откуда
+# могут прийти (страж прохода, часовой-стрелок), или идёт в строю за
+# движущимся постом (патруль). Заметил героя один — тревога поднимает весь
+# отряд, и все держат цель на squad_chase_range, а не на коротком vision_range.
+# Без отряда (squad == null, например скелеты на кладбище) всё как раньше
+## Отряд, к которому приписан враг (ставит enemy_squads.gd)
+var squad: Node = null
+## Есть пост — вместо бродилки стоять на нём / идти за ним
+var on_post := false
+var post_position := Vector2.ZERO
+var post_facing := Vector2.DOWN
+## Пост сейчас движется (патруль идёт) — держаться за ним шагом
+var post_moving := false
+## Насколько часовой поводит головой по сторонам, рад
+var post_look := 0.9
+var _post_look_timer := 0.0
+var _post_look_dir := Vector2.DOWN
+var _post_nav_target := Vector2.INF
+var _squad_calm := 0.0
+## Отряд поднят по тревоге
+var squad_alert := false
+## Докуда поднятый по тревоге враг преследует героя
+@export var squad_chase_range := 520.0
+## Дальше этого от своего поста погоня бросается — враг возвращается
+@export var squad_leash := 900.0
+
 var last_anim_direction := "down"
 var posture := 0.0
 var posture_regen_timer := 0.0
@@ -677,6 +704,8 @@ func _effective_vision_range() -> float:
 		r = max(r, ranged_alert_range)
 	if pack_role == PackRole.RUSH:
 		r = max(r, pack_rush_range)
+	if squad_alert:
+		r = max(r, squad_chase_range)
 	return r
 
 # Пересчитывает роль в стае (см. PackRole). Зовётся из _decide_state, т.е.
@@ -755,6 +784,7 @@ func _decide_state() -> void:
 
 	_update_detection_scale()
 	_update_pack_role()
+	_update_squad()
 
 	# пробуем заблокировать если игрок атакует рядом. В осторожной стойке
 	# блок решает сама _state_guard
@@ -782,7 +812,7 @@ func _decide_state() -> void:
 			if dist <= attack_range and can_attack:
 				_change_state(State.ATTACK)
 
-			elif dist <= chase_range or is_ranged_alert or pack_role == PackRole.RUSH:
+			elif dist <= chase_range or is_ranged_alert or squad_alert or pack_role == PackRole.RUSH:
 				_change_state(State.CHASE)
 
 			else:
@@ -790,6 +820,7 @@ func _decide_state() -> void:
 
 		else:
 			is_ranged_alert = false
+			squad_alert = false
 			_change_state(State.WANDER)
 
 	else:
@@ -987,6 +1018,8 @@ func _change_state(new_state: State) -> void:
 			_wander_speed = move_velocity.length()
 			_stuck_time = 0.0
 			_stuck_from = global_position
+			# Цель навигации осталась от погони — путь к посту строим заново
+			_post_nav_target = Vector2.INF
 
 		State.CHASE:
 			pass
@@ -1067,7 +1100,64 @@ func _state_idle(_delta: float) -> void:
 
 # ===================== WANDER =====================
 
+## Отряд (зовётся из _decide_state): увидел героя сам — поднять всех;
+## убежал за героем слишком далеко от поста — бросить погоню и вернуться
+func _update_squad() -> void:
+	if squad == null or not is_instance_valid(squad):
+		return
+	_squad_calm = maxf(_squad_calm - think_rate, 0.0)
+	if squad_alert and on_post and global_position.distance_to(post_position) > squad_leash:
+		squad_alert = false
+		is_ranged_alert = false
+		_squad_calm = 4.0
+		return
+	if not squad_alert and _squad_calm <= 0.0 and see_player and player and is_instance_valid(player) \
+			and _is_player_in_range(_effective_vision_range()):
+		squad.call("raise_alarm", self, player, true)
+
+
+## Пост вне боя: дойти до своей точки (или держаться за движущейся точкой
+## патруля) и стоять лицом к post_facing, изредка поводя головой
+func _state_post(delta: float) -> void:
+	var cruise := walk_speed * wander_speed_multiplier
+	var to_post := post_position - global_position
+	var dist := to_post.length()
+	if dist > (5.0 if post_moving else 12.0):
+		# Путь пересчитываем, только когда точка заметно сдвинулась —
+		# у патруля она движется каждый кадр
+		if _post_nav_target.distance_to(post_position) > 16.0:
+			_post_nav_target = post_position
+			nav_agent.target_position = post_position
+		var want_dir := _nav_direction_to(to_post / dist)
+		_turn_toward(want_dir, wander_turn_rate * delta)
+		# Издалека (после боя) — обычным шагом; в строю — подстраиваемся
+		# под ход точки, чтобы не дёргаться "иду-стою"
+		var want := walk_speed if dist > 90.0 else cruise * clampf(dist / 22.0, 0.4, 1.35)
+		want *= lerpf(0.5, 1.0, clampf(direction.dot(want_dir), 0.0, 1.0))
+		_wander_speed = move_toward(_wander_speed, want, walk_speed / wander_ease_time * delta)
+		move_velocity = direction * _wander_speed
+		_play_animation("walk", _wander_anim_speed())
+		return
+	_wander_speed = move_toward(_wander_speed, 0.0, cruise / wander_ease_time * delta)
+	if _wander_speed > 1.0:
+		move_velocity = direction * _wander_speed
+		_play_animation("walk", _wander_anim_speed())
+	else:
+		move_velocity = Vector2.ZERO
+		_play_animation("idle")
+	_post_look_timer -= delta
+	if _post_look_timer <= 0.0:
+		_post_look_timer = randf_range(2.0, 4.5)
+		_post_look_dir = post_facing
+		if not post_moving and randf() < 0.6:
+			_post_look_dir = post_facing.rotated(randf_range(-post_look, post_look))
+	_turn_toward(_post_look_dir, wander_turn_rate * (1.0 if post_moving else 0.35) * delta)
+
+
 func _state_wander(delta: float) -> void:
+	if on_post:
+		_state_post(delta)
+		return
 	# «Дом» фиксируем на первой точке блуждания (для заспавненных врагов
 	# позиция выставляется уже после _ready, поэтому берём её здесь)
 	if not _home_set:
@@ -1181,6 +1271,7 @@ func _state_chase(delta: float) -> void:
 
 	if not _is_player_in_range(_effective_vision_range()):
 		is_ranged_alert = false
+		squad_alert = false
 		_change_state(State.WANDER)
 		return
 
@@ -1555,6 +1646,9 @@ func take_damage(amount: int, source: Node2D = null, unblockable := false) -> vo
 	if source and is_instance_valid(source) and source.is_in_group("player"):
 		player = source
 		see_player = true
+		# Ранили — поднимаем свой отряд, даже если героя никто не видел
+		if squad and is_instance_valid(squad):
+			squad.call("raise_alarm", self, source, false)
 		# Выстрел лучника поднимает стаю всегда, даже в упор — иначе стрела
 		# с близкой дистанции будила бы только того, в кого попала
 		var is_ranged_shot: bool = source.is_in_group("ranged_player")
@@ -2083,7 +2177,7 @@ func _on_vision_body_exited(body: Node2D) -> void:
 		# Поднятый стрелой враг держит цель по ranged_alert_range, а не по
 		# VisionArea — иначе лучница отходила бы на шаг из зоны, и погоня
 		# тут же обрывалась
-		if is_ranged_alert or pack_role == PackRole.RUSH:
+		if is_ranged_alert or squad_alert or pack_role == PackRole.RUSH:
 			return
 		player = null
 		see_player = false

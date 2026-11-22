@@ -30,7 +30,6 @@ const OVERLAY_SHADER := preload("res://Shaders/juice_overlay.gdshader")
 const MageFx := preload("res://Player_scene/mage_fx.gd")
 const BloodFx := preload("res://VFX/VFX_scene/blood_fx.gd")
 const HIT_SOUND := preload("res://Sound/melee_sound/hit.mp3")
-const BREAK_SOUND := preload("res://Sound/posture_break.mp3")
 
 enum Weight { LIGHT, HEAVY, KILL, LAST_KILL }
 
@@ -228,7 +227,6 @@ func execution(victim: Node2D, source: Node2D) -> void:
 		if is_instance_valid(victim):
 			BloodFx.hit(victim, source, 2.4))
 	_play(HIT_SOUND, victim.global_position, 0.55, 2.0)
-	_play(BREAK_SOUND, victim.global_position, 0.7, -4.0)
 
 
 ## Концентрация врага лопнула (enemy.gd::_posture_break): короткий звонкий
@@ -242,7 +240,6 @@ func guard_break(victim: Node2D) -> Node2D:
 	freeze(0.05)
 	pulse("aberration", 0.35, 0.0)
 	shockwave(victim.global_position + Vector2(0, -14), 44.0, 0.3, 0.012)
-	_play(BREAK_SOUND, victim.global_position, 1.0, -3.0)
 	var m := BreakMarker.new()
 	m.position = Vector2(0, -46)
 	victim.add_child(m)

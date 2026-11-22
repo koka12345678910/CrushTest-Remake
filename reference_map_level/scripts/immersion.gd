@@ -741,6 +741,16 @@ func _build_clouds() -> void:
 		# проходом, что и тени облаков: без лишней копии экрана
 		m.set_shader_parameter("grade_amount", 1.0)
 	n.material = m
+	# Своя свежая копия экрана прямо перед облаками. Без неё облака берут
+	# копию, которую Godot сделал для ПЕРВОГО читающего экран узла кадра:
+	# когда в кадре река (RiverSky, water_sheen читает экран), копия снята
+	# ещё до Objects — и облака с цветокором закрашивали дома, пропсы и
+	# героя картинкой одной земли. Тот же z, раньше по дереву = раньше рисуется
+	var copy := BackBufferCopy.new()
+	copy.name = "CloudCopy"
+	copy.copy_mode = BackBufferCopy.COPY_MODE_VIEWPORT
+	copy.z_index = n.z_index
+	add_child(copy)
 	add_child(n)
 
 

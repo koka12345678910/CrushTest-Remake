@@ -729,4 +729,21 @@ const MESSAGES := {
 	"ТЫ ПАЛ": "YOU FELL",
 	"ВОЗРОЖДЕНИЕ": "RESPAWN",
 	"ТЕБЯ ПОДНЯЛИ": "YOU WERE REVIVED",
+	# ── Хольмвик: названия мест и цель (reference_map_level/scripts/route_guide.gd)
+	"Хольмвик": "Holmvik",
+	"Дойди до Храма Света Бальдра": "Reach the Temple of Baldr's Light",
+	"Храм Света Бальдра": "Temple of Baldr's Light",
+	"Дорога к храму": "The Temple Road",
+	"Площадь": "The Square",
+	"Верхняя улица": "Upper Street",
+	"Западная улица": "West Street",
+	"Внутренние ворота": "The Inner Gate",
+	"Нижний город": "Lower Town",
+	# ── Босс храма (enemy/humans/crusader/crusader_boss.gd, boss_arena.gd)
+	"Крестоносец Тёмного Солнца": "Crusader of the Dark Sun",
+	"ВРАГ ПОВЕРЖЕН": "ENEMY FELLED",
+	# ── Конец демо (reference_map_level/scripts/demo_end.gd)
+	"ДЕМО ОКОНЧЕНО": "END OF DEMO",
+	"Спасибо за игру": "Thank you for playing",
+	"Нажмите любую клавишу, чтобы вернуться в главное меню": "Press any key to return to the main menu",
 }
