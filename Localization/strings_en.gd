@@ -138,6 +138,18 @@ const MESSAGES := {
 	"ЯЗЫК": "LANGUAGE",
 	"Камера и ощущение боя": "Camera and combat feel",
 	"Экран и синхронизация": "Display and sync",
+	"Качество, экран, синхронизация": "Quality, display, sync",
+	"Качество графики": "Graphics quality",
+	"АВТО": "AUTO",
+	"НИЗКОЕ": "LOW",
+	"СРЕДНЕЕ": "MEDIUM",
+	"ВЫСОКОЕ": "HIGH",
+	"МАКСИМУМ": "ULTRA",
+	"АВТО — игра сама подбирает качество под этот компьютер по плавности и запоминает его отдельно для каждого устройства. НИЗКОЕ — для слабых ноутбуков, МАКСИМУМ — все эффекты.":
+		"AUTO — the game picks the quality for this computer by how smooth it runs and remembers it separately for each device. LOW is for weak laptops, ULTRA has every effect.",
+	"Подобрано для этого ПК": "Picked for this PC",
+	"Уровень, который режим АВТО выбрал для этого компьютера. Если в игре долго не хватает плавности, он снизится сам; при большом запасе — поднимется. Часть эффектов меняется сразу, остальное — при следующем входе на карту.":
+		"The level AUTO chose for this computer. If the game keeps running unsmoothly it lowers itself; with plenty of headroom it goes back up. Some effects change at once, the rest the next time you enter the map.",
 	"Громкость музыки и эффектов": "Music and effects volume",
 	"Клавиши": "Keys",
 	"Язык интерфейса": "Interface language",

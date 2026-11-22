@@ -3,20 +3,21 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://cwjf8smvc30l2"
-path="res://.godot/imported/TakeDamage_Shadowless.png-c77affdd40b79c9169fb0ec7750065b2.ctex"
+path.bptc="res://.godot/imported/TakeDamage_Shadowless.png-c77affdd40b79c9169fb0ec7750065b2.bptc.ctex"
 metadata={
-"vram_texture": false
+"imported_formats": ["s3tc_bptc"],
+"vram_texture": true
 }
 
 [deps]
 
 source_file="res://enemys/12Guard/TakeDamage_Shadowless.png"
-dest_files=["res://.godot/imported/TakeDamage_Shadowless.png-c77affdd40b79c9169fb0ec7750065b2.ctex"]
+dest_files=["res://.godot/imported/TakeDamage_Shadowless.png-c77affdd40b79c9169fb0ec7750065b2.bptc.ctex"]
 
 [params]
 
-compress/mode=0
-compress/high_quality=false
+compress/mode=2
+compress/high_quality=true
 compress/lossy_quality=0.7
 compress/uastc_level=0
 compress/rdo_quality_loss=0.0

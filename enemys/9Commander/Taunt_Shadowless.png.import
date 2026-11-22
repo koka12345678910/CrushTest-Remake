@@ -3,20 +3,21 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://b67du5kblk0dx"
-path="res://.godot/imported/Taunt_Shadowless.png-0a15f7f6fb030147668c10855a6719e4.ctex"
+path.bptc="res://.godot/imported/Taunt_Shadowless.png-0a15f7f6fb030147668c10855a6719e4.bptc.ctex"
 metadata={
-"vram_texture": false
+"imported_formats": ["s3tc_bptc"],
+"vram_texture": true
 }
 
 [deps]
 
 source_file="res://enemys/9Commander/Taunt_Shadowless.png"
-dest_files=["res://.godot/imported/Taunt_Shadowless.png-0a15f7f6fb030147668c10855a6719e4.ctex"]
+dest_files=["res://.godot/imported/Taunt_Shadowless.png-0a15f7f6fb030147668c10855a6719e4.bptc.ctex"]
 
 [params]
 
-compress/mode=0
-compress/high_quality=false
+compress/mode=2
+compress/high_quality=true
 compress/lossy_quality=0.7
 compress/uastc_level=0
 compress/rdo_quality_loss=0.0

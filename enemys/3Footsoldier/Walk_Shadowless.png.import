@@ -3,20 +3,21 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://cdx7nbpd01b2i"
-path="res://.godot/imported/Walk_Shadowless.png-cc41a2c490ebc40dfa994369a0d24990.ctex"
+path.bptc="res://.godot/imported/Walk_Shadowless.png-cc41a2c490ebc40dfa994369a0d24990.bptc.ctex"
 metadata={
-"vram_texture": false
+"imported_formats": ["s3tc_bptc"],
+"vram_texture": true
 }
 
 [deps]
 
 source_file="res://enemys/3Footsoldier/Walk_Shadowless.png"
-dest_files=["res://.godot/imported/Walk_Shadowless.png-cc41a2c490ebc40dfa994369a0d24990.ctex"]
+dest_files=["res://.godot/imported/Walk_Shadowless.png-cc41a2c490ebc40dfa994369a0d24990.bptc.ctex"]
 
 [params]
 
-compress/mode=0
-compress/high_quality=false
+compress/mode=2
+compress/high_quality=true
 compress/lossy_quality=0.7
 compress/uastc_level=0
 compress/rdo_quality_loss=0.0

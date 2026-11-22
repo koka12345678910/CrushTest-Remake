@@ -3,20 +3,21 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://dw0okn2viwc75"
-path="res://.godot/imported/Idle_Shadowless.png-cd86ac108c5a00a320254df9fdee6952.ctex"
+path.bptc="res://.godot/imported/Idle_Shadowless.png-cd86ac108c5a00a320254df9fdee6952.bptc.ctex"
 metadata={
-"vram_texture": false
+"imported_formats": ["s3tc_bptc"],
+"vram_texture": true
 }
 
 [deps]
 
 source_file="res://enemys/6Crusader/Idle_Shadowless.png"
-dest_files=["res://.godot/imported/Idle_Shadowless.png-cd86ac108c5a00a320254df9fdee6952.ctex"]
+dest_files=["res://.godot/imported/Idle_Shadowless.png-cd86ac108c5a00a320254df9fdee6952.bptc.ctex"]
 
 [params]
 
-compress/mode=0
-compress/high_quality=false
+compress/mode=2
+compress/high_quality=true
 compress/lossy_quality=0.7
 compress/uastc_level=0
 compress/rdo_quality_loss=0.0

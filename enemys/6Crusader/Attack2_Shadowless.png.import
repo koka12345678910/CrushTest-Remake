@@ -3,20 +3,21 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://mhhfecy1wxjt"
-path="res://.godot/imported/Attack2_Shadowless.png-f3f495747e1af3b53020bcf290a2efb3.ctex"
+path.bptc="res://.godot/imported/Attack2_Shadowless.png-f3f495747e1af3b53020bcf290a2efb3.bptc.ctex"
 metadata={
-"vram_texture": false
+"imported_formats": ["s3tc_bptc"],
+"vram_texture": true
 }
 
 [deps]
 
 source_file="res://enemys/6Crusader/Attack2_Shadowless.png"
-dest_files=["res://.godot/imported/Attack2_Shadowless.png-f3f495747e1af3b53020bcf290a2efb3.ctex"]
+dest_files=["res://.godot/imported/Attack2_Shadowless.png-f3f495747e1af3b53020bcf290a2efb3.bptc.ctex"]
 
 [params]
 
-compress/mode=0
-compress/high_quality=false
+compress/mode=2
+compress/high_quality=true
 compress/lossy_quality=0.7
 compress/uastc_level=0
 compress/rdo_quality_loss=0.0

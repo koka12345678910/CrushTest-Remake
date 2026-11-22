@@ -3,20 +3,21 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://ccvo0esfs8o0e"
-path="res://.godot/imported/Run_Shadowless.png-929ea16c426c70d5820dc6fb2b77f793.ctex"
+path.bptc="res://.godot/imported/Run_Shadowless.png-929ea16c426c70d5820dc6fb2b77f793.bptc.ctex"
 metadata={
-"vram_texture": false
+"imported_formats": ["s3tc_bptc"],
+"vram_texture": true
 }
 
 [deps]
 
 source_file="res://enemy/humans/hammer/sheets/Run_Shadowless.png"
-dest_files=["res://.godot/imported/Run_Shadowless.png-929ea16c426c70d5820dc6fb2b77f793.ctex"]
+dest_files=["res://.godot/imported/Run_Shadowless.png-929ea16c426c70d5820dc6fb2b77f793.bptc.ctex"]
 
 [params]
 
-compress/mode=0
-compress/high_quality=false
+compress/mode=2
+compress/high_quality=true
 compress/lossy_quality=0.7
 compress/uastc_level=0
 compress/rdo_quality_loss=0.0

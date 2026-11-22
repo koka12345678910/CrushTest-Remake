@@ -52,6 +52,11 @@ var _cliff := {}
 ## Сколько ближайших к камере огней одновременно отбрасывают тень (каждый —
 ## отдельный проход по земле; у причала факелов больше десятка в кадре)
 @export var max_shadow_lights := 5
+## Огни горящих домов (экземпляры Levels/props/campfire.tscn): в сцене у
+## каждого включена тень на героя (бит 16). Их на карте ~45, и тени считались
+## у всех сразу — это была заметная доля кадра. Тень оставляем ближайшим.
+@export var max_house_fire_shadows := 3
+var _house_fires: Array[PointLight2D] = []
 
 var _fires: Array[PointLight2D] = []
 var _check := 0.0
@@ -81,6 +86,15 @@ func setup(map: Node) -> void:
 				if f and f.get_node_or_null("Light") is PointLight2D:
 					fires.append(f.get_node("Light"))
 	_fires = fires
+	for l in map.find_children("Light", "PointLight2D", true, false):
+		var p := l.get_parent()
+		if p and p.scene_file_path.ends_with("campfire.tscn") and not fires.has(l):
+			(l as PointLight2D).shadow_enabled = false
+			_house_fires.append(l)
+	_apply_quality()
+	var gq := get_node_or_null("/root/GraphicsQuality")
+	if gq:
+		gq.connect("quality_changed", func(_lv): _apply_quality())
 	for l in fires:
 		l.shadow_enabled = false
 		l.shadow_item_cull_mask |= GROUND_BIT | OCCLUDER_BIT
@@ -283,13 +297,26 @@ func _add_occluder(canvas: RID, pts: PackedVector2Array) -> void:
 	_occluders.append(occ)
 
 
+## Квоты теней — от качества графики (GraphicsQuality: shadow_lights,
+## house_fire_shadows); без автозагрузки остаются экспортные значения
+func _apply_quality() -> void:
+	var gq := get_node_or_null("/root/GraphicsQuality")
+	if gq:
+		max_shadow_lights = int(gq.call("value", "shadow_lights"))
+		max_house_fire_shadows = int(gq.call("value", "house_fire_shadows"))
+	_check = 0.0
+
+
 func _process(delta: float) -> void:
 	_check -= delta
-	if _check > 0.0 or _fires.is_empty():
+	if _check > 0.0:
 		return
 	_check = 0.25
 	var vp := get_viewport()
 	var cam: Vector2 = vp.get_canvas_transform().affine_inverse() * (vp.get_visible_rect().size * 0.5)
+	_nearest_on(_house_fires, max_house_fire_shadows, cam, 700.0)
+	if _fires.is_empty():
+		return
 	var order: Array = []
 	for i in _fires.size():
 		if is_instance_valid(_fires[i]):
@@ -309,3 +336,19 @@ func _exit_tree() -> void:
 		RenderingServer.free_rid(p)
 	_occluders.clear()
 	_polys.clear()
+
+
+## Тень только у count ближайших к камере огней списка (и не дальше max_d)
+func _nearest_on(list: Array[PointLight2D], count: int, cam: Vector2, max_d: float) -> void:
+	if list.is_empty():
+		return
+	var order: Array = []
+	for i in list.size():
+		if is_instance_valid(list[i]):
+			order.append([list[i].global_position.distance_squared_to(cam), i])
+	order.sort_custom(func(a, b): return a[0] < b[0])
+	for j in order.size():
+		var l := list[order[j][1]]
+		var on: bool = j < count and order[j][0] < max_d * max_d
+		if l.shadow_enabled != on:
+			l.shadow_enabled = on

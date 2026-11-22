@@ -3,20 +3,21 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://bcwb7og22bd8y"
-path="res://.godot/imported/Run_Shadowless.png-36cbeee41baaab260c2af24bfd5eafa6.ctex"
+path.bptc="res://.godot/imported/Run_Shadowless.png-36cbeee41baaab260c2af24bfd5eafa6.bptc.ctex"
 metadata={
-"vram_texture": false
+"imported_formats": ["s3tc_bptc"],
+"vram_texture": true
 }
 
 [deps]
 
 source_file="res://enemys/6Crusader/Run_Shadowless.png"
-dest_files=["res://.godot/imported/Run_Shadowless.png-36cbeee41baaab260c2af24bfd5eafa6.ctex"]
+dest_files=["res://.godot/imported/Run_Shadowless.png-36cbeee41baaab260c2af24bfd5eafa6.bptc.ctex"]
 
 [params]
 
-compress/mode=0
-compress/high_quality=false
+compress/mode=2
+compress/high_quality=true
 compress/lossy_quality=0.7
 compress/uastc_level=0
 compress/rdo_quality_loss=0.0

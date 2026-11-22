@@ -3,20 +3,21 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://fi7rk8vda2g5"
-path="res://.godot/imported/Attack1_Shadowless.png-2518901d2a315ecfa707d9d9c528b0eb.ctex"
+path.bptc="res://.godot/imported/Attack1_Shadowless.png-2518901d2a315ecfa707d9d9c528b0eb.bptc.ctex"
 metadata={
-"vram_texture": false
+"imported_formats": ["s3tc_bptc"],
+"vram_texture": true
 }
 
 [deps]
 
 source_file="res://enemys/11Arcane elemental/Attack1_Shadowless.png"
-dest_files=["res://.godot/imported/Attack1_Shadowless.png-2518901d2a315ecfa707d9d9c528b0eb.ctex"]
+dest_files=["res://.godot/imported/Attack1_Shadowless.png-2518901d2a315ecfa707d9d9c528b0eb.bptc.ctex"]
 
 [params]
 
-compress/mode=0
-compress/high_quality=false
+compress/mode=2
+compress/high_quality=true
 compress/lossy_quality=0.7
 compress/uastc_level=0
 compress/rdo_quality_loss=0.0

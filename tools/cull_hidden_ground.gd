@@ -46,7 +46,7 @@ func _initialize() -> void:
 			return
 		var cells := _hidden_cells(under, cover)
 		print("[cull_hidden_ground] %s: скрыто %d из %d клеток" % [pair, cells.size(), under.get_used_cells().size()])
-		entries.append({"under": names[0], "cells": cells})
+		entries.append({"under": names[0], "over": names[1], "cells": cells})
 		for n in names:
 			hashes[n] = hash((level.get_node(n) as TileMapLayer).tile_map_data)
 

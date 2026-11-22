@@ -80,6 +80,8 @@ var _ember_mat: ShaderMaterial
 var _haze_mat: ShaderMaterial
 var _haze_holder: Node2D
 var _haze_copy: BackBufferCopy
+## Качество графики (GraphicsQuality): марево (копия экрана) и доля частиц
+var _haze_allowed := true
 ## Свечение воздуха вокруг огня (дым и сырость рассеивают свет): мягкое
 ## аддитивное пятно над всем, дышит вместе с огнём
 var _air_holder: Node2D
@@ -232,6 +234,10 @@ func setup(map: Node) -> void:
 			else:
 				n_camp += 1
 	stats = {"house": n_house, "camp": n_camp, "torch": n_torch}
+	_apply_quality()
+	var gq := get_node_or_null("/root/GraphicsQuality")
+	if gq:
+		gq.connect("quality_changed", func(_lv): _apply_quality())
 
 
 func _finish(d: FireData) -> void:
@@ -603,7 +609,7 @@ func _process(delta: float) -> void:
 		if d.haze == null or not is_instance_valid(d.root):
 			continue
 		var hr := d.haze.rect
-		var vis := screen.intersects(Rect2(d.haze.global_position + hr.position, hr.size))
+		var vis := _haze_allowed and screen.intersects(Rect2(d.haze.global_position + hr.position, hr.size))
 		d.haze.visible = vis
 		any = any or vis
 	if _haze_copy:
@@ -638,3 +644,18 @@ func _air_mat() -> CanvasItemMaterial:
 	if _air_material == null:
 		_air_material = _additive()
 	return _air_material
+
+
+## Качество графики: марево (HIGH+) и доля частиц огня (искры, угли, пепел,
+## дым) — сразу, без перестройки огня. Частицы — у всех огней: и у дерева
+## FireFX, и у пламени, прикреплённого к домам в Objects
+func _apply_quality() -> void:
+	var gq := get_node_or_null("/root/GraphicsQuality")
+	if gq == null:
+		return
+	_haze_allowed = bool(gq.call("has_fx", "fire_haze"))
+	var ratio := float(gq.call("value", "particles"))
+	for d: FireData in _fires:
+		if is_instance_valid(d.root):
+			for p in d.root.find_children("*", "GPUParticles2D", true, false):
+				(p as GPUParticles2D).amount_ratio = ratio

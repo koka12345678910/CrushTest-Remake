@@ -3,20 +3,21 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://iydh60dt50fx"
-path="res://.godot/imported/Walk_Shadowless.png-30993133e705e33e7ccf08ac91f35c5e.ctex"
+path.bptc="res://.godot/imported/Walk_Shadowless.png-30993133e705e33e7ccf08ac91f35c5e.bptc.ctex"
 metadata={
-"vram_texture": false
+"imported_formats": ["s3tc_bptc"],
+"vram_texture": true
 }
 
 [deps]
 
 source_file="res://enemys/1Hammer/Walk_Shadowless.png"
-dest_files=["res://.godot/imported/Walk_Shadowless.png-30993133e705e33e7ccf08ac91f35c5e.ctex"]
+dest_files=["res://.godot/imported/Walk_Shadowless.png-30993133e705e33e7ccf08ac91f35c5e.bptc.ctex"]
 
 [params]
 
-compress/mode=0
-compress/high_quality=false
+compress/mode=2
+compress/high_quality=true
 compress/lossy_quality=0.7
 compress/uastc_level=0
 compress/rdo_quality_loss=0.0

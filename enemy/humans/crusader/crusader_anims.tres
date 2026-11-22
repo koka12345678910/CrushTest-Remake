@@ -1,4 +1,4 @@
-[gd_resource type="AnimationLibrary" format=3]
+[gd_resource type="AnimationLibrary" format=3 uid="uid://dfa5yii82jlyi"]
 
 [sub_resource type="Animation" id="Animation_4bcnd"]
 length = 0.8333333333333334
@@ -3033,7 +3033,7 @@ tracks/1/keys = {
 }
 
 [sub_resource type="Animation" id="Animation_w71sk"]
-length = 1.1538461538461537
+length = 1.1538461538461535
 loop_mode = 1
 tracks/0/type = "value"
 tracks/0/imported = false
@@ -3061,7 +3061,7 @@ tracks/1/keys = {
 }
 
 [sub_resource type="Animation" id="Animation_f2u8a"]
-length = 1.1538461538461537
+length = 1.1538461538461535
 loop_mode = 1
 tracks/0/type = "value"
 tracks/0/imported = false
@@ -3089,7 +3089,7 @@ tracks/1/keys = {
 }
 
 [sub_resource type="Animation" id="Animation_2uf0b"]
-length = 1.1538461538461537
+length = 1.1538461538461535
 loop_mode = 1
 tracks/0/type = "value"
 tracks/0/imported = false
@@ -3117,7 +3117,7 @@ tracks/1/keys = {
 }
 
 [sub_resource type="Animation" id="Animation_mkkif"]
-length = 1.1538461538461537
+length = 1.1538461538461535
 loop_mode = 1
 tracks/0/type = "value"
 tracks/0/imported = false
@@ -3145,7 +3145,7 @@ tracks/1/keys = {
 }
 
 [sub_resource type="Animation" id="Animation_4ktmg"]
-length = 1.1538461538461537
+length = 1.1538461538461535
 loop_mode = 1
 tracks/0/type = "value"
 tracks/0/imported = false
@@ -3173,7 +3173,7 @@ tracks/1/keys = {
 }
 
 [sub_resource type="Animation" id="Animation_sat6x"]
-length = 1.1538461538461537
+length = 1.1538461538461535
 loop_mode = 1
 tracks/0/type = "value"
 tracks/0/imported = false
@@ -3201,7 +3201,7 @@ tracks/1/keys = {
 }
 
 [sub_resource type="Animation" id="Animation_5two8"]
-length = 1.1538461538461537
+length = 1.1538461538461535
 loop_mode = 1
 tracks/0/type = "value"
 tracks/0/imported = false
@@ -3229,7 +3229,7 @@ tracks/1/keys = {
 }
 
 [sub_resource type="Animation" id="Animation_5gfy5"]
-length = 1.1538461538461537
+length = 1.1538461538461535
 loop_mode = 1
 tracks/0/type = "value"
 tracks/0/imported = false

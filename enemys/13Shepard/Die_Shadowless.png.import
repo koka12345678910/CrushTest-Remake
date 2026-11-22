@@ -3,20 +3,21 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://dfebi3acv7q24"
-path="res://.godot/imported/Die_Shadowless.png-5c1fe73ede3ea6dcf8a66e01b3dce69e.ctex"
+path.bptc="res://.godot/imported/Die_Shadowless.png-5c1fe73ede3ea6dcf8a66e01b3dce69e.bptc.ctex"
 metadata={
-"vram_texture": false
+"imported_formats": ["s3tc_bptc"],
+"vram_texture": true
 }
 
 [deps]
 
 source_file="res://enemys/13Shepard/Die_Shadowless.png"
-dest_files=["res://.godot/imported/Die_Shadowless.png-5c1fe73ede3ea6dcf8a66e01b3dce69e.ctex"]
+dest_files=["res://.godot/imported/Die_Shadowless.png-5c1fe73ede3ea6dcf8a66e01b3dce69e.bptc.ctex"]
 
 [params]
 
-compress/mode=0
-compress/high_quality=false
+compress/mode=2
+compress/high_quality=true
 compress/lossy_quality=0.7
 compress/uastc_level=0
 compress/rdo_quality_loss=0.0

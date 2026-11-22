@@ -149,6 +149,37 @@ func _ready() -> void:
 	_build.call_deferred()
 
 
+## Качество графики (автозагрузка GraphicsQuality): разрешён ли эффект на
+## текущем уровне. Без автозагрузки (консольные инструменты) — всё включено
+func _q(fx: String) -> bool:
+	var gq := get_node_or_null("/root/GraphicsQuality")
+	return gq == null or bool(gq.call("has_fx", fx))
+
+
+var _map_ref: Node
+
+## Что меняется сразу при смене качества (без перезахода на карту):
+## общий цветокор карты (Grade, полноэкранный проход ~3 мс на слабой
+## видеокарте), передний план, лунные лучи. Остальное (огонь, тени,
+## частицы) слушает quality_changed само; то, чего не построили при входе
+## (туман, нормали, мотыльки), появится при следующем входе на карту
+func _apply_quality_live() -> void:
+	if _map_ref == null or not is_instance_valid(_map_ref):
+		return
+	var grade := _map_ref.get_node_or_null("Grade") as CanvasLayer
+	if grade:
+		grade.visible = _q("grade")
+	for nm in ["Foreground", "MoonRays"]:
+		var n := get_node_or_null(nm) as CanvasItem
+		if n:
+			n.visible = _q("foreground" if nm == "Foreground" else "moon_rays")
+
+
+func _qv(key: String, fallback: float) -> float:
+	var gq := get_node_or_null("/root/GraphicsQuality")
+	return fallback if gq == null else float(gq.call("value", key))
+
+
 func _build() -> void:
 	_rng.seed = seed_value
 	var map := get_parent()
@@ -161,32 +192,32 @@ func _build() -> void:
 		add_child(br)
 		br.call("setup", map)
 		stats["breakables"] = br.get("stats")
-	if wind_enabled:
+	if wind_enabled and _q("wind"):
 		_apply_wind(map)
-	if mist_enabled:
+	if mist_enabled and _q("mist"):
 		_build_mist(map)
-	if smoke_enabled:
+	if smoke_enabled and _q("smoke"):
 		_build_smoke(map)
-	if fire_enabled:
+	if fire_enabled and _q("fire"):
 		var fx := FIRE_SCRIPT.new()
 		fx.name = "FireFX"
 		fx.set("wind_strength", wind_strength)
 		add_child(fx)
 		fx.call("setup", map)
 		stats["fire"] = fx.get("stats")
-	if moon_enabled:
+	if moon_enabled and _q("moon"):
 		stats["moon"] = _build_moon(map)
-	if clouds_enabled:
+	if clouds_enabled and _q("clouds"):
 		_build_clouds()
-	if foreground_enabled:
+	if foreground_enabled and _q("foreground"):
 		_build_foreground()
-	if depth_enabled:
+	if depth_enabled and _q("depth"):
 		_build_depth(map)
-	if canopy_enabled:
+	if canopy_enabled and _q("canopy"):
 		_build_canopy(map)
-	if response_enabled:
+	if response_enabled and _q("response"):
 		_build_response(map)
-	if critters_enabled:
+	if critters_enabled and _q("critters"):
 		_build_critters(map)
 		var mo := MOTHS_SCRIPT.new()
 		mo.name = "Moths"
@@ -203,7 +234,7 @@ func _build() -> void:
 		stats["shadows"] = ls.get("stats")
 	if sound_enabled:
 		_build_sound(map)
-	if weather_enabled:
+	if weather_enabled and _q("weather"):
 		var wl := WEATHER_SCRIPT.new()
 		wl.name = "WeatherLink"
 		wl.set("start_hour", weather_start_hour)
@@ -216,20 +247,20 @@ func _build() -> void:
 		stats["weather"] = wl.get("stats")
 	# Последним: подменяет текстуры на CanvasTexture, а шаги выше смотрят
 	# resource_path текстур
-	if normals_enabled:
+	if normals_enabled and _q("normals"):
 		var nm := NORMALS_SCRIPT.new()
 		nm.name = "NormalMaps"
 		add_child(nm)
 		nm.call("setup", map, _mats.values())
 		stats["normals"] = nm.get("stats")
 	# После карт нормалей: они меняют шейдер общему материалу предметов
-	if silhouette_enabled:
+	if silhouette_enabled and _q("silhouette"):
 		var sil := SILHOUETTE_SCRIPT.new()
 		sil.name = "HeroSilhouette"
 		add_child(sil)
 		sil.call("setup", map)
 		stats["silhouette"] = sil.get("stats")
-	if hero_light_enabled:
+	if hero_light_enabled and _q("hero_light"):
 		var hl := HERO_LIGHT_SCRIPT.new()
 		hl.name = "HeroLight"
 		add_child(hl)
@@ -237,6 +268,12 @@ func _build() -> void:
 		stats["hero_light"] = hl.get("stats")
 	# Самым последним — когда все узлы земли уже вставлены (туман, бездна, следы)
 	stats["ground_z"] = _lower_ground(map)
+	# Качество графики на лету: то, что можно просто показать/спрятать
+	_map_ref = map
+	_apply_quality_live()
+	var gq := get_node_or_null("/root/GraphicsQuality")
+	if gq:
+		gq.connect("quality_changed", func(_lv): _apply_quality_live())
 	print("Immersion: ", stats)
 
 
@@ -697,7 +734,7 @@ func _build_clouds() -> void:
 	m.set_shader_parameter("noise", _noise())
 	# Пятна лунного света теперь даёт настоящий свет (_build_moon) со своими
 	# облаками — здесь остаётся только лёгкая тень облаков, без второй луны
-	if moon_enabled:
+	if moon_enabled and _q("moon"):
 		m.set_shader_parameter("moon_strength", 0.0)
 		m.set_shader_parameter("strength", 0.14)
 		# Ночной цветокор (как на кладбище, но огонь не трогает) — тем же
@@ -737,6 +774,8 @@ func _build_moon(map: Node) -> Dictionary:
 	moon.set("moon_marker", true)
 	moon.set("wind", Vector2(12.0, 5.0) * wind_strength)
 	map.add_child(moon)
+	if not _q("moon_rays"):
+		return {"rays": 0}
 	# Косые лучи (как на кладбище): Weather гасит их в тучах — ему нужна
 	# исходная сила в мете base_intensity
 	var img := Image.create(4, 4, false, Image.FORMAT_RGBA8)

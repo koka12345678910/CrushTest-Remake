@@ -122,6 +122,9 @@ func get_music_base_db() -> float:
 
 func save_settings() -> void:
 	var cfg := ConfigFile.new()
+	# Тот же файл хранит разделы качества графики по устройствам
+	# (GraphicsQuality.gd) — дописываем поверх, а не затираем
+	cfg.load(CONFIG_PATH)
 	cfg.set_value("audio", "master", master_volume)
 	cfg.set_value("audio", "music", music_volume)
 	cfg.set_value("audio", "sfx", sfx_volume)
@@ -155,5 +158,9 @@ func reset_to_defaults() -> void:
 	mouse_aim = false
 	fullscreen = false
 	vsync = true
+	# Качество графики — снова на авто (подбор под это устройство)
+	var gq := get_node_or_null("/root/GraphicsQuality")
+	if gq:
+		gq.call("set_mode", -1)
 	apply_all()
 	save_settings()

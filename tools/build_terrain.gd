@@ -64,7 +64,15 @@ func _src_image(name: String) -> Image:
 	return img
 
 
-func _save_tex(img: Image, name: String) -> Error:
+## bptc — большие картинки-рисунки (стены обрыва и каньона): сжатие BPTC,
+## в 4 раза меньше видеопамяти (несжатые были 85 МБ, а у встроенной
+## видеокарты ноутбука это общая оперативка). Маски (wear, zones, маски
+## атласов) не сжимаются: шейдер читает в них точные значения
+func _save_tex(img: Image, name: String, bptc := false) -> Error:
+	if bptc and not img.is_compressed() and img.get_width() % 4 == 0 and img.get_height() % 4 == 0:
+		img = img.duplicate() as Image
+		img.convert(Image.FORMAT_RGBA8)
+		img.compress(Image.COMPRESS_BPTC, Image.COMPRESS_SOURCE_GENERIC)
 	var tex := ImageTexture.create_from_image(img)
 	return ResourceSaver.save(tex, OUT + name, ResourceSaver.FLAG_COMPRESS)
 
@@ -965,7 +973,7 @@ func _bake_faces(layer_names: Array, rock_only: bool, min_run: int, stretch: boo
 		if _rock_pal.is_empty():
 			_rock_pal = _palette([hi], ROCK_COLORS)
 		out = _quantize(out, _rock_pal)
-	var err := _save_tex(out, tex_name)
+	var err := _save_tex(out, tex_name, true)
 	lvl.set_meta(meta, rect.position)
 	var prev_dir := OS.get_environment("TERRAIN_PREVIEW")
 	if prev_dir != "":

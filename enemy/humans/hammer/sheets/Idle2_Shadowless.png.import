@@ -3,20 +3,21 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://dbmi8txaqrb74"
-path="res://.godot/imported/Idle2_Shadowless.png-3bfb9dcc872bf8859244d06dee978747.ctex"
+path.bptc="res://.godot/imported/Idle2_Shadowless.png-3bfb9dcc872bf8859244d06dee978747.bptc.ctex"
 metadata={
-"vram_texture": false
+"imported_formats": ["s3tc_bptc"],
+"vram_texture": true
 }
 
 [deps]
 
 source_file="res://enemy/humans/hammer/sheets/Idle2_Shadowless.png"
-dest_files=["res://.godot/imported/Idle2_Shadowless.png-3bfb9dcc872bf8859244d06dee978747.ctex"]
+dest_files=["res://.godot/imported/Idle2_Shadowless.png-3bfb9dcc872bf8859244d06dee978747.bptc.ctex"]
 
 [params]
 
-compress/mode=0
-compress/high_quality=false
+compress/mode=2
+compress/high_quality=true
 compress/lossy_quality=0.7
 compress/uastc_level=0
 compress/rdo_quality_loss=0.0

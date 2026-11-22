@@ -3,20 +3,21 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://b2ocba04svtyh"
-path="res://.godot/imported/Attack3_Shadowless.png-a0e0b962d2fe99379240550a6c935276.ctex"
+path.bptc="res://.godot/imported/Attack3_Shadowless.png-a0e0b962d2fe99379240550a6c935276.bptc.ctex"
 metadata={
-"vram_texture": false
+"imported_formats": ["s3tc_bptc"],
+"vram_texture": true
 }
 
 [deps]
 
 source_file="res://enemys/13Shepard/Attack3_Shadowless.png"
-dest_files=["res://.godot/imported/Attack3_Shadowless.png-a0e0b962d2fe99379240550a6c935276.ctex"]
+dest_files=["res://.godot/imported/Attack3_Shadowless.png-a0e0b962d2fe99379240550a6c935276.bptc.ctex"]
 
 [params]
 
-compress/mode=0
-compress/high_quality=false
+compress/mode=2
+compress/high_quality=true
 compress/lossy_quality=0.7
 compress/uastc_level=0
 compress/rdo_quality_loss=0.0

@@ -1,4 +1,4 @@
-[gd_resource type="AnimationLibrary" format=3]
+[gd_resource type="AnimationLibrary" format=3 uid="uid://bcs3wmhx0ww6f"]
 
 [sub_resource type="Animation" id="Animation_o134i"]
 length = 0.8333333333333334
@@ -1521,7 +1521,7 @@ tracks/1/keys = {
 }
 
 [sub_resource type="Animation" id="Animation_kfaiu"]
-length = 0.22727272727272727
+length = 0.2272727272727273
 tracks/0/type = "value"
 tracks/0/imported = false
 tracks/0/enabled = true
@@ -1548,7 +1548,7 @@ tracks/1/keys = {
 }
 
 [sub_resource type="Animation" id="Animation_bq70t"]
-length = 0.22727272727272727
+length = 0.2272727272727273
 tracks/0/type = "value"
 tracks/0/imported = false
 tracks/0/enabled = true
@@ -1575,7 +1575,7 @@ tracks/1/keys = {
 }
 
 [sub_resource type="Animation" id="Animation_u0u62"]
-length = 0.22727272727272727
+length = 0.2272727272727273
 tracks/0/type = "value"
 tracks/0/imported = false
 tracks/0/enabled = true
@@ -1602,7 +1602,7 @@ tracks/1/keys = {
 }
 
 [sub_resource type="Animation" id="Animation_lyfr2"]
-length = 0.22727272727272727
+length = 0.2272727272727273
 tracks/0/type = "value"
 tracks/0/imported = false
 tracks/0/enabled = true
@@ -1629,7 +1629,7 @@ tracks/1/keys = {
 }
 
 [sub_resource type="Animation" id="Animation_6j1pv"]
-length = 0.22727272727272727
+length = 0.2272727272727273
 tracks/0/type = "value"
 tracks/0/imported = false
 tracks/0/enabled = true
@@ -1656,7 +1656,7 @@ tracks/1/keys = {
 }
 
 [sub_resource type="Animation" id="Animation_yhesb"]
-length = 0.22727272727272727
+length = 0.2272727272727273
 tracks/0/type = "value"
 tracks/0/imported = false
 tracks/0/enabled = true
@@ -1683,7 +1683,7 @@ tracks/1/keys = {
 }
 
 [sub_resource type="Animation" id="Animation_iao68"]
-length = 0.22727272727272727
+length = 0.2272727272727273
 tracks/0/type = "value"
 tracks/0/imported = false
 tracks/0/enabled = true
@@ -1710,7 +1710,7 @@ tracks/1/keys = {
 }
 
 [sub_resource type="Animation" id="Animation_nmb7v"]
-length = 0.22727272727272727
+length = 0.2272727272727273
 tracks/0/type = "value"
 tracks/0/imported = false
 tracks/0/enabled = true
@@ -2817,7 +2817,7 @@ tracks/1/keys = {
 }
 
 [sub_resource type="Animation" id="Animation_lb686"]
-length = 1.1538461538461537
+length = 1.1538461538461535
 loop_mode = 1
 tracks/0/type = "value"
 tracks/0/imported = false
@@ -2845,7 +2845,7 @@ tracks/1/keys = {
 }
 
 [sub_resource type="Animation" id="Animation_ndm1a"]
-length = 1.1538461538461537
+length = 1.1538461538461535
 loop_mode = 1
 tracks/0/type = "value"
 tracks/0/imported = false
@@ -2873,7 +2873,7 @@ tracks/1/keys = {
 }
 
 [sub_resource type="Animation" id="Animation_4h4fo"]
-length = 1.1538461538461537
+length = 1.1538461538461535
 loop_mode = 1
 tracks/0/type = "value"
 tracks/0/imported = false
@@ -2901,7 +2901,7 @@ tracks/1/keys = {
 }
 
 [sub_resource type="Animation" id="Animation_f0iuo"]
-length = 1.1538461538461537
+length = 1.1538461538461535
 loop_mode = 1
 tracks/0/type = "value"
 tracks/0/imported = false
@@ -2929,7 +2929,7 @@ tracks/1/keys = {
 }
 
 [sub_resource type="Animation" id="Animation_x4aeq"]
-length = 1.1538461538461537
+length = 1.1538461538461535
 loop_mode = 1
 tracks/0/type = "value"
 tracks/0/imported = false
@@ -2957,7 +2957,7 @@ tracks/1/keys = {
 }
 
 [sub_resource type="Animation" id="Animation_3c45n"]
-length = 1.1538461538461537
+length = 1.1538461538461535
 loop_mode = 1
 tracks/0/type = "value"
 tracks/0/imported = false
@@ -2985,7 +2985,7 @@ tracks/1/keys = {
 }
 
 [sub_resource type="Animation" id="Animation_wunc7"]
-length = 1.1538461538461537
+length = 1.1538461538461535
 loop_mode = 1
 tracks/0/type = "value"
 tracks/0/imported = false
@@ -3013,7 +3013,7 @@ tracks/1/keys = {
 }
 
 [sub_resource type="Animation" id="Animation_v2iwl"]
-length = 1.1538461538461537
+length = 1.1538461538461535
 loop_mode = 1
 tracks/0/type = "value"
 tracks/0/imported = false

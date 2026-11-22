@@ -13,7 +13,7 @@ const HeroSkin := preload("res://Inventory/ui/hero_inventory_skin.gd")
 
 const CATEGORIES := [
 	["general", "ОБЩИЕ", "Камера и ощущение боя"],
-	["graphics", "ГРАФИКА", "Экран и синхронизация"],
+	["graphics", "ГРАФИКА", "Качество, экран, синхронизация"],
 	["audio", "ЗВУК", "Громкость музыки и эффектов"],
 	["controls", "УПРАВЛЕНИЕ", "Клавиши"],
 	["language", "ЯЗЫК", "Язык интерфейса"],
@@ -199,7 +199,20 @@ func _defs(id: String) -> Array:
 				"get": func(): return GameSettings.shake_multiplier > 0.0,
 				"set": func(v): GameSettings.shake_multiplier = 1.0 if v else 0.0}]
 		"graphics":
-			return [
+			var gq := get_node_or_null("/root/GraphicsQuality")
+			var defs := []
+			if gq:
+				# АВТО + четыре уровня. Описание показывает, что выбрано
+				# автоматически для этого устройства
+				var opts := ["АВТО"]
+				opts.append_array(gq.NAMES)
+				defs.append({"kind": "select", "label": "Качество графики", "options": opts,
+					"desc": "АВТО — игра сама подбирает качество под этот компьютер по плавности и запоминает его отдельно для каждого устройства. НИЗКОЕ — для слабых ноутбуков, МАКСИМУМ — все эффекты.",
+					"get": func(): return gq.mode() + 1,
+					"set": func(i): gq.set_mode(i - 1)})
+				defs.append({"kind": "info", "label": "Подобрано для этого ПК", "value": tr(gq.NAMES[gq.auto_level]),
+					"desc": "Уровень, который режим АВТО выбрал для этого компьютера. Если в игре долго не хватает плавности, он снизится сам; при большом запасе — поднимется. Часть эффектов меняется сразу, остальное — при следующем входе на карту."})
+			defs.append_array([
 				{"kind": "select", "label": "Режим экрана", "options": ["ОКНО", "ВЕСЬ ЭКРАН"],
 					"desc": "Играть в окне или на весь экран.",
 					"get": func(): return 1 if GameSettings.fullscreen else 0,
@@ -208,7 +221,8 @@ func _defs(id: String) -> Array:
 					"desc": "Подстраивает частоту кадров под монитор — без разрывов картинки.",
 					"get": func(): return GameSettings.vsync,
 					"set": func(v): GameSettings.vsync = v; GameSettings.apply_all()},
-			]
+			])
+			return defs
 		"audio":
 			return [
 				{"kind": "slider", "label": "Общая громкость", "desc": "Громкость всего звука игры.",
