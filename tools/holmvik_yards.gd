@@ -79,6 +79,13 @@ const KITS := {
 		"ground": ["g_mud"]},
 	"kennel": {"items": [["y5", "b_kennel"], ["y5", "b_outhouse"], ["y5", "l_handcart"], ["y5", "l_woodstack"], ["y5", "l_baskets"]],
 		"ground": ["g_mud", "g_straw"]},
+	# Амбар на сваях (партия 6, атлас домов town_houses6_hd): зерно, мешки, сено
+	"granary": {"items": [["h6", "storehouse"], ["y5", "l_sheaves"], ["farm", "bale_a"], ["y5", "l_baskets"], ["y5", "l_handcart"]],
+		"ground": ["g_straw"]},
+	"granary_b": {"items": [["h6", "storehouse_side"], ["farm", "haystack"], ["y5", "l_sheaves"], ["hd", "sacks@136x107"], ["y5", "l_handcart"]],
+		"ground": ["g_straw", "g_mud"]},
+	"granary_c": {"items": [["h6", "storehouse_back"], ["y5", "l_baskets"], ["farm", "bale_b"], ["town", "yard_rainbarrel"], ["y5", "l_pots"]],
+		"ground": ["g_straw"]},
 	# Двор обыскали и бросили: всё перевёрнуто и раскидано
 	"raided": {"items": [["y5", "r_coop"], ["y5", "r_chest"], ["y5", "r_bench_spill"], ["y5", "r_sacks"], ["y5", "r_laundry"], ["y5", "r_woodpile"], ["y5", "r_wheel"]],
 		"ground": ["g_straw", "g_mud"]},
@@ -89,7 +96,8 @@ const KITS := {
 const CLUTTER := [["hd", "barrel@48x71"], ["hd", "bucket@62x85"], ["y5", "l_pots"], ["camp", "log_a"],
 	["farm", "tools"], ["y5", "l_baskets"], ["town", "yard_rainbarrel"], ["y5", "l_bench"], ["y5", "l_churn"]]
 const KIT_ORDER := ["woodyard", "garden", "laundry", "livestock", "storage", "raided", "coop", "workshop",
-	"apiary", "smokehouse", "household", "kennel", "garden", "raided_cart", "farmyard", "coop", "raided"]
+	"apiary", "smokehouse", "household", "kennel", "garden", "raided_cart", "farmyard", "coop", "raided",
+	"granary", "granary_b", "granary_c"]
 
 ## Коллизия предметов у основания (px мира); бочки и ящики hd — без неё
 ## (их делает разбиваемыми breakables.gd во время игры). Постройки партии 5
@@ -104,7 +112,10 @@ const BODY := {
 	"l_spinning": Vector2(26, 8), "l_herbrack": Vector2(56, 6), "l_bench": Vector2(46, 8),
 	"r_cart_hay": Vector2(70, 16), "r_coop": Vector2(44, 14), "r_chest": Vector2(40, 12),
 	"r_woodpile": Vector2(52, 14), "r_bench_spill": Vector2(44, 10),
+	"storehouse": Vector2(84, 22), "storehouse_back": Vector2(84, 22), "storehouse_side": Vector2(90, 22),
 }
+## Масштаб картинки в дворе (амбар из атласа домов — меньше, чем на улице)
+const ITEM_K := {"storehouse": 0.7, "storehouse_back": 0.7, "storehouse_side": 0.7}
 ## Глубина коллизии построек b_* (ширина — подножие картинки)
 const BUILDING_DEPTH := 20.0
 ## Листы: [png, json, текселей на px мира]
@@ -114,6 +125,7 @@ const SHEETS := {
 	"farm": ["farm_props.png", "farm_props.json", 2.0],
 	"camp": ["camp_hd.png", "camp_hd.json", 2.0],
 	"y5": ["town_yards_hd.png", "town_yards_hd.json", 2.5],
+	"h6": ["town_houses6_hd.png", "town_houses6_hd.json", 2.0],
 }
 ## Заборы: лист, целый кусок, сломанный, короткий (или "" — целый в масштабе),
 ## масштаб, калитка (две картинки по краям прохода; "" — просто проход)
@@ -381,7 +393,7 @@ func _ts(sheet: String) -> float:
 
 
 func _wsize(sheet: String, key: String) -> Vector2:
-	return _art(sheet, key).size / _ts(sheet)
+	return _art(sheet, key).size / _ts(sheet) * float(ITEM_K.get(key, 1.0))
 
 
 ## Коллизия предмета (px мира): из BODY, у построек b_* — по подножию картинки
@@ -415,7 +427,7 @@ func _dress(lvl: Node, lots: Array) -> void:
 		rng.seed = hash(Vector2i(rect.get_center()))
 		var kit_name: String = KIT_ORDER[rng.randi() % KIT_ORDER.size()]
 		# Узкая полоска — без стога, загона и больших построек
-		if rect.size.y < 70.0 and kit_name in ["livestock", "farmyard", "workshop", "smokehouse"]:
+		if rect.size.y < 70.0 and kit_name in ["livestock", "farmyard", "workshop", "smokehouse", "granary", "granary_b", "granary_c"]:
 			kit_name = "storage"
 		var kit: Dictionary = KITS[kit_name]
 		counts[kit_name] = counts.get(kit_name, 0) + 1
@@ -518,14 +530,14 @@ func _place_in(objects: Node, lvl: Node, cells: Array, sheet: String, key: Strin
 		if not _free(fp, 10.0):
 			continue
 		# Постройки — к задней кромке двора (у стены дома, у забора)
-		var s := float(_hug(c)) * (2.0 if key.begins_with("b_") else 1.0) + rng.randf() * 3.0
+		var s := float(_hug(c)) * (2.0 if key.begins_with("b_") or ITEM_K.has(key) else 1.0) + rng.randf() * 3.0
 		if s > best_s:
 			best_s = s
 			best = base
 	if best == Vector2.INF:
 		return false
 	var flip := rng.randf() < 0.5
-	_sprite(objects, lvl, sheet, key, best, flip, body)
+	_sprite(objects, lvl, sheet, key, best, flip, body, float(ITEM_K.get(key, 1.0)))
 	_use(Rect2(best.x - fw * 0.5, best.y - fh, fw, fh).grow(8.0))
 	_patches.append([best + Vector2(0, -fh * 0.4), Vector2(fw * 0.75 + 10.0, fh + 12.0)])
 	return true

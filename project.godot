@@ -35,6 +35,7 @@ SceneLoader="*res://Main_Menu/scripts/SceneLoader.gd"
 Juice="*res://VFX/juice.gd"
 Weather="*res://Levels/weather.gd"
 Net="*res://Net/net.gd"
+TrailerMode="*res://UI/trailer_mode.gd"
 
 [display]
 

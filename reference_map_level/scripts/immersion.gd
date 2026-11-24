@@ -77,6 +77,9 @@ const GROUND_MATERIAL := "res://reference_map_level/textures/terrain/ground_mate
 ## Лунный свет как на кладбище: холодный свет с плывущими пятнами облаков
 ## (Levels/moonlight.gd) и косые лунные лучи (Shaders/moon_rays.gdshader)
 @export var moon_enabled := true
+## Яркость луны: множитель к лунному свету и лучам (1 — как было до
+## 2026-11-24, слишком светло; 0.55 — тёмная ночь, свет в прогалинах облаков)
+@export_range(0.0, 1.5) var moon_brightness := 0.55
 ## Глубокая ночь: на этой карте часы стоят на night_hour, а погода не
 ## уходит в дождь и грозу (луна должна быть видна). false — сутки идут
 @export var night_lock := true
@@ -779,8 +782,9 @@ func _build_moon(map: Node) -> Dictionary:
 	moon.set("area", WORLD)
 	moon.set("period", 8192.0)
 	moon.set("cloud_frequency", 0.016)
-	moon.set("energy_scale", 2.0)
-	moon.set("clear_sky", 0.5)
+	moon.set("energy_scale", 2.0 * moon_brightness)
+	# Тени облаков темнее, чем раньше (0.5): луна — в прогалинах, а не везде
+	moon.set("clear_sky", 0.5 * minf(moon_brightness * 1.3, 1.0))
 	moon.set("moon_marker", true)
 	moon.set("wind", Vector2(12.0, 5.0) * wind_strength)
 	map.add_child(moon)
@@ -807,7 +811,8 @@ func _build_moon(map: Node) -> Dictionary:
 		s.rotation = ang
 		var m := ShaderMaterial.new()
 		m.shader = MOON_RAYS_SHADER
-		m.set_shader_parameter("intensity", r[2])
+		var ray_k: float = float(r[2]) * moon_brightness
+		m.set_shader_parameter("intensity", ray_k)
 		m.set_shader_parameter("seed", seed_k)
 		m.set_shader_parameter("ray_color", Color(0.62, 0.74, 0.98))
 		m.set_shader_parameter("fade_start", 0.55)
@@ -815,7 +820,7 @@ func _build_moon(map: Node) -> Dictionary:
 		m.set_shader_parameter("len_scale", MOON_RAY_LENGTH / 450.0)
 		seed_k += 7.3
 		s.material = m
-		s.set_meta("base_intensity", r[2])
+		s.set_meta("base_intensity", ray_k)
 		s.add_to_group("moon_rays", true)
 		holder.add_child(s)
 	return {"rays": MOON_RAYS.size()}

@@ -225,15 +225,15 @@ func _keep_big_groups(cells: Array[Vector2i], min_cells: int) -> Array[Vector2i]
 
 ## имя: [файл, доля сверху (0..1, обрезка ствола), макс. размер, сила размытия, вид,
 ##       (необязательно) вырез Rect2 в долях обрезанной картинки]
-## Крыши (вид roof) — из домов Хольмвика (src/hd/houses_v2): свесы ближних
+## Крыши (вид roof) — из домов Хольмвика (src/hd/houses_v6): свесы ближних
 ## крыш проплывают у края кадра, пока герой бежит по улице
 const FG := {
-	"roof_shingle": ["houses_v2/townhouse_a", 0.5, 320, 2, "roof"],
-	"roof_turf": ["houses_v2/townhouse_b", 0.46, 320, 2, "roof"],
-	"roof_long": ["houses_v2/longhouse_v2", 0.46, 360, 2, "roof"],
-	"roof_corner": ["houses_v2/merchant_b", 0.45, 256, 2, "roof", Rect2(0.0, 0.0, 0.58, 1.0)],
-	"roof_dragon": ["houses_v2/townhouse_a", 0.36, 224, 2, "roof", Rect2(0.0, 0.0, 0.4, 1.0)],
-	"roof_smithy": ["houses_v2/smithy", 0.5, 320, 2, "roof"],
+	"roof_shingle": ["houses_v6/gallery_house", 0.5, 320, 2, "roof"],
+	"roof_turf": ["houses_v6/cottage", 0.55, 320, 2, "roof"],
+	"roof_long": ["houses_v6/longhouse", 0.5, 360, 2, "roof"],
+	"roof_corner": ["houses_v6/craft_house", 0.5, 256, 2, "roof", Rect2(0.0, 0.0, 0.58, 1.0)],
+	"roof_dragon": ["houses_v6/merchant_gable", 0.4, 224, 2, "roof"],
+	"roof_smithy": ["houses_v6/stone_house", 0.5, 320, 2, "roof"],
 	"crown_oak": ["tree_oak", 0.72, 256, 2, "crown"],
 	"crown_ancient": ["tree_oak_ancient", 0.75, 256, 2, "crown"],
 	"crown_crimson": ["tree_crimson", 0.72, 256, 2, "crown"],

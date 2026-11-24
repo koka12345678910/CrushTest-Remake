@@ -1,0 +1,135 @@
+{
+	"_ts": 2.0,
+	"burnt_cottage": [
+		3388,
+		1102,
+		450,
+		309
+	],
+	"burnt_cottage_back": [
+		454,
+		1486,
+		450,
+		300
+	],
+	"burnt_cottage_side": [
+		1322,
+		0,
+		420,
+		474
+	],
+	"burnt_gallery": [
+		1308,
+		1102,
+		540,
+		363
+	],
+	"burnt_gallery_b": [
+		764,
+		1102,
+		540,
+		374
+	],
+	"burnt_gallery_back": [
+		1852,
+		1102,
+		540,
+		360
+	],
+	"burnt_gallery_side": [
+		848,
+		0,
+		470,
+		540
+	],
+	"cottage": [
+		1746,
+		0,
+		450,
+		446
+	],
+	"cottage_back": [
+		0,
+		1486,
+		450,
+		305
+	],
+	"craft_house": [
+		2760,
+		693,
+		584,
+		391
+	],
+	"craft_house_back": [
+		2172,
+		693,
+		584,
+		392
+	],
+	"gallery_house": [
+		1628,
+		693,
+		540,
+		403
+	],
+	"gallery_house_back": [
+		2200,
+		0,
+		540,
+		438
+	],
+	"longhouse": [
+		0,
+		693,
+		810,
+		405
+	],
+	"longhouse_back": [
+		814,
+		693,
+		810,
+		405
+	],
+	"longhouse_side": [
+		0,
+		1102,
+		760,
+		380
+	],
+	"merchant_gable": [
+		0,
+		0,
+		420,
+		689
+	],
+	"merchant_gable_back": [
+		424,
+		0,
+		420,
+		651
+	],
+	"stone_house": [
+		2744,
+		0,
+		540,
+		413
+	],
+	"storehouse": [
+		2396,
+		1102,
+		320,
+		350
+	],
+	"storehouse_back": [
+		2720,
+		1102,
+		320,
+		350
+	],
+	"storehouse_side": [
+		3044,
+		1102,
+		340,
+		347
+	]
+}

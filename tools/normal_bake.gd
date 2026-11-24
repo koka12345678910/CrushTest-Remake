@@ -33,6 +33,7 @@ const SOURCES := {
 	"village_houses_hd": [TEX + "village_houses_hd.png", 0.5, 8.0, 0.6, 1.6, 8.0, 0.26],
 	"town_houses_hd": [TEX + "town_houses_hd.png", 0.5, 8.0, 0.6, 1.6, 8.0, 0.26],
 	"town_art3_hd": [TEX + "town_art3_hd.png", 0.5, 8.0, 0.6, 1.6, 8.0, 0.26],
+	"town_houses6_hd": [TEX + "town_houses6_hd.png", 0.5, 8.0, 0.6, 1.6, 8.0, 0.26],
 	"town_walls_hd": [TEX + "town_walls_hd.png", 0.5, 8.0, 0.6, 1.6, 8.0, 0.28],
 	"medieval_houses": [TEX + "medieval_houses.png", 0.5, 8.0, 0.6, 1.6, 8.0, 0.26],
 	"camp_hd": [TEX + "camp_hd.png", 0.5, 12.0, 1.0, 1.6, 8.0, 0.3],
