@@ -1,42 +1,17 @@
 [gd_scene format=3 uid="uid://gbimy5tfcnp6"]
 
 [ext_resource type="Script" uid="uid://dcfm2q4ouuedv" path="res://Main_Menu/scripts/MainMenu.gd" id="1_mainmenu"]
-[ext_resource type="Script" uid="uid://uj11ia2lmi3q" path="res://Main_Menu/scripts/RainEffect.gd" id="2_rain"]
-[ext_resource type="Texture2D" uid="uid://dwjktecvfdqf" path="res://Main_Menu/layers/MainMenu_Layer_1.png" id="3_bg"]
-[ext_resource type="Texture2D" uid="uid://hktgyiib5ggr" path="res://Main_Menu/layers/MainMenu_Layer_2.png" id="4_bg_near"]
 [ext_resource type="Script" uid="uid://b4klukdv3id2k" path="res://Main_Menu/scripts/MenuButton.gd" id="5_btn"]
 [ext_resource type="Theme" uid="uid://b7jwdfw7kv5fn" path="res://Main_Menu/theme/MenuTheme.tres" id="6_theme"]
-[ext_resource type="Shader" uid="uid://bx6jobhc2yyal" path="res://Shaders/wallpaper_flow.gdshader" id="7_wallpaper"]
 [ext_resource type="AudioStream" uid="uid://dbjtefscy7yc0" path="res://Soundtrack/Main_Menu/mainMenu_soundtrack.mp3" id="8_music"]
-[ext_resource type="AudioStream" uid="uid://bh0x85so1hd2s" path="res://Sound/weather_sound/atmospheric_rain.wav" id="9_rain_amb"]
-[ext_resource type="Texture2D" uid="uid://nxl6tvs3uy7u" path="res://circle.png" id="10_qqakd"]
 [ext_resource type="Script" uid="uid://c5kyru2gl33pm" path="res://Main_Menu/scripts/SettingsPanel.gd" id="11_settings"]
-[ext_resource type="Script" uid="uid://bd5sodwjabnkv" path="res://Main_Menu/scripts/OrnamentSeparator.gd" id="13_sep"]
 [ext_resource type="Script" uid="uid://6oidn4igy8cu" path="res://Main_Menu/scripts/SpriteSheetAnimation.gd" id="14_logo_anim"]
-
-[sub_resource type="ParticleProcessMaterial" id="ParticleProcessMaterial_tqkod"]
-particle_flag_disable_z = true
-gravity = Vector3(0, 98, 0)
-
-[sub_resource type="ShaderMaterial" id="ShaderMaterial_wallpaper_near"]
-shader = ExtResource("7_wallpaper")
-shader_parameter/warp_strength = 0.0
-shader_parameter/warp_speed = 0.0
-shader_parameter/parallax_offset = Vector2(0, 0)
-
-[sub_resource type="ShaderMaterial" id="ShaderMaterial_wallpaper_far"]
-shader = ExtResource("7_wallpaper")
-shader_parameter/warp_strength = 0.0
-shader_parameter/warp_speed = 0.0
-shader_parameter/parallax_offset = Vector2(0, 0)
 
 [node name="MainMenu" type="Control" unique_id=1294809207]
 layout_mode = 3
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
-offset_left = 2.0
-offset_right = 2.0
 grow_horizontal = 2
 grow_vertical = 2
 theme = ExtResource("6_theme")
@@ -44,74 +19,18 @@ script = ExtResource("1_mainmenu")
 
 [node name="EffectsLayer" type="CanvasLayer" parent="." unique_id=396919462]
 
-[node name="FogOverlay" type="ColorRect" parent="EffectsLayer" unique_id=503662994]
-anchors_preset = 15
-anchor_right = 1.0
-anchor_bottom = 1.0
-color = Color(0.04, 0.05, 0.07, 0)
-
-[node name="Background" type="TextureRect" parent="." unique_id=971412128]
-material = SubResource("ShaderMaterial_wallpaper_far")
-layout_mode = 1
-anchors_preset = 15
-anchor_right = 1.0
-anchor_bottom = 1.0
-offset_left = -15.126404
-offset_right = 29.0
-offset_bottom = 9.0
-grow_horizontal = 2
-grow_vertical = 2
-texture = ExtResource("3_bg")
-expand_mode = 3
-stretch_mode = 6
-
-[node name="CameraAnim" type="AnimationPlayer" parent="Background" unique_id=716639152]
-
-[node name="Rain" type="GPUParticles2D" parent="." unique_id=1485973941]
-position = Vector2(576, 0)
-amount = 5000
-lifetime = 1.8
-process_material = SubResource("ParticleProcessMaterial_tqkod")
-script = ExtResource("2_rain")
-
-[node name="RainFine" type="GPUParticles2D" parent="." unique_id=700000401]
-position = Vector2(576, 0)
-process_material = SubResource("ParticleProcessMaterial_tqkod")
-script = ExtResource("2_rain")
-rain_color = Color(0.75, 0.81, 0.9, 0.3)
-drop_speed_min = 550.0
-drop_speed_max = 850.0
-lifetime_seconds = 1.6
-density_per_second = 1300.0
-drop_scale_min = 0.4
-drop_scale_max = 0.6
-drop_alpha_mult = 0.65
-
-[node name="BackgroundNear" type="TextureRect" parent="." unique_id=971412129]
-material = SubResource("ShaderMaterial_wallpaper_near")
-layout_mode = 1
-anchors_preset = 15
-anchor_right = 1.0
-anchor_bottom = 1.0
-offset_left = -0.5487671
-offset_top = -63.0
-offset_right = 14.422607
-offset_bottom = 72.0
-grow_horizontal = 2
-grow_vertical = 2
-mouse_filter = 2
-texture = ExtResource("4_bg_near")
-expand_mode = 3
-stretch_mode = 6
-
 [node name="UILayer" type="CanvasLayer" parent="." unique_id=1985279804]
 layer = 2
 
 [node name="GameTitle" type="TextureRect" parent="UILayer" unique_id=244491220]
-offset_left = 92.0
-offset_top = 78.0
-offset_right = 872.0
-offset_bottom = 338.0
+anchors_preset = 5
+anchor_left = 0.5
+anchor_right = 0.5
+offset_left = -330.0
+offset_top = 150.0
+offset_right = 330.0
+offset_bottom = 370.0
+grow_horizontal = 2
 mouse_filter = 2
 expand_mode = 1
 stretch_mode = 5
@@ -119,10 +38,14 @@ script = ExtResource("14_logo_anim")
 smooth = true
 
 [node name="LeftPanel" type="VBoxContainer" parent="UILayer" unique_id=1197256295]
-offset_left = 135.0
-offset_top = 404.0
-offset_right = 655.0
-offset_bottom = 900.0
+anchors_preset = 5
+anchor_left = 0.5
+anchor_right = 0.5
+offset_left = -280.0
+offset_top = 600.0
+offset_right = 280.0
+offset_bottom = 960.0
+grow_horizontal = 2
 
 [node name="Spacer" type="Control" parent="UILayer/LeftPanel" unique_id=1953702604]
 layout_mode = 2
@@ -130,7 +53,7 @@ layout_mode = 2
 [node name="MenuButtons" type="VBoxContainer" parent="UILayer/LeftPanel" unique_id=1570133491]
 layout_mode = 2
 theme = ExtResource("6_theme")
-theme_override_constants/separation = 4
+theme_override_constants/separation = 2
 
 [node name="BtnContinue" type="Button" parent="UILayer/LeftPanel/MenuButtons" unique_id=796371256]
 layout_mode = 2
@@ -148,11 +71,6 @@ layout_mode = 2
 text = "ЗАГРУЗИТЬ"
 script = ExtResource("5_btn")
 
-[node name="NavSeparator" type="Control" parent="UILayer/LeftPanel/MenuButtons" unique_id=700000301]
-custom_minimum_size = Vector2(0, 30)
-layout_mode = 2
-script = ExtResource("13_sep")
-
 [node name="BtnSettings" type="Button" parent="UILayer/LeftPanel/MenuButtons" unique_id=632916370]
 layout_mode = 2
 text = "НАСТРОЙКИ"
@@ -168,7 +86,7 @@ anchors_preset = 12
 anchor_top = 1.0
 anchor_right = 1.0
 anchor_bottom = 1.0
-offset_left = 160.0
+offset_left = 56.0
 offset_top = -66.0
 offset_right = -56.0
 offset_bottom = -30.0
@@ -178,7 +96,7 @@ grow_vertical = 0
 [node name="VersionLabel" type="Label" parent="UILayer/BottomBar" unique_id=1730489451]
 layout_mode = 2
 size_flags_vertical = 4
-text = "v0.1.0  ·  ранний доступ"
+text = "v0.1.0"
 
 [node name="SettingsPanel" type="Control" parent="UILayer" unique_id=1900000040]
 layout_mode = 3
@@ -193,17 +111,5 @@ volume_db = -15.0
 bus = &"Music"
 autoplay = true
 
-[node name="RainAmbience" type="AudioStreamPlayer" parent="." unique_id=1943123551]
-stream = ExtResource("9_rain_amb")
-volume_db = -18.0
-autoplay = true
-
 [node name="UIAudio" type="AudioStreamPlayer" parent="." unique_id=1943123552]
 bus = &"UI"
-
-[node name="PointLight2D" type="PointLight2D" parent="." unique_id=1501921397]
-position = Vector2(969, 511)
-scale = Vector2(5.7025, 3.23)
-energy = 1.5
-blend_mode = 2
-texture = ExtResource("10_qqakd")

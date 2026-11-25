@@ -47,5 +47,10 @@ Iwan "qubodup" Gabovitch, "Ghost Monster Voice Moaning & Growling" — CC0
   "Fireplace Sound loop" https://opengameart.org/content/fireplace-sound-loop — ambience/fire_loop
   "Loopable Dungeon Ambience" https://opengameart.org/content/loopable-dungeon-ambience — ambience/indoor_loop (без обработки)
 
+BigSoundBank (Joseph Sardin), "Wind in a cornfield" #1097 — CC0
+  https://bigsoundbank.com/wind-in-a-cornfield-s1097.html
+    ambience/grass_loop — шелест сухих стеблей для главного меню: 40 с из записи
+    (79–121 с), срез ниже 160 Гц, моно, бесшовная петля — tools/menu_grass_import.gd
+
 Старые файлы (melee_sound, groaning_sound, take_damage_sound и др.) не удалены: пока новый файл
 недоступен, код играет старый; вернуть старый звук — убрать вызов SoundBank в player.gd.

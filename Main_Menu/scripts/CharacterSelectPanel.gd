@@ -31,8 +31,10 @@ const SpriteSheetAnimationScript := preload("res://Main_Menu/scripts/SpriteSheet
 
 ## Как и настройки, экран поднят: вкладок инвентаря здесь нет
 const LIFT := 46.0
-## Целое увеличение кадра 128×128 — пиксели героя остаются чёткими
-const SPRITE_SCALE := 5
+## Увеличение кадра 128×128. Герои — не пиксель-арт, а уменьшенный 3D-рендер,
+## да ещё сжатый (BPTC): «по ближайшему пикселю» ×5 давало серую лесенку.
+## Теперь ×4 со сглаживанием. Временно — до артов героев (Main_Menu/art)
+const SPRITE_SCALE := 4
 const STAT_SEGMENTS := 10
 
 var _selected_id := ""
@@ -246,6 +248,7 @@ func _build_stage(r: Rect2) -> void:
 
 	_portrait = TextureRect.new()
 	_portrait.set_script(SpriteSheetAnimationScript)
+	_portrait.set("smooth", true)
 	_portrait.position = (center - box * 0.5).round()
 	_portrait.size = box
 	_content.add_child(_portrait)

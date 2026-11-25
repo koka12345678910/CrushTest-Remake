@@ -38,6 +38,8 @@ const MESSAGES := {
 	"ОТМЕНА": "CANCEL",
 	"ДА": "YES",
 	"НЕТ": "NO",
+	"ранний доступ": "early access",
+	"НАЖМИТЕ ЛЮБУЮ КЛАВИШУ": "PRESS ANY KEY",
 
 	# ── Герои (Save/characters.gd) ────────────────────────────────────────────
 	"ВОИН": "WARRIOR",
@@ -55,6 +57,11 @@ const MESSAGES := {
 	"Одни рождаются с мечом,\nдругих меч выковывает.": "Some are born with a sword,\nothers are forged by it.",
 	"Стрела не спорит.\nОна прилетает.": "The arrow does not argue.\nIt arrives.",
 	"Каждая руна помнит\nруку, что её вырезала.": "Every rune remembers\nthe hand that carved it.",
+	"ДРУИДЕССА": "DRUIDESS",
+	"Посох и корни": "Staff and Roots",
+	"Сольвейг, хранительница корней. Лечит, укрывает корой и камнем — и не прячется за чужими спинами: посох бьёт не хуже меча.":
+		"Solveig, keeper of the roots. She heals, shields with bark and stone — and never hides behind others: her staff strikes as hard as a sword.",
+	"Лес не милостив.\nНо он помнит своих.": "The forest is not merciful.\nBut it remembers its own.",
 	"Здоровье": "Health",
 	"Выносливость": "Stamina",
 	"Сила": "Strength",

@@ -18,6 +18,8 @@ var yes_text := "ДА"
 var no_text := "НЕТ"
 ## В фокусе сразу «да» (для безопасных действий) или «нет» (для опасных)
 var default_yes := false
+## «Да» необратимо (стереть прохождение) — кнопка и заголовок красные
+var danger := false
 
 var _panel: PanelContainer
 var _audio: AudioStreamPlayer
@@ -56,7 +58,7 @@ func _ready() -> void:
 	v.add_theme_constant_override("separation", 14)
 	m.add_child(v)
 
-	var t := Style.label(title, 25, Style.GOLD, true)
+	var t := Style.label(title, 25, Style.DANGER_HI if danger else Style.GOLD, true)
 	t.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	v.add_child(t)
 
@@ -82,6 +84,9 @@ func _ready() -> void:
 	v.add_child(row)
 	var no_btn := Style.chip_button(no_text)
 	var yes_btn := Style.chip_button(yes_text)
+	if danger:
+		Style.make_danger(yes_btn)
+		line.color = Color(Style.DANGER, 0.4)
 	for btn in [no_btn, yes_btn]:
 		btn.custom_minimum_size = Vector2(220, 46)
 		btn.focus_entered.connect(func(): Style.play_move(_audio))

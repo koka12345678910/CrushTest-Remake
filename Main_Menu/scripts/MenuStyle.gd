@@ -22,6 +22,10 @@ const BORDER := CleanHud.BORDER
 const PANEL_FILL := Color(0.012, 0.012, 0.012, 0.95)
 ## Затемнение всего экрана под панелями (как world_dim инвентаря)
 const SCREEN_DIM := Color(0.0, 0.0, 0.0, 0.78)
+## Необратимое действие (стереть прохождение): приглушённый красный вместо
+## золота — кнопку нельзя спутать с обычным «да»
+const DANGER := Color(0.78, 0.3, 0.25)
+const DANGER_HI := Color(1.0, 0.47, 0.4)
 
 ## Звуки интерфейса — общие для всей игры (UI/ui_sounds.gd): короткие тихие
 ## щелчки на шине "UI", которая идёт в эффекты (ползунок «Эффекты»)
@@ -113,6 +117,22 @@ static func chip_button(text: String, font_size := 18) -> Button:
 		if not b.disabled and b.focus_mode != Control.FOCUS_NONE:
 			b.grab_focus())
 	return b
+
+
+## Перекрасить кнопку-плашку (chip_button) в «опасную»: красная кайма и текст
+static func make_danger(b: Button) -> void:
+	b.add_theme_color_override("font_color", Color(DANGER_HI, 0.85))
+	for n in ["font_hover_color", "font_focus_color", "font_pressed_color", "font_hover_pressed_color"]:
+		b.add_theme_color_override(n, DANGER_HI)
+	for st in ["normal", "hover", "pressed", "focus", "disabled"]:
+		var sb := b.get_theme_stylebox(st) as StyleBoxFlat
+		if sb == null:
+			continue
+		sb = sb.duplicate()
+		var lit: bool = st == "hover" or st == "pressed" or st == "focus"
+		sb.bg_color = Color(DANGER, 0.14) if lit else Color(0.08, 0.0, 0.0, 0.55)
+		sb.border_color = Color(DANGER_HI if lit else DANGER, 0.95 if lit else 0.55)
+		b.add_theme_stylebox_override(st, sb)
 
 
 ## Подсказка клавиши: тёмная плашка с каймой, как значки клавиш в HUD

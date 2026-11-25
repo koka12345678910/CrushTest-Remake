@@ -93,26 +93,33 @@ func _ready() -> void:
 	_btn_steam = _button(srow, "СОЗДАТЬ ЧЕРЕЗ STEAM", _on_host_steam)
 	_btn_invite = _button(srow, "ПРИГЛАСИТЬ ДРУЗЕЙ", _on_invite)
 
+	# Игра по IP — отладочный путь (одна сеть, без Steam). Игроку в собранной
+	# игре он не нужен и сбивает с толку — показываем только в отладочной
+	# сборке (запуск из редактора), в экспорте остаётся один Steam
+	var ip_box := VBoxContainer.new()
+	ip_box.add_theme_constant_override("separation", 14)
+	ip_box.visible = OS.is_debug_build()
+	v.add_child(ip_box)
 	var line2 := Style.FadeLine.new()
 	line2.color = Color(Style.GOLD, 0.2)
 	line2.custom_minimum_size = Vector2(0, 1)
-	v.add_child(line2)
+	ip_box.add_child(line2)
 	var ip_lbl := Style.label("ИЛИ ПО IP (ОДНА СЕТЬ, ОТЛАДКА)", 15, Style.TEXT_DIM, true)
 	ip_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	v.add_child(ip_lbl)
+	ip_box.add_child(ip_lbl)
 
 	# Создать / подключиться по IP
 	var row := HBoxContainer.new()
 	row.alignment = BoxContainer.ALIGNMENT_CENTER
 	row.add_theme_constant_override("separation", 20)
-	v.add_child(row)
+	ip_box.add_child(row)
 	_btn_host = _button(row, "СОЗДАТЬ ИГРУ", _on_host)
 	_btn_join = _button(row, "ПОДКЛЮЧИТЬСЯ", _on_join)
 
 	var arow := HBoxContainer.new()
 	arow.alignment = BoxContainer.ALIGNMENT_CENTER
 	arow.add_theme_constant_override("separation", 12)
-	v.add_child(arow)
+	ip_box.add_child(arow)
 	var al := Style.label("АДРЕС ХОСТА", 16, Style.TEXT_DIM, true)
 	arow.add_child(al)
 	_addr = LineEdit.new()
@@ -148,7 +155,7 @@ func _ready() -> void:
 	Net.status_changed.connect(_on_status)
 	_check_save()
 	_refresh()
-	(_btn_host if _has_save else _btn_back).call_deferred("grab_focus")
+	_first_focus().call_deferred("grab_focus")
 	Style.play_open(_audio)
 
 	modulate.a = 0.0
@@ -158,6 +165,17 @@ func _ready() -> void:
 	tw.tween_property(self, "modulate:a", 1.0, 0.18)
 	tw.tween_property(_panel, "scale", Vector2.ONE, 0.22).from(Vector2(0.96, 0.96))\
 		.set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
+
+
+## Куда встать фокусу при открытии: первая доступная кнопка создания игры
+func _first_focus() -> Button:
+	if not _has_save:
+		return _btn_back
+	if not _btn_steam.disabled:
+		return _btn_steam
+	if _btn_host.is_visible_in_tree():
+		return _btn_host
+	return _btn_back
 
 
 func _button(parent: Control, text: String, on_press: Callable) -> Button:

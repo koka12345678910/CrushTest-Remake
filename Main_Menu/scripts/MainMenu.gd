@@ -3,20 +3,18 @@ extends Control
 ## Главный контроллер меню: появление, навигация (мышь, клавиатура,
 ## геймпад), атмосфера фона и переходы в панели и в игру.
 ##
-## Вид — как у инвентаря и HUD (MenuStyle.gd берёт палитру из
-## UI/clean_hud.gd): слева тёмная колонка с логотипом и пунктами, справа
-## открытый арт с рыцарем.
+## Вид — минимализм souls-like: всё по центру (лого сверху, под ним колонка
+## мелких пунктов без плашек), выбор — только светом (MenuButton.gd). Фон —
+## утёс с мечом в костре (MenuBackdrop.gd: слои, туман, огонь, искры), сверху
+## цветокоррекция (menu_grade.gdshader): атмосфера важнее картинки. Окна
+## поверх меню — в ключе инвентаря (MenuStyle.gd).
 
-@onready var background: TextureRect = $Background
-@onready var background_near: TextureRect = $BackgroundNear
-@onready var fog: ColorRect = $EffectsLayer/FogOverlay
 @onready var effects_layer: CanvasLayer = $EffectsLayer
 @onready var left_panel: VBoxContainer = $UILayer/LeftPanel
 @onready var title_label: TextureRect = $UILayer/GameTitle
 @onready var bottom_bar: HBoxContainer = $UILayer/BottomBar
 @onready var version_label: Label = $UILayer/BottomBar/VersionLabel
 @onready var ambient_music: AudioStreamPlayer = $AmbientMusic
-@onready var rain_ambience: AudioStreamPlayer = $RainAmbience
 @onready var ui_audio: AudioStreamPlayer = $UIAudio
 @onready var settings_panel := $UILayer/SettingsPanel
 @onready var btn_continue: Button = $UILayer/LeftPanel/MenuButtons/BtnContinue
@@ -47,43 +45,59 @@ const LOGO_ANIM_ROWS := 6
 const LOGO_ANIM_FPS := 15.0
 ## Жар и полоса света по лого (вместо прежнего мигания прозрачностью)
 const LOGO_SHADER := preload("res://Main_Menu/assets/shaders/logo_ember.gdshader")
+## Цветокоррекция кадра: приглушённый цвет, туман, виньетка, зерно
+const GRADE_SHADER := preload("res://Main_Menu/assets/shaders/menu_grade.gdshader")
+## Лого остывшее, как пепел: жар разгорается только при появлении
+const LOGO_ASH := 0.7
 
 # Панели создаются кодом и по требованию — отдельных .tscn у них нет
 const CharacterSelectScript := preload("res://Main_Menu/scripts/CharacterSelectPanel.gd")
 const InDevelopmentScript := preload("res://Main_Menu/scripts/InDevelopmentPanel.gd")
 const ControlsScript := preload("res://Main_Menu/scripts/ControlsPanel.gd")
 const ConfirmDialogScript := preload("res://Main_Menu/scripts/ConfirmDialog.gd")
-# Угольки экрана загрузки — те же поднимаются от костров и здесь
-const SceneLoaderScript := preload("res://Main_Menu/scripts/SceneLoader.gd")
+## Живой фон: утёс, туман, костёр
+const BackdropScript := preload("res://Main_Menu/scripts/MenuBackdrop.gd")
+const SoundBank := preload("res://Levels/sound_bank.gd")
 
 var _character_panel: Control
 const CoopPanelScript := preload("res://Main_Menu/scripts/CoopPanel.gd")
 var btn_coop: Button
+## Строка под пунктами — что продолжит «Продолжить» (видна, пока он выбран)
+var _save_line: Label
+var _save_line_tween: Tween
+
+# ── Заставка «Нажмите любую клавишу» ──────────────────────────────────────────
+# Только при запуске игры: лого разгорается и остывает, на месте меню мерцает
+# подсказка; любая клавиша / кнопка / клик — далёкий гром, и на её месте
+# проступают пункты. Лого не двигается — композиция одна и та же.
+# Из игры в меню возвращаемся уже без неё (static — переживает смену сцены)
+static var _title_seen := false
+var _title_active := false
+var _title_prompt: Label
+var _prompt_tween: Tween
+var _prompt_loop: Tween
+var _intro_tween: Tween
 
 # ВРЕМЕННО: экран выбора слотов (SaveSlotsPanel) убран, пока не нужен для
 # тестов — играем всегда в один и тот же слот 0, "Новая игра" затирает его
 # (теперь — после подтверждения). Кнопка «Загрузить» спрятана в .tscn
 const SINGLE_SLOT := 0
 
-# ── Параллакс фона от мыши (эффект "живых обоев") ──────────────────────────────
-# Два слоя двигаются с разной силой — так и получается ощущение глубины:
-# дальний план (руины/небо) почти неподвижен, ближний (рыцарь) заметно ведёт
-# за курсором, будто стоит ощутимо ближе к камере
-@export var parallax_strength_far := 0.012
-@export var parallax_strength_near := 0.05
-@export var parallax_smoothing := 4.0
-var _parallax_far := Vector2.ZERO
-var _parallax_near := Vector2.ZERO
-
-## Молния в разломе неба: пауза между вспышками, секунды
-@export var lightning_interval := Vector2(16.0, 34.0)
+## Далёкая гроза в облаках: пауза между вспышками, секунды
+@export var lightning_interval := Vector2(24.0, 48.0)
 
 var _logo_mat: ShaderMaterial
 var _sweep_tween: Tween
 var _menu_fade_tween: Tween
 var _fade_rect: ColorRect
-var _flash: TextureRect
+var _backdrop: Control
 var _thunder: AudioStreamPlayer
+## Ветер на утёсе и треск костра — фоновые петли
+var _wind: AudioStreamPlayer
+var _fire: AudioStreamPlayer
+var _grass: AudioStreamPlayer
+var _gust_noise := FastNoiseLite.new()
+var _gust_t := 0.0
 var _move_audio: AudioStreamPlayer
 var _buttons: Array[Button] = []
 ## Пока открыто окно поверх меню, его навигация не работает
@@ -114,14 +128,15 @@ func _ready() -> void:
 	_logo_mat = ShaderMaterial.new()
 	_logo_mat.shader = LOGO_SHADER
 	_logo_mat.set_shader_parameter("rect_size", title_label.size)
+	_logo_mat.set_shader_parameter("ash", LOGO_ASH)
 	title_label.material = _logo_mat
 
 	_move_audio = Style.ui_player(self)
 	_setup_audio_loops()
 	_setup_atmosphere()
-	_setup_fog_pulse()
 	_setup_bottom_bar()
 	_connect_buttons()
+	_setup_save_line()
 	_refresh_continue()
 	settings_panel.closed.connect(_on_overlay_closed)
 	_animate_intro()
@@ -131,98 +146,90 @@ func _exit_tree() -> void:
 	get_tree().root.content_scale_aspect = _prev_aspect
 
 
-# ── Звук: музыка на шине Music (её крутит ползунок «Музыка»), дождь фоном,
-# ── интерфейс — на шине эффектов (Style.BUS_SFX) ──────────────────────────────
+# ── Звук: музыка на шине Music (её крутит ползунок «Музыка»), ветер на утёсе
+# ── и треск костра фоном, интерфейс — на шине "UI" ────────────────────────────
 func _setup_audio_loops() -> void:
 	var music := ambient_music.stream as AudioStreamMP3
 	if music:
 		music.loop = true
 
-	# Дождь НЕ зацикливаем через loop_mode. Этот же WAV стоит и на уровне
-	# (Levels/level_01.tscn -> RainPlayer), а Godot кэширует ресурсы — то есть
-	# это ОДИН объект на обе сцены. Выставляя ему LOOP_FORWARD здесь, мы
-	# портили общий ресурс: у файла невалидный loop_end, получалась петля
-	# нулевой длины, и после старта игры из меню дождь на уровне пропадал
-	# совсем. Зацикливаем перезапуском по сигналу — ресурс при этом не
-	# трогаем вообще (так же сделано в level_music_manager.gd)
-	if not rain_ambience.finished.is_connected(_replay_rain):
-		rain_ambience.finished.connect(_replay_rain)
+	# Петли — через SoundBank.loop_stream: он делает КОПИЮ потока с петлёй.
+	# Сам WAV общий с уровнями, и выставлять ему loop_mode напрямую нельзя
+	# (было: невалидный loop_end портил общий ресурс, и звук пропадал на уровне)
+	_wind = _ambience_loop("ambience/wind_loop.wav", -17.0)
+	_fire = _ambience_loop("ambience/fire_loop.wav", -21.0)
+	# Шелест сухой травы на утёсе (синтез: tools/menu_grass_bake.gd)
+	_grass = _ambience_loop("ambience/grass_loop.wav", -26.0)
+	_gust_noise.noise_type = FastNoiseLite.TYPE_SIMPLEX_SMOOTH
+	_gust_noise.frequency = 1.0
+	_gust_noise.seed = randi()
 
 	_thunder = AudioStreamPlayer.new()
 	_thunder.stream = SOUND_THUNDER
 	add_child(_thunder)
 
 
-func _replay_rain() -> void:
-	rain_ambience.play()
+func _ambience_loop(rel: String, db: float) -> AudioStreamPlayer:
+	var p := AudioStreamPlayer.new()
+	p.stream = SoundBank.loop_stream(rel)
+	p.volume_db = db
+	add_child(p)
+	if p.stream:
+		# С разного места: ветер и огонь не начинают вместе каждый запуск
+		p.play(randf() * p.stream.get_length() * 0.7)
+	return p
 
 
 func _play_ui_sound(stream: AudioStream) -> void:
 	Style.play(ui_audio, stream)
 
 
+## Порывы ветра: одна медленная кривая качает громкость ветра и травы (трава
+## в порыв шуршит заметно сильнее, в затишье почти смолкает) и снос искр
+## костра. Порыв — раз в 10–20 секунд
 func _process(delta: float) -> void:
-	var viewport_size := get_viewport_rect().size
-	var mouse_norm := (get_viewport().get_mouse_position() / viewport_size) - Vector2(0.5, 0.5)
-
-	if background.material:
-		var target_far := mouse_norm * parallax_strength_far
-		_parallax_far = _parallax_far.lerp(target_far, min(1.0, parallax_smoothing * delta))
-		background.material.set_shader_parameter("parallax_offset", _parallax_far)
-
-	if background_near.material:
-		var target_near := mouse_norm * parallax_strength_near
-		_parallax_near = _parallax_near.lerp(target_near, min(1.0, parallax_smoothing * delta))
-		background_near.material.set_shader_parameter("parallax_offset", _parallax_near)
+	if _quitting:
+		return
+	_gust_t += delta
+	var g := clampf(0.5 + _gust_noise.get_noise_1d(_gust_t * 0.08) * 0.95, 0.0, 1.0)
+	if _wind:
+		_wind.volume_db = lerpf(-23.0, -12.0, g)
+	if _grass:
+		_grass.volume_db = lerpf(-36.0, -17.0, g * g)
+	if _backdrop:
+		_backdrop.set("gust", g)
 
 
-# ── Атмосфера: угли от костров, тёмная колонка под меню, виньетка, молния ─────
+# ── Атмосфера: живой фон, цветокоррекция, гроза ───────────────────────────────
 func _setup_atmosphere() -> void:
-	# Угли — над фоном, но под затемнением колонки: у пунктов меню они не мельтешат
-	var embers: Control = SceneLoaderScript.Embers.new()
-	embers.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	embers.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	embers.modulate.a = 0.8
-	effects_layer.add_child(embers)
+	# Фон — первым ребёнком корня: рисуется под всем интерфейсом
+	_backdrop = BackdropScript.new()
+	add_child(_backdrop)
+	move_child(_backdrop, 0)
 
-	# Вспышка молнии: свет сверху (небо), к середине экрана гаснет. Сложение,
-	# а не наложение: тёмное светлеет, чёрный силуэт рыцаря проступает
-	_flash = TextureRect.new()
-	_flash.texture = _vertical_gradient([0.0, 0.62], [Color(0.62, 0.68, 0.85, 0.9), Color(0.62, 0.68, 0.85, 0.0)])
-	_flash.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-	_flash.stretch_mode = TextureRect.STRETCH_SCALE
-	_flash.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	_flash.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	var add := CanvasItemMaterial.new()
-	add.blend_mode = CanvasItemMaterial.BLEND_MODE_ADD
-	_flash.material = add
-	_flash.modulate.a = 0.0
-	effects_layer.add_child(_flash)
+	# Цветокоррекция кадра (menu_grade.gdshader) — лёгкая: картинка уже
+	# ночная и холодная, тёмные эффекты (колодец под меню, тяжёлая виньетка,
+	# зерно) её только душили. Осталось чуть приглушённого цвета с холодом в
+	# тенях и мягкие края кадра. Туман живёт в самом фоне (MenuBackdrop)
+	var grade := ColorRect.new()
+	grade.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	grade.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var gm := ShaderMaterial.new()
+	gm.shader = GRADE_SHADER
+	gm.set_shader_parameter("use_fog", false)
+	gm.set_shader_parameter("desat", 0.12)
+	gm.set_shader_parameter("exposure", 1.0)
+	gm.set_shader_parameter("well_dark", 0.0)
+	gm.set_shader_parameter("vignette", 0.3)
+	gm.set_shader_parameter("grain", 0.0)
+	gm.set_shader_parameter("shadow_tint", Color(0.9, 0.94, 1.0))
+	gm.set_shader_parameter("light_tint", Color(1.0, 0.98, 0.95))
+	grade.material = gm
+	effects_layer.add_child(grade)
+	effects_layer.move_child(grade, 0)
 
-	# Колонка меню: слева почти чёрный (как панели инвентаря), к середине
-	# экрана сходит на нет — текст читается, рыцарь справа открыт
-	var shade := TextureRect.new()
-	var g := Gradient.new()
-	g.offsets = PackedFloat32Array([0.0, 0.3, 0.58])
-	g.colors = PackedColorArray([Color(0, 0, 0, 0.82), Color(0, 0, 0, 0.6), Color(0, 0, 0, 0.0)])
-	var gt := GradientTexture2D.new()
-	gt.gradient = g
-	gt.width = 256
-	gt.height = 4
-	shade.texture = gt
-	shade.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-	shade.stretch_mode = TextureRect.STRETCH_SCALE
-	shade.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	shade.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	effects_layer.add_child(shade)
-
-	var vig := TextureRect.new()
-	vig.texture = Style.vignette_texture(0.62)
-	vig.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-	vig.stretch_mode = TextureRect.STRETCH_SCALE
-	vig.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	vig.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	effects_layer.add_child(vig)
+	# Огонь, искры и щепки — поверх цветокоррекции: это источники света
+	_backdrop.call("setup_fx", effects_layer)
 
 	# Чёрный экран интро и выхода — поверх всего меню
 	var fade_layer := CanvasLayer.new()
@@ -237,99 +244,191 @@ func _setup_atmosphere() -> void:
 	_schedule_lightning(randf_range(7.0, 12.0))
 
 
-func _vertical_gradient(offsets: Array, colors: Array) -> GradientTexture2D:
-	var g := Gradient.new()
-	g.offsets = PackedFloat32Array(offsets)
-	g.colors = PackedColorArray(colors)
-	var t := GradientTexture2D.new()
-	t.gradient = g
-	t.fill_from = Vector2(0, 0)
-	t.fill_to = Vector2(0, 1)
-	t.width = 4
-	t.height = 256
-	return t
-
-
 func _schedule_lightning(delay: float) -> void:
 	get_tree().create_timer(delay).timeout.connect(_lightning)
 
 
-## Двойная вспышка, следом — раскат грома с задержкой (молния далеко)
-func _lightning() -> void:
+## Двойная вспышка, следом — раскат грома с задержкой (молния далеко).
+## reschedule = false — разовая вспышка (выход с заставки), цепочку
+## случайных молний она не трогает
+func _lightning(reschedule := true) -> void:
 	if not is_inside_tree() or _quitting:
 		return
-	var peak := randf_range(0.55, 0.85)
+	# Далёкая гроза, а не спецэффект: свет вспыхивает внутри облаков
+	# (только небо — горы и скала остаются силуэтами), гром тихий
+	var peak := randf_range(0.3, 0.5)
+	var set_flash := func(v: float): _backdrop.call("set_flash", v)
 	var t := create_tween()
-	t.tween_property(_flash, "modulate:a", peak * 0.6, 0.04)
-	t.tween_property(_flash, "modulate:a", 0.1, 0.08)
-	t.tween_property(_flash, "modulate:a", peak, 0.05)
-	t.tween_property(_flash, "modulate:a", 0.0, 0.9).set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_EXPO)
+	t.tween_method(set_flash, 0.0, peak * 0.6, 0.04)
+	t.tween_method(set_flash, peak * 0.6, 0.1, 0.08)
+	t.tween_method(set_flash, 0.1, peak, 0.05)
+	t.tween_method(set_flash, peak, 0.0, 0.9).set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_EXPO)
 	get_tree().create_timer(randf_range(0.5, 1.4)).timeout.connect(func():
 		if is_instance_valid(_thunder) and not _quitting:
 			_thunder.volume_db = randf_range(-16.0, -11.0)
 			_thunder.pitch_scale = randf_range(0.88, 1.04)
 			_thunder.play())
-	_schedule_lightning(randf_range(lightning_interval.x, lightning_interval.y))
-
-
-# ── Туман: пульсирующая прозрачность ──────────────────────────────────────────
-func _setup_fog_pulse() -> void:
-	var t := create_tween()
-	t.set_loops()
-	t.tween_property(fog, "color:a", 0.16, 6.0).set_ease(Tween.EASE_IN_OUT)
-	t.tween_property(fog, "color:a", 0.05, 6.0).set_ease(Tween.EASE_IN_OUT)
+	if reschedule:
+		_schedule_lightning(randf_range(lightning_interval.x, lightning_interval.y))
 
 
 # ── Нижняя строка: версия слева, подсказки клавиш справа ──────────────────────
 func _setup_bottom_bar() -> void:
 	version_label.add_theme_font_override("font", Style.caps_font())
-	version_label.add_theme_font_size_override("font_size", 15)
-	version_label.add_theme_color_override("font_color", Color(Style.TEXT_DIM, 0.8))
+	version_label.add_theme_font_size_override("font_size", 13)
+	version_label.add_theme_color_override("font_color", Color(Style.TEXT_DIM, 0.45))
+	# Текст собирается руками — переводить готовую строку целиком не нужно
+	version_label.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
+	_refresh_version()
 	var spacer := Control.new()
 	spacer.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	spacer.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	bottom_bar.add_child(spacer)
-	bottom_bar.add_child(Style.hint_row([["Enter", "Выбрать"], ["Esc", "Выход"]]))
+	# Подсказки — тише версии не надо, но и не на первом плане
+	var hints := Style.hint_row([["Enter", "Выбрать"], ["Esc", "Выход"]])
+	hints.modulate.a = 0.6
+	bottom_bar.add_child(hints)
+
+
+## Версия — из настроек проекта (application/config/version), а не строкой
+## в сцене: меняется в одном месте, и в экспорте та же
+func _refresh_version() -> void:
+	var ver := String(ProjectSettings.get_setting("application/config/version", "0.1.0"))
+	version_label.text = "v%s  ·  %s" % [ver, tr("ранний доступ")]
 
 
 # ── Интро: из темноты проявляется фон, затем лого, затем пункты по одному ─────
+# При первом запуске между лого и пунктами — заставка «Нажмите любую клавишу»
 func _animate_intro() -> void:
-	var center := get_viewport_rect().size * 0.5
-	for bg: Control in [background, background_near]:
-		bg.pivot_offset = center - bg.global_position
-		bg.scale = Vector2(1.06, 1.06)
+	# Фон неподвижен с первого кадра: наезд камеры (масштаб 1.05 → 1) убран —
+	# с округлением позиции до пикселя картинка мелко тряслась весь наезд
 	title_label.modulate.a = 0.0
-	title_label.position.y -= 14.0
-	left_panel.position.x -= 24.0
+	left_panel.modulate.a = 0.0
 	bottom_bar.modulate.a = 0.0
-	for b in _buttons:
-		b.modulate.a = 0.0
+	for c in _menu_items():
+		c.modulate.a = 0.0
 
+	var title := not _title_seen
+	# Из темноты — медленно: souls-like не торопится
+	var bg_t := create_tween().set_parallel(true)
+	bg_t.tween_property(_fade_rect, "color:a", 0.0, 3.0 if title else 1.8)\
+		.set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_SINE)
+
+	# Лого проступает из темноты раскалённым и остывает до пепла
+	_intro_tween = create_tween().set_parallel(true)
+	_intro_tween.tween_property(title_label, "modulate:a", 1.0, 2.4)\
+		.set_delay(1.2 if title else 0.6).set_ease(Tween.EASE_IN_OUT).set_trans(Tween.TRANS_SINE)
+	_intro_tween.tween_method(func(v: float): _logo_mat.set_shader_parameter("heat", v), 1.0, 0.0, 4.0)\
+		.set_delay(1.2 if title else 0.6).set_ease(Tween.EASE_IN_OUT)
+	get_tree().create_timer(4.6 if title else 2.6).timeout.connect(_logo_sweep)
+
+	if title:
+		_start_title()
+	else:
+		_reveal_menu(1.4)
+
+
+## Пункты проступают по одному на месте подсказки, следом — низ экрана.
+## Без выезда сбоку: только свет
+func _reveal_menu(delay: float) -> void:
+	left_panel.modulate.a = 1.0
+	left_panel.visible = true
 	var t := create_tween().set_parallel(true)
-	t.tween_property(_fade_rect, "color:a", 0.0, 1.6).set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_SINE)
-	for bg: Control in [background, background_near]:
-		t.tween_property(bg, "scale", Vector2.ONE, 7.0).set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_CUBIC)
-
-	t.tween_property(title_label, "modulate:a", 1.0, 1.4).set_delay(0.5).set_ease(Tween.EASE_OUT)
-	t.tween_property(title_label, "position:y", title_label.position.y + 14.0, 1.6)\
-		.set_delay(0.5).set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_CUBIC)
-	t.tween_method(func(v: float): _logo_mat.set_shader_parameter("heat", v), 0.9, 0.0, 2.6).set_delay(0.5)
-
-	t.tween_property(left_panel, "position:x", left_panel.position.x + 24.0, 1.0)\
-		.set_delay(1.1).set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_CUBIC)
 	var i := 0
-	for b in _buttons:
-		if b.visible:
-			t.tween_property(b, "modulate:a", 1.0, 0.45).set_delay(1.15 + i * 0.08)
-			i += 1
-	t.tween_property(bottom_bar, "modulate:a", 1.0, 0.8).set_delay(1.8)
-
-	# Первый проход света по лого — когда оно уже проявилось
-	get_tree().create_timer(2.0).timeout.connect(_logo_sweep)
+	for c in _menu_items():
+		t.tween_property(c, "modulate:a", 1.0, 0.7).set_delay(delay + i * 0.12)\
+			.set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_SINE)
+		i += 1
+	t.tween_property(bottom_bar, "modulate:a", 1.0, 1.2).set_delay(delay + 0.4 + i * 0.12)
 	# Фокус на главном пункте: с клавиатуры/геймпада можно сразу листать
-	get_tree().create_timer(1.3).timeout.connect(func():
-		if not _overlay_open:
+	get_tree().create_timer(delay + 0.25).timeout.connect(func():
+		if not _overlay_open and not _title_active:
 			_focus_quiet(_default_button()))
+
+
+## Видимые пункты колонки по порядку
+func _menu_items() -> Array[CanvasItem]:
+	var out: Array[CanvasItem] = []
+	for c in btn_new.get_parent().get_children():
+		if c is CanvasItem and c.visible:
+			out.append(c)
+	return out
+
+
+func _start_title() -> void:
+	_title_active = true
+	left_panel.visible = false
+
+	# Подсказка — на месте будущего меню, в его колонке
+	var vp := get_viewport_rect().size
+	_title_prompt = Style.label("НАЖМИТЕ ЛЮБУЮ КЛАВИШУ", 19, Color(0.86, 0.83, 0.78), true)
+	_title_prompt.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	# Размытая тень вокруг букв: подсказка читается на светлых камнях утёса
+	_title_prompt.add_theme_color_override("font_shadow_color", Color(0, 0, 0, 0.75))
+	_title_prompt.add_theme_constant_override("shadow_offset_x", 0)
+	_title_prompt.add_theme_constant_override("shadow_offset_y", 1)
+	_title_prompt.add_theme_constant_override("shadow_outline_size", 14)
+	_title_prompt.position = Vector2(0, left_panel.position.y + 90.0).round()
+	_title_prompt.size = Vector2(vp.x, 40)
+	_title_prompt.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_title_prompt.modulate.a = 0.0
+	title_label.get_parent().add_child(_title_prompt)
+	get_tree().create_timer(3.6).timeout.connect(_pulse_prompt)
+
+
+## Подсказка «дышит»: медленно разгорается и гаснет, но не пропадает совсем
+func _pulse_prompt() -> void:
+	if not _title_active or not is_instance_valid(_title_prompt):
+		return
+	_prompt_tween = create_tween()
+	_prompt_tween.tween_property(_title_prompt, "modulate:a", 0.75, 1.6).set_ease(Tween.EASE_OUT)
+	_prompt_tween.tween_callback(func():
+		if not _title_active or not is_instance_valid(_title_prompt):
+			return
+		_prompt_loop = create_tween().set_loops()
+		_prompt_loop.tween_property(_title_prompt, "modulate:a", 0.2, 2.0)\
+			.set_ease(Tween.EASE_IN_OUT).set_trans(Tween.TRANS_SINE)
+		_prompt_loop.tween_property(_title_prompt, "modulate:a", 0.75, 2.0)\
+			.set_ease(Tween.EASE_IN_OUT).set_trans(Tween.TRANS_SINE))
+
+
+## Любая клавиша на заставке: тусклая далёкая вспышка с громом, подсказка
+## гаснет, на её месте проступают пункты.
+## instant — без вспышки (например, пришло приглашение в Steam)
+func _leave_title(instant := false) -> void:
+	if not _title_active:
+		return
+	_title_active = false
+	_title_seen = true
+	for tw in [_intro_tween, _prompt_tween, _prompt_loop]:
+		if tw:
+			tw.kill()
+	if not instant:
+		_play_ui_sound(SOUND_ACCEPT)
+		_lightning(false)
+	var t := create_tween().set_parallel(true)
+	t.tween_property(_fade_rect, "color:a", 0.0, 0.4)
+	t.tween_property(title_label, "modulate:a", 1.0, 0.4)
+	# Разогрев лого мог оборваться на середине — гасим жар плавно
+	var heat := float(_logo_mat.get_shader_parameter("heat"))
+	t.tween_method(func(v: float): _logo_mat.set_shader_parameter("heat", v), heat, 0.0, 1.2)
+	if is_instance_valid(_title_prompt):
+		t.tween_property(_title_prompt, "modulate:a", 0.0, 0.35)
+		t.chain().tween_callback(_title_prompt.queue_free)
+	_reveal_menu(0.0 if instant else 0.45)
+
+
+func _input(event: InputEvent) -> void:
+	if not _title_active:
+		return
+	var pressed: bool = (event is InputEventKey and event.pressed and not event.echo) \
+		or (event is InputEventMouseButton and event.pressed) \
+		or (event is InputEventJoypadButton and event.pressed)
+	if pressed:
+		get_viewport().set_input_as_handled()
+		_leave_title()
+	elif not (event is InputEventMouseMotion):
+		get_viewport().set_input_as_handled()
 
 
 ## Полоса света проходит по лого раз в 10–16 секунд
@@ -342,7 +441,7 @@ func _logo_sweep() -> void:
 	_sweep_tween.tween_method(func(v: float): _logo_mat.set_shader_parameter("sweep", v),
 		-0.1, 1.25, 1.7).set_ease(Tween.EASE_IN_OUT).set_trans(Tween.TRANS_SINE)
 	_sweep_tween.tween_callback(func(): _logo_mat.set_shader_parameter("sweep", -1.0))
-	get_tree().create_timer(randf_range(10.0, 16.0)).timeout.connect(_logo_sweep)
+	get_tree().create_timer(randf_range(14.0, 22.0)).timeout.connect(_logo_sweep)
 
 
 # ── Пункты меню ───────────────────────────────────────────────────────────────
@@ -366,8 +465,92 @@ func _connect_buttons() -> void:
 
 func _on_item_focus(b: Button) -> void:
 	_last_focus = b
+	_show_save_line(b == btn_continue and btn_continue.visible)
 	if not _quiet_focus:
 		Style.play_move(_move_audio)
+
+
+## Мягкая тень за текстом пунктов: размытое тёмное пятно под каждой строкой,
+## а не затемнение кадра. У Button нет размытой тени шрифта, поэтому — слой
+## под колонкой меню, который повторяет её прозрачность
+class TextHalo extends Control:
+	var items: Array = []
+	var follow: CanvasItem
+	var _tex: GradientTexture2D
+
+	func _ready() -> void:
+		mouse_filter = Control.MOUSE_FILTER_IGNORE
+		set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+		var g := Gradient.new()
+		g.offsets = PackedFloat32Array([0.0, 0.45, 1.0])
+		g.colors = PackedColorArray([Color(0, 0, 0, 1), Color(0, 0, 0, 0.55), Color(0, 0, 0, 0)])
+		_tex = GradientTexture2D.new()
+		_tex.gradient = g
+		_tex.fill = GradientTexture2D.FILL_RADIAL
+		_tex.fill_from = Vector2(0.5, 0.5)
+		_tex.fill_to = Vector2(1.0, 0.5)
+		_tex.width = 128
+		_tex.height = 64
+
+	func _process(_d: float) -> void:
+		queue_redraw()
+
+	func _draw() -> void:
+		if follow == null or not follow.visible:
+			return
+		var base := follow.modulate.a
+		for it: Control in items:
+			if not is_instance_valid(it) or not it.is_visible_in_tree():
+				continue
+			var a := base * it.modulate.a
+			if a <= 0.01:
+				continue
+			var txt := tr(it.get("text")) if it is Button else tr((it as Label).text)
+			if txt == "":
+				continue
+			var f: Font = it.get_theme_font("font")
+			var fs: int = it.get_theme_font_size("font_size")
+			var tw := f.get_string_size(txt, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x
+			var c := it.get_global_rect().get_center() - global_position
+			var sz := Vector2(tw + 150.0, fs * 2.6)
+			draw_texture_rect(_tex, Rect2(c - sz * 0.5, sz), false, Color(1, 1, 1, 0.5 * a))
+
+
+## Строка под пунктами: «Воин · 1 ч 12 мин в пути · 25.11.2026». Тусклая,
+## видна только пока выбран «Продолжить» — как подпись к нему, а не отдельный
+## блок. Лежит в колонке меню и гаснет вместе с ней (_set_menu_shown)
+func _setup_save_line() -> void:
+	var gap := Control.new()
+	gap.custom_minimum_size = Vector2(0, 18)
+	gap.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	left_panel.add_child(gap)
+	_save_line = Style.label("", 15, Color(0.7, 0.68, 0.64))
+	_save_line.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_save_line.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
+	_save_line.add_theme_font_override("font", Style.italic_font())
+	_save_line.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_save_line.modulate.a = 0.0
+	left_panel.add_child(_save_line)
+
+	# Тени за текстом — под колонкой меню, в том же слое интерфейса
+	var halo := TextHalo.new()
+	halo.follow = left_panel
+	var items: Array = []
+	items.append_array(_buttons)
+	items.append(_save_line)
+	halo.items = items
+	left_panel.get_parent().add_child(halo)
+	left_panel.get_parent().move_child(halo, left_panel.get_index())
+
+
+func _show_save_line(on: bool) -> void:
+	if _save_line == null:
+		return
+	if _save_line_tween:
+		_save_line_tween.kill()
+	_save_line_tween = create_tween()
+	_save_line_tween.tween_property(_save_line, "modulate:a", 1.0 if on else 0.0, 0.5 if on else 0.25)\
+		.set_ease(Tween.EASE_OUT)
 
 
 func _focus_quiet(c: Control) -> void:
@@ -382,19 +565,30 @@ func _default_button() -> Button:
 	return btn_continue if btn_continue.visible else btn_new
 
 
-## «Продолжить» — только если есть сохранение, с подписью «кем и сколько»
+## «Продолжить» — только если есть сохранение; что именно продолжим,
+## говорит строка под пунктами
 func _refresh_continue() -> void:
 	var has := SaveManager.slot_exists(SINGLE_SLOT)
 	btn_continue.visible = has
-	if has:
-		btn_continue.set("subtitle", _save_summary())
+	_save_line.text = _save_line_text() if has else ""
 	_link_focus_chain()
 
 
-## Язык сменили в настройках — подпись под «Продолжить» рисуется руками и
-## сама не переводится (пункты меню и прочие Label переводятся сами)
+func _save_line_text() -> String:
+	var s := _save_summary()
+	var ms := int(SaveManager.peek_slot(SINGLE_SLOT).get("last_played_ms", 0))
+	if ms > 0:
+		var bias := int(Time.get_time_zone_from_system().get("bias", 0)) * 60
+		var d := Time.get_datetime_dict_from_unix_time(ms / 1000 + bias)
+		s += "  ·  %02d.%02d.%d" % [d.day, d.month, d.year]
+	return s
+
+
+## Язык сменили в настройках — строки версии и сейва собраны руками и сами
+## не переводятся (пункты меню и прочие Label переводятся сами)
 func _notification(what: int) -> void:
 	if what == NOTIFICATION_TRANSLATION_CHANGED and is_node_ready():
+		_refresh_version()
 		_refresh_continue()
 
 
@@ -435,7 +629,7 @@ func _link_focus_chain() -> void:
 
 
 func _unhandled_input(event: InputEvent) -> void:
-	if _overlay_open or _quitting:
+	if _overlay_open or _quitting or _title_active:
 		return
 	# Esc: сначала переводит на «Выход» (как в DS), второй раз — спрашивает
 	if event.is_action_pressed("ui_cancel"):
@@ -470,7 +664,7 @@ func _on_new_game() -> void:
 			tr("Прошлое прохождение (%s) будет стёрто без возврата.") % _save_summary(),
 			"НАЧАТЬ", "ОТМЕНА", false, func(yes: bool):
 				if yes:
-					_open_character_select())
+					_open_character_select(), true)
 		return
 	_open_character_select()
 
@@ -575,6 +769,7 @@ func _on_settings() -> void:
 ## Приняли приглашение в Steam, пока сидим в меню: окно коопа покажет, как
 ## идёт подключение (если оно ещё не открыто)
 func _on_invite_join() -> void:
+	_leave_title(true)
 	for c in settings_panel.get_parent().get_children():
 		if c.get_script() == CoopPanelScript:
 			return
@@ -632,7 +827,7 @@ func _quit() -> void:
 	_quitting = true
 	var t := create_tween().set_parallel(true)
 	t.tween_property(_fade_rect, "color:a", 1.0, 0.7).set_ease(Tween.EASE_IN)
-	for p: AudioStreamPlayer in [ambient_music, rain_ambience]:
+	for p: AudioStreamPlayer in [ambient_music, _wind, _fire, _grass]:
 		t.tween_property(p, "volume_db", -60.0, 0.7).set_ease(Tween.EASE_IN)
 	await t.finished
 	get_tree().quit()
@@ -640,7 +835,7 @@ func _quit() -> void:
 
 ## Окно «да/нет» поверх меню; пока оно открыто, меню ввод не получает
 func _confirm(title: String, body: String, yes_text: String, no_text: String,
-		default_yes: bool, on_answer: Callable) -> void:
+		default_yes: bool, on_answer: Callable, danger := false) -> void:
 	var f := get_viewport().gui_get_focus_owner()
 	if f in _buttons:
 		_last_focus = f
@@ -651,6 +846,7 @@ func _confirm(title: String, body: String, yes_text: String, no_text: String,
 	d.yes_text = yes_text
 	d.no_text = no_text
 	d.default_yes = default_yes
+	d.danger = danger
 	d.answered.connect(func(yes: bool):
 		_overlay_open = false
 		if not yes:
