@@ -76,7 +76,8 @@ const DATA := {
 		"quote": "Стрела не спорит.\nОна прилетает.",
 		"color": Color(0.55, 0.78, 0.45),
 		"icon": "bow",
-		"portrait_sheet": "res://Character/Archer/Idle.png",
+		# Тот же лист стойки, что у Сигрид в игре (sigrid_frames.tres → Idle_Down)
+		"portrait_sheet": "res://Character/Archer/Sigrid/Idle_with_Bow.png",
 		"portrait_region": Rect2(0, 256, 128, 128),
 		"idle_frame_time": 0.2,
 		"stats": {
@@ -158,6 +159,37 @@ func get_scene(id: String) -> PackedScene:
 		push_error("[Characters] Нет сцены для персонажа '%s': %s" % [id, path])
 		return null
 	return load(path) as PackedScene
+
+
+## Как герой нарисован в игре: SpriteFrames, материал (детализация
+## Shaders/sprite_detail) и масштаб его AnimatedSprite2D — прямо из сцены
+## героя. Сцена не инстансится (там камера, HUD, ввод): читается только её
+## описание (SceneState). Экран выбора героя показывает ровно то, что в игре,
+## и не отстаёт, когда спрайты героя обновляют. {} — если не нашлось
+var _game_sprite_cache := {}
+
+
+func get_game_sprite(id: String) -> Dictionary:
+	if _game_sprite_cache.has(id):
+		return _game_sprite_cache[id]
+	var out := {}
+	var ps := get_scene(id)
+	if ps:
+		var st := ps.get_state()
+		for i in st.get_node_count():
+			if st.get_node_type(i) != &"AnimatedSprite2D":
+				continue
+			var props := {}
+			for j in st.get_node_property_count(i):
+				props[String(st.get_node_property_name(i, j))] = st.get_node_property_value(i, j)
+			var frames := props.get("sprite_frames") as SpriteFrames
+			# В сцене бывают и другие AnimatedSprite2D (эффекты) — нужен тот,
+			# у которого есть стойка героя
+			if frames and frames.has_animation(&"Idle_Down"):
+				out = props
+				break
+	_game_sprite_cache[id] = out
+	return out
 
 
 ## Портрет собирается в рантайме из спрайт-листа — отдельных файлов-портретов

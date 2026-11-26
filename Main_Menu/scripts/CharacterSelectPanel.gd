@@ -27,14 +27,22 @@ const CleanHud := preload("res://UI/clean_hud.gd")
 # Скрипты подключаются через set_script, а не через class_name: глобальный
 # кэш классов в этом проекте уже подводил ("Could not find type X")
 const GlyphIconScript := preload("res://Main_Menu/scripts/GlyphIcon.gd")
-const SpriteSheetAnimationScript := preload("res://Main_Menu/scripts/SpriteSheetAnimation.gd")
 
 ## Как и настройки, экран поднят: вкладок инвентаря здесь нет
 const LIFT := 46.0
-## Увеличение кадра 128×128. Герои — не пиксель-арт, а уменьшенный 3D-рендер,
-## да ещё сжатый (BPTC): «по ближайшему пикселю» ×5 давало серую лесенку.
-## Теперь ×4 со сглаживанием. Временно — до артов героев (Main_Menu/art)
-const SPRITE_SCALE := 4
+## Герой на экране выбора — тот же спрайт, что в игре: SpriteFrames,
+## материал детализации и масштаб берутся из сцены героя
+## (Characters.get_game_sprite), анимация — стойка лицом к камере. Здесь
+## только увеличение поверх игрового масштаба (кадр 128×128)
+## Кадр героя — 128×128: при ×7 вылезали крупные «кирпичи» пикселей. ×4.5
+## поверх игрового масштаба — близко к тому, как герой выглядит на уровне
+const SPRITE_SCALE := 4.5
+## Яркость героя в меню (параметр brightness шейдера sprite_detail, в игре ~1)
+const MENU_BRIGHTNESS := 1.4
+const IDLE_ANIM := &"Idle_Down"
+## Размер «рамки» героя для пола и тени: кадр 128 × увеличение × игровой
+## масштаб (~0.6–0.9) — так линия пола и тень приходятся под ноги
+const BOX := 128.0 * 2.65
 const STAT_SEGMENTS := 10
 
 var _selected_id := ""
@@ -43,7 +51,7 @@ var _tween: Tween
 var _audio: AudioStreamPlayer
 var _content: Control
 var _cells := {}   # id -> {"frame": HeroCell, "name": Label, "icon": GlyphIcon}
-var _portrait: TextureRect
+var _hero: AnimatedSprite2D
 var _quote: Label
 var _name_lbl: Label
 var _tag_lbl: Label
@@ -231,7 +239,7 @@ func _build_stage(r: Rect2) -> void:
 	glow.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_content.add_child(glow)
 
-	var box := Vector2(128, 128) * SPRITE_SCALE
+	var box := Vector2(BOX, BOX)
 	var center := Vector2(f.get_center().x, f.position.y + f.size.y * 0.44)
 	var floor_y := center.y + box.y * 0.5 - box.y * 0.09
 	var shadow := Control.new()
@@ -246,12 +254,12 @@ func _build_stage(r: Rect2) -> void:
 	_content.add_child(shadow)
 	HeroSkin.hline(_content, center.x - 260, 520, floor_y + 14)
 
-	_portrait = TextureRect.new()
-	_portrait.set_script(SpriteSheetAnimationScript)
-	_portrait.set("smooth", true)
-	_portrait.position = (center - box * 0.5).round()
-	_portrait.size = box
-	_content.add_child(_portrait)
+	# Как в игре: без сглаживания (texture_filter = 1 у героев в сценах),
+	# по центру сцены
+	_hero = AnimatedSprite2D.new()
+	_hero.position = center.round()
+	_hero.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	_content.add_child(_hero)
 
 	_quote = Style.label("", 20, Style.TEXT_DIM)
 	_quote.add_theme_font_override("font", Style.italic_font())
@@ -389,10 +397,8 @@ func _refresh_selection(animate: bool) -> void:
 		parts["icon"].call("set_glyph", Characters.get_data(id).get("icon", "rune"),
 			Characters.get_color(id) if active else Color(Style.TEXT_DIM, 0.7))
 
-	if is_instance_valid(_portrait):
-		var region := Characters.get_idle_region(_selected_id)
-		_portrait.call("setup", Characters.get_idle_sheet(_selected_id),
-			region.position.y, region.size, Characters.get_idle_frame_time(_selected_id))
+	if is_instance_valid(_hero):
+		_show_hero(_selected_id)
 	_name_lbl.text = String(data.get("name", "?"))
 	_tag_lbl.text = String(data.get("tagline", ""))
 	_desc_lbl.text = String(data.get("description", ""))
@@ -401,9 +407,34 @@ func _refresh_selection(animate: bool) -> void:
 	_fill_stats(_selected_id)
 
 	if animate:
-		for c: CanvasItem in [_portrait, _info, _quote]:
+		for c: CanvasItem in [_hero, _info, _quote]:
 			c.modulate.a = 0.0
 			create_tween().tween_property(c, "modulate:a", 1.0, 0.22).set_ease(Tween.EASE_OUT)
+
+
+## Игровой спрайт героя: те же кадры, материал детализации и пропорции, что в
+## его сцене; стойка лицом к камере. Если у героя что-то не нашлось —
+## остаётся пусто, а не старый лист (лучше заметить, чем показывать старое)
+func _show_hero(id: String) -> void:
+	var gs: Dictionary = Characters.get_game_sprite(id)
+	var frames := gs.get("sprite_frames") as SpriteFrames
+	if frames == null or not frames.has_animation(IDLE_ANIM):
+		push_warning("[CharacterSelect] нет игрового спрайта у героя '%s'" % id)
+		_hero.sprite_frames = null
+		return
+	_hero.sprite_frames = frames
+	# Материал детализации рассчитан на свет уровня — в тёмной панели меню
+	# герой выходил чёрным силуэтом. Берём КОПИЮ (игровой не трогаем) и
+	# поднимаем яркость, будто герой стоит у костра
+	var mat := gs.get("material") as ShaderMaterial
+	if mat:
+		mat = mat.duplicate() as ShaderMaterial
+		mat.set_shader_parameter("brightness", MENU_BRIGHTNESS)
+	_hero.material = mat
+	var sc: Vector2 = gs.get("scale", Vector2.ONE)
+	_hero.scale = sc * SPRITE_SCALE
+	_hero.offset = gs.get("offset", Vector2.ZERO)
+	_hero.play(IDLE_ANIM)
 
 
 func _on_confirm() -> void:

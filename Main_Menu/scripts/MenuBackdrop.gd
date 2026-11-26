@@ -24,14 +24,15 @@ const FRONT := preload("res://Main_Menu/art/bg_front.png")
 const SKY_SHADER := preload("res://Main_Menu/assets/shaders/menu_sky.gdshader")
 const FOG_SHADER := preload("res://Main_Menu/assets/shaders/menu_fog.gdshader")
 const FRONT_SHADER := preload("res://Main_Menu/assets/shaders/menu_front.gdshader")
+const MID_SHADER := preload("res://Main_Menu/assets/shaders/menu_mid.gdshader")
 const FLAME_SHADER := preload("res://Main_Menu/assets/shaders/menu_flame.gdshader")
 
 ## Размер «сцены» и точка у основания меча, где горят угли (в пикселях слоёв
 ## 1671×941). Слои растягиваются на этот размер, поэтому их можно заменить
 ## увеличенными (Upscayl ×2 и т. п.) — координаты огня менять не нужно
 const IMG := Vector2(1671, 941)
-## Меч наклонён вправо — угли там, где клинок входит в пепел
-const FIRE := Vector2(1311, 612)
+## Костёр без меча — угли там, где сходятся поленья
+const FIRE := Vector2(1316, 618)
 ## Прореха в облаках с луной на bg_sky.png (слева вверху)
 const MOON := Vector2(230, 120)
 
@@ -100,14 +101,19 @@ func _build_stage(low: bool) -> void:
 	_stage.size = IMG
 	add_child(_stage)
 
-	# Одна шумовая текстура на небо, туман и пламя: бесшовная, мягкие облака
-	var cloud_noise := _noise_texture(512, 0.0055, 5, 1337)
+	# Одна шумовая текстура на небо и облака: бесшовная. 1024 px — при 512 она
+	# растягивалась на экран вчетверо, и облака выходили мыльными; частота
+	# вдвое ниже, чтобы формы остались того же размера, а детали — вдвое мельче
+	var cloud_noise := _noise_texture(1024, 0.00275, 6, 1337)
 
 	_sky_mat = ShaderMaterial.new()
 	_sky_mat.shader = SKY_SHADER
 	_sky_mat.set_shader_parameter("noise_tex", cloud_noise)
 	_sky_mat.set_shader_parameter("aspect", IMG.x / IMG.y)
-	_layer(SKY, _sky_mat)
+	# Облака неба дрейфуют без конца: текстура не бесшовная, поэтому повтор
+	# «зеркалом» — за краем идёт отражённая копия, шва не видно
+	var sky := _layer(SKY, _sky_mat)
+	sky.texture_repeat = CanvasItem.TEXTURE_REPEAT_MIRROR
 
 	# Лунный свет из прорехи в облаках: мягкое холодное сияние поверх неба,
 	# за горами. «Дышит» — будто по луне проходят облака
@@ -133,7 +139,10 @@ func _build_stage(low: bool) -> void:
 	_moon.material = madd
 	_stage.add_child(_moon)
 
-	_layer(MID, null)
+	# Горы: резкость и локальный контраст — растянутый слой иначе мылится
+	var mid_mat := ShaderMaterial.new()
+	mid_mat.shader = MID_SHADER
+	_layer(MID, mid_mat)
 
 	var fog := ColorRect.new()
 	fog.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -142,7 +151,7 @@ func _build_stage(low: bool) -> void:
 	_fog_mat.shader = FOG_SHADER
 	_fog_mat.set_shader_parameter("noise_tex", cloud_noise)
 	# Мелкий шум — рваные края облаков и детали внутри
-	_fog_mat.set_shader_parameter("detail_tex", _noise_texture(512, 0.022, 4, 777))
+	_fog_mat.set_shader_parameter("detail_tex", _noise_texture(1024, 0.011, 4, 777))
 	_fog_mat.set_shader_parameter("aspect", IMG.x / IMG.y)
 	_fog_mat.set_shader_parameter("fire_uv", FIRE / IMG)
 	_fog_mat.set_shader_parameter("quality", 0 if low else 2)
