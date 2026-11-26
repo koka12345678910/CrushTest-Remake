@@ -53,7 +53,8 @@ const STAT_NAMES := {
 ## длительностью кадра в самих сценах персонажей
 const DATA := {
 	KNIGHT: {
-		"name": "ВОИН",
+		"name": "ХАЛЬВАРД",
+		"class": "ВОИН",
 		"scene": "res://Player_scene/player.tscn",
 		"tagline": "Меч и щит",
 		"description": "Закалённый боец, выученный ремеслу войны. Полагается на силу, выносливость и несгибаемую волю.",
@@ -69,7 +70,8 @@ const DATA := {
 		},
 	},
 	ARCHER: {
-		"name": "СЛЕДОПЫТ",
+		"name": "СИГРИД",
+		"class": "СЛЕДОПЫТ",
 		"scene": "res://Player_scene/archer.tscn",
 		"tagline": "Лук и расстояние",
 		"description": "Терпеливая охотница: заканчивает бой раньше, чем он начнётся. Смертоносна издалека, уязвима вблизи.",
@@ -86,7 +88,8 @@ const DATA := {
 		},
 	},
 	MAGE: {
-		"name": "МАГ",
+		"name": "ЭЙРИК",
+		"class": "МАГ",
 		"scene": "res://Player_scene/mage.tscn",
 		"tagline": "Посох и руны",
 		"description": "Знаток древних рун, сменивший сталь на чародейский огонь. Хрупок телом, но сокрушителен в силе.",
@@ -102,7 +105,8 @@ const DATA := {
 		},
 	},
 	DRUID: {
-		"name": "ДРУИДЕССА",
+		"name": "СОЛЬВЕЙГ",
+		"class": "ДРУИДЕССА",
 		"scene": "res://Player_scene/druid.tscn",
 		"tagline": "Посох и корни",
 		"description": "Сольвейг, хранительница корней. Лечит, укрывает корой и камнем — и не прячется за чужими спинами: посох бьёт не хуже меча.",
@@ -144,9 +148,22 @@ func get_data(id: String) -> Dictionary:
 	return DATA.get(id, DATA[FALLBACK])
 
 
-## Не get_name() — так называется метод самой Node, перекрывать его нельзя
+## Не get_name() — так называется метод самой Node, перекрывать его нельзя.
+## Имя героя (Хальвард, Сигрид…) — ключ перевода, заглавными
 func display_name(id: String) -> String:
 	return get_data(id).get("name", "?")
+
+
+## Подпись под именем на текущем языке: «Воин · меч и щит»
+func class_line(id: String) -> String:
+	var d := get_data(id)
+	var cls := tr(String(d.get("class", "")))
+	var tag := tr(String(d.get("tagline", "")))
+	cls = cls.substr(0, 1) + cls.substr(1).to_lower()
+	# Вся подпись строчными: английские написаны с заглавных («Sword and
+	# Shield»), и после «Warrior ·» выходило бы «sword and Shield»
+	tag = tag.to_lower()
+	return "%s  ·  %s" % [cls, tag] if tag != "" else cls
 
 
 func get_color(id: String) -> Color:

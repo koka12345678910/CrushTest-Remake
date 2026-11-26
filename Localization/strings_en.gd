@@ -42,6 +42,10 @@ const MESSAGES := {
 	"НАЖМИТЕ ЛЮБУЮ КЛАВИШУ": "PRESS ANY KEY",
 
 	# ── Герои (Save/characters.gd) ────────────────────────────────────────────
+	"ХАЛЬВАРД": "HALVARD",
+	"СИГРИД": "SIGRID",
+	"ЭЙРИК": "EIRIK",
+	"СОЛЬВЕЙГ": "SOLVEIG",
 	"ВОИН": "WARRIOR",
 	"СЛЕДОПЫТ": "RANGER",
 	"МАГ": "MAGE",

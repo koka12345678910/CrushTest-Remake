@@ -197,7 +197,10 @@ func _make_cell(id: String, r: Rect2) -> void:
 	name_l.position = Vector2(92, 22)
 	name_l.size = Vector2(r.size.x - 104, 32)
 	holder.add_child(name_l)
-	var sub := Style.label(String(data.get("tagline", "")), 16, Style.TEXT_DIM)
+	# Под именем — класс и оружие («Воин · меч и щит»); строка собрана на
+	# текущем языке, сама не переводится
+	var sub := Style.label(Characters.class_line(id), 16, Style.TEXT_DIM)
+	sub.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
 	sub.position = Vector2(92, 56)
 	sub.size = Vector2(r.size.x - 104, 24)
 	holder.add_child(sub)
@@ -289,6 +292,7 @@ func _build_info(r: Rect2) -> void:
 	_name_lbl = Style.label("", 36, Style.GOLD_HI, true)
 	v.add_child(_name_lbl)
 	_tag_lbl = Style.label("", 17, Style.TEXT_DIM, true)
+	_tag_lbl.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
 	v.add_child(_tag_lbl)
 	var line := Style.FadeLine.new()
 	line.color = Color(Style.GOLD, 0.3)
@@ -400,7 +404,7 @@ func _refresh_selection(animate: bool) -> void:
 	if is_instance_valid(_hero):
 		_show_hero(_selected_id)
 	_name_lbl.text = String(data.get("name", "?"))
-	_tag_lbl.text = String(data.get("tagline", ""))
+	_tag_lbl.text = Characters.class_line(_selected_id)
 	_desc_lbl.text = String(data.get("description", ""))
 	# Цитату переводим до склейки строк: ключ перевода — с переносом \n
 	_quote.text = "«%s»" % tr(String(data.get("quote", ""))).replace("\n", " ")
