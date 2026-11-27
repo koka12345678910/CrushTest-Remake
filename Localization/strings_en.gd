@@ -737,6 +737,50 @@ const MESSAGES := {
 	"Подключение через Steam…": "Connecting through Steam…",
 	"Не удалось войти в лобби Steam": "Could not join the Steam lobby",
 	"Не удалось подключиться к хосту Steam": "Could not connect to the Steam host",
+	# Кооп через интернет: приглашение Steam, таймауты, пинг (Net/net.gd)
+	"ПРИГЛАСИТЬ ДРУГА": "INVITE A FRIEND",
+	"ПРИГЛАСИТЬ ЕЩЁ": "INVITE MORE",
+	"ИГРОКИ": "PLAYERS",
+	"— свободное место —": "— open slot —",
+	"ПО IP (ЛОКАЛЬНАЯ СЕТЬ, RADMIN VPN)": "BY IP (LOCAL NETWORK, RADMIN VPN)",
+	"Пригласи друга — когда он примет приглашение в Steam, он появится в списке":
+		"Invite a friend — once they accept the Steam invite, they will show up here",
+	"Лобби готово. Друг примет приглашение в Steam — и появится здесь":
+		"Lobby ready. Once your friend accepts the Steam invite, they will show up here",
+	"Steam не смог создать лобби (код %d). Steam в сети?":
+		"Steam could not create a lobby (code %d). Is Steam online?",
+	"Оверлей Steam не открылся — выбери друга здесь, приглашение придёт ему в Steam:":
+		"The Steam overlay did not open — pick a friend here, the invite will reach them on Steam:",
+	"в игре": "in game",
+	"Никого из друзей нет в сети": "None of your friends are online",
+	"Приглашение отправлено: %s": "Invite sent: %s",
+	"Лобби уже закрыто: хост вышел": "The lobby is closed: the host has left",
+	"Steam не пускает в это лобби": "Steam won't let you into this lobby",
+	"Лобби заполнено": "The lobby is full",
+	"Вход закрыт: один из вас заблокировал другого в Steam":
+		"Can't join: one of you has blocked the other on Steam",
+	"Слишком много попыток — подожди немного": "Too many attempts — wait a little",
+	"Не удалось войти в лобби Steam (код %d)": "Could not join the Steam lobby (code %d)",
+	"У хоста другая версия игры — обновитесь до одной версии":
+		"The host has a different game version — update to the same version",
+	"Игра заполнена": "The game is full",
+	"Выйди в главное меню, чтобы принять приглашение": "Return to the main menu to accept the invite",
+	"Связь есть, хост принимает…": "Connected, the host is letting you in…",
+	"Не удалось подключиться: хост не отвечает. Проверь адрес и что игра у хоста создана":
+		"Could not connect: the host is not responding. Check the address and that the host has created the game",
+	"Хост не ответил за %d с. Проверь, что игра у хоста создана и у обоих есть интернет":
+		"The host did not answer in %d s. Check that the host has created the game and you both are online",
+	"Steam не ответил. Проверь, что Steam в сети, и попробуй ещё раз":
+		"Steam did not answer. Check that Steam is online and try again",
+	"Связь с хостом потеряна": "Lost connection to the host",
+	"Связь с хостом прерывается…": "Connection to the host is unstable…",
+	"Связь прерывается: %s": "Connection unstable: %s",
+	"%s входит в игру": "%s joins the game",
+	"%s покидает игру": "%s leaves the game",
+	"%s отключился": "%s disconnected",
+	"Игрок": "Player",
+	"нет связи": "no connection",
+	"%d мс": "%d ms",
 	"ТЫ ПАЛ": "YOU FELL",
 	"ВОЗРОЖДЕНИЕ": "RESPAWN",
 	"ТЕБЯ ПОДНЯЛИ": "YOU WERE REVIVED",

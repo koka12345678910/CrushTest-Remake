@@ -122,6 +122,10 @@ func _ready() -> void:
 	# приглашения, +connect_lobby)
 	Net.invite_join_started.connect(_on_invite_join)
 	Net.take_pending_invite.call_deferred()
+	# Сеанс коопа оборвался (хост вышел, пропала связь) — окно коопа скажет,
+	# что случилось (Net.notice)
+	if Net.notice != "":
+		_on_invite_join.call_deferred()
 
 	title_label.call("setup_grid", LOGO_ANIM_SHEET, LOGO_ANIM_COLUMNS, LOGO_ANIM_ROWS,
 		1.0 / LOGO_ANIM_FPS)

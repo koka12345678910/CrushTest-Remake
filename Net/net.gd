@@ -14,9 +14,13 @@ extends Node
 ##     появляется такое же заклинание от имени куклы, но без урона: урон уже
 ##     засчитан у создавшего. Заклинания проверяют это через is_echo(caster).
 ##
-## Транспорт сейчас — ENet (Godot из коробки): игра по IP, для отладки — две
-## копии игры на одном компьютере (127.0.0.1). На этапе Steam сюда встанет
-## SteamMultiplayerPeer (GodotSteam) — остальной код этого не заметит.
+## Транспорт — MultiplayerPeer, остальной код его не различает:
+##   * через интернет — Steam: лобби + SteamMultiplayerPeer (GodotSteam). Трафик
+##     идёт через релей Valve, NAT и проброс портов не нужны (раздел STEAM);
+##   * по IP — ENet: локальная сеть, две копии игры на одном компьютере
+##     (127.0.0.1) или виртуальная сеть (Radmin VPN, ZeroTier).
+## Через интернет пинг выше: таймауты подключения, пинг и «связь прерывается»
+## — в разделе ПИНГ И ОБРЫВЫ СВЯЗИ.
 ##
 ## Вне сети (одиночная игра) multiplayer_peer — OfflineMultiplayerPeer,
 ## is_online() = false, и ничего из этого не работает и не мешает.
@@ -76,9 +80,18 @@ func _ready() -> void:
 # корне проекта; Steam будет показывать «Spacewar»). Свой ID — сюда и туда.
 
 const STEAM_APP_ID := 480
+## Лобби «для друзей»: в него входят по приглашению или через «Присоединиться»
+## в списке друзей Steam — ни кодов, ни поиска
 const STEAM_LOBBY_FRIENDS_ONLY := 1
 const STEAM_RESULT_OK := 1
 const STEAM_ENTER_SUCCESS := 1
+const STEAM_GAME_KEY := "the_last_oath"
+## getFriendCount/getFriendByIndex: обычные друзья (k_EFriendFlagImmediate)
+const STEAM_FRIEND_FLAG_IMMEDIATE := 4
+
+## Оверлей Steam не открылся (игра запущена не через Steam, из редактора) —
+## окно коопа показывает свой список друзей: приглашение уходит и без оверлея
+signal invite_fallback
 
 ## Steam запущен и плагин работает — можно играть через Steam
 var steam_ok := false
@@ -88,6 +101,9 @@ var _lobby_id := 0
 ## Лобби из приглашения, пока главное меню ещё не готово (запуск с
 ## +connect_lobby)
 var _pending_lobby := 0
+## «Пригласить друга» нажали до того, как лобби появилось: откроем оверлей,
+## как только Steam его создаст
+var _invite_pending := false
 
 
 func _init_steam() -> void:
@@ -104,6 +120,9 @@ func _init_steam() -> void:
 	_steam.connect("lobby_created", _on_lobby_created)
 	_steam.connect("lobby_joined", _on_lobby_joined)
 	_steam.connect("join_requested", _on_join_requested)
+	# Заранее найти ближайшие узлы релея Valve — первое подключение быстрее
+	if _steam.has_method("initRelayNetworkAccess"):
+		_steam.call("initRelayNetworkAccess")
 	# Игру запустили из приглашения Steam: «+connect_lobby <id>»
 	var args := OS.get_cmdline_args()
 	var i := args.find("+connect_lobby")
@@ -125,17 +144,29 @@ func host_steam() -> void:
 	if not steam_ok:
 		return
 	leave()
+	_steam_hosting = true
+	_steam_wait = CONNECT_TIMEOUT
 	status_changed.emit(tr("Создаём лобби Steam…"))
 	_steam.call("createLobby", STEAM_LOBBY_FRIENDS_ONLY, MAX_PLAYERS)
 
 
 func _on_lobby_created(result: int, lobby_id: int) -> void:
+	# Пока Steam создавал лобби, игрок нажал «Назад» — лобби не нужно
+	if not _steam_hosting:
+		if result == STEAM_RESULT_OK and lobby_id != 0:
+			_steam.call("leaveLobby", lobby_id)
+		return
+	_steam_hosting = false
+	_steam_wait = 0.0
 	if result != STEAM_RESULT_OK:
-		status_changed.emit(tr("Steam не смог создать лобби"))
+		_invite_pending = false
+		status_changed.emit(tr("Steam не смог создать лобби (код %d). Steam в сети?") % result)
 		return
 	_lobby_id = lobby_id
 	_steam.call("setLobbyJoinable", lobby_id, true)
-	_steam.call("setLobbyData", lobby_id, "game", "the_last_oath")
+	_steam.call("setLobbyData", lobby_id, "game", STEAM_GAME_KEY)
+	_steam.call("setLobbyData", lobby_id, "ver", str(NET_VERSION))
+	_steam.call("setLobbyData", lobby_id, "host", my_name())
 	var p: MultiplayerPeer = ClassDB.instantiate("SteamMultiplayerPeer")
 	var err: int = p.call("create_host", 0)
 	if err != OK:
@@ -145,33 +176,94 @@ func _on_lobby_created(result: int, lobby_id: int) -> void:
 	multiplayer.multiplayer_peer = p
 	peers = {1: {"character": SaveManager.get_character_id(), "slot": 0, "name": my_name()}}
 	peers_changed.emit()
-	status_changed.emit(tr("Лобби создано. Пригласи друзей через Steam"))
+	status_changed.emit(tr("Лобби готово. Друг примет приглашение в Steam — и появится здесь"))
+	if _invite_pending:
+		_invite_pending = false
+		_open_invite()
 
 
-## Окно приглашения друзей в оверлее Steam
+## Кнопка «Пригласить друга»: лобби ещё нет — создаём, и как только оно
+## готово, открываем окно приглашения в оверлее Steam
 func invite_friends() -> void:
+	if not steam_ok:
+		return
+	if _lobby_id != 0 and is_host():
+		_open_invite()
+		return
+	if _steam_hosting:
+		_invite_pending = true
+		return
+	host_steam()
+	_invite_pending = true
+
+
+func _open_invite() -> void:
+	_steam.call("activateGameOverlayInviteDialog", _lobby_id)
+	if _steam.has_method("isOverlayEnabled") and not bool(_steam.call("isOverlayEnabled")):
+		invite_fallback.emit()
+
+
+## Друзья в сети: [{id, name, here}] (here — уже в нашей игре, то есть в
+## Spacewar/своём App ID). Для своего списка приглашения без оверлея
+func online_friends() -> Array:
+	var out := []
+	if not steam_ok:
+		return out
+	var n := int(_steam.call("getFriendCount", STEAM_FRIEND_FLAG_IMMEDIATE))
+	for i in n:
+		var fid := int(_steam.call("getFriendByIndex", i, STEAM_FRIEND_FLAG_IMMEDIATE))
+		if int(_steam.call("getFriendPersonaState", fid)) == 0:
+			continue
+		var game = _steam.call("getFriendGamePlayed", fid)
+		var here: bool = game is Dictionary and int(game.get("id", 0)) == STEAM_APP_ID
+		out.append({"id": fid, "name": String(_steam.call("getFriendPersonaName", fid)), "here": here})
+	# Сначала те, кто уже в игре, потом по имени
+	out.sort_custom(func(a, b):
+		if a["here"] != b["here"]:
+			return a["here"]
+		return String(a["name"]).naturalnocasecmp_to(String(b["name"])) < 0)
+	return out
+
+
+## Пригласить друга без оверлея: приглашение придёт ему в чат Steam
+func invite_friend(friend_id: int) -> void:
 	if steam_ok and _lobby_id != 0:
-		_steam.call("activateGameOverlayInviteDialog", _lobby_id)
+		_steam.call("inviteUserToLobby", _lobby_id, friend_id)
+		status_changed.emit(tr("Приглашение отправлено: %s") % String(_steam.call("getFriendPersonaName", friend_id)))
 
 
 ## Войти в лобби друга (по приглашению)
 func join_lobby(lobby_id: int) -> void:
-	if not steam_ok:
+	if not steam_ok or lobby_id == 0:
 		return
 	leave()
+	_steam_joining = lobby_id
+	_connect_left = CONNECT_TIMEOUT
 	status_changed.emit(tr("Подключение через Steam…"))
 	_steam.call("joinLobby", lobby_id)
 
 
 func _on_lobby_joined(lobby_id: int, _permissions: int, _locked: bool, response: int) -> void:
-	if response != STEAM_ENTER_SUCCESS:
-		status_changed.emit(tr("Не удалось войти в лобби Steam"))
-		return
-	var owner := int(_steam.call("getLobbyOwner", lobby_id))
+	var owner := int(_steam.call("getLobbyOwner", lobby_id)) if response == STEAM_ENTER_SUCCESS else 0
 	# Хосту Steam тоже присылает «вошёл» в своё же лобби — ему делать нечего
-	if owner == int(_steam.call("getSteamID")):
+	if owner != 0 and owner == int(_steam.call("getSteamID")):
+		return
+	# Ответ на вход, который уже отменили («Назад», другой вход)
+	if lobby_id != _steam_joining:
+		if response == STEAM_ENTER_SUCCESS:
+			_steam.call("leaveLobby", lobby_id)
+		return
+	_steam_joining = 0
+	if response != STEAM_ENTER_SUCCESS:
+		_connect_left = 0.0
+		status_changed.emit(_enter_error(response))
 		return
 	_lobby_id = lobby_id
+	var ver := String(_steam.call("getLobbyData", lobby_id, "ver"))
+	if ver != "" and ver != str(NET_VERSION):
+		leave()
+		status_changed.emit(tr("У хоста другая версия игры — обновитесь до одной версии"))
+		return
 	var p: MultiplayerPeer = ClassDB.instantiate("SteamMultiplayerPeer")
 	var err: int = p.call("create_client", owner, 0)
 	if err != OK:
@@ -179,12 +271,32 @@ func _on_lobby_joined(lobby_id: int, _permissions: int, _locked: bool, response:
 		leave()
 		return
 	multiplayer.multiplayer_peer = p
+	_connect_left = CONNECT_TIMEOUT
 	status_changed.emit(tr("Подключение к %s…") % String(_steam.call("getFriendPersonaName", owner)))
+
+
+## EChatRoomEnterResponse → понятная причина
+func _enter_error(response: int) -> String:
+	match response:
+		2:
+			return tr("Лобби уже закрыто: хост вышел")
+		3, 6, 9:
+			return tr("Steam не пускает в это лобби")
+		4:
+			return tr("Лобби заполнено")
+		10, 11:
+			return tr("Вход закрыт: один из вас заблокировал другого в Steam")
+		15:
+			return tr("Слишком много попыток — подожди немного")
+	return tr("Не удалось войти в лобби Steam (код %d)") % response
 
 
 ## Друг пригласил, и мы нажали «Присоединиться» (игра уже запущена).
 ## Играем своим героем из своего сейва; его нет — сначала «Новая игра»
 func _on_join_requested(lobby_id: int, _friend_id: int) -> void:
+	if _in_game:
+		_banner(tr("Выйди в главное меню, чтобы принять приглашение"))
+		return
 	if not SaveManager.slot_exists(0):
 		status_changed.emit(tr("Сначала начни путь («Новая игра»): в совместную игру каждый приходит со своим героем."))
 		return
@@ -263,27 +375,53 @@ func host(port := DEFAULT_PORT) -> Error:
 	return OK
 
 
+## Подключиться по IP. Адрес можно дать с портом: «1.2.3.4:7777» (для
+## туннелей и виртуальных сетей вроде Radmin VPN / ZeroTier)
 func join(address: String, port := DEFAULT_PORT) -> Error:
 	leave()
+	var addr := address.strip_edges()
+	# Один «:» — это порт (у IPv6 их несколько)
+	if addr.count(":") == 1:
+		var parts := addr.split(":")
+		if parts[1].is_valid_int():
+			port = parts[1].to_int()
+		addr = parts[0]
 	var p := ENetMultiplayerPeer.new()
-	var err := p.create_client(address.strip_edges(), port)
+	var err := p.create_client(addr, port)
 	if err != OK:
 		status_changed.emit(tr("Не удалось подключиться к %s") % address)
 		return err
 	multiplayer.multiplayer_peer = p
+	_enet_timeouts(p.get_peer(1))
+	_connect_left = CONNECT_TIMEOUT
 	status_changed.emit(tr("Подключение к %s…") % address)
 	return OK
+
+
+## ENet по умолчанию ждёт молчащего до 30 с — через интернет это «зависание»
+## без объяснений. 15 с хватает, чтобы пережить пролаг, и не дольше
+func _enet_timeouts(pp: ENetPacketPeer) -> void:
+	if pp != null:
+		pp.set_timeout(32, ENET_TIMEOUT_MIN_MS, ENET_TIMEOUT_MAX_MS)
 
 
 ## Выйти из сеанса (или отменить ожидание) — тихо, без сигнала session_ended
 func leave() -> void:
 	_clear_puppets()
 	peers.clear()
+	ping_ms.clear()
+	_heard.clear()
 	_in_game = false
 	local_character = null
 	_spawner = null
 	_enemies.clear()
 	_pending_roster.clear()
+	_connect_left = 0.0
+	_steam_wait = 0.0
+	_steam_hosting = false
+	_steam_joining = 0
+	_invite_pending = false
+	_set_lag_text("")
 	var p := multiplayer.multiplayer_peer
 	if p != null and not (p is OfflineMultiplayerPeer):
 		p.close()
@@ -292,6 +430,40 @@ func leave() -> void:
 		_steam.call("leaveLobby", _lobby_id)
 	_lobby_id = 0
 	peers_changed.emit()
+
+
+## Подключаемся (ждём ответа хоста или Steam)
+func is_connecting() -> bool:
+	return _connect_left > 0.0 or _steam_wait > 0.0
+
+
+## Входим в чужую игру (ещё не приняты)
+func is_joining() -> bool:
+	return _connect_left > 0.0 or _steam_joining != 0
+
+
+## Steam создаёт наше лобби
+func is_creating_lobby() -> bool:
+	return _steam_hosting
+
+
+## Сеанс оборвался не по нашей воле: сообщение для главного меню (окно коопа
+## покажет его, когда игрок вернётся в меню)
+func end_session(reason: String) -> void:
+	var was_in_game := _in_game
+	leave()
+	notice = reason
+	session_ended.emit(reason)
+	status_changed.emit(reason)
+	if was_in_game:
+		SceneLoader.change_scene(MENU_SCENE)
+
+
+## Забрать сообщение о разрыве (пусто — не было)
+func take_notice() -> String:
+	var n := notice
+	notice = ""
+	return n
 
 
 ## Хост: все уходят на уровень
@@ -310,29 +482,58 @@ func _start(scene_path: String) -> void:
 
 
 func _on_connected() -> void:
-	_register.rpc_id(1, SaveManager.get_character_id(), my_name())
+	_heard[1] = Time.get_ticks_msec()
+	status_changed.emit(tr("Связь есть, хост принимает…"))
+	_register.rpc_id(1, SaveManager.get_character_id(), my_name(), NET_VERSION)
 
 
 func _on_connection_failed() -> void:
 	leave()
-	status_changed.emit(tr("Не удалось подключиться: хост не отвечает"))
+	status_changed.emit(tr("Не удалось подключиться: хост не отвечает. Проверь адрес и что игра у хоста создана"))
 
 
-func _on_peer_connected(_id: int) -> void:
-	pass
+func _on_peer_connected(id: int) -> void:
+	_heard[id] = Time.get_ticks_msec()
+	var p := multiplayer.multiplayer_peer
+	if p is ENetMultiplayerPeer and multiplayer.is_server():
+		_enet_timeouts((p as ENetMultiplayerPeer).get_peer(id))
 
 
-## Клиент представился хосту: каким героем играет
+## Клиент представился хосту: каким героем играет. Другая версия сетевого
+## кода — не пускаем: снимки и RPC разошлись бы молча
 @rpc("any_peer", "reliable")
-func _register(character_id: String, player_name := "") -> void:
+func _register(character_id: String, player_name := "", version := 0) -> void:
 	if not multiplayer.is_server():
 		return
 	var id := multiplayer.get_remote_sender_id()
+	if version != NET_VERSION:
+		_refuse(id, tr("У хоста другая версия игры — обновитесь до одной версии"))
+		return
+	if peers.size() >= MAX_PLAYERS:
+		_refuse(id, tr("Игра заполнена"))
+		return
 	peers[id] = {"character": character_id, "slot": _free_slot(), "name": player_name}
 	_sync_peers.rpc(peers)
 	# Опоздавший — сразу на тот же уровень
 	if _in_game:
 		_start.rpc_id(id, get_tree().current_scene.scene_file_path)
+		_banner(tr("%s входит в игру") % (player_name if player_name != "" else tr("Игрок")))
+
+
+## Хост: отказать подключившемуся и через миг отключить (чтобы отказ дошёл)
+func _refuse(id: int, reason: String) -> void:
+	_refused.rpc_id(id, reason)
+	get_tree().create_timer(1.0, true).timeout.connect(func():
+		var p := multiplayer.multiplayer_peer
+		if p != null and not (p is OfflineMultiplayerPeer) and multiplayer.is_server() \
+				and multiplayer.get_peers().has(id):
+			p.disconnect_peer(id))
+
+
+@rpc("authority", "call_remote", "reliable")
+func _refused(reason: String) -> void:
+	leave()
+	status_changed.emit(reason)
 
 
 func _free_slot() -> int:
@@ -350,25 +551,156 @@ func _sync_peers(all: Dictionary) -> void:
 	peers = all
 	peers_changed.emit()
 	if not multiplayer.is_server():
+		_connect_left = 0.0
 		status_changed.emit(tr("Подключено. Ждём, когда хост начнёт"))
 	_ensure_puppets()
 
 
 func _on_peer_disconnected(id: int) -> void:
+	var who := describe(id).get_slice("  ·  ", 0) if peers.has(id) else ""
 	peers.erase(id)
+	ping_ms.erase(id)
+	_heard.erase(id)
 	_remove_puppet(id)
 	peers_changed.emit()
 	if multiplayer.is_server():
 		_sync_peers.rpc(peers)
+	if who != "" and id != 1:
+		if _in_game:
+			_banner(tr("%s покидает игру") % who)
+		else:
+			status_changed.emit(tr("%s отключился") % who)
 
 
+## Хост ушёл. Если он перед этим долго молчал — это обрыв связи, а не выход
 func _on_server_disconnected() -> void:
-	var was_in_game := _in_game
-	leave()
-	session_ended.emit(tr("Хост закрыл игру"))
-	status_changed.emit(tr("Хост закрыл игру"))
-	if was_in_game:
-		SceneLoader.change_scene(MENU_SCENE)
+	var silent := Time.get_ticks_msec() - int(_heard.get(1, Time.get_ticks_msec()))
+	end_session(tr("Связь с хостом потеряна") if silent > LAG_WARN_MS \
+			else tr("Хост закрыл игру"))
+
+
+# ═════════════════ ПИНГ И ОБРЫВЫ СВЯЗИ ═════════════════
+# Раз в секунду каждый шлёт всем «пинг» со своим временем, ему отвечают
+# «понгом». Отсюда задержка до каждого игрока (в окне лобби) и «давно не
+# слышно» — тогда в игре плашка «связь прерывается». Плюс таймаут
+# подключения: если хост так и не принял нас, говорим об этом, а не висим.
+
+## Номер сетевого протокола: менять, когда меняются снимки или RPC — игроки
+## с разными версиями получат понятный отказ, а не странные рассинхроны
+const NET_VERSION := 2
+## Сколько ждать ответа хоста (Steam или IP), секунд
+const CONNECT_TIMEOUT := 20.0
+## Тишина от игрока дольше этого — «связь прерывается»
+const LAG_WARN_MS := 3000
+const PING_INTERVAL := 1.0
+const ENET_TIMEOUT_MIN_MS := 5000
+const ENET_TIMEOUT_MAX_MS := 15000
+
+signal pings_changed
+
+## peer_id -> задержка туда-обратно, мс
+var ping_ms := {}
+## Сообщение о разрыве для меню (take_notice)
+var notice := ""
+## peer_id -> когда последний раз что-то пришло (Time.get_ticks_msec)
+var _heard := {}
+var _ping_left := 0.0
+var _connect_left := 0.0
+var _steam_wait := 0.0
+var _steam_hosting := false
+var _steam_joining := 0
+var _lag_layer: CanvasLayer
+var _lag_label: Label
+
+
+func _process(delta: float) -> void:
+	if _connect_left > 0.0:
+		_connect_left -= delta
+		if _connect_left <= 0.0:
+			leave()
+			status_changed.emit(tr("Хост не ответил за %d с. Проверь, что игра у хоста создана и у обоих есть интернет") % int(CONNECT_TIMEOUT))
+	if _steam_wait > 0.0:
+		_steam_wait -= delta
+		if _steam_wait <= 0.0:
+			_steam_wait = 0.0
+			_steam_hosting = false
+			status_changed.emit(tr("Steam не ответил. Проверь, что Steam в сети, и попробуй ещё раз"))
+	if not is_online():
+		return
+	_ping_left -= delta
+	if _ping_left <= 0.0:
+		_ping_left = PING_INTERVAL
+		_ping.rpc(Time.get_ticks_msec())
+		_check_lag()
+
+
+@rpc("any_peer", "call_remote", "unreliable")
+func _ping(t: int) -> void:
+	var from := multiplayer.get_remote_sender_id()
+	_heard[from] = Time.get_ticks_msec()
+	_pong.rpc_id(from, t)
+
+
+@rpc("any_peer", "call_remote", "unreliable")
+func _pong(t: int) -> void:
+	var from := multiplayer.get_remote_sender_id()
+	var now := Time.get_ticks_msec()
+	_heard[from] = now
+	ping_ms[from] = now - t
+	pings_changed.emit()
+
+
+## Кого давно не слышно. Клиенту важен хост (через него идёт всё), хосту —
+## каждый игрок
+func _check_lag() -> void:
+	var now := Time.get_ticks_msec()
+	var names := []
+	for id in peers:
+		var pid := int(id)
+		if pid == my_id() or (not multiplayer.is_server() and pid != 1):
+			continue
+		if now - int(_heard.get(pid, now)) > LAG_WARN_MS:
+			names.append(describe(pid).get_slice("  ·  ", 0))
+	if names.is_empty():
+		_set_lag_text("")
+	elif multiplayer.is_server():
+		_set_lag_text(tr("Связь прерывается: %s") % ", ".join(names))
+	else:
+		_set_lag_text(tr("Связь с хостом прерывается…"))
+	pings_changed.emit()
+
+
+## Задержка до игрока, мс (-1 — ещё не знаем; -2 — молчит дольше LAG_WARN_MS)
+func ping_of(peer_id: int) -> int:
+	if peer_id == my_id():
+		return -1
+	if Time.get_ticks_msec() - int(_heard.get(peer_id, Time.get_ticks_msec())) > LAG_WARN_MS:
+		return -2
+	return int(ping_ms.get(peer_id, -1))
+
+
+## Плашка вверху экрана — только в игре (в меню то же видно в окне коопа)
+func _set_lag_text(text: String) -> void:
+	if text == "" or not _in_game:
+		if _lag_layer != null:
+			_lag_layer.visible = false
+		return
+	if _lag_layer == null:
+		_lag_layer = CanvasLayer.new()
+		_lag_layer.layer = 120
+		add_child(_lag_layer)
+		_lag_label = Label.new()
+		_lag_label.set_anchors_and_offsets_preset(Control.PRESET_CENTER_TOP)
+		_lag_label.grow_horizontal = Control.GROW_DIRECTION_BOTH
+		_lag_label.offset_top = 18
+		_lag_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		_lag_label.add_theme_font_size_override("font_size", 22)
+		_lag_label.add_theme_color_override("font_color", Color(1.0, 0.78, 0.45))
+		_lag_label.add_theme_color_override("font_outline_color", Color(0, 0, 0, 0.85))
+		_lag_label.add_theme_constant_override("outline_size", 6)
+		_lag_layer.add_child(_lag_label)
+	_lag_label.text = text
+	_lag_layer.visible = true
 
 
 # ═════════════════ УРОВЕНЬ ═════════════════
@@ -498,7 +830,9 @@ func _snapshot() -> Array:
 
 @rpc("any_peer", "call_remote", "unreliable_ordered", 1)
 func _state(s: Array) -> void:
-	var p := puppet_of(multiplayer.get_remote_sender_id())
+	var from := multiplayer.get_remote_sender_id()
+	_heard[from] = Time.get_ticks_msec()
+	var p := puppet_of(from)
 	if p != null:
 		p.push(s)
 
